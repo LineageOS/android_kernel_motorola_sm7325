@@ -50,7 +50,9 @@ static const struct of_device_id dsi_display_dt_match[] = {
 	{}
 };
 
-static void dsi_display_is_probed(int enable_idx, int probe_status, const char *pname);
+static int dsi_display_enable_status (struct dsi_display *display, bool enable);
+static void dsi_display_is_probed(struct dsi_display *display,
+					int probe_status);
 
 bool is_skip_op_required(struct dsi_display *display)
 {
@@ -6101,6 +6103,7 @@ static int dsi_display_bind(struct device *dev,
 	}
 
 	DSI_INFO("Successfully bind display panel '%s'\n", display->name);
+	dsi_display_is_probed(display, 0);
 	display->drm_dev = drm;
 
 	display_for_each_ctrl(i, display) {
@@ -6290,7 +6293,6 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 	int rc = 0, index = DSI_PRIMARY;
 	bool firm_req = false;
 	struct dsi_display_boot_param *boot_disp;
-	int enable_idx;
 
 	if (!pdev || !pdev->dev.of_node) {
 		DSI_ERR("pdev not found\n");
@@ -6329,15 +6331,11 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 
 	display->display_type = of_get_property(pdev->dev.of_node,
 				"label", NULL);
-	if (!display->display_type) {
+	if (!display->display_type)
 		display->display_type = "primary";
-		enable_idx = 0;
-	}
 
-	if (!strcmp(display->display_type, "secondary")) {
+	if (!strcmp(display->display_type, "secondary"))
 		index = DSI_SECONDARY;
-		enable_idx = 1;
-	}
 
 	boot_disp = &boot_displays[index];
 	node = pdev->dev.of_node;
@@ -6386,8 +6384,6 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 		rc = dsi_display_init(display);
 		if (rc)
 			goto end;
-		else
-			dsi_display_is_probed(enable_idx, rc, display->name);
 	}
 
 	return 0;
@@ -8600,7 +8596,7 @@ struct dsi_enable_status {
 	struct dsi_display *display;
 	int probed;
 	bool enable;
-	char pname[128];
+	char pname[DSI_PANEL_MAX_PANEL_LEN];
 };
 
 static struct dsi_enable_status enable_status[2] = {
@@ -8612,14 +8608,23 @@ static struct dsi_enable_status enable_status[2] = {
 	},
 };
 
-static void dsi_display_is_probed (int enable_idx, int probe_status,
-					const char *pname)
+static void dsi_display_is_probed (struct dsi_display *display,
+					int probe_status)
+
 {
+	int enable_idx;
+
+	if (!display->display_type)
+		enable_idx = 0;
+
+	if (!strcmp(display->display_type, "secondary"))
+		enable_idx = 1;
+
 	enable_status[enable_idx].probed = probe_status;
-	strncpy(enable_status[enable_idx].pname, pname,
+	strncpy(enable_status[enable_idx].pname, display->name,
 			sizeof(enable_status[enable_idx].pname));
 	DSI_DEBUG("display->drm_conn[%d] set: probe =%d, name =%s\n",
-		enable_idx, probe_status, pname);
+			enable_idx, probe_status, display->name);
 }
 
 static int dsi_display_enable_status (struct dsi_display *display, bool enable)
@@ -8645,7 +8650,8 @@ static int dsi_display_enable_status (struct dsi_display *display, bool enable)
 	return ret;
 }
 
-bool dsi_display_is_panel_enable (int panel_index, int *probe_status, char **pname)
+bool dsi_display_is_panel_enable (int panel_index, int *probe_status,
+							char **pname)
 {
 	struct dsi_display *display;
 	bool enable = false;
@@ -8673,7 +8679,6 @@ bool dsi_display_is_panel_enable (int panel_index, int *probe_status, char **pna
 	return enable;
 }
 EXPORT_SYMBOL(dsi_display_is_panel_enable);
-/* end of MMI_STOPSHIP section */
 
 int dsi_display_enable(struct dsi_display *display)
 {
@@ -8706,6 +8711,7 @@ int dsi_display_enable(struct dsi_display *display)
 			return -EINVAL;
 		}
 
+		dsi_display_enable_status(display, 1);
 		display->panel->panel_initialized = true;
 		DSI_DEBUG("cont splash enabled, display enable not required\n");
 		dsi_display_panel_id_notification(display);
