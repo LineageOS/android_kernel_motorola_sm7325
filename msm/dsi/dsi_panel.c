@@ -44,6 +44,7 @@
 static struct panel_param_val_map hbm_map[HBM_STATE_NUM] = {
 	{HBM_OFF_STATE, DSI_CMD_SET_HBM_OFF, NULL},
 	{HBM_ON_STATE, DSI_CMD_SET_HBM_ON, NULL},
+	{HBM_FOD_ON_STATE, DSI_CMD_SET_HBM_FOD_ON, NULL},
 };
 
 static struct panel_param_val_map acl_map[ACL_STATE_NUM] = {
@@ -754,6 +755,10 @@ static int dsi_panel_send_param_cmd(struct dsi_panel *panel,
 		panel_param->default_value, panel_param->value);
 
 	mutex_lock(&panel->panel_lock);
+
+	if (param_info->value >= panel_param->val_max)
+		param_info->value = panel_param->val_max - 1;
+
 	if (panel_param->value == param_info->value)
 	{
 		DSI_INFO("(mode=%d): requested value=%d is same. Do nothing\n",
@@ -1942,6 +1947,7 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-post-mode-switch-on-command",
 	"qcom,mdss-dsi-qsync-on-commands",
 	"qcom,mdss-dsi-qsync-off-commands",
+	"qcom,mdss-dsi-hbm-fod-on-command",
 	"qcom,mdss-dsi-hbm-on-command",
 	"qcom,mdss-dsi-hbm-off-command",
 	"qcom,mdss-dsi-acl-on-command",
@@ -1972,6 +1978,7 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-post-mode-switch-on-command-state",
 	"qcom,mdss-dsi-qsync-on-commands-state",
 	"qcom,mdss-dsi-qsync-off-commands-state",
+	"qcom,mdss-dsi-hbm-fod-on-command-state",
 	"qcom,mdss-dsi-hbm-on-command-state",
 	"qcom,mdss-dsi-hbm-off-command-state",
 	"qcom,mdss-dsi-acl-on-command-state",
@@ -3703,6 +3710,12 @@ static int dsi_panel_parse_param_prop(struct dsi_panel *panel,
 			if (!prop)
 				continue;
 
+			if ((type == DSI_CMD_SET_HBM_FOD_ON) &&
+						(!panel->panel_hbm_fod)) {
+				param->val_max -= 1;
+				continue;
+			}
+
 			rc = dsi_panel_parse_cmd_sets_sub(param_map->cmds,
 							type, utils);
 			if (rc) {
@@ -3718,6 +3731,9 @@ static int dsi_panel_parse_param_prop(struct dsi_panel *panel,
 			DSI_INFO("%s: feature enabled.\n", param->param_name);
 		}
 	}
+
+	panel->panel_hbm_fod = of_property_read_bool(of_node,
+				"qcom,mdss-dsi-hbm-fod");
 
 	return rc;
 
