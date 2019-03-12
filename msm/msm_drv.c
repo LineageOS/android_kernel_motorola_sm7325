@@ -43,6 +43,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_auth.h>
 #include <drm/drm_probe_helper.h>
+#include <linux/reboot.h>
 
 #include "msm_drv.h"
 #include "msm_gem.h"
@@ -428,6 +429,11 @@ static int msm_drm_uninit(struct device *dev)
 		priv->registered = false;
 	}
 
+	if (priv->msm_drv_notifier.notifier_call) {
+		unregister_reboot_notifier(&priv->msm_drv_notifier);
+		priv->msm_drv_notifier.notifier_call = NULL;
+	}
+
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 	if (fbdev && priv->fbdev)
 		msm_fbdev_free(ddev);
@@ -755,6 +761,23 @@ static struct msm_kms *_msm_drm_component_init_helper(
 	return kms;
 }
 
+static void msm_pdev_shutdown(struct platform_device *pdev);
+static int msm_drv_shutdown_notifier_cb(struct notifier_block *nb,
+					unsigned long event, void *unused)
+{
+	struct device *dev;
+	struct platform_device *pdev;
+	struct msm_drm_private *priv = container_of(nb, struct msm_drm_private,
+					msm_drv_notifier);
+
+	dev = priv->dev->dev;
+	pdev = to_platform_device(dev);
+	dev_warn(dev, "prepare to shutdown\n");
+	msm_pdev_shutdown(pdev);
+
+	return NOTIFY_DONE;
+}
+
 static int msm_drm_device_init(struct platform_device *pdev,
 		struct drm_driver *drv)
 {
@@ -937,6 +960,16 @@ static int msm_drm_component_init(struct device *dev)
 	}
 
 	drm_kms_helper_poll_init(ddev);
+
+	priv->msm_drv_notifier.notifier_call = msm_drv_shutdown_notifier_cb;
+	priv->msm_drv_notifier.next = NULL;
+	priv->msm_drv_notifier.priority = 1;
+	ret = register_reboot_notifier(&priv->msm_drv_notifier);
+	if (ret) {
+		dev_err(dev, "Failed to register for reboot_notifier. ret = %d\n",
+					ret);
+		goto fail;
+	}
 
 	return 0;
 
