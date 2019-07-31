@@ -18,6 +18,8 @@
 #include "sde_dbg.h"
 #include "sde_dsc_helper.h"
 #include "sde_vdc_helper.h"
+#include "dsi_display.h"
+
 
 /**
  * topology is currently defined by a set of following 3 values:
@@ -3606,6 +3608,22 @@ end:
 
 }
 
+static int dsi_panel_trigger_panel_dead_event(struct dsi_panel *panel)
+{
+	bool panel_dead;
+	struct drm_event event;
+	struct dsi_display *dsi_display = container_of(panel->host, struct dsi_display, host);
+	struct drm_connector *drm_conn = dsi_display->drm_conn;
+
+	panel_dead = true;
+	event.type = DRM_EVENT_PANEL_DEAD;
+	event.length = sizeof(u32);
+	msm_mode_object_event_notify(&drm_conn->base,
+			drm_conn->dev, &event, (u8 *)&panel_dead);
+
+	return 0;
+}
+
 struct dsi_panel *dsi_panel_get(struct device *parent,
 				struct device_node *of_node,
 				struct device_node *parser_node,
@@ -4838,6 +4856,7 @@ int dsi_panel_enable(struct dsi_panel *panel)
 		if (pwr_mode != panel->disp_on_chk_val) {
 			DSI_ERR("%s: Read Pwr_mode=0%x is not matched with expected value =0x%x\n",
 				__func__, pwr_mode, panel->disp_on_chk_val);
+			dsi_panel_trigger_panel_dead_event(panel);
 		} else
 			DSI_INFO("-. Pwr_mode(0x0A) = 0x%x\n", pwr_mode);
 	} else
