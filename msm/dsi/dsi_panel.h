@@ -185,8 +185,13 @@ struct drm_panel_esd_config {
 struct dsi_panel_spr_info {
 	bool enable;
 	enum msm_display_spr_pack_type pack_type;
-
 };
+
+enum panel_idx {
+        MAIN_IDX = 0,
+        PANEL_IDX_MAX,
+};
+
 enum hbm_state {
 	HBM_OFF_STATE = 0,
 	HBM_ON_STATE,
