@@ -20,6 +20,8 @@
 #include "dsi_ctrl.h"
 #include "dsi_phy.h"
 #include "dsi_panel.h"
+#include "sde_connector.h"
+#include "sde_motUtil.h"
 
 #define MAX_DSI_CTRLS_PER_DISPLAY             2
 #define DSI_CLIENT_NAME_SIZE		20
@@ -701,6 +703,17 @@ int dsi_display_cmd_transfer(struct drm_connector *connector,
  */
 int dsi_display_cmd_receive(void *display, const char *cmd_buf,
 			    u32 cmd_buf_len, u8 *recv_buf, u32 recv_buf_len);
+/**
+ * dsi_display_motUtil_transfer() - Convert motUtil data and transfer command
+ *						to the panel
+ * @display:            Handle to display.
+ * @cmd_buf:            Command buffer
+ * @cmd_buf_len:        Command buffer length in bytes
+ * @motUtil_data:	motUtil data information
+ */
+int dsi_display_motUtil_transfer(void *display, const char *cmd_buf,
+		u32 cmd_buf_len, struct motUtil *motUtil_data);
+
 
 /**
  * dsi_display_soft_reset() - perform a soft reset on DSI controller
