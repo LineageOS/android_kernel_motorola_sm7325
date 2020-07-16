@@ -137,6 +137,12 @@ struct cam_cmd_ois_info {
 	__u8                  cmd_type;
 	__u8                  ois_fw_flag;
 	__u8                  is_ois_calib;
+	__u8                  ois_preprog_flag;
+	__u8                  ois_precoeff_flag;
+	__u8                  ois_postcalib_flag;
+	__u8                  ois_fw_txn_data_sz;
+	__u8                  ois_fw_inc_addr;
+	__u8                  ois_fw_addr_type;
 	char                  ois_name[MAX_OIS_NAME_SIZE];
 	struct cam_ois_opcode opcode;
 } __attribute__((packed));
