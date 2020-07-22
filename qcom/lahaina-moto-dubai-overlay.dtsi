@@ -10,14 +10,5 @@
  * GNU General Public License for more details.
  */
 
-/dts-v1/;
-/plugin/;
-
-#include "lahaina-moto-dubai-overlay.dtsi"
-
-/ {
-	model = "Dubai";
-	compatible = "qcom,lahaina-Dubai", "qcom,lahaina-moto", "qcom,lahaina";
-	qcom,msm-id = <415 0x10000>;
-	qcom,board-id = <0x41 0xA100>;
-};
+#include "lahaina-moto-common-overlay.dtsi"
+#include "lahaina-dubai-fingerprint.dtsi"
