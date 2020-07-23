@@ -12,3 +12,4 @@
 
 #include "lahaina-moto-common-overlay.dtsi"
 #include "lahaina-dubai-fingerprint.dtsi"
+#include "lahaina-moto-dubai-display.dtsi"
