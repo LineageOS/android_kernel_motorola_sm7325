@@ -112,3 +112,76 @@
 		};
 	};
 };
+
+&tlmm {
+	laser_xsdn_active: laser_xsdn_active {
+		mux {
+			pins = "gpio2";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio2";
+			drive-strength = <2>;
+			bias-disable; /* NO PULL */
+			input-enable;
+		};
+	};
+	laser_xsdn_suspend: laser_xsdn_suspend {
+		mux {
+			pins = "gpio2";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio2";
+			drive-strength = <2>;
+			bias-pull-down; /* PULL DOWN */
+			input-enable;
+		};
+	};
+	laser_int_active: laser_int_active {
+		mux {
+			pins = "gpio3";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio3";
+			drive-strength = <2>;
+			bias-disable; /* NO PULL */
+			input-enable;
+		};
+	};
+	laser_int_suspend: laser_int_suspend {
+		mux {
+			pins = "gpio3";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio3";
+			drive-strength = <2>;
+			bias-pull-down; /* PULL DOWN */
+			input-enable;
+		};
+	};
+};
+
+&qupv3_se1_i2c {
+	status = "disabled";
+};
+
+&qupv3_se1_spi {
+	status = "ok";
+	stmvl53l5_spi: stmvl53l5@0 {
+		compatible = "st,stmvl53l5";
+		reg = <0x0>;
+		spi-max-frequency = <6400000>;
+		avdd-vl53l5-supply = <&L11C>;
+		iovdd-vl53l5-supply = <&S10B>;
+		pinctrl-names = "laser_default", "laser_suspend";
+		pinctrl-0 = <&laser_xsdn_active &laser_int_active>;
+		pinctrl-1 = <&laser_xsdn_suspend &laser_int_suspend>;
+	};
+};
