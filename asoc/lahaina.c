@@ -5359,12 +5359,14 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	int ret = 0;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai **codec_dais = rtd->codec_dais;
 	int index = cpu_dai->id;
 	unsigned int fmt = SND_SOC_DAIFMT_CBS_CFS;
 	struct snd_soc_card *card = rtd->card;
 	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 	int sample_rate = 0;
 	u32 bit_per_sample = 0;
+	int i;
 
 	dev_dbg(rtd->card->dev,
 		"%s: substream = %s  stream = %d, dai name %s, dai ID %d\n",
@@ -5455,6 +5457,34 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 				}
 			}
 			atomic_inc(&(pdata->mi2s_gpio_ref_count[index]));
+		}
+
+		for(i = 0; i < rtd->num_codecs; i++) {
+			ret = snd_soc_dai_set_fmt(codec_dais[i],
+				SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_I2S);
+			if (ret) {
+				dev_err(rtd->card->dev, "%s: Failed to set codec fmt, error %d\n",
+					__func__, ret);
+				return ret;
+			}
+
+			ret = snd_soc_component_set_sysclk(codec_dais[i]->component, 0, 0,
+				Q6AFE_LPASS_IBIT_CLK_1_P536_MHZ,
+				SND_SOC_CLOCK_IN);
+			if (ret) {
+				dev_err(rtd->card->dev, "%s: Failed to set codec sycclk, error %d\n",
+					__func__, ret);
+				return ret;
+			}
+
+			ret = snd_soc_dai_set_sysclk(codec_dais[i], 0,
+				Q6AFE_LPASS_IBIT_CLK_1_P536_MHZ,
+				SND_SOC_CLOCK_IN);
+			if (ret) {
+				dev_err(rtd->card->dev, "%s: Failed to set dai sycclk, error %d\n",
+					__func__, ret);
+				return ret;
+			}
 		}
 	}
 clk_off:
