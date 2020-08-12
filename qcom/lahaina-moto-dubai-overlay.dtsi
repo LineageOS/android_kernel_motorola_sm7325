@@ -14,7 +14,6 @@
 #include "lahaina-dubai-fingerprint.dtsi"
 #include "lahaina-moto-dubai-display.dtsi"
 #include "camera/lahaina-camera-sensor-mot-dubai-overlay.dtsi"
-#include "lahaina-moto-dubai-audio.dtsi"
 
 &pm8008i_8 {
 	status = "disabled";

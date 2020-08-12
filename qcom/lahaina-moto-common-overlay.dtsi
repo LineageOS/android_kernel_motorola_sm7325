@@ -11,6 +11,7 @@
  */
 
 #include "lahaina-moto-common-overlay-base.dtsi"
+#include "lahaina-moto-common-audio.dtsi"
 
 &utags {
 	compatible = "mmi,utags";

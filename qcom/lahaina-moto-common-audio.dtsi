@@ -262,6 +262,7 @@
 				&pri_mi2s_sd0_active &pri_mi2s_sd1_active>;
 		pinctrl-1 = <&pri_mi2s_sck_sleep &pri_mi2s_ws_sleep
 				&pri_mi2s_sd0_sleep &pri_mi2s_sd1_sleep>;
+		#gpio-cells = <0>;
    };
 };
 
