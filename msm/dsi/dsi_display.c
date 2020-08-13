@@ -9030,6 +9030,8 @@ int dsi_display_enable(struct dsi_display *display)
 		if (dsi_display_chk_esd_recovery(display))
 			goto error;
 
+	goto error;
+
 error_disable_panel:
 	(void)dsi_panel_disable(display->panel);
 error:
