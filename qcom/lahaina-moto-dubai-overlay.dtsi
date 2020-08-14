@@ -13,6 +13,7 @@
 #include "lahaina-moto-common-overlay.dtsi"
 #include "lahaina-dubai-fingerprint.dtsi"
 #include "lahaina-moto-dubai-display.dtsi"
+#include "lahaina-dubai-vibrator.dtsi"
 #include "camera/lahaina-camera-sensor-mot-dubai-overlay.dtsi"
 
 &pm8008i_8 {
