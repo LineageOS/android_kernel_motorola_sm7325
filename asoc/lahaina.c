@@ -5471,7 +5471,7 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 			ret = snd_soc_component_set_sysclk(codec_dais[i]->component, 0, 0,
 				Q6AFE_LPASS_IBIT_CLK_1_P536_MHZ,
 				SND_SOC_CLOCK_IN);
-			if (ret) {
+			if (ret && ret != -ENOTSUPP) {
 				dev_err(rtd->card->dev, "%s: Failed to set codec sycclk, error %d\n",
 					__func__, ret);
 				return ret;
