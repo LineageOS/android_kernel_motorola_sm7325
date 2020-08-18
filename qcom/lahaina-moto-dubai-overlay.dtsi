@@ -167,6 +167,19 @@
 			input-enable;
 		};
 	};
+	redriver_enable: redriver_enable {
+		mux {
+			pins = "gpio27";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio27";
+			drive-strength = <2>;
+			bias-disable; /* NO PULL */
+			input-enable;
+		};
+	};
 };
 
 &qupv3_se1_i2c {
@@ -184,5 +197,50 @@
 		pinctrl-names = "laser_default", "laser_suspend";
 		pinctrl-0 = <&laser_xsdn_active &laser_int_active>;
 		pinctrl-1 = <&laser_xsdn_suspend &laser_int_suspend>;
+	};
+};
+
+&qupv3_se5_spi {
+	status = "disabled";
+};
+
+&qupv3_se5_i2c {
+	status = "disabled";
+};
+
+&qupv3_se13_spi {
+	status = "disabled";
+};
+
+&qupv3_se13_i2c {
+	status = "ok";
+	redriver: redriver@1a {
+		compatible = "onnn,redriver";
+		reg = <0x1a>;
+		vcc-supply = <&S10B>;
+		pinctrl-names = "enable_gpio";
+		pinctrl-0 = <&usb3phy_portselect_gpio &redriver_enable>;
+		orientation_gpio = <&tlmm 81 0>;
+
+		eq = /bits/ 8 <
+				/* Parameters for USB */
+				0x4 0x4 0x4 0x4
+				/* Parameters for DP */
+				0x6 0x4 0x4 0x6>;
+		flat-gain = /bits/ 8 <
+				/* Parameters for USB */
+				0x3 0x1 0x1 0x3
+				/* Parameters for DP */
+				0x2 0x1 0x1 0x2>;
+		output-comp = /bits/ 8 <
+				/* Parameters for USB */
+				0x3 0x3 0x3 0x3
+				/* Parameters for DP */
+				0x3 0x3 0x3 0x3>;
+		loss-match = /bits/ 8 <
+				/* Parameters for USB */
+				0x1 0x3 0x3 0x1
+				/* Parameters for DP */
+				0x3 0x3 0x3 0x3>;
 	};
 };
