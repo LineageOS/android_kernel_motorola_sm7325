@@ -21,3 +21,8 @@
 	qcom,msm-id = <415 0x10000>;
 	qcom,board-id = <0x41 0xA100>;
 };
+
+&stmvl53l5_spi {
+	avdd-vl53l5-supply = <&L7C>;
+	iovdd-vl53l5-supply = <&L8C>;
+};
