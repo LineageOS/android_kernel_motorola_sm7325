@@ -284,8 +284,7 @@
 &lahaina_snd {
 	qcom,model = "lahaina-dubai-snd-card";
 	qcom,wsa-max-devs = <0x0>;
-	/* MMI_STOPSHIP disable it on EVB board due to HW issue*/
-	qcom,wcn-bt = <0x0>;
+	qcom,wcn-bt = <0x1>;
 	qcom,swr-dmic-max-devs = <0>;
 	qcom,pri-mi2s-gpios = <&cdc_pri_mi2s_gpios>;
 	qcom,tert-mi2s-gpios = <&cdc_tert_mi2s_gpios>;
