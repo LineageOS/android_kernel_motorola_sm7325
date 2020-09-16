@@ -25,3 +25,25 @@
 	mmi,main-utags = "/dev/block/bootdevice/by-name/hw";
 };
 
+&reserved_memory{
+	ramoops_mem {
+		compatible = "ramoops";
+		no-map;
+		reg = <0x0 0xae000000 0x0 0xc0000>;
+		console-size = <0x40000>;
+		pmsg-size = <0x40000>;
+		record-size = <0x3f800>;
+	};
+
+	tzlog_dump_mem: tzlog_dump_mem_region {
+			no-map;
+			reg = <0x0 0xadfd0000 0x0 0x30000>;
+	};
+
+	mmi_annotate_mem: mmi_annotate_mem_region {
+			  no-map;
+			  reg = <0x0 0xadfcf800 0x0 0x800>;
+	};
+
+};
+
