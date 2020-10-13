@@ -19,25 +19,12 @@
 	model = "Dubai";
 	compatible = "qcom,lahaina-Dubai", "qcom,lahaina-moto", "qcom,lahaina";
 	qcom,msm-id = <415 0x10000>;
-	qcom,board-id = <0x41 0xA100>;
+	qcom,board-id = <0x41 0xA200>;
 };
 
 &stmvl53l5_spi {
 	avdd-vl53l5-supply = <&L7C>;
 	iovdd-vl53l5-supply = <&L8C>;
-};
-
-/*
- * EVB board touchscreen dts config
- */
-&qupv3_se4_i2c {
-	sec_mmi@48 {
-		sec,regulator_dvdd = "pm8350c_l8";
-	};
-
-	synaptics_tcm@4b {
-		synaptics,bus-reg-name = "pm8350c_l8";
-	};
 };
 
 /*

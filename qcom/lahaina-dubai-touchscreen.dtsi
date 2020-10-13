@@ -64,6 +64,48 @@
 			};
 		};
 	};
+
+	touch_vio_en_mux {
+		touch_vio_en_active: active {
+			mux {
+				pins = "gpio83";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio83";
+				drive-strength = <2>;
+				bias-disable;
+				output-high;
+			};
+		};
+
+		touch_vio_en_suspend: default {
+			mux {
+				pins = "gpio83";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio83";
+				drive-strength = <2>;
+				bias-pull-down;
+				output-low;
+			};
+		};
+	};
+};
+
+&soc {
+	tp_panel_dvdd: tp_gpio_regulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "tp_panel_dvdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&tlmm 83 0>;
+		enable-active-high;
+		regulator-boot-on;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_vio_en_active>;
+	};
 };
 
 &pm8350c_l3 {
@@ -87,7 +129,7 @@
 		sec,max_coords = <1080 2340>;
 		sec,size_to_pixel_multiple_factor = <1948>;
 		sec,regulator_avdd = "pm8350c_l3";
-		sec,regulator_dvdd = "pm8350c_l8";
+		sec,regulator_dvdd = "tp_panel_dvdd";
 		pinctrl-names = "on_state", "off_state";
 		pinctrl-0 = <&touch_reset_active &touch_int_active>;
 		pinctrl-1 = <&touch_reset_suspend &touch_int_suspend>;
@@ -110,7 +152,7 @@
 		synaptics,ubl-i2c-addr = <0x4b>;
 		synaptics,size_to_pixel_multiple_factor = <1948>;
 		synaptics,pwr-reg-name = "pm8350c_l3";
-		synaptics,bus-reg-name = "pm8350c_l8";
+		synaptics,bus-reg-name = "tp_panel_dvdd";
 		pinctrl-names = "ts_mmi_on_state", "ts_mmi_off_state";
 		pinctrl-0 = <&touch_reset_active_output_high &touch_int_active>;
 		pinctrl-1 = <&touch_reset_suspend &touch_int_suspend>;
