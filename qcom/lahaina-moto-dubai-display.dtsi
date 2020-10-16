@@ -14,7 +14,7 @@
 #include "dsi-panel-mot-dummy-qhd-video.dtsi"
 
 &mdss_mdp {
-	connectors = <&sde_wb &sde_dsi &sde_rscc>;
+	connectors = <&sde_wb &sde_dsi &sde_rscc &sde_dp>;
 
 	mot_boe_667_1080p_cmd_v0: qcom,mdss_dsi_mot_boe_667_1080p_cmd_v0 {
 		#include "dsi-panel-mot-boe-667-1080p-racer-cmd-common.dtsi"
