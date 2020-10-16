@@ -272,6 +272,15 @@
 	#include "lahaina-moto-common-redriver.dtsi"
 };
 
+&cirrus_cs35l45 {
+	status = "ok";
+};
+
+&lahaina_snd {
+	qcom,msm-mbhc-usbc-audio-supported = <1>;
+	qcom,msm-mbhc-hphl-swh = <0>;
+	qcom,msm-mbhc-gnd-swh = <0>;
+};
 /*
 *  End: override EVB board camera dts config
 */

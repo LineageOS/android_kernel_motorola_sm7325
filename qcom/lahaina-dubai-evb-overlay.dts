@@ -285,6 +285,20 @@
 	#include "lahaina-moto-common-redriver.dtsi"
 };
 
+&cirrus_cs35l41 {
+	status = "ok";
+};
+
+&lahaina_snd {
+	qcom,model = "lahaina-stereo_prince-snd-card";
+	cirrus,franklin-max-devs = <0>;
+	cirrus,prince-max-devs = <2>;
+	asoc-codec  = <&stub_codec>, <&bolero>,
+		<&wcd938x_codec>,
+		<&ext_disp_audio_codec>,
+		<&cirrus_cs35l41>, <&cirrus_rcv>,
+		<&aw869xx_haptic>;
+};
 /*
 *  End: override EVB board camera dts config
 */

@@ -12,7 +12,7 @@
 #include "lahaina-audio-overlay.dtsi"
 
 &tlmm {
-	prince_reset_default: prince_reset_default {
+	cirrus_spk_reset_default: cirrus_spk_reset_default {
 		mux {
 			pins = "gpio15";
 			function = "gpio";
@@ -25,7 +25,7 @@
 		};
 	};
 
-	prince_irq_default: prince_irq_default {
+	cirrus_spk_irq_default: cirrus_spk_irq_default {
 		mux {
 			pins = "gpio14";
 			function = "gpio";
@@ -38,7 +38,7 @@
 		};
 	};
 
-	prince_rcv_reset_default: prince_rcv_reset_default {
+	cirrus_rcv_reset_default: cirrus_rcv_reset_default {
 		mux {
 			pins = "gpio42";
 			function = "gpio";
@@ -51,7 +51,7 @@
 		};
 	};
 
-	prince_rcv_irq_default: prince_rcv_irq_default {
+	cirrus_rcv_irq_default: cirrus_rcv_irq_default {
 		mux {
 			pins = "gpio48";
 			function = "gpio";
@@ -97,7 +97,38 @@
 	pinctrl-1 = <&qupv3_se19_spi_sleep &qupv3_se19_spi_cs3_sleep>;
 	status = "okay";
 
-	cs35l41_spk: cs35l41@0 {
+	cirrus_cs35l45: cs35l45@0 {
+		compatible = "cirrus,cs35l45";
+		spi-max-frequency = <9600000>;
+		reg = <0x0>;
+		reset-gpios = <&tlmm 15 0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <14 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupt-names = "cirrus_spk_irq";
+		sound-name-prefix = "SPK";
+		status = "disabled";
+
+		VA-supply = <&S10B>;
+		VP-supply = <&S10B>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cirrus_spk_irq_default>, <&cirrus_spk_reset_default>;
+
+		cirrus,asp-sdout-hiz = <3>;
+
+		cirrus,gpio-ctrl1 {
+			gpio-ctrl = <0x0>;
+			gpio-dir = <0x1>;
+		};
+
+		cirrus,gpio-ctrl2 {
+			gpio-ctrl = <0x02>;
+		};
+	};
+
+	cirrus_cs35l41: cs35l41@0 {
 		compatible = "cirrus,cs35l41";
 		spi-max-frequency = <19200000>;
 		reg = <0x0>;
@@ -106,14 +137,15 @@
 		interrupts = <14 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		interrupt-names = "prince_spk_irq";
+		interrupt-names = "cirrus_spk_irq";
 		sound-name-prefix = "SPK";
+		status = "disabled";
 
 		VA-supply = <&S10B>;
 		VP-supply = <&S10B>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&prince_irq_default>, <&prince_reset_default>;
+		pinctrl-0 = <&cirrus_spk_irq_default>, <&cirrus_spk_reset_default>;
 
 		cirrus,right-channel-amp;
 		cirrus,boost-ind-nanohenry = <1000>; /* 1uH */
@@ -127,33 +159,8 @@
 			cirrus,gpio-output-enable = <0x01>;
 			cirrus,gpio-src-select = <0x04>;
 		};
-
-		adsps {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			adsp@2b80000 {
-				reg = <0x2b80000>;
-				firmware {
-					protection {
-						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-spk-prot.wmfw";
-						cirrus,bin-file = "cs35l41-dsp1-spk-prot.bin";
-					};
-					calibration {
-						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-spk-prot.wmfw";
-						cirrus,bin-file = "cs35l41-dsp1-spk-cali.bin";
-					};
-					diagnostic {
-						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-spk-diag.wmfw";
-					};
-				};
-			};
-		};
 	};
-
-	cs35l41_rcv: cs35l41@3 {
+	cirrus_rcv: cs35l41@3 {
 		compatible = "cirrus,cs35l41";
 		spi-max-frequency = <19200000>;
 		reg = <0x3>;
@@ -162,14 +169,14 @@
 		interrupts = <48 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		interrupt-names = "prince_rcv_irq";
+		interrupt-names = "cirrus_rcv_irq";
 		sound-name-prefix = "RCV";
 
 		VA-supply = <&S10B>;
 		VP-supply = <&S10B>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&prince_rcv_irq_default>, <&prince_rcv_reset_default>;
+		pinctrl-0 = <&cirrus_rcv_irq_default>, <&cirrus_rcv_reset_default>;
 
 		cirrus,boost-ind-nanohenry = <1000>; /* 1uH */
 		cirrus,boost-ctl-millivolt = <11000>;
@@ -184,31 +191,7 @@
 		};
 
 		cirrus,gpio-config1 {
-			cirrus,gpio-src-select = <0x1>;
-		};
-
-		adsps {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			adsp@2b80000 {
-				reg = <0x2b80000>;
-				firmware {
-					protection {
-						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-spk-prot.wmfw";
-						cirrus,bin-file = "cs35l41-dsp1-rcv-prot.bin";
-					};
-					calibration {
-						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-spk-prot.wmfw";
-						cirrus,bin-file = "cs35l41-dsp1-rcv-cali.bin";
-					};
-					diagnostic {
-						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-spk-diag.wmfw";
-					};
-				};
-			};
+			cirrus,gpio-src-select = <0x0>;
 		};
 	};
 };
@@ -283,6 +266,9 @@
 
 &lahaina_snd {
 	qcom,model = "lahaina-dubai-snd-card";
+	cirrus,franklin-max-devs = <1>;
+	cirrus,prince-max-devs = <1>;
+	awinic,haptic-supported;
 	qcom,wsa-max-devs = <0x0>;
 	qcom,wcn-bt = <0x1>;
 	qcom,swr-dmic-max-devs = <0>;
@@ -310,19 +296,20 @@
 		"VA_AIF1 CAP", "VA_SWR_CLK",
 		"VA_AIF2 CAP", "VA_SWR_CLK",
 		"VA_AIF3 CAP", "VA_SWR_CLK";
+
 	asoc-codec  = <&stub_codec>, <&bolero>,
 		<&wcd938x_codec>,
 		<&ext_disp_audio_codec>,
-		<&cs35l41_spk>, <&cs35l41_rcv>,
+		<&cirrus_cs35l45>, <&cirrus_rcv>,
 		<&aw869xx_haptic>;
 	asoc-codec-names = "msm-stub-codec.1", "bolero_codec",
 		"wcd938x_codec",
 		"msm-ext-disp-audio-codec-rx",
-		"cs35l41-spk", "cs35l41-rcv",
+		"cirrus-spk", "cirrus-rcv",
 		"awinic-hapic";
 
 	/delete-node/ qcom,cdc-dmic01-gpios;
 	/delete-node/ qcom,cdc-dmic23-gpios;
 	/delete-node/ qcom,cdc-dmic45-gpios;
-	/delete-node/ fsa4480-i2c-handle;
 };
+
