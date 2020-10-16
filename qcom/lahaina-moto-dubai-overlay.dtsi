@@ -17,6 +17,7 @@
 #include "lahaina-dubai-touchscreen.dtsi"
 #include "lahaina-dubai-audio.dtsi"
 #include "camera/lahaina-camera-sensor-mot-dubai-overlay.dtsi"
+#include <dt-bindings/clock/qcom,rpmh.h>
 
 &pm8008i_8 {
 	status = "disabled";
@@ -249,6 +250,27 @@
                                 &nfc_clk_req_active &nfc_fwdl_active>;
                 pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend
                                 &nfc_clk_req_suspend &nfc_fwdl_suspend>;
+        };
+};
+
+&qupv3_se6_spi {
+        status = "ok";
+        spi-max-frequency = <20000000>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        sr100@0 {
+                compatible = "nxp,sr100";
+                mmi,status = "/chosen", "mmi,uwb", "true";
+                reg = <0>;
+                nxp,sr100-irq = <&tlmm 51 0x00>;
+                nxp,sr100-ce = <&tlmm 132 0x00>;
+                nxp,sr100-ri = <&tlmm 131 0x00>;
+                nxp,sr100-rtc = <&tlmm 155 0x00>;
+                interrupt-parent = <&tlmm>;
+                interrupts = <51 0>;
+                spi-max-frequency = <20000000>;
+                clocks = <&clock_rpmh RPMH_RF_CLK2>;
+                clock-names = "rf_clk2";
         };
 };
 
