@@ -276,6 +276,15 @@
 	};
 };
 
+&qupv3_se13_spi {
+	status = "disabled";
+};
+
+&qupv3_se13_i2c {
+	status = "ok";
+	#include "lahaina-moto-common-redriver.dtsi"
+};
+
 /*
 *  End: override EVB board camera dts config
 */
