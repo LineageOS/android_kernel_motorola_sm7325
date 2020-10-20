@@ -119,6 +119,22 @@
 &qupv3_se4_i2c {
 	status = "ok";
 
+	st_fts@49 {
+		status = "ok";
+		compatible = "st,fts";
+		reg = <0x49>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <23 0x2008>;
+		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
+		pinctrl-0 = <&touch_reset_active &touch_int_active>;
+		pinctrl-1 = <&touch_reset_suspend &touch_int_suspend>;
+		st,reset-gpio = <&tlmm 22 0>;
+		st,irq-gpio = <&tlmm 23 0x2008>;
+		st,regulator_avdd = "pm8350c_l3";
+		st,regulator_dvdd = "tp_panel_dvdd";
+		panel = <&mot_csot_st_667_1080p_cmd>;
+	};
+
 	sec_mmi@48 {
 		status = "ok";
 		compatible = "sec,sec_ts";

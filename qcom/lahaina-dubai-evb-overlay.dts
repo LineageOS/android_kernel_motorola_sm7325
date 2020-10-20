@@ -38,6 +38,10 @@
 	synaptics_tcm@4b {
 		synaptics,bus-reg-name = "pm8350c_l8";
 	};
+
+	st_fts@49 {
+		st,regulator_dvdd = "pm8350c_l8";
+	};
 };
 
 /*
