@@ -8861,7 +8861,7 @@ int dsi_display_enable(struct dsi_display *display)
 			       display->name, rc);
 			goto error;
 		}
-
+		dsi_panel_reset_param(display->panel);
 		dsi_display_enable_status(display, true);
 	}
 	dsi_display_panel_id_notification(display);
@@ -8875,7 +8875,6 @@ int dsi_display_enable(struct dsi_display *display)
 				display->name, rc);
 			goto error;
 		}
-		dsi_panel_reset_param(display->panel);
 	}
 
 	if (mode->dsi_mode_flags & DSI_MODE_FLAG_DMS) {
