@@ -4719,6 +4719,7 @@ static int dsi_display_res_init(struct dsi_display *display)
 	int rc = 0;
 	int i;
 	struct dsi_display_ctrl *ctrl;
+	u32 panel_idx = 0;
 
 	display_for_each_ctrl(i, display) {
 		ctrl = &display->ctrl[i];
@@ -4740,12 +4741,21 @@ static int dsi_display_res_init(struct dsi_display *display)
 		}
 	}
 
+	if (!strcmp(display->display_type, "primary"))
+		panel_idx = 0;
+	else if (!strcmp(display->display_type, "secondary"))
+		panel_idx = 1;
+	else {
+		DSI_WARN("Unalbe to find the display type");
+		panel_idx = 0;
+	}
 	display->panel = dsi_panel_get(&display->pdev->dev,
 				display->panel_node,
 				display->parser_node,
 				display->display_type,
 				display->cmdline_topology,
-				display->trusted_vm_env);
+				display->trusted_vm_env,
+				panel_idx);
 	if (IS_ERR_OR_NULL(display->panel)) {
 		rc = PTR_ERR(display->panel);
 		DSI_ERR("failed to get panel, rc=%d\n", rc);
