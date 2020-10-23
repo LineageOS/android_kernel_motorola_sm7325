@@ -272,6 +272,10 @@
 	#include "lahaina-moto-common-redriver.dtsi"
 };
 
+&usb0 {
+	ssusb_redriver = <&redriver>;
+};
+
 &cirrus_cs35l45 {
 	status = "ok";
 };
