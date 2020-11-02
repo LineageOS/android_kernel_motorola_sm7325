@@ -422,7 +422,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsc-version = <0x11>;
 		qcom,mdss-dsc-slice-height = <12>;
 		qcom,mdss-dsc-slice-width = <1080>;
-		qcom,mdss-dsc-slice-per-pkt = <1>;
+		qcom,mdss-dsc-slice-per-pkt = <2>;
 		qcom,mdss-dsc-bit-per-component = <10>;
 		qcom,mdss-dsc-bit-per-pixel = <8>;
 		qcom,mdss-dsc-block-prediction-enable;
@@ -510,7 +510,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsc-version = <0x11>;
 		qcom,mdss-dsc-slice-height = <12>;
 		qcom,mdss-dsc-slice-width = <1080>;
-		qcom,mdss-dsc-slice-per-pkt = <1>;
+		qcom,mdss-dsc-slice-per-pkt = <2>;
 		qcom,mdss-dsc-bit-per-component = <10>;
 		qcom,mdss-dsc-bit-per-pixel = <8>;
 		qcom,mdss-dsc-block-prediction-enable;
@@ -598,7 +598,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsc-version = <0x11>;
 		qcom,mdss-dsc-slice-height = <12>;
 		qcom,mdss-dsc-slice-width = <1080>;
-		qcom,mdss-dsc-slice-per-pkt = <1>;
+		qcom,mdss-dsc-slice-per-pkt = <2>;
 		qcom,mdss-dsc-bit-per-component = <10>;
 		qcom,mdss-dsc-bit-per-pixel = <8>;
 		qcom,mdss-dsc-block-prediction-enable;
@@ -686,7 +686,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsc-version = <0x11>;
 		qcom,mdss-dsc-slice-height = <12>;
 		qcom,mdss-dsc-slice-width = <1080>;
-		qcom,mdss-dsc-slice-per-pkt = <1>;
+		qcom,mdss-dsc-slice-per-pkt = <2>;
 		qcom,mdss-dsc-bit-per-component = <10>;
 		qcom,mdss-dsc-bit-per-pixel = <8>;
 		qcom,mdss-dsc-block-prediction-enable;
@@ -774,7 +774,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsc-version = <0x11>;
 		qcom,mdss-dsc-slice-height = <12>;
 		qcom,mdss-dsc-slice-width = <1080>;
-		qcom,mdss-dsc-slice-per-pkt = <1>;
+		qcom,mdss-dsc-slice-per-pkt = <2>;
 		qcom,mdss-dsc-bit-per-component = <10>;
 		qcom,mdss-dsc-bit-per-pixel = <8>;
 		qcom,mdss-dsc-block-prediction-enable;
