@@ -146,7 +146,7 @@
 		synaptics,irq-on-state = <0>;
 		synaptics,reset-gpio = <&tlmm 22 0x0000>;
 		synaptics,reset-on-state = <0>;
-		synaptics,reset-active-ms = <0>;
+		synaptics,reset-active-ms = <20>;
 		synaptics,reset-delay-ms = <200>;
 		synaptics,power-delay-ms = <200>;
 		synaptics,ubl-i2c-addr = <0x4b>;
