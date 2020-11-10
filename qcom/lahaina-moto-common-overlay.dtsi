@@ -44,6 +44,9 @@
 			  reg = <0x0 0xadfcf800 0x0 0x800>;
 	};
 
+	mmi_relay_mem: mmi_relay_mem_region {
+			  compatible = "mmi,sys-relay";
+	};
 };
 
 &pmk8350_sdam_2 {
