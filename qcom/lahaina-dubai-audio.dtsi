@@ -126,6 +126,26 @@
 		cirrus,gpio-ctrl2 {
 			gpio-ctrl = <0x02>;
 		};
+
+		adsps {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			adsp@2b80000 {
+				reg = <0x2b80000>;
+				firmware {
+					protection {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l45-dsp1-spk-prot.wmfw";
+						cirrus,bin-file = "cs35l45-dsp1-spk-prot.bin";
+					};
+					calibration {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l45-dsp1-spk-prot.wmfw";
+						cirrus,bin-file = "cs35l45-dsp1-spk-cali.bin";
+					};
+				};
+			};
+		};
 	};
 
 	cirrus_cs35l41: cs35l41@0 {
@@ -159,7 +179,32 @@
 			cirrus,gpio-output-enable = <0x01>;
 			cirrus,gpio-src-select = <0x04>;
 		};
+
+		adsps {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			adsp@2b80000 {
+				reg = <0x2b80000>;
+				firmware {
+					protection {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-spk-prot.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-spk-prot.bin";
+					};
+					calibration {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-spk-prot.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-spk-cali.bin";
+					};
+					diagnostic {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-spk-diag.wmfw";
+					};
+				};
+			};
+		};
 	};
+
 	cirrus_rcv: cs35l41@3 {
 		compatible = "cirrus,cs35l41";
 		spi-max-frequency = <19200000>;
@@ -192,6 +237,30 @@
 
 		cirrus,gpio-config1 {
 			cirrus,gpio-src-select = <0x0>;
+		};
+
+		adsps {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			adsp@2b80000 {
+				reg = <0x2b80000>;
+				firmware {
+					protection {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-spk-prot.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-rcv-prot.bin";
+					};
+					calibration {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-spk-prot.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-rcv-cali.bin";
+					};
+					diagnostic {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-spk-diag.wmfw";
+					};
+				};
+			};
 		};
 	};
 };
