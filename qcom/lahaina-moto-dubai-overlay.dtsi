@@ -18,6 +18,7 @@
 #include "lahaina-dubai-audio.dtsi"
 #include "camera/lahaina-camera-sensor-mot-dubai-overlay.dtsi"
 #include <dt-bindings/clock/qcom,rpmh.h>
+#include "lahaina-moto-common-charger.dtsi"
 
 &pm8008i_8 {
 	status = "disabled";
