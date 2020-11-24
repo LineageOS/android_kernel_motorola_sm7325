@@ -182,6 +182,19 @@
 			input-enable;
 		};
 	};
+	redriver_disable: redriver_disable {
+		mux {
+			pins = "gpio27";
+				function = "gpio";
+			};
+
+		config {
+			pins = "gpio27";
+			drive-strength = <2>;
+			output-low;
+		};
+	};
+
 };
 
 &qupv3_se1_i2c {
