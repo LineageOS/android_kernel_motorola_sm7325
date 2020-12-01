@@ -30,6 +30,7 @@
 #include "sde_dsc_helper.h"
 #include "sde_vdc_helper.h"
 #include "dsi_display.h"
+#include "dsi_display_mot_ext.h"
 
 #if defined(CONFIG_DRM_DYNAMIC_REFRESH_RATE)
 static struct blocking_notifier_head dsi_freq_head =
@@ -4153,6 +4154,17 @@ static int dsi_panel_parse_mot_panel_config(struct dsi_panel *panel,
 
 	panel->tp_state_check_enable = of_property_read_bool(of_node,
 				"qcom,tp_state_check_enable");
+
+	rc = of_property_read_u32(of_node,
+			"qcom,mdss-dsi-panel-param-verision",
+			&panel->paramVersion);
+       if (rc) {
+	    DSI_INFO("qcom,mdss-dsi-panel-param-verision not found, set param version to max value 991231\n");
+           panel->paramVersion = 991231;//format:YYMMDD
+       } else {
+	    DSI_INFO("got paramVersion %d from qcom,mdss-dsi-panel-param-verision\n", panel->paramVersion);
+       }
+
 	return rc;
 }
 
@@ -5608,13 +5620,19 @@ int dsi_panel_enable(struct dsi_panel *panel)
 {
 	int rc = 0;
 	u8 pwr_mode;
-	struct dsi_display *dsi_display = container_of(panel->host,
-										struct dsi_display, host);
+	struct dsi_display *dsi_display;
+
 
 	if (!panel) {
 		DSI_ERR("Invalid params\n");
 		return -EINVAL;
 	}
+
+       dsi_display = container_of(panel->host, struct dsi_display, host);
+       if (!dsi_display) {
+		DSI_ERR("faied to get dsi_display\n");
+		return -EINVAL;
+       }
 
 	DSI_INFO("(%s)+\n", panel->name);
 	mutex_lock(&panel->panel_lock);

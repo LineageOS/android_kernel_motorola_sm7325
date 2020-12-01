@@ -9515,6 +9515,7 @@ void __exit dsi_display_unregister(void)
 }
 module_param_string(dsi_display0, dsi_display_primary, MAX_CMDLINE_PARAM_LEN,
 								0600);
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
 MODULE_PARM_DESC(dsi_display0,
 	"msm_drm.dsi_display0=<display node>:<configX> where <display node> is 'primary dsi display node name' and <configX> where x represents index in the topology list");
 module_param_string(dsi_display1, dsi_display_secondary, MAX_CMDLINE_PARAM_LEN,
