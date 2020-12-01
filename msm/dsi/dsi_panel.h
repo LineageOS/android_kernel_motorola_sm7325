@@ -386,6 +386,7 @@ struct dsi_panel {
 
 	int panel_recovery_retry;
 	bool is_panel_dead;
+	int paramVersion;
 };
 
 bool dsi_display_all_displays_dead(void);
