@@ -619,8 +619,10 @@ error_exit:
 	return false;
 }
 
-void dsi_panel_mot_parse_timing_from_file(struct dsi_display *display, int index)
+#define PARAM_READ_FILE 1
+bool dsi_panel_mot_parse_timing_from_file(struct dsi_display *display, int index)
 {
+	bool ret = false;
 	int rc = 0;
 	u32 val = 0;
 	u32 keylen, llen, cmdstrlen;
@@ -632,12 +634,22 @@ void dsi_panel_mot_parse_timing_from_file(struct dsi_display *display, int index
 	char * pline = NULL;
 	char * plinebuf = NULL;
 	char * plineEnd = NULL;
-	const struct firmware *fw = NULL;
+	struct firmware *fw = NULL;
 	struct dsi_mode_info *mode_timing = NULL ;
+
+
+#if PARAM_READ_FILE
+	char file_path[255] = { 0 };
+	struct file *filp = NULL;
+	struct inode *inode;
+	mm_segment_t old_fs;
+	loff_t pos;
+	loff_t file_len = 0;
+#endif
 
 	if (!display) {
 		pr_warn("display is null\n");
-		return;
+		return ret;
 	}
 
 	mode_timing = &display->modes[index].timing;
@@ -652,10 +664,43 @@ void dsi_panel_mot_parse_timing_from_file(struct dsi_display *display, int index
 	pr_info("panel clk rate:%d mdp_transfer_time_us:%d refresh_rate:%d\n",
 		display_mode->priv_info->clk_rate_hz , display_mode->priv_info->mdp_transfer_time_us, mode_timing->refresh_rate);
 
+#if PARAM_READ_FILE
+
+	snprintf(file_path, 255, "/data/vendor/param/display/%s.txt", display->panel->name);
+	filp = filp_open(file_path, O_RDONLY, 0);
+	if (IS_ERR(filp)) {
+		pr_err("%s: failed to open file %s\n", __func__, file_path);
+		return ret;
+	}
+
+	inode = filp->f_inode;
+	file_len = inode->i_size;
+	fwbuf = kmalloc(file_len+1, GFP_KERNEL);
+	if (!fwbuf) {
+		pr_err("%s: kmalloc failed for file %s, file_len: %d\n", __func__, file_path, file_len);
+		filp_close(filp, NULL);
+		return ret;
+	}
+	memset(fwbuf, 0, file_len+1);
+	pr_info("%s: open file %s success, length: %d\n", __func__, file_path, file_len);
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+	pos = 0;
+	rc = kernel_read(filp, fwbuf, file_len , &pos);
+	pr_info("%s: read got %d bytes, pos:%d\n", __func__, rc, (u32)pos);
+	filp_close(filp, NULL);
+	set_fs(old_fs);
+       // just for compatible to requesting firmware
+	fw = kzalloc(sizeof(struct firmware), GFP_KERNEL);
+       fw->size = file_len;
+       fw->data = fwbuf;
+#else
+
 	rc = request_firmware(&fw, "lcd-paras.txt", &display->pdev->dev);//
 	if (rc < 0) {
 		dev_warn_once(&display->pdev->dev, "Request firmware failed - /sdcard/lcd-paras.txt (%d)\n", rc);
-		return;
+		return ret;
 	}
 	pr_info("found LCD para debug file, length: %d !\n", fw->size);
 
@@ -665,11 +710,15 @@ void dsi_panel_mot_parse_timing_from_file(struct dsi_display *display, int index
 
 	fwbuf = kmalloc(fw->size+1, GFP_KERNEL);
 	if (!fwbuf) {
-		pr_warn("kmalloc failed for fwbuf\n");
-		return;
+		pr_err("kmalloc failed for fwbuf\n");
+		release_firmware(fw);
+		return ret;
 	}
 	memset(fwbuf, 0, fw->size + 1);
 	memcpy(fwbuf, fw->data, fw->size);
+
+#endif
+
 	pbuf = fwbuf;
 
 	plinebuf = kmalloc(LCD_PARA_LINE_LEN, GFP_KERNEL);
@@ -677,7 +726,6 @@ void dsi_panel_mot_parse_timing_from_file(struct dsi_display *display, int index
 	if (!plinebuf) {
 		pr_warn("kmalloc failed for pline\n");
 		goto timing_err_exit;
-		return;
 	}
 
 	plineEnd = strstr(pbuf, "\n");
@@ -715,6 +763,13 @@ void dsi_panel_mot_parse_timing_from_file(struct dsi_display *display, int index
 		if ( strncmp(pline, "/*", 2)  == 0) {
 			//go relaign pbuf
 			goto goContinue;
+		}
+
+		if (dsi_panel_mot_parse_u32(pline, "ParamVersion", &val)) {
+			pr_info("got ParamVersion: %d\n", val);
+			if (val > display->panel->paramVersion) {
+			    goto timing_err_exit;
+			}
 		}
 
 		if (dsi_panel_mot_parse_u32(pline, "qcom,mdss-dsi-panel-clockrate", &val)) {
@@ -799,10 +854,10 @@ void dsi_panel_mot_parse_timing_from_file(struct dsi_display *display, int index
 			display->panel->phy_props.panel_height_mm = val;
 		}
 
-		if (dsi_panel_mot_parse_u32(pline, "qcom,mdss-dsc-version", &val)) {
+		/*if (dsi_panel_mot_parse_u32(pline, "qcom,mdss-dsc-version", &val)) {
 			pr_info("got qcom,mdss-dsc-version: %d\n", val);
 			display_mode->priv_info->dsc.version = val & 0xff;
-		}
+		}*/
 
 		if (dsi_panel_mot_parse_u32(pline, "qcom,mdss-dsc-scr-version", &val)) {
 			pr_info("got qcom,mdss-dsc-scr-version: %d\n", val);
@@ -811,18 +866,18 @@ void dsi_panel_mot_parse_timing_from_file(struct dsi_display *display, int index
 
 		if (dsi_panel_mot_parse_u32(pline, "qcom,mdss-dsc-slice-height", &val)) {
 			pr_info("got qcom,mdss-dsc-slice-height: %d\n", val);
-			display_mode->priv_info->dsc.slice_height = val;
+			display_mode->priv_info->vdc.slice_height = val;
 		}
 
-		if (dsi_panel_mot_parse_u32(pline, "qcom,mdss-dsc-slice-width", &val)) {
+		/*if (dsi_panel_mot_parse_u32(pline, "qcom,mdss-dsc-slice-width", &val)) {
 			pr_info("got qcom,mdss-dsc-slice-width: %d\n", val);
-			display_mode->priv_info->dsc.slice_width = val;
-			if (display_mode->timing.h_active % priv_info->dsc.slice_width) {
+			display_mode->priv_info->vdc.slice_width = val;
+			if (display_mode->timing.h_active % priv_info->vdc.slice_width) {
 				pr_err("invalid slice width for the intf width:%d slice width:%d\n",
-					display_mode->timing.h_active, display_mode->priv_info->dsc.slice_width);
+					display_mode->timing.h_active, display_mode->priv_info->vdc.slice_width);
 			}
-			display_mode->priv_info->dsc.pic_width = display_mode->timing.h_active;
-			display_mode->priv_info->dsc.pic_height = display_mode->timing.v_active;
+			display_mode->priv_info->vdc.pic_width = display_mode->timing.h_active;
+			display_mode->priv_info->vdc.pic_height = display_mode->timing.v_active;
 		}
 
 		if (dsi_panel_mot_parse_u32(pline, "qcom,mdss-dsc-slice-per-pkt", &val)) {
@@ -832,13 +887,14 @@ void dsi_panel_mot_parse_timing_from_file(struct dsi_display *display, int index
 
 		if (dsi_panel_mot_parse_u32(pline, "qcom,mdss-dsc-bit-per-component", &val)) {
 			pr_info("got qcom,mdss-dsc-bit-per-component: %d\n", val);
-			display_mode->priv_info->dsc.bpc = val;
+			display_mode->priv_info->vdc.bpc = val;
 		}
 
 		if (dsi_panel_mot_parse_u32(pline, "qcom,mdss-dsc-bit-per-pixel", &val)) {
 			pr_info("got qcom,mdss-dsc-bit-per-pixel: %d\n", val);
-			display_mode->priv_info->dsc.bpp = val;
-		}
+			display_mode->priv_info->vdc.bpp = val;
+		}*/
+
 
 		if (dsi_panel_mot_parse_u32(pline, "qcom,mdss-pps-delay-ms", &val)) {
 			pr_info("got qcom,mdss-pps-delay-ms: %d\n", val);
@@ -909,13 +965,20 @@ goContinue:
 
 	}
 
+	ret = true;
+
 timing_err_exit:
 	if (plinebuf)
 		kfree(plinebuf);
 	if (fwbuf)
 		kfree(fwbuf);
+#if PARAM_READ_FILE
+	if (fw)
+		kfree(fw);
+#else
 	release_firmware(fw);
-	return;
+#endif
+	return ret;
 }
 
 static ssize_t dsi_display_early_power_read(struct device *dev,
@@ -1166,7 +1229,7 @@ static DEVICE_ATTR(dsi_display_wakeup, 0644,
 static DEVICE_ATTR(early_test_en, 0644,
 			dsi_display_early_test_en_get,
 			dsi_display_early_test_en_set);
-static DEVICE_ATTR(dsi_display_parse_para, 0644,
+static DEVICE_ATTR(dsi_display_parse_para, 0664,
 			dsi_display_parse_para_get,
 			dsi_display_parse_para_update);
 
