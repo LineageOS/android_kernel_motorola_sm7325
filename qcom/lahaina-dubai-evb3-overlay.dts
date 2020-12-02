@@ -23,8 +23,11 @@
 };
 
 &stmvl53l5_spi {
-	avdd-vl53l5-supply = <&L7C>;
-	iovdd-vl53l5-supply = <&L8C>;
+	avdd-vl53l5-supply = <&L11C>;
+	iovdd-vl53l5-supply = <&tof_iovdd>;
+	pinctrl-0 = <&laser_int_active>;
+	pinctrl-1 = <&laser_int_suspend>;
+
 };
 
 /*
@@ -71,6 +74,19 @@
 			drive-strength = <2>; /* 2 MA */
 		};
 	};
+
+	tof_iovdd_en_default: tof_iovdd_en_default {
+		mux {
+			pins = "gpio2";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio2";
+			bias-disable; /* No PULL */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
 };
 
 &soc {
@@ -86,6 +102,20 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&camera_iovdd_en_default>;
 		vin-supply = <&pm8350c_bob>;
+	};
+
+	tof_iovdd: gpio-regulator@2 {
+		compatible = "regulator-fixed";
+		reg = <0x2 0x00>;
+		regulator-name = "tof_iovdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-enable-ramp-delay = <233>;
+		enable-active-high;
+		gpio = <&tlmm 2 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tof_iovdd_en_default>;
+		vin-supply = <&S10B>;
 	};
 };
 
