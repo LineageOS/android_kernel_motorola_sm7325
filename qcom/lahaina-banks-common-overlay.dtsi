@@ -13,3 +13,20 @@
 #include "lahaina-moto-common-overlay.dtsi"
 #include "lahaina-moto-banks-display.dtsi"
 #include "lahaina-banks-touchscreen.dtsi"
+
+/* No sd card */
+&sdhc_2 {
+	status = "disabled";
+};
+
+&qupv3_se11_i2c {
+	status = "ok";
+
+	io_exp: io_exp@34 {
+		compatible = "ti,tca6418e";
+		reg = <0x34>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpios = <&tlmm 78 GPIO_ACTIVE_LOW>; /* Reset gpio */
+	};
+};
