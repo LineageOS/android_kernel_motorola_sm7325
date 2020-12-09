@@ -285,6 +285,14 @@
 	#include "lahaina-moto-common-redriver.dtsi"
 };
 
+&redriver_diodes {
+	status = "disabled";
+};
+
+&redriver {
+	status = "ok";
+};
+
 &usb0 {
 	ssusb_redriver = <&redriver>;
 };
