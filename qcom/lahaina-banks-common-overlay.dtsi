@@ -11,3 +11,4 @@
  */
 
 #include "lahaina-moto-common-overlay.dtsi"
+#include "lahaina-moto-banks-display.dtsi"
