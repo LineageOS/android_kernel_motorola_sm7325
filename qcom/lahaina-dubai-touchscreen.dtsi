@@ -121,6 +121,7 @@
 
 	st_fts@49 {
 		status = "ok";
+		mmi,status = "/chosen","mmi,panel_name","contains","csot_st";
 		compatible = "st,fts";
 		reg = <0x49>;
 		interrupt-parent = <&tlmm>;
@@ -154,6 +155,7 @@
 
 	synaptics_tcm@4b {
 		status = "ok";
+		mmi,status = "/chosen","mmi,panel_name","contains","tianma_syna";
 		compatible = "synaptics,tcm-i2c";
 		reg = <0x4b>;
 		interrupt-parent = <&tlmm>;
