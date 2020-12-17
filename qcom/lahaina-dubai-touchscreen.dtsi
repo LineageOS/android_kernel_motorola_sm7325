@@ -138,6 +138,7 @@
 
 	sec_mmi@48 {
 		status = "ok";
+		mmi,status = "/chosen","mmi,panel_name","contains","boe_lsi","csot_lsi";
 		compatible = "sec,sec_ts";
 		reg = <0x48>;
 		sec,rst_gpio = <&tlmm 22 0>;
