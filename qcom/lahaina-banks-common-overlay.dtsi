@@ -30,3 +30,121 @@
 		gpios = <&tlmm 78 GPIO_ACTIVE_LOW>; /* Reset gpio */
 	};
 };
+
+&tlmm {
+	uwb_irq: uwb_irq {
+		mux {
+			pins = "gpio51";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio51";
+			bias-pull-down;
+		};
+	};
+};
+
+/* enable gpio6 as qup6 L4 to connect receiver spi cs*/
+&qupv3_se6_spi_pins {
+	qupv3_se6_spi_active: qupv3_se6_spi_active {
+		mux {
+			pins = "gpio28", "gpio29",
+					"gpio30";
+			function = "qup6";
+		};
+
+		config {
+			pins = "gpio28", "gpio29",
+					"gpio30";
+			drive-strength = <6>;
+			bias-disable;
+		};
+	};
+
+	qupv3_se6_spi_sleep: qupv3_se6_spi_sleep {
+		mux {
+			pins = "gpio28", "gpio29",
+					"gpio30";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio28", "gpio29",
+					"gpio30";
+			drive-strength = <6>;
+			bias-disable;
+		};
+	};
+
+	qupv3_se6_spi_cs0_active: qupv3_se6_spi_cs0_active {
+		mux {
+			pins = "gpio31";
+			function = "qup6";
+		};
+
+		config {
+			pins = "gpio31";
+			drive-strength = <6>;
+			bias-disable;
+		};
+	};
+
+	qupv3_se6_spi_cs0_sleep: qupv3_se6_spi_cs0_sleep {
+		mux {
+			pins = "gpio31";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio31";
+			drive-strength = <6>;
+			bias-pull-up;
+		};
+	};
+
+	qupv3_se6_spi_cs1_active: qupv3_se6_spi_cs1_active {
+		mux {
+			pins = "gpio6";
+			function = "qup_l4";
+		};
+
+		config {
+			pins = "gpio6";
+			drive-strength = <6>;
+			bias-disable;
+		};
+	};
+
+	qupv3_se6_spi_cs1_sleep: qupv3_se6_spi_cs1_sleep {
+		mux {
+			pins = "gpio6";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio6";
+			drive-strength = <6>;
+			bias-pull-up;
+		};
+	};
+};
+
+&qupv3_se6_spi {
+	status = "ok";
+	pinctrl-0 = <&qupv3_se6_spi_active &qupv3_se6_spi_cs0_active &qupv3_se6_spi_cs1_active>;
+	pinctrl-1 = <&qupv3_se6_spi_sleep &qupv3_se6_spi_cs0_sleep &qupv3_se6_spi_cs1_sleep>;
+
+	sr100@0 {
+		compatible = "nxp,sr100";
+		reg = <0>;
+		nxp,sr100-irq = <&tlmm 51 0x00>;
+		nxp,sr100-ce = <&io_exp 9 0x00>;
+		nxp,sr100-ri = <&io_exp 10 0x00>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <51 0>;
+		spi-max-frequency = <20000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uwb_irq>;
+	};
+};
