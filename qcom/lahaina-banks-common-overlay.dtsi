@@ -13,6 +13,7 @@
 #include "lahaina-moto-common-overlay.dtsi"
 #include "lahaina-moto-banks-display.dtsi"
 #include "lahaina-banks-touchscreen.dtsi"
+#include "lahaina-banks-fingerprint.dtsi"
 
 /* No sd card */
 &sdhc_2 {
