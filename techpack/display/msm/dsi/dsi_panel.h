@@ -403,6 +403,8 @@ struct dsi_panel {
 	struct msm_param_info curDCModeParaInfo;
 
 	bool hbm_state;
+	bool acl_state;
+	bool cabc_state;
 };
 
 bool dsi_display_all_displays_dead(void);
