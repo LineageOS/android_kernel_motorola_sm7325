@@ -30,6 +30,68 @@
 		#gpio-cells = <2>;
 		gpios = <&tlmm 78 GPIO_ACTIVE_LOW>; /* Reset gpio */
 	};
+
+	cam_pmic: slg51000@75{
+		compatible = "dlg,slg51000";
+		reg = <0x75>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <32 IRQ_TYPE_LEVEL_LOW>;
+		dlg,cs-gpios = <&io_exp 8 0x00>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&rear_pmic_irq>;
+
+		vin3-supply = <&pm8350c_bob>;
+		vin4-supply = <&pm8350c_bob>;
+		vin5-supply = <&pm8350_s12>;
+		vin6-supply = <&pm8350_s12>;
+		vin7-supply = <&pm8350c_bob>;
+
+		regulators {
+			cam_f_vdda_ldo: ldo1 {
+				regulator-name = "ldo1";
+				regulator-min-microvolt = <2400000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			cam_r_vdda_ldo: ldo2 {
+				regulator-name = "ldo2";
+				regulator-min-microvolt = <2400000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			cam_af_vdd_ldo: ldo3 {
+				regulator-name = "ldo3";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			ois_vdd_ldo: ldo4 {
+				regulator-name = "ldo4";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			cam_f_vddd_ldo: ldo5 {
+				regulator-name = "ldo5";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			cam_r_vddd_ldo: ldo6 {
+				regulator-name = "ldo6";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			cam_f_vio_ldo: ldo7 {
+				regulator-name = "ldo7";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+		};
+	};
 };
 
 &tlmm {
@@ -42,6 +104,18 @@
 		config {
 			pins = "gpio51";
 			bias-pull-down;
+		};
+	};
+
+	rear_pmic_irq: rear_pmic_irq {
+		mux {
+			pins = "gpio32";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio32";
+			bias-pull-up;
 		};
 	};
 };
