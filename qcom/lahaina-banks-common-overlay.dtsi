@@ -14,6 +14,7 @@
 #include "lahaina-moto-banks-display.dtsi"
 #include "lahaina-banks-touchscreen.dtsi"
 #include "lahaina-banks-fingerprint.dtsi"
+#include "lahaina-banks-audio.dtsi"
 #include "camera/lahaina-camera-sensor-mot-banks-overlay.dtsi"
 
 /* No sd card */
