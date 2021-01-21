@@ -36,6 +36,18 @@
 	status = "disabled";
 };
 
+&pm8350c_rgb {
+	red {
+		label = "charging";
+	};
+	green {
+		status = "disabled";
+	};
+	blue {
+		status = "disabled";
+	};
+};
+
 &tlmm{
 	cam_pmic_irq_default: cam_pmic_irq_default {
 		mux {
