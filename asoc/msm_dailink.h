@@ -936,6 +936,16 @@ SND_SOC_DAILINK_DEFS(pri_mi2s_tx_franklin_prince,
 		COMP_CODEC("cirrus-rcv", "cs35l41-pcm")),
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
 
+SND_SOC_DAILINK_DEFS(pri_mi2s_rx_franklin,
+	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-mi2s.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("cirrus-spk", "cs35l45")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
+
+SND_SOC_DAILINK_DEFS(pri_mi2s_tx_franklin,
+	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-mi2s.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("cirrus-spk", "cs35l45")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
+
 SND_SOC_DAILINK_DEFS(pri_mi2s_rx_stereo_prince,
 	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-mi2s.0")),
 	DAILINK_COMP_ARRAY(COMP_CODEC("cirrus-spk", "cs35l41-pcm"),
