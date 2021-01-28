@@ -57,6 +57,16 @@
 };
 
 &soc {
+	mmi_annotate {
+		compatible = "mmi,annotate";
+		memory-region = <&mmi_annotate_mem>;
+		mem-size = <0x20000>;
+	};
+
+	mmi_relay{
+		compatible = "mmi,sys-relay";
+	};
+
 	reboot_reason {
 		nvmem-cells = <&restart_reason>, <&extra_restart_reason>;
 		nvmem-cell-names = "restart_reason", "extra_restart_reason";
