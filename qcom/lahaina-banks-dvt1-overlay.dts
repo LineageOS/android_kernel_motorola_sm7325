@@ -19,25 +19,5 @@
 	model = "Banks";
 	compatible = "qcom,lahaina-Banks", "qcom,lahaina-moto", "qcom,lahaina";
 	qcom,msm-id = <415 0x10000>;
-	qcom,board-id = <0x41 0xA100>;
-};
-
-&pm8350c_l7 {
-	qcom,init-voltage = <3300000>;
-};
-
-&qupv3_se4_i2c {
-	st_fts@49 {
-		status = "disabled";
-	};
-
-	sec_mmi@48 {
-		status = "ok";
-		sec,regulator_avdd = "pm8350c_l7";
-		sec,regulator_dvdd = "pm8350c_l8";
-	};
-
-	synaptics_dsx_i2c@38 {
-		status = "disabled";
-	};
+	qcom,board-id = <0x41 0xB100>;
 };
