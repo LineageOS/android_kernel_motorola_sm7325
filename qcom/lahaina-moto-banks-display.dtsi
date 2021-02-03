@@ -15,7 +15,7 @@
 
 &mdss_mdp {
 	/* Primary Display: CSOT V1*/
-	mot_csot_620_876x2142_cmd_v1: qcom,mdss_dsi_mot_csot_620_876x2142_cmd_v1 {
+	mot_csot_lsi_620_876x2142_cmd_v1: qcom,mdss_dsi_mot_csot_lsi_620_876x2142_cmd_v1 {
 		#include "dsi-panel-mot-csot-620-876x2142-cmd-common.dtsi"
 	};
 };
@@ -64,7 +64,7 @@
 		vdd-supply = <&L13C>;
 
 		qcom,mdp = <&mdss_mdp>;
-		qcom,dsi-default-panel = <&mot_csot_620_876x2142_cmd_v1>;
+		qcom,dsi-default-panel = <&mot_csot_lsi_620_876x2142_cmd_v1>;
 		qcom,platform-mot-ext-feature-enable;
 	};
 	sde_dsi1: qcom,dsi-display-secondary {
@@ -119,7 +119,7 @@
 	connectors = <&sde_wb &sde_dsi  &sde_rscc>;
 };
 
-&mot_csot_620_876x2142_cmd_v1 {
+&mot_csot_lsi_620_876x2142_cmd_v1 {
 	qcom,platform-te-gpio = <&tlmm 82 0>;
 	qcom,platform-reset-gpio = <&tlmm 24 0>;
 	//qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
