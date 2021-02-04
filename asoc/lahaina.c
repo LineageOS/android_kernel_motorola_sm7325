@@ -6881,6 +6881,32 @@ static struct snd_soc_dai_link msm_mi2s_awinic_haptic_be_dai_links[] = {
 	},
 };
 
+static struct snd_soc_dai_link msm_mi2s_reed_dai_links[] = {
+	{
+		.name = LPASS_BE_TERT_MI2S_RX,
+		.stream_name = "Tertiary MI2S Playback",
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.id = MSM_BACKEND_DAI_TERTIARY_MI2S_RX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm_mi2s_be_ops,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		SND_SOC_DAILINK_REG(tert_mi2s_rx_reed),
+	},
+	{
+		.name = LPASS_BE_TERT_MI2S_TX,
+		.stream_name = "Tertiary MI2S Capture",
+		.no_pcm = 1,
+		.dpcm_capture = 1,
+		.id = MSM_BACKEND_DAI_TERTIARY_MI2S_TX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm_mi2s_be_ops,
+		.ignore_suspend = 1,
+		SND_SOC_DAILINK_REG(tert_mi2s_tx_reed),
+	},
+};
+
 static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 	{
 		.name = LPASS_BE_PRI_MI2S_RX,
@@ -7802,6 +7828,7 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 				"%s: prince-max-devs %d franklin-max-devs %d\n",
 				 __func__, cirrus_prince_max_devs, cirrus_franklin_max_devs);
 
+
 			if (cirrus_prince_max_devs == 2) {
 				memcpy(msm_lahaina_dai_links + total_links,
 					msm_mi2s_stereo_prince_dai_links,
@@ -7837,6 +7864,18 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 				total_links +=
 					ARRAY_SIZE(msm_mi2s_awinic_haptic_be_dai_links);
 			}
+
+			if (of_property_read_bool(dev->of_node,
+					"cirrus,reed-supported")) {
+				dev_info(dev, "%s: cirrus reed codec is supportedn", __func__);
+				memcpy(msm_lahaina_dai_links + total_links,
+					msm_mi2s_reed_dai_links,
+					sizeof(msm_mi2s_reed_dai_links));
+				total_links +=
+					ARRAY_SIZE(msm_mi2s_reed_dai_links);
+			}
+
+
 		}
 #ifndef CONFIG_AUXPCM_DISABLE
 		rc = of_property_read_u32(dev->of_node,
