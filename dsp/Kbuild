@@ -101,6 +101,10 @@ else
 	endif
 endif
 
+# Awinic aw882xx boost requires their proeritary speaker protection algorithm to
+# run in QDSP, there is not problem to enable this for the device without this chip
+EXTRA_CFLAGS +=	-DCONFIG_SND_SOC_AWINIC_AW882XX
+
 # As per target team, build is done as follows:
 # Defconfig : build with default flags
 # Slub      : defconfig  + CONFIG_SLUB_DEBUG := y +
