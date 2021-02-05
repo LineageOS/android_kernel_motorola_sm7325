@@ -37,8 +37,9 @@
 		compatible = "dlg,slg51000";
 		reg = <0x75>;
 
+		/* FIXME - interrupt storm
 		interrupt-parent = <&tlmm>;
-		interrupts = <32 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <32 IRQ_TYPE_LEVEL_LOW>;*/
 		dlg,cs-gpios = <&io_exp 8 0x00>;
 
 		pinctrl-names = "default";
