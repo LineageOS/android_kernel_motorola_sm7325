@@ -128,8 +128,16 @@
 
 };
 
+&qupv3_se8_i2c {
+	status = "disabled";
+};
+
 &fsa4480 {
 	status = "disabled";
+};
+
+&sde_dp {
+	qcom,dp-aux-switch = <&fsa4480_switch>;
 };
 
 &qupv3_se13_i2c {
@@ -261,5 +269,6 @@
 	asoc-codec-names = "msm-stub-codec.1", "bolero_codec",
 		"msm-ext-disp-audio-codec-rx",
 		"cirrus-spk";
+	fsa4480-i2c-handle = <&fsa4480_switch>;
 };
 
