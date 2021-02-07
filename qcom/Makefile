@@ -19,6 +19,13 @@ lahaina-dubai-evb3-overlay.dtbo-base := lahaina-moto-base.dtb
 lahaina-banks-evt1-overlay.dtbo-base := lahaina-moto-base.dtb
 lahaina-banks-dvt1-overlay.dtbo-base := lahaina-moto-base.dtb
 
+dtbo-$(CONFIG_ARCH_YUPIK) += \
+		yupik-berlin-evb-overlay.dtbo \
+		yupik-berlna-evb-overlay.dtbo
+
+yupik-berlin-evb-overlay.dtbo-base := yupik-moto-base.dtb
+yupik-berlna-evb-overlay.dtbo-base := yupik-moto-base.dtb
+
 else
 ifneq ($(CONFIG_ARCH_QTI_VM), y)
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
