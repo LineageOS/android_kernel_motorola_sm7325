@@ -46,8 +46,8 @@
 		config {
 			pins = "gpio2";
 			drive-strength = <2>; /* 2 MA */
-			bias-pull-down;
-			output-low;
+			bias-pull-up;
+			output-high;
 		};
 	};
 
@@ -156,7 +156,7 @@
 		VD_FILT-supply = <&dummy_vreg>;
 		VL-supply = <&S10B>;
 		reset-gpios = <&tlmm 88 GPIO_ACTIVE_HIGH>;
-		tip-sense-gpios = <&tlmm 2 GPIO_ACTIVE_HIGH>;
+		tip-sense-gpios = <&tlmm 2 GPIO_ACTIVE_LOW>;
 		interrupt-parent = <&tlmm>;
 		interrupts = <34 IRQ_TYPE_LEVEL_LOW>;
 
