@@ -439,3 +439,29 @@
 		};
 	};
 };
+
+&tlmm {
+	qrng_pwdn: qrng_pwdn {
+		mux {
+			pins = "gpio10";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio10";
+			bias-pull-up;
+		};
+	};
+};
+
+&qupv3_se1_i2c {
+	status = "ok";
+
+	qrng@38 {
+		compatible = "qrng,qrng-i2c";
+		reg = <0x37>;
+		pwdn-gpio = <&tlmm 10 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&qrng_pwdn>;
+	};
+};
