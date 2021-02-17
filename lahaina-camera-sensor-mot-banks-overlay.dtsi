@@ -22,7 +22,7 @@
 		config {
 			pins = "gpio100";
 			bias-disable; /* No PULL */
-			drive-strength = <2>; /* 2 MA */
+			drive-strength = <8>; /* 8 MA */
 		};
 	};
 
@@ -74,8 +74,47 @@
 };
 
 &cam_cci0 {
-	sensor_front: qcom,cam-sensor@0 {
+	sensor_main: qcom,cam-sensor@0 {
 		cell-index = <0>;
+		compatible = "qcom,cam-sensor";
+		csiphy-sd-index = <0>;
+		sensor-position-roll = <90>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		/*eeprom-src = <&eeprom_main>;
+		actuator-src = <&actuator_main>;
+		led-flash-src = <&led_flash_rear_main>;*/
+		cam_vio-supply = <&cam_f_vio_ldo>;
+		cam_vana-supply = <&cam_r_vdda_ldo>;
+		cam_vdig-supply = <&cam_r_vddd_ldo>;
+		cam_clk-supply = <&cam_cc_titan_top_gdsc>;
+		regulator-names = "cam_vio", "cam_vana", "cam_vdig",
+			"cam_clk";
+		rgltr-cntrl-support;
+		rgltr-min-voltage = <1800000 2950000 1050000 0>;
+		rgltr-max-voltage = <1800000 2950000 1050000 0>;
+		rgltr-load-current = <31000 150000 420000 0>;
+		gpio-no-mux = <0>;
+		pinctrl-names = "cam_default", "cam_suspend";
+		pinctrl-0 = <&cam_sensor_mclk0_active>;
+		pinctrl-1 = <&cam_sensor_mclk0_suspend>;
+		gpios = <&tlmm 100 0>,
+			<&io_exp 4 0>;
+		gpio-reset = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <1 0>;
+		gpio-req-tbl-label = "CAMIF_MCLK0",
+					"CAM_RESET0";
+		cci-master = <0>;
+		status = "ok";
+		clocks = <&clock_camcc CAM_CC_MCLK0_CLK>;
+		clock-names = "cam_clk";
+		clock-cntl-level = "nominal";
+		clock-rates = <24000000>;
+	};
+
+	sensor_front: qcom,cam-sensor@1 {
+		cell-index = <1>;
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <1>;
 		sensor-position-roll = <270>;
