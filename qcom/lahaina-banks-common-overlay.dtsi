@@ -54,13 +54,13 @@
 		regulators {
 			cam_f_vdda_ldo: ldo1 {
 				regulator-name = "ldo1";
-				regulator-min-microvolt = <2400000>;
+				regulator-min-microvolt = <2100000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			cam_r_vdda_ldo: ldo2 {
 				regulator-name = "ldo2";
-				regulator-min-microvolt = <2400000>;
+				regulator-min-microvolt = <2100000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
