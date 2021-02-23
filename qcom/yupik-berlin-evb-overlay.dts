@@ -13,7 +13,7 @@
 /dts-v1/;
 /plugin/;
 
-#include "yupik-moto-common-overlay.dtsi"
+#include "yupik-berlin-overlay.dtsi"
 
 / {
 	model = "Berlin";
