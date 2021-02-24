@@ -14,10 +14,6 @@
 	mot_dummy_vid_qhd: qcom,mdss_dsi_mot_dummy_qhd_video {
 		qcom,mdss-dsi-panel-name = "mipi_mot_video_dummy_qhd";
 		qcom,mdss-dsi-panel-type = "dsi_video_mode";
-
-		qcom,dsi-ctrl-num = <0>;
-		qcom,dsi-phy-num = <0>;
-
 		qcom,mdss-dsi-panel-supplier = "video_dummy";
 		qcom,mdss-dsi-virtual-channel-id = <0>;
 		qcom,mdss-dsi-stream = <0>;
@@ -26,6 +22,10 @@
 		qcom,mdss-dsi-bpp = <24>;
 		qcom,mdss-dsi-underflow-color = <0xff>;
 		qcom,mdss-dsi-border-color = <0>;
+
+		qcom,dsi-ctrl-num = <0>;
+		qcom,dsi-phy-num = <0>;
+		qcom,dsi-select-clocks = "src_byte_clk0", "src_pixel_clk0";
 
 		qcom,mdss-dsi-h-sync-pulse = <0>;
 		qcom,mdss-dsi-traffic-mode = "non_burst_sync_event";
@@ -47,6 +47,7 @@
 
 		qcom,mdss-dsi-display-timings {
 	                timing@0{
+				qcom,mdss-dsi-panel-framerate = <60>;
 				qcom,mdss-dsi-panel-width = <540>;
 				qcom,mdss-dsi-panel-height = <960>;
 				qcom,mdss-dsi-h-front-porch = <32>;
@@ -56,7 +57,6 @@
 				qcom,mdss-dsi-v-back-porch = <16>;
 				qcom,mdss-dsi-v-front-porch = <15>;
 				qcom,mdss-dsi-v-pulse-width = <1>;
-				qcom,mdss-dsi-panel-framerate = <60>;
 				qcom,mdss-dsi-h-left-border = <0>;
 				qcom,mdss-dsi-h-right-border = <0>;
 				qcom,mdss-dsi-v-top-border = <0>;
@@ -83,17 +83,20 @@
 				qcom,supply-max-voltage = <1800000>;
 				qcom,supply-enable-load = <62000>;
 				qcom,supply-disable-load = <80>;
-				qcom,supply-post-on-sleep = <2>;
+				qcom,supply-post-on-sleep = <20>;
 			};
 
 			qcom,panel-supply-entry@1 {
 				reg = <1>;
-			        qcom,supply-name = "vdd";
+				qcom,supply-name = "vci";
 				qcom,supply-min-voltage = <3000000>;
 				qcom,supply-max-voltage = <3000000>;
-				qcom,supply-enable-load = <857000>;
-				qcom,supply-disable-load = <0>;
+				qcom,supply-enable-load = <300000>;
+				qcom,supply-disable-load = <100>;
+				qcom,supply-pre-on-sleep = <0>;
 				qcom,supply-post-on-sleep = <0>;
+				qcom,supply-pre-off-sleep = <0>;
+				qcom,supply-post-off-sleep = <0>;
 			};
 		};
 	};

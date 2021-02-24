@@ -1,0 +1,50 @@
+#include "berlin-sde-display.dtsi"
+
+/*&mdss_dsi1 {
+	status = "disabled";
+};
+
+&mdss_dsi_phy1 {
+	status = "disabled";
+};*/
+
+&sde_dp {
+	status = "disabled";
+};
+&pm7325b_wled {
+	qcom,string-cfg = <7>;
+	qcom,cabc-sel = <1>;
+	qcom,ovp = <20500>;
+	qcom,boost-current-limit = <1050>;
+	status = "ok";
+	mmi,low-bl-force-cabc-disable;
+	mmi,low-bl-threshold = <200>;
+	mmi,low-bl-remap-percent = <80>;
+
+	qcom,wled-pfm-issue-low-threshold = <255>;
+	qcom,wled-pfm-issue-high-threshold = <2048>;
+	qcom,wled-pfm-issue-workaround-enable;
+
+	/delete-node/ wled_switch;
+};
+
+&pm7325b_lcdb {
+	status = "ok";
+	qcom,pwrup-delay-ms = <8>;
+	qcom,pwrdn-delay-ms = <8>;
+};
+
+&sde_dsi {
+	qcom,platform-mot-ext-feature-enable;
+	qcom,platform-mot-early-power-enable;
+};
+&dsi_nt36672e_fhd_plus_144_video {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_labibb>;
+	qcom,mdss-dsi-no-panel-on-read-support;
+	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
+	qcom,mdss-dsi-bl-min-level = <26>;
+	qcom,mdss-dsi-bl-max-level = <4095>;
+	qcom,mdss-dsi-bl-default-level = <2048>;
+	qcom,mdss-brightness-max-level = <4095>;
+	qcom,platform-reset-gpio = <&tlmm 44 0>;
+};
