@@ -277,6 +277,58 @@
 	io-channel-names = "thermal";
 };
 
+&wsa883x_0221 {
+	status = "disabled";
+};
+
+&wsa883x_0222 {
+	status = "disabled";
+};
+
+&wsa_macro {
+	status = "disabled";
+};
+
+&swr_haptics {
+	status = "disabled";
+};
+
+&bolero {
+	qcom,num-macros = <0x3>;
+};
+
+&wcd938x_rx_slave {
+	status = "disabled";
+};
+
+&wcd938x_tx_slave {
+	status = "disabled";
+};
+
+&wcd938x_codec {
+	status = "disabled";
+};
+
+&wcd937x_codec {
+	status = "okay";
+};
+
+&wcd937x_rx_slave {
+	status = "okay";
+};
+
+&wcd937x_tx_slave {
+	status = "okay";
+};
+
+&yupik_snd {
+	qcom,msm-mbhc-usbc-audio-supported = <1>;
+	qcom,msm-mbhc-hphl-swh = <0>;
+	qcom,msm-mbhc-gnd-swh = <0>;
+
+	qcom,wsa-max-devs = <0>;
+};
+
 &sdhc_1 {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&sdc1_on>;

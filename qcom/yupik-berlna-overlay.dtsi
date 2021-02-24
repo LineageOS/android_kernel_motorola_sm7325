@@ -12,3 +12,4 @@
 
 #include "yupik-berlin-common-overlay.dtsi"
 #include "berlna-sde-display.dtsi"
+#include "yupik-berlna-audio-overlay.dtsi"
