@@ -12,3 +12,14 @@
 
 #include "yupik-moto-common-overlay.dtsi"
 
+&pm8350c_rgb {
+	red {
+		label = "charging";
+	};
+	green {
+		status = "disabled";
+	};
+	blue {
+		status = "disabled";
+	};
+};
