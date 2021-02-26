@@ -14,3 +14,4 @@
 #include "berlna-sde-display.dtsi"
 #include "yupik-berlna-audio-overlay.dtsi"
 #include "yupik-berlna-touchscreen.dtsi"
+#include "yupik-berlna-fingerprint.dtsi"
