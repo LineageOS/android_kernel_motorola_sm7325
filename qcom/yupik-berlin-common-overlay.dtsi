@@ -23,3 +23,22 @@
 		status = "disabled";
 	};
 };
+
+&usb_qmp_dp_phy {
+	status = "disabled";
+};
+
+&usb1 {
+	status = "disabled";
+};
+
+&usb2_phy1 {
+	status = "disabled";
+};
+
+&usb0 {
+	dwc3@a600000 {
+		usb-phy = <&usb2_phy0>, <&usb_nop_phy>;
+		maximum-speed = "high-speed";
+	};
+};
