@@ -252,3 +252,84 @@
 		};
 	};
 };
+
+&tlmm{
+	bq27426_irq_flip: bq27426-irq-battery-flip {
+		mux {
+			pins = "gpio27";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio27";
+			drive-strength = <2>; /* 2 MA */
+			bias-disable;
+			input-enable;
+		};
+	};
+
+	bq25890_irq: bq25890-irq {
+		mux {
+			pins = "gpio7";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio7";
+			drive-strength = <2>; /* 2 MA */
+			bias-disable;
+			input-enable;
+		};
+	};
+
+	bq25890_en: bq25890-en {
+		mux {
+			pins = "gpio3";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio3";
+			drive-strength = <2>; /* 2 MA */
+			bias-disable;
+			output-high;
+		};
+	};
+};
+
+&qupv3_se0_i2c {
+	status = "ok";
+
+	bq27426_flip: bq27426-battery-flip@55 {
+		compatible = "ti,bq27426";
+		reg = <0x55>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&bq27426_irq_flip>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <27 0>;
+		mmi,fg-psy-name = "fg_flip_battery";
+		design-capacity = <1545>;
+		mmi,batt-profile-name = "LS40_ATL_1545MAH";
+	};
+
+	bq25890@6b {
+		compatible = "ti,bq25890-mmi";
+		reg = <0x6b>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&bq25890_irq &bq25890_en>;
+
+		ti,battery-regulation-voltage = <4200000>;
+		ti,charge-current = <1000000>;
+		ti,termination-current = <50000>;
+		ti,precharge-current = <128000>;
+		ti,minimum-sys-voltage = <3600000>;
+		ti,boost-voltage = <5000000>;
+		ti,boost-max-current = <1000000>;
+
+		ti,use-ilim-pin;
+		ti,thermal-regulation-threshold = <120>;
+
+		bq25890_irq-gpios = <&tlmm 7 0>;
+	};
+};
