@@ -6933,6 +6933,32 @@ static struct snd_soc_dai_link msm_mi2s_aw882xx_dai_links[] = {
 	},
 };
 
+static struct snd_soc_dai_link msm_mi2s_cs35l41_dai_links[] = {
+	{
+		.name = LPASS_BE_SENARY_MI2S_RX,
+		.stream_name = "Senary MI2S Playback",
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.id = MSM_BACKEND_DAI_SENARY_MI2S_RX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm_mi2s_be_ops,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		SND_SOC_DAILINK_REG(sen_mi2s_rx_cs35l41),
+	},
+	{
+		.name = LPASS_BE_SENARY_MI2S_TX,
+		.stream_name = "Senary MI2S Capture",
+		.no_pcm = 1,
+		.dpcm_capture = 1,
+		.id = MSM_BACKEND_DAI_SENARY_MI2S_TX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm_mi2s_be_ops,
+		.ignore_suspend = 1,
+		SND_SOC_DAILINK_REG(sen_mi2s_tx_cs35l41),
+	},
+};
+
 static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 	{
 		.name = LPASS_BE_PRI_MI2S_RX,
@@ -7867,6 +7893,13 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 					sizeof(msm_mi2s_stereo_prince_dai_links));
 				total_links +=
 					ARRAY_SIZE(msm_mi2s_stereo_prince_dai_links);
+			} else if (cirrus_prince_max_devs == 1) {
+				/* For berlin device*/
+				memcpy(msm_lahaina_dai_links + total_links,
+					msm_mi2s_cs35l41_dai_links,
+					sizeof(msm_mi2s_cs35l41_dai_links));
+				total_links +=
+					ARRAY_SIZE(msm_mi2s_cs35l41_dai_links);
 			} else if (cirrus_franklin_max_devs == 1 && cirrus_prince_max_devs == 1) {
 				memcpy(msm_lahaina_dai_links + total_links,
 					msm_mi2s_franklin_prince_dai_links,
@@ -7880,6 +7913,7 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 				total_links +=
 					ARRAY_SIZE(msm_mi2s_franklin_mono_dai_links);
 			} else if (awinic_aw882xx_max_devs == 1) {
+				/* For berlna device*/
 				memcpy(msm_lahaina_dai_links + total_links,
 					msm_mi2s_aw882xx_dai_links,
 					sizeof(msm_mi2s_aw882xx_dai_links));
