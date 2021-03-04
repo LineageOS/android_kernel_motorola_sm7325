@@ -14,5 +14,6 @@
 #include "berlna-sde-display.dtsi"
 #include "yupik-berlna-audio-overlay.dtsi"
 #include "yupik-berlna-touchscreen.dtsi"
+#include "yupik-berlna-sensor-overlay.dtsi"
 #include "yupik-berlna-fingerprint.dtsi"
 #include "camera/yupik-camera-sensor-mot-berlna-overlay.dtsi"
