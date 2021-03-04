@@ -16,4 +16,4 @@
 #include "yupik-berlin-fingerprint.dtsi"
 #include "yupik-berlin-audio-overlay.dtsi"
 #include "yupik-berlin-touchscreen.dtsi"
-
+#include "camera/yupik-camera-sensor-mot-berlin-overlay.dtsi"
