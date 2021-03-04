@@ -26,3 +26,13 @@
 	utags: utags { };
 	hw: hw { };
 };
+
+&reserved_memory {
+	/delete-node/ ramoops;
+};
+
+&firmware {
+	android {
+		/delete-node/ fstab;
+	};
+};
