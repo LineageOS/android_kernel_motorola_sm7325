@@ -11,6 +11,7 @@
  */
 
 #include "yupik-berlin-common-overlay.dtsi"
+#include "berlin-slim-sde-display.dtsi"
 #include "yupik-berlin-fingerprint.dtsi"
 #include "yupik-berlin-audio-overlay.dtsi"
 
