@@ -19,7 +19,7 @@
 	model = "Banks";
 	compatible = "qcom,lahaina-Banks", "qcom,lahaina-moto", "qcom,lahaina";
 	qcom,msm-id = <415 0x10000>;
-	qcom,board-id = <0x41 0xA100>;
+	qcom,board-id = <0x41 0xA200>;
 };
 
 &pm8350c_l7 {

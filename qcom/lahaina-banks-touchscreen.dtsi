@@ -7,7 +7,7 @@
 			};
 			config {
 				pins = "gpio23";
-				drive-strength = <2>;
+				drive-strength = <4>;
 				bias-pull-up;
 			};
 		};
@@ -122,19 +122,24 @@
 	status = "ok";
 
 	st_fts@49 {
+		status = "ok";
 		mmi,status = "/chosen","mmi,panel_name","contains","csot_st";
-		//panel = <&mot_csot_st_620_876x2142_cmd_v1>;
+		panel = <&mot_csot_st_620_876x2142_cmd_v0>;
 		compatible = "st,fts";
 		reg = <0x49>;
 		interrupt-parent = <&tlmm>;
-		interrupts = <23 0x2008>;
+		interrupts = <23 0>;
 		st,reset-gpio = <&tlmm 22 0>;
-		st,irq-gpio = <&tlmm 23 0x2008>;
+		st,irq-gpio = <&tlmm 23 0>;
+		st,x-max = <876>;
+		st,y-max = <2142>;
 		st,regulator_avdd = "pm8350c_l3";
 		st,regulator_dvdd = "pm8350c_l2";
 		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
-		pinctrl-0 = <&touch_reset_active &touch_int_active>;
+		pinctrl-0 = <&touch_reset_active_output_high &touch_int_active>;
 		pinctrl-1 = <&touch_reset_suspend &touch_int_suspend>;
+		/* touchscreen_mmi class entries */
+		mmi,power-off-suspend;
 	};
 
 	sec_mmi@48 {
