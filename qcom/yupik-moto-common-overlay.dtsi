@@ -11,6 +11,7 @@
  */
 
 #include "yupik-moto-common-overlay-base.dtsi"
+#include "carrier-channel-ids.dtsi"
 
 &utags {
 	compatible = "mmi,utags";
