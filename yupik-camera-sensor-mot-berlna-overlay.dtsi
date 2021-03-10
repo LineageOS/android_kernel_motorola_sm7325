@@ -325,7 +325,7 @@
 		sensor-position-roll = <90>;
 		sensor-position-pitch = <0>;
 		sensor-position-yaw = <180>;
-		//actuator-src = <&actuator_triple_wide>;
+		actuator-src = <&actuator_main>;
 		//eeprom-src = <&eeprom_triple_wide>;
 		led-flash-src = <&led_flash_rear_main>;
 		cam_vio-supply = <&cam_ldo7>;
