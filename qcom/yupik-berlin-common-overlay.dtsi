@@ -13,6 +13,7 @@
 #include "yupik-moto-common-overlay.dtsi"
 #include "yupik-moto-common-charger.dtsi"
 #include "yupik-berlin-vibrator.dtsi"
+#include "yupik-berlin-thermal-overlay.dtsi"
 
 &pm8350c_rgb {
 	red {
