@@ -232,7 +232,6 @@
 		compatible = "mmi,mmi-charger";
 		mmi,enable-charging-limit;
 		mmi,enable-factory-poweroff;
-		mmi,start-factory-kill-disabled;
 		mmi,upper-limit-capacity = <75>;
 		mmi,lower-limit-capacity = <60>;
 		mmi,heartbeat-interval = <60000>;
