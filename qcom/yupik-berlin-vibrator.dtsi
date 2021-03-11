@@ -21,6 +21,13 @@
 		reg = <0x5A>;
 		reset-gpio = <&tlmm 46 0>;
 		irq-gpio = <&tlmm 47 0>;
+		vib_f0_pre = < 2350 >;
+		vib_f0_cali_percen = < 7 >;
+		vib_cont_drv_lvl = < 110 >;
+		vib_cont_drv_lvl_ov = < 120 >;
+		vib_cont_td = < 0x006C >;
+		vib_cont_zc_thr = < 0x0FF1 >;
+		vib_cont_num_brk = < 3 >;
 		haptic-context-gpio = <&tlmm 18 0>;
 		long-gain-normal = <0x80>;
 		long-gain-reduced = <0x80>;
