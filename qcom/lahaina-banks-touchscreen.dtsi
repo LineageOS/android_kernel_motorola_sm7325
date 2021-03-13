@@ -92,24 +92,6 @@
 	};
 };
 
-&io_exp {
-	ts_sub_reset_active: ts-sub-reset-active {
-		config {
-			pins = "gpio5";
-			bias-pull-up;
-			output-enable;
-		};
-	};
-
-	ts_sub_reset_suspend: ts-sub-reset-suspend {
-		config {
-			pins = "gpio5";
-			bias-pull-down;
-			output-enable;
-		};
-	};
-};
-
 &pm8350c_l3 {
 	qcom,init-voltage = <3300000>;
 };
@@ -161,8 +143,10 @@
 	};
 
 	synaptics_dsx_i2c@38 {
-		mm,status = "/chosen","mmi,panel_name_s","contains","boe";
-		//panel = <&dsi_mot_boe_269_800x600_cmd>;
+		mmi,status = "/chosen","mmi,panel_name_s","contains","boe";
+		panel = <&mot_boe_269_800x600_cmd_v0
+			&mot_boe_269_800x600_cmd_v1
+			&mot_boe_269_800x600_cmd_v2>;
 		compatible = "synaptics,synaptics_mmi";
 		reg = <0x38>;
 		interrupt-parent = <&tlmm>;
@@ -172,16 +156,16 @@
 		touch_vdd-supply = <&pm8350c_l2>;
 		vdd_quirk-supply = <&pm8350c_l3>;
 		synaptics,gpio-config;
-		pinctrl-names = "default", "active";
-		pinctrl-0 = <&ts_sub_int_active &ts_sub_reset_suspend>;
-		pinctrl-1 = <&ts_sub_int_active &ts_sub_reset_active>;
-		synaptics,splash-screen-mode;
+		pinctrl-names = "suspend_state", "active_state";
+		pinctrl-0 = <&ts_sub_int_active>;
+		pinctrl-1 = <&ts_sub_int_active>;
 		synaptics,control-dsi = <1>;
 		synaptics,class-entry-name = "secondary";
+		/* touchscreen_mmi class entries */
 		mmi,control-dsi = <1>;
 		mmi,reset-on-resume = <1>;
 		config_modifier-names = "aod";
-			config_modifier-aod {
+		config_modifier-aod {
 			aod-suspended {
 				/* Power->sleep; */
 				patch-data = "S";

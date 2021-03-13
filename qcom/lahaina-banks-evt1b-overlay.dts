@@ -34,8 +34,4 @@
 	sec_mmi@48 {
 		status = "ok";
 	};
-
-	synaptics_dsx_i2c@38 {
-		status = "disabled";
-	};
 };

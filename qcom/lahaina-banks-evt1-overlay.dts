@@ -41,6 +41,7 @@
 	};
 
 	synaptics_dsx_i2c@38 {
-		status = "disabled";
+		vdd_quirk-supply = <&pm8350c_l7>;
+		touch_vdd-supply= <&pm8350c_l8>;
 	};
 };
