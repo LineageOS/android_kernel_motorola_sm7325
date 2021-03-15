@@ -4010,7 +4010,7 @@ int aw_send_afe_cal_apr(uint32_t rx_port_id, uint32_t tx_port_id,
 
 	if (aw_cal->map_data.dma_buf == 0) {
 		/*Minimal chunk size is 4K*/
-		aw_cal->map_data.map_size = SZ_4K;
+		aw_cal->map_data.map_size = SZ_8K;
 		result = msm_audio_ion_alloc(&(aw_cal->map_data.dma_buf),
 				aw_cal->map_data.map_size,
 				&(aw_cal->cal_data.paddr),&len,
@@ -4037,7 +4037,7 @@ int aw_send_afe_cal_apr(uint32_t rx_port_id, uint32_t tx_port_id,
 		goto err;
 	}
 
-	if (cmd_size > (SZ_4K - sizeof(struct param_hdr_v3))) {
+	if (cmd_size > (SZ_8K - sizeof(struct param_hdr_v3))) {
 		pr_err("%s: Invalid payload size = %d\n", __func__, cmd_size);
 		result = -EINVAL;
 		goto err;
