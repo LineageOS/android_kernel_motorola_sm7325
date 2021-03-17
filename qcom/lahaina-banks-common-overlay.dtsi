@@ -275,6 +275,23 @@
 			mmi,demo-fv-mv = <4000>;
 		};
 	};
+
+	ext_mmi_chg {
+		compatible = "mmi,ext-mmi-chg";
+		mmi,df-serialnum = "unknown-sn";
+		mmi,chrg-iterm-ma = <100>;
+		mmi,fg-iterm-ma = <150>;
+		mmi,max-fv-mv = <4450>;
+		mmi,max-fcc-ma = <1250>;
+		mmi,demo-fv-mv = <4000>;
+		mmi,chg-psy = "bq25890-charger";
+		mmi,fg-psy = "fg_flip_battery";
+		mmi,mmi-temp-zones = <0 4200 300 0>,
+			<10 4200 750 300>,
+			<15 0 750 750>,
+			<45 4450 1250 1200>,
+			<60 4200 750 0>;
+	};
 };
 
 &tlmm{
@@ -343,13 +360,13 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&bq25890_irq &bq25890_en>;
 
-		ti,battery-regulation-voltage = <4200000>;
-		ti,charge-current = <1000000>;
-		ti,termination-current = <50000>;
+		ti,battery-regulation-voltage = <0>;
+		ti,charge-current = <0>;
+		ti,termination-current = <100000>;
 		ti,precharge-current = <128000>;
 		ti,minimum-sys-voltage = <3600000>;
-		ti,boost-voltage = <5000000>;
-		ti,boost-max-current = <1000000>;
+		ti,boost-voltage = <0>;
+		ti,boost-max-current = <0>;
 
 		ti,use-ilim-pin;
 		ti,thermal-regulation-threshold = <120>;
