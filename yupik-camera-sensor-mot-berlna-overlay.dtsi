@@ -508,6 +508,7 @@
 		rgltr-max-voltage = <2800000>;
 		rgltr-load-current = <100000>;
 		status = "ok";
+		multi-user-support;
 	};
 
 	sensor_wide: qcom,cam-sensor@3 {
