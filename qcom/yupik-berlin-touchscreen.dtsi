@@ -26,8 +26,8 @@
 		st,irq-gpio = <&tlmm 81 0x2008>;
 		st,regulator_avdd = "pm8350c_l3";
 		st,regulator_dvdd = "pm8350c_l8";
-		fts,x-max = <1080>;
-		fts,y-max = <2400>;
+		st,x-max = <1080>;
+		st,y-max = <2400>;
 		panel = <&mot_csot_nt37701_667_1080x2400_dsc_cmd>;
 	};
 };
