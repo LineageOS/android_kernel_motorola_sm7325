@@ -119,13 +119,16 @@
 };
 
 &dsi_nt36672e_fhd_plus_144_video {
-	qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0";
-	qcom,dsi-supported-dfps-list = <144 120 90 60 48>;
-	qcom,mdss-dsi-pan-enable-dynamic-fps;
-	qcom,mdss-dsi-pan-fps-update = "dfps_immediate_porch_mode_vfp";
+	qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0",
+				"src_byte_clk0", "src_pixel_clk0",
+				"shadow_byte_clk0", "shadow_pixel_clk0";
+	//qcom,dsi-supported-dfps-list = <144 120 90 60 48>;
+	//qcom,mdss-dsi-pan-enable-dynamic-fps;
+	//qcom,mdss-dsi-pan-fps-update = "dfps_immediate_porch_mode_vfp";
 	qcom,mdss-dsi-display-timings {
 		timing@0 {
-			qcom,mdss-dsi-panel-phy-timings = [00 1E 08 07 18 16 08
+			qcom,mdss-dsi-panel-clockrate = <900000000>;
+			qcom,mdss-dsi-panel-phy-timings = [00 1E 08 07 18 22 08
 				08 08 02 04 00 1A 0C];
 			qcom,display-topology = <1 1 1>;
 			qcom,default-topology-index = <0>;
