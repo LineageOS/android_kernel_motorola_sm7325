@@ -74,7 +74,7 @@
 
 &qupv3_se1_i2c {
 	status = "ok";
-	cirrus_spk: cs35l41@0 {
+	cirrus_spk: cs35l41@40 {
 		status = "ok";
 		compatible = "cirrus,cs35l41";
 		reg = <0x40>;
@@ -114,12 +114,8 @@
 					};
 					calibration {
 						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-spk-prot.wmfw";
+						cirrus,wmfw-file = "cs35l41-dsp1-spk-cali.wmfw";
 						cirrus,bin-file = "cs35l41-dsp1-spk-cali.bin";
-					};
-					diagnostic {
-						cirrus,full-name;
-						cirrus,wmfw-file = "cs35l41-dsp1-spk-diag.wmfw";
 					};
 				};
 			};
