@@ -95,6 +95,10 @@
 		cirrus,boost-cap-microfarad = <21>;
 		cirrus,asp-sdout-hiz = <3>;
 		cirrus,amp-gain-zc;
+		cirrus,fast-switch = "fast_switch_music.txt",
+				     "fast_switch_voice.txt",
+				     "fast_switch_ringtone.txt",
+				     "fast_switch_sonification.txt";
 
 		cirrus,gpio-config2 {
 			cirrus,gpio-output-enable = <0x01>;
