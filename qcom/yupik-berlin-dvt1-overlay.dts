@@ -21,3 +21,9 @@
 	qcom,msm-id = <475 0x10000>;
 	qcom,board-id = <0x41 0xB100>;
 };
+
+&qupv3_se13_i2c {
+	st_fts@49 {
+		st,regulator_dvdd = "pm8350c_l12";
+	};
+};
