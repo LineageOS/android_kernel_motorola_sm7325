@@ -121,6 +121,34 @@
 			bias-pull-up;
 		};
 	};
+
+	flip_balance_en_n: flip-balance-en-n {
+		mux {
+			pins = "gpio77";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio77";
+			drive-strength = <6>;
+			bias-disable;
+			output-low;
+		};
+	};
+
+	flip_battplus_dis: flip-battplus-dis {
+		mux {
+			pins = "gpio76";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio76";
+			drive-strength = <6>;
+			bias-disable;
+			output-low;
+		};
+	};
 };
 
 /* enable gpio6 as qup6 L4 to connect receiver spi cs*/
@@ -291,6 +319,16 @@
 			<15 0 750 750>,
 			<45 4450 1250 1200>,
 			<60 4200 750 0>;
+	};
+
+	flip_fet_control {
+		compatible = "mmi,fet-control";
+		pinctrl-names = "default";
+		pinctrl-0 = <&flip_battplus_dis &flip_balance_en_n>;
+		mmi,main-batt-psy = "battery";
+		mmi,flip-batt-psy = "fg_flip_battery";
+		mmi,flip_battplus_en_gpio = <&tlmm 76 0>;
+		mmi,flip_balance_en_n_gpio = <&tlmm 77 0>;
 	};
 };
 
