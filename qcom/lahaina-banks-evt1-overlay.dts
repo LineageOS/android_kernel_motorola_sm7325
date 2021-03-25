@@ -23,7 +23,15 @@
 };
 
 &pm8350c_l7 {
-	qcom,init-voltage = <3300000>;
+        regulator-min-microvolt = <3300000>;
+        regulator-max-microvolt = <3300000>;
+        qcom,init-voltage = <3300000>;
+};
+
+&pm8350c_l8 {
+        regulator-min-microvolt = <1800000>;
+        regulator-max-microvolt = <1800000>;
+        qcom,init-voltage = <1800000>;
 };
 
 &qupv3_se4_i2c {
@@ -44,4 +52,12 @@
 		vdd_quirk-supply = <&pm8350c_l7>;
 		touch_vdd-supply= <&pm8350c_l8>;
 	};
+};
+
+&vci_disp_s_vreg {
+	vin-supply = <&pm8350c_l7>;
+};
+
+&vio_disp_s_vreg {
+	vin-supply = <&pm8350c_l8>;
 };

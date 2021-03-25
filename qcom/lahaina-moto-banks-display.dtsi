@@ -103,15 +103,15 @@
 	vci_disp_s_vreg:  vci_disp_s_vreg{
 		compatible = "regulator-fixed";
 		regulator-name = "vci_disp_s_supply";
-		regulator-min-microvolt = <3000000>;
-		regulator-max-microvolt = <3000000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 		enable-active-high;
 		regulator-boot-on;
 
 		gpio = <&tlmm 44 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vci_en_s_default>;
-		vin-supply = <&L7C>;
+		vin-supply = <&L3C>;
 	};
 
 	vio_disp_s_vreg: vio_disp_s_vreg{
@@ -126,7 +126,7 @@
 		gpio = <&tlmm 46 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vio_en_s_default>;
-		vin-supply = <&L8C>;
+		vin-supply = <&L2C>;
 	};
 
 	sde_dsi: qcom,dsi-display-primary {
@@ -218,13 +218,13 @@
 	};
 };
 
-&L7C {
-	regulator-min-microvolt = <3000000>;
-	regulator-max-microvolt = <3000000>;
+&L3C {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
 	qcom,init-voltage = <3000000>;
 };
 
-&L8C {
+&L2C {
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
 	qcom,init-voltage = <1800000>;
