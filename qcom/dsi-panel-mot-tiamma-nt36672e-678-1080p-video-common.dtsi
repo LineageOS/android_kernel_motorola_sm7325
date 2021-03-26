@@ -1,7 +1,7 @@
 &mdss_mdp {
 	dsi_nt36672e_fhd_plus_144_video: qcom,mdss_dsi_nt36672e_fhd_plus_144_video {
 		qcom,mdss-dsi-panel-name =
-			"nt36672e fhd plus 144Hz video panel";
+			"mipi_mot_vid_tianma_1080p_dsc_678";
 		qcom,mdss-dsi-panel-type = "dsi_video_mode";
 		qcom,dsi-ctrl-num = <0>;
 		qcom,dsi-phy-num = <0>;
