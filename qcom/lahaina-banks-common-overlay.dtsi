@@ -306,7 +306,7 @@
 
 	ext_mmi_chg {
 		compatible = "mmi,ext-mmi-chg";
-		mmi,df-serialnum = "unknown-sn";
+		mmi,df-serialnum = "unknown-sn2";
 		mmi,chrg-iterm-ma = <100>;
 		mmi,fg-iterm-ma = <150>;
 		mmi,max-fv-mv = <4450>;
@@ -325,7 +325,7 @@
 		compatible = "mmi,fet-control";
 		pinctrl-names = "default";
 		pinctrl-0 = <&flip_battplus_dis &flip_balance_en_n>;
-		mmi,main-batt-psy = "battery";
+		mmi,main-batt-psy = "main_battery";
 		mmi,flip-batt-psy = "fg_flip_battery";
 		mmi,flip_battplus_en_gpio = <&tlmm 76 0>;
 		mmi,flip_balance_en_n_gpio = <&tlmm 77 0>;
@@ -410,5 +410,17 @@
 		ti,thermal-regulation-threshold = <120>;
 
 		bq25890_irq-gpios = <&tlmm 7 0>;
+	};
+};
+
+&battery_charger {
+	status = "disabled";
+};
+
+&soc {
+	qcom,pmic_glink {
+		battery_charger_mmi {
+			compatible = "qcom,battery-charger-mmi";
+		};
 	};
 };
