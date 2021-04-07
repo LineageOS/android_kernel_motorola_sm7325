@@ -36,8 +36,6 @@
 
 &qupv3_se4_i2c {
 	st_fts@49 {
-		st,x-flip;
-		st,y-flip;
 		st,regulator_avdd = "pm8350c_l7";
 		st,regulator_dvdd = "pm8350c_l8";
 	};
