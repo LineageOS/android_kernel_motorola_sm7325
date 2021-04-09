@@ -89,7 +89,7 @@
 &qupv3_se13_i2c {
 	status = "ok";
 	st_fts@49 {
-		mmi,status = "/chosen","mmi,panel_name","contains","csot_nt37701";
+		mmi,status = "/chosen","mmi,panel_name","contains","nt37701";
 		compatible = "st,fts";
 		reg = <0x49>;
 		interrupt-parent = <&tlmm>;
@@ -101,7 +101,8 @@
 		st,x-max = <1080>;
 		st,y-max = <2400>;
 		panel = <&mot_csot_nt37701_667_1080x2400_dsc_cmd_v0
-                         &mot_csot_nt37701_667_1080x2400_dsc_cmd_v1>;
+                         &mot_csot_nt37701_667_1080x2400_dsc_cmd_v1
+                         &mot_visionox_nt37701_667_1080x2400_dsc_cmd_v0>;
 		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
 		pinctrl-0 = <&touch_reset_active_output_high &touch_int_active>;
 		pinctrl-1 = <&touch_reset_suspend &touch_int_suspend>;
