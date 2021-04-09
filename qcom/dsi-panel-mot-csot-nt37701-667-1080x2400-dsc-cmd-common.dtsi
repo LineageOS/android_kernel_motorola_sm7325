@@ -87,9 +87,9 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-v-top-border = <0>;
 		qcom,mdss-dsi-v-bottom-border = <0>;
 		qcom,mdss-dsi-panel-jitter = <0x20 0xa>; /* 90fps +/- 2 */
-		//qcom,mdss-dsi-timing-switch-command = [
-		//	15 01 00 00 00 00 02 2F 01 //01:60 02:90 03:120
-		//];
+		qcom,mdss-dsi-timing-switch-command = [
+			15 01 00 00 00 00 02 2F 01 //01:60 02:90 03:120
+		];
 
 		qcom,mdss-dsi-on-command = [
 			39 01 00 00 00 00 06 F0 55 AA 52 08 08
@@ -108,6 +108,131 @@ qcom,mdss-dsi-display-timings {
 			39 01 00 00 00 00 05 2B 00 00 09 5F
 
 			15 01 00 00 00 00 02 2F 01 //01:60 02:90 03:120
+
+			05 01 00 00 78 00 01 11
+			05 01 00 00 00 00 01 29];	/* display on */
+		qcom,mdss-dsi-off-command = [
+			05 01 00 00 00 00 01 28		/* display_off */
+			05 01 00 00 78 00 01 10];	/* enter sleep mode */
+
+		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
+		//qcom,mdss-dsi-timing-switch-command-state =
+		//	"dsi_lp_mode";
+		qcom,compression-mode = "dsc";
+		/* Why QCOM doesn't use this, even it used 2 encoder
+		 * as for that dsi_sw43404_amoled_cmd, for ex */
+		/* qcom,mdss-dsc-encoders = <2>; */
+		qcom,mdss-dsc-version = <0x11>;
+		qcom,mdss-dsc-slice-height = <12>;
+		qcom,mdss-dsc-slice-width = <1080>;
+		qcom,mdss-dsc-slice-per-pkt = <1>;
+		qcom,mdss-dsc-bit-per-component = <10>;
+		qcom,mdss-dsc-bit-per-pixel = <10>;
+		qcom,mdss-dsc-block-prediction-enable;
+	};
+
+	timing@1{
+		qcom,mdss-dsi-cmd-mode;
+		qcom,mdss-dsi-panel-framerate = <90>;
+		qcom,mdss-dsi-panel-width = <1080>;
+		qcom,mdss-dsi-panel-height = <2400>;
+		qcom,mdss-dsi-h-front-porch = <36>;
+		qcom,mdss-dsi-h-back-porch = <36>;
+		qcom,mdss-dsi-h-pulse-width = <4>;
+		qcom,mdss-dsi-h-sync-skew = <0>;
+		qcom,mdss-dsi-h-sync-pulse = <0>;
+		qcom,mdss-dsi-v-back-porch = <4>;
+		qcom,mdss-dsi-v-front-porch = <12>;
+		qcom,mdss-dsi-v-pulse-width = <4>;
+		qcom,mdss-dsi-h-left-border = <0>;
+		qcom,mdss-dsi-h-right-border = <0>;
+		qcom,mdss-dsi-v-top-border = <0>;
+		qcom,mdss-dsi-v-bottom-border = <0>;
+		qcom,mdss-dsi-panel-jitter = <0x20 0xa>; /* 90fps +/- 2 */
+		qcom,mdss-dsi-timing-switch-command = [
+			15 01 00 00 00 00 02 2F 02 //01:60 02:90 03:120
+		];
+
+		qcom,mdss-dsi-on-command = [
+			39 01 00 00 00 00 06 F0 55 AA 52 08 08
+			39 01 00 00 00 00 03 C0 0F 7E//demura scale
+
+			15 01 00 00 00 00 02 03 01
+			15 01 00 00 00 00 02 90 01
+			39 01 00 00 00 00 13 91 AB 28 00 0C C2 00 03 1C 01 7E 00 0F 08 BB 04 3D 10 F0
+			15 01 00 00 00 00 02 2C 00 //dsc config 10bit
+
+			39 01 00 00 00 00 03 51 00 00
+			15 01 00 00 00 00 02 53 20
+			15 01 00 00 00 00 02 35 00 //te enable
+
+			39 01 00 00 00 00 05 2A 00 00 04 37
+			39 01 00 00 00 00 05 2B 00 00 09 5F
+
+			15 01 00 00 00 00 02 2F 02 //01:60 02:90 03:120
+
+			05 01 00 00 78 00 01 11
+			05 01 00 00 00 00 01 29];	/* display on */
+		qcom,mdss-dsi-off-command = [
+			05 01 00 00 00 00 01 28		/* display_off */
+			05 01 00 00 78 00 01 10];	/* enter sleep mode */
+
+		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
+		//qcom,mdss-dsi-timing-switch-command-state =
+		//	"dsi_lp_mode";
+		qcom,compression-mode = "dsc";
+		/* Why QCOM doesn't use this, even it used 2 encoder
+		 * as for that dsi_sw43404_amoled_cmd, for ex */
+		/* qcom,mdss-dsc-encoders = <2>; */
+		qcom,mdss-dsc-version = <0x11>;
+		qcom,mdss-dsc-slice-height = <12>;
+		qcom,mdss-dsc-slice-width = <1080>;
+		qcom,mdss-dsc-slice-per-pkt = <1>;
+		qcom,mdss-dsc-bit-per-component = <10>;
+		qcom,mdss-dsc-bit-per-pixel = <10>;
+		qcom,mdss-dsc-block-prediction-enable;
+	};
+	timing@2{
+		qcom,mdss-dsi-cmd-mode;
+		qcom,mdss-dsi-panel-framerate = <120>;
+		qcom,mdss-dsi-panel-width = <1080>;
+		qcom,mdss-dsi-panel-height = <2400>;
+		qcom,mdss-dsi-h-front-porch = <36>;
+		qcom,mdss-dsi-h-back-porch = <36>;
+		qcom,mdss-dsi-h-pulse-width = <4>;
+		qcom,mdss-dsi-h-sync-skew = <0>;
+		qcom,mdss-dsi-h-sync-pulse = <0>;
+		qcom,mdss-dsi-v-back-porch = <4>;
+		qcom,mdss-dsi-v-front-porch = <12>;
+		qcom,mdss-dsi-v-pulse-width = <4>;
+		qcom,mdss-dsi-h-left-border = <0>;
+		qcom,mdss-dsi-h-right-border = <0>;
+		qcom,mdss-dsi-v-top-border = <0>;
+		qcom,mdss-dsi-v-bottom-border = <0>;
+		qcom,mdss-dsi-panel-jitter = <0x20 0xa>; /* 90fps +/- 2 */
+		qcom,mdss-dsi-timing-switch-command = [
+			15 01 00 00 00 00 02 2F 03 //01:60 02:90 03:120
+		];
+
+		qcom,mdss-dsi-on-command = [
+			39 01 00 00 00 00 06 F0 55 AA 52 08 08
+			39 01 00 00 00 00 03 C0 0F 7E//demura scale
+
+			15 01 00 00 00 00 02 03 01
+			15 01 00 00 00 00 02 90 01
+			39 01 00 00 00 00 13 91 AB 28 00 0C C2 00 03 1C 01 7E 00 0F 08 BB 04 3D 10 F0
+			15 01 00 00 00 00 02 2C 00 //dsc config 10bit
+
+			39 01 00 00 00 00 03 51 00 00
+			15 01 00 00 00 00 02 53 20
+			15 01 00 00 00 00 02 35 00 //te enable
+
+			39 01 00 00 00 00 05 2A 00 00 04 37
+			39 01 00 00 00 00 05 2B 00 00 09 5F
+
+			15 01 00 00 00 00 02 2F 03 //01:60 02:90 03:120
 
 			05 01 00 00 78 00 01 11
 			05 01 00 00 00 00 01 29];	/* display on */

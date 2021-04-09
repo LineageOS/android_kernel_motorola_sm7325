@@ -164,9 +164,25 @@
 	qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0";
 	qcom,mdss-dsi-display-timings {
 		timing@0 {
-			//qcom,mdss-dsi-panel-clockrate = <938000000>;
+			qcom,mdss-dsi-panel-clockrate = <515000000>;
 			qcom,display-topology = <1 1 1>;
 			qcom,default-topology-index = <0>;
+			//qcom,mdss-dsi-panel-phy-timings = [00 10 03 03 11 1E 04
+			//				04 03 02 04 00 0E 08];
+		};
+		timing@1 {
+			qcom,mdss-dsi-panel-clockrate = <750000000>;
+			qcom,display-topology = <1 1 1>;
+			qcom,default-topology-index = <0>;
+			//qcom,mdss-dsi-panel-phy-timings = [00 15 05 05 14 1F 05
+			//				05 06 02 04 00 13 0A];
+		};
+		timing@2 {
+			qcom,mdss-dsi-panel-clockrate = <950000000>;
+			qcom,display-topology = <1 1 1>;
+			qcom,default-topology-index = <0>;
+			//qcom,mdss-dsi-panel-phy-timings = [00 1A 07 06 16 15 07
+			//				07 07 02 04 00 17 0B];
 		};
 	};
 };
