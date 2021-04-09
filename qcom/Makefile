@@ -9,6 +9,7 @@ dtbo-$(CONFIG_ARCH_LAHAINA) += \
 		lahaina-jordan-evb-overlay.dtbo \
 		lahaina-dubai-evb-overlay.dtbo \
 		lahaina-dubai-evb3-overlay.dtbo \
+		lahaina-xpeng-evb-overlay.dtbo \
 		lahaina-banks-evt1-overlay.dtbo \
 		lahaina-banks-evt1b-overlay.dtbo \
 		lahaina-banks-evt2-overlay.dtbo \
@@ -19,6 +20,7 @@ dtbo-$(CONFIG_ARCH_LAHAINA) += \
 lahaina-jordan-evb-overlay.dtbo-base := lahaina-moto-base.dtb
 lahaina-dubai-evb-overlay.dtbo-base := lahaina-moto-base.dtb
 lahaina-dubai-evb3-overlay.dtbo-base := lahaina-moto-base.dtb
+lahaina-xpeng-evb-overlay.dtbo-base := lahaina-moto-base.dtb
 lahaina-banks-evt1-overlay.dtbo-base := lahaina-moto-base.dtb
 lahaina-banks-evt1b-overlay.dtbo-base := lahaina-moto-base.dtb
 lahaina-banks-evt2-overlay.dtbo-base := lahaina-moto-base.dtb

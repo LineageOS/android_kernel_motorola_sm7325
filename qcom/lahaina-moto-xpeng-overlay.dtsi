@@ -1,0 +1,163 @@
+/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "lahaina-moto-common-overlay.dtsi"
+#include "lahaina-moto-dubai-display.dtsi"
+#include "lahaina-dubai-vibrator.dtsi"
+#include "lahaina-dubai-touchscreen.dtsi"
+#include <dt-bindings/clock/qcom,rpmh.h>
+#include "lahaina-moto-common-charger.dtsi"
+
+&pm8008i_8 {
+	status = "disabled";
+};
+
+&pm8008i_9 {
+	status = "disabled";
+};
+
+&pm8008j_c {
+	status = "disabled";
+};
+
+&pm8008j_d {
+	status = "disabled";
+};
+
+&pm8350c_rgb {
+	red {
+		label = "charging";
+	};
+	green {
+		status = "disabled";
+	};
+	blue {
+		status = "disabled";
+	};
+};
+
+&qupv3_se13_i2c {
+	status = "ok";
+	nq@64 {
+		status = "disabled";
+	};
+};
+
+&tlmm {
+	redriver_enable: redriver_enable {
+		mux {
+			pins = "gpio27";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio27";
+			drive-strength = <2>;
+			bias-disable; /* NO PULL */
+			input-enable;
+		};
+	};
+	redriver_disable: redriver_disable {
+		mux {
+			pins = "gpio27";
+				function = "gpio";
+			};
+
+		config {
+			pins = "gpio27";
+			drive-strength = <2>;
+			output-low;
+		};
+	};
+
+};
+
+&qupv3_se1_i2c {
+	status = "disabled";
+};
+
+&qupv3_se1_spi {
+	status = "disabled";
+};
+
+&qupv3_se5_spi {
+	status = "disabled";
+};
+
+&qupv3_se5_i2c {
+	status = "disabled";
+};
+
+&qupv3_se15_i2c {
+	status = "ok";
+	qcom,clk-freq-out = <1000000>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	st21nfc@8 {
+		compatible = "st,st21nfc";
+		mmi,status = "/chosen", "mmi,nfc", "st";
+		status = "ok";
+		reg = <0x08>;
+		st,irq_gpio = <&tlmm 87 0x00>;
+		st,reset_gpio = <&tlmm 62 0x00>;
+		st,clkreq_gpio = <&tlmm 63 0x00>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <87 0>;
+		interrupt-names = "nfc_irq";
+		pinctrl-names = "nfc_active", "nfc_suspend";
+		pinctrl-0 = <&nfc_int_active &nfc_enable_active
+				&nfc_clk_req_active>;
+		pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend
+				&nfc_clk_req_suspend>;
+	};
+
+	nq@28 {
+		compatible = "qcom,sn-nci";
+		mmi,status = "/chosen", "mmi,nfc", "ese_nq";
+		status = "ok";
+		reg = <0x28>;
+		qcom,sn-irq = <&tlmm 87 0x00>;
+		qcom,sn-ven = <&tlmm 62 0x00>;
+		qcom,sn-firm = <&tlmm 86 0x00>;
+		qcom,sn-clkreq = <&tlmm 63 0x00>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <87 0>;
+		interrupt-names = "nfc_irq";
+		pinctrl-names = "nfc_active", "nfc_suspend";
+		pinctrl-0 = <&nfc_int_active &nfc_enable_active
+						&nfc_clk_req_active &nfc_fwdl_active>;
+		pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend
+						&nfc_clk_req_suspend &nfc_fwdl_suspend>;
+	};
+};
+
+
+&qupv3_se8_spi {
+	status = "disabled";
+};
+
+&qupv3_se8_i2c {
+	status = "ok";
+	#include "lahaina-moto-common-redriver.dtsi"
+};
+
+&redriver_diodes {
+	status = "disabled";
+};
+
+&redriver {
+	status = "ok";
+};
+
+&usb0 {
+	ssusb_redriver = <&redriver>;
+};
