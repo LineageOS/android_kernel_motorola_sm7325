@@ -50,6 +50,16 @@
 
 		qcom,panel-supply-entry@1 {
 			reg = <1>;
+			qcom,supply-name = "ddic";
+			qcom,supply-min-voltage = <1260000>;
+			qcom,supply-max-voltage = <1260000>;
+			qcom,supply-enable-load = <60700>;
+			qcom,supply-disable-load = <10>;
+			qcom,supply-post-on-sleep = <10>;
+		};
+
+		qcom,panel-supply-entry@2 {
+			reg = <2>;
 			qcom,supply-name = "vdd";
 			qcom,supply-min-voltage = <3000000>;
 			qcom,supply-max-voltage = <3000000>;
@@ -129,6 +139,7 @@
 	qcom,panel-te-source = <0>;
 
 	vddio-supply = <&L12C>;
+	ddic-supply = <&L16B>;
 	vdd-supply = <&disp_vci>;
 
 };
@@ -137,6 +148,12 @@
 	regulator-min-microvolt = <3000000>;
 	regulator-max-microvolt = <3000000>;
 	qcom,init-voltage = <3000000>;
+};
+
+&L16B {
+	regulator-min-microvolt = <1260000>;
+	regulator-max-microvolt = <1260000>;
+	qcom,init-voltage = <1260000>;
 };
 
 &mdss_mdp {
