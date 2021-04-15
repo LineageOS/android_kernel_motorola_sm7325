@@ -46,6 +46,9 @@
 	};
 };
 
+&socd_trip {
+	temperature = <95>;
+};
 
 &qupv3_se9_i2c {
         status = "ok";
