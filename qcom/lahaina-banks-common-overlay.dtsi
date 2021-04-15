@@ -151,6 +151,20 @@
 	};
 };
 
+&pm8350b_gpios {
+	chrg_fullcurr_en {
+		chrg_fullcurr_en_default: chrg_fullcurr_en_default {
+			pins = "gpio8";
+			function = "normal";
+			output-high;
+			bias-disable;
+			power-source = <0>;
+			qcom,drive-strength = <2>;
+			input-disable;
+		};
+	};
+};
+
 /* enable gpio6 as qup6 L4 to connect receiver spi cs*/
 &qupv3_se6_spi_pins {
 	qupv3_se6_spi_active: qupv3_se6_spi_active {
@@ -324,11 +338,12 @@
 	flip_fet_control {
 		compatible = "mmi,fet-control";
 		pinctrl-names = "default";
-		pinctrl-0 = <&flip_battplus_dis &flip_balance_en_n>;
+		pinctrl-0 = <&flip_battplus_dis &flip_balance_en_n &chrg_fullcurr_en_default>;
 		mmi,main-batt-psy = "main_battery";
 		mmi,flip-batt-psy = "fg_flip_battery";
 		mmi,flip_battplus_en_gpio = <&tlmm 76 0>;
 		mmi,flip_balance_en_n_gpio = <&tlmm 77 0>;
+		mmi,chrg-fullcurr-en-gpio = <&pm8350b_gpios 8 GPIO_ACTIVE_HIGH>;
 	};
 };
 
