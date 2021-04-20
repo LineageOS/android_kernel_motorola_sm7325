@@ -58,5 +58,6 @@
 		novatek,panel-supplier = "tm";
 		panel = <&dsi_nt36672e_fhd_plus_144_video>;
 		status = "ok";
+		mmi,class-entry-name = "NVT-ts";
 	};
 };
