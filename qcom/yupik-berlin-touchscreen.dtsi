@@ -102,7 +102,7 @@
 		st,y-max = <2400>;
 		panel = <&mot_csot_nt37701_667_1080x2400_dsc_cmd_v0
                          &mot_csot_nt37701_667_1080x2400_dsc_cmd_v1
-                         &mot_visionox_nt37701_667_1080x2400_dsc_cmd_v0>;
+                         &mot_vx_nt37701_667_1080x2400_dsc_cmd_v0>;
 		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
 		pinctrl-0 = <&touch_reset_active_output_high &touch_int_active>;
 		pinctrl-1 = <&touch_reset_suspend &touch_int_suspend>;
