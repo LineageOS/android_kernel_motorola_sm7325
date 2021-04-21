@@ -51,6 +51,7 @@ typedef enum {
 typedef enum {
 	MOT_DEVICE_NIO,
 	MOT_DEVICE_BERLNA,
+	MOT_DEVICE_BERLIN,
 	MOT_DEVICE_NUM,
 } mot_dev_type;
 
@@ -201,6 +202,23 @@ static const mot_dev_info mot_dev_list[MOT_DEVICE_NUM] = {
 				.cci_addr = 0x0c,
 				.cci_dev = 0x01,
 				.cci_master = 0x01,
+				.regulator_list = {"ldo7", "ldo5"},
+				.regulator_volt_uv = {1800000, 2800000},
+				.park_lens_needed = true,
+			},
+		},
+	},
+        {
+		.dev_type = MOT_DEVICE_BERLIN,
+		.actuator_num = 1,
+		.dev_name = "berlin",
+		.actuator_info = {
+			[0] = {
+				.actuator_type = MOT_ACTUATOR_GT9772,
+				.dac_pos = 480,
+				.cci_addr = 0x0c,
+				.cci_dev = 0x01,
+				.cci_master = 0x1,
 				.regulator_list = {"ldo7", "ldo5"},
 				.regulator_volt_uv = {1800000, 2800000},
 				.park_lens_needed = true,
@@ -881,7 +899,8 @@ static ssize_t mot_actuator_safe_pos_store(struct device *dev,
 	}
 
 	lens_safe_pos_dac = input;
-
+	//reinitialize when the safe_pos parameter is manually configured.
+	runtime_inited = false;
 	retval = count;
 exit:
 	return retval;
