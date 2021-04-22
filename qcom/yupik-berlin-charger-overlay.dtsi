@@ -2,7 +2,7 @@
 	compatible = "mmi,mmi-charger";
 	mmi,enable-charging-limit;
 	mmi,enable-factory-poweroff;
-	mmi,upper-limit-capacity = <75>;
+	mmi,upper-limit-capacity = <65>;
 	mmi,lower-limit-capacity = <60>;
 	mmi,heartbeat-interval = <60000>;
 	mmi,dcp-power-max = <10000>;
@@ -11,7 +11,7 @@
 
 &qti_glink_charger {
 	compatible = "mmi,qti-glink-charger";
-	mmi,df-serialnum = "unknown-sn";
+	mmi,df-serialnum = "SB18D10750";
 	mmi,demo-fv-mv = <4000>;
 	profile-ids-map = "107000", "SB18D10750";
 };
