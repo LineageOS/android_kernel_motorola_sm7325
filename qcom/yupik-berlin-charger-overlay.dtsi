@@ -1,7 +1,6 @@
 &mmi_charger {
 	compatible = "mmi,mmi-charger";
 	mmi,enable-charging-limit;
-	mmi,enable-factory-poweroff;
 	mmi,upper-limit-capacity = <65>;
 	mmi,lower-limit-capacity = <60>;
 	mmi,heartbeat-interval = <60000>;
