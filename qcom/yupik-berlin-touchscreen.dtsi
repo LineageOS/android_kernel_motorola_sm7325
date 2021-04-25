@@ -110,5 +110,6 @@
 		pinctrl-1 = <&touch_reset_suspend &touch_int_suspend>;
 		/* touchscreen_mmi class entries */
 		mmi,power-off-suspend;
+		mmi,usb-charger-detection;
 	};
 };
