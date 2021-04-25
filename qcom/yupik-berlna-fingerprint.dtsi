@@ -67,6 +67,37 @@
 			input-enable;
 		};
 	};
+
+	ets {
+		ets_int_active: ets_int_active {
+			/* INTERRUPT */
+			mux {
+				pins = "gpio34";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio34";
+				drive-strength = <2>; /* 2 MA */
+				bias-pull-down; /* pull down */
+				input-enable;
+			};
+		};
+		ets_int_suspend: ets_int_suspend {
+			/* INTERRUPT */
+			mux {
+				pins = "gpio34";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio34";
+				drive-strength = <2>; /* 2 MA */
+				bias-pull-down; /* pull down */
+				input-enable;
+			};
+		};
+	};
 };
 
 &L9C {
@@ -88,5 +119,18 @@
 		pinctrl-names = "default", "suspend";
 		pinctrl-0 = <&fps_rst_active &fps_int_active>;
 		pinctrl-1 = <&fps_rst_suspend &fps_int_suspend>;
+	};
+
+	et528: et528 {
+		compatible = "egistec,et516";
+		status = "ok";
+		reg = <0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <34 0x0>;
+		egistec,gpio_irq = <&tlmm 34 0x2>;
+		egistec,gpio_rst = <&tlmm 35 0x2>;
+		pinctrl-names = "default", "suspend";
+		pinctrl-0 = <&ets_int_active>;
+		pinctrl-1 = <&ets_int_suspend>;
 	};
 };
