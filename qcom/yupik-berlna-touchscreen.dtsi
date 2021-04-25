@@ -58,6 +58,8 @@
 		novatek,panel-supplier = "tm";
 		panel = <&dsi_nt36672e_fhd_plus_144_video>;
 		status = "ok";
+		/* touchscreen_mmi class entries */
 		mmi,class-entry-name = "NVT-ts";
+		mmi,usb-charger-detection;
 	};
 };
