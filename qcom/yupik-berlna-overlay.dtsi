@@ -17,3 +17,4 @@
 #include "yupik-berlna-sensor-overlay.dtsi"
 #include "yupik-berlna-fingerprint.dtsi"
 #include "camera/yupik-camera-sensor-mot-berlna-overlay.dtsi"
+#include "yupik-berlna-charger-overlay.dtsi"
