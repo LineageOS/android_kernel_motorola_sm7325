@@ -310,6 +310,21 @@
 		compatible = "qcom,cam-res-mgr";
 		status = "ok";
 	};
+
+	qcom,cam_smmu {
+		msm_cam_smmu_icp {
+			icp_iova_mem_map: iova-mem-map {
+				iova-mem-region-shared {
+					/* Shared region is 261MB long */
+					iova-region-name = "shared";
+					iova-region-start = <0x500000>;
+					iova-region-len = <0x10500000>;
+					iova-region-id = <0x1>;
+					status = "ok";
+				};
+			};
+		};
+	};
 };
 
 &cam_cci0 {
