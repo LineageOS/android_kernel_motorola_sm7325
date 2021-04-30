@@ -81,6 +81,9 @@
 &pm8350c_l3 {
 	qcom,init-voltage = <3300000>;
 };
+&pm8350c_l2 {
+	qcom,init-voltage = <1800000>;
+};
 
 &qupv3_se13_spi {
 	status = "disabled";
