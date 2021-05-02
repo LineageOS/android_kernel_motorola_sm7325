@@ -149,6 +149,21 @@
 			output-low;
 		};
 	};
+
+	flip_chrg_en: flip-chrg-en {
+		mux {
+			pins = "gpio3";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio3";
+			drive-strength = <2>; /* 2 MA */
+			bias-disable;
+			output-high;
+		};
+	};
+
 };
 
 &pm8350b_gpios {
@@ -309,18 +324,23 @@
 	qcom,pmic_glink {
 		qti_glink_charger: mmi,qti-glink-charger {
 			compatible = "mmi,qti-glink-charger";
-			mmi,df-serialnum = "unknown-sn";
+			mmi,df-serialnum = "SB18C71005";
 			mmi,chrg-iterm-ma = <300>;
 			mmi,fg-iterm-ma = <350>;
 			mmi,max-fv-mv = <4400>;
 			mmi,max-fcc-ma = <1100>;
 			mmi,demo-fv-mv = <4000>;
+			mmi,mmi-temp-zones = <0 4200 243 0>,
+					<10 4200 608 243>,
+					<15 0 608 608>,
+					<45 4450 1210 1200>,
+					<60 4200 608 0>;
 		};
 	};
 
 	ext_mmi_chg {
 		compatible = "mmi,ext-mmi-chg";
-		mmi,df-serialnum = "unknown-sn2";
+		mmi,df-serialnum = "SB18C71004";
 		mmi,chrg-iterm-ma = <100>;
 		mmi,fg-iterm-ma = <150>;
 		mmi,max-fv-mv = <4450>;
@@ -338,13 +358,15 @@
 	flip_fet_control {
 		compatible = "mmi,fet-control";
 		pinctrl-names = "default";
-		pinctrl-0 = <&flip_battplus_dis &flip_balance_en_n &chrg_fullcurr_en_default>;
+		pinctrl-0 = <&flip_battplus_dis &flip_balance_en_n &chrg_fullcurr_en_default  &flip_chrg_en>;
 		mmi,main-batt-psy = "main_battery";
 		mmi,flip-batt-psy = "fg_flip_battery";
 		mmi,flip_battplus_en_gpio = <&tlmm 76 0>;
 		mmi,flip_balance_en_n_gpio = <&tlmm 77 0>;
+		mmi,flip-chrg-en-gpios = <&tlmm 3 0>;
 		mmi,chrg-fullcurr-en-gpio = <&pm8350b_gpios 8 GPIO_ACTIVE_HIGH>;
 	};
+
 };
 
 &tlmm{
@@ -375,20 +397,6 @@
 			input-enable;
 		};
 	};
-
-	bq25890_en: bq25890-en {
-		mux {
-			pins = "gpio3";
-			function = "gpio";
-		};
-
-		config {
-			pins = "gpio3";
-			drive-strength = <2>; /* 2 MA */
-			bias-disable;
-			output-high;
-		};
-	};
 };
 
 &qupv3_se0_i2c {
@@ -411,7 +419,7 @@
 		reg = <0x6b>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&bq25890_irq &bq25890_en>;
+		pinctrl-0 = <&bq25890_irq>;
 
 		ti,battery-regulation-voltage = <0>;
 		ti,charge-current = <0>;
