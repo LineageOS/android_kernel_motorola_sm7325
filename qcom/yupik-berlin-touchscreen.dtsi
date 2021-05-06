@@ -81,7 +81,8 @@
 &pm8350c_l3 {
 	qcom,init-voltage = <3300000>;
 };
-&pm8350c_l2 {
+
+&pm8350c_l8 {
 	qcom,init-voltage = <1800000>;
 };
 

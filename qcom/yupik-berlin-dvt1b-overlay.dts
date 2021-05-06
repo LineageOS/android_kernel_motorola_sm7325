@@ -22,6 +22,10 @@
 	qcom,board-id = <0x41 0xB1B0>;
 };
 
+&pm8350c_l2 {
+	qcom,init-voltage = <1800000>;
+};
+
 &qupv3_se13_i2c {
 	st_fts@49 {
 		st,regulator_dvdd = "pm8350c_l2";
