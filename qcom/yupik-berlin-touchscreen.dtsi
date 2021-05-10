@@ -108,6 +108,7 @@
 		st,report_rate_cmd = /bits/ 8 <0xC0 0x05 0x00 0x00 0x32 0x00 0x04 0x05 0x01 0x05>;
 		panel = <&mot_csot_nt37701_667_1080x2400_dsc_cmd_v0
                          &mot_csot_nt37701_667_1080x2400_dsc_cmd_v1
+                         &mot_csot_nt37701_667_1080x2400_dsc_cmd_v2
                          &mot_vx_nt37701_667_1080x2400_dsc_cmd_v0>;
 		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
 		pinctrl-0 = <&touch_reset_active_output_high &touch_int_active>;
