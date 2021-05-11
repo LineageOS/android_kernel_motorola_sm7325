@@ -1597,6 +1597,14 @@ static int sde_connector_atomic_set_property(struct drm_connector *connector,
 		if (rc)
 			goto end;
 		break;
+	case CONNECTOR_PROP_SRE:
+		param_info.value = val;
+		param_info.param_idx = PARAM_DC_ID;
+		param_info.param_conn_idx = CONNECTOR_PROP_SRE;
+		rc = _sde_connector_update_param(c_conn, &param_info);
+		if (rc)
+			goto end;
+		break;
 	default:
 		break;
 	}
@@ -2699,6 +2707,8 @@ static int sde_connector_install_panel_params(struct sde_connector *c_conn)
 			prop_idx = CONNECTOR_PROP_ACL;
 		else if (!strncmp(param_cmds->param_name, "DC", 2))
 			prop_idx = CONNECTOR_PROP_DC;
+		else if (!strncmp(param_cmds->param_name, "SRE", 3))
+			prop_idx = CONNECTOR_PROP_SRE;
 		else {
 			SDE_ERROR("Invalid param_name =%s\n",
 						param_cmds->param_name);

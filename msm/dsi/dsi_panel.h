@@ -250,6 +250,12 @@ enum dc_state {
 	DC_STATE_NUM,
 };
 
+enum sre_state {
+	SRE_OFF_STATE = 0,
+	SRE_ON_STATE,
+	SRE_STATE_NUM,
+};
+
 struct panel_param_val_map {
 	int state;
 	enum dsi_cmd_set_type type;
