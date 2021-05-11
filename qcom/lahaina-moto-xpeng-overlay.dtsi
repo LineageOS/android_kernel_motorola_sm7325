@@ -11,9 +11,9 @@
  */
 
 #include "lahaina-moto-common-overlay.dtsi"
-#include "lahaina-moto-dubai-display.dtsi"
+#include "lahaina-moto-xpeng-display.dtsi"
 #include "lahaina-dubai-vibrator.dtsi"
-#include "lahaina-dubai-touchscreen.dtsi"
+#include "lahaina-xpeng-touchscreen.dtsi"
 #include <dt-bindings/clock/qcom,rpmh.h>
 #include "lahaina-moto-common-charger.dtsi"
 #include "lahaina-xpeng-audio-overlay.dtsi"
@@ -50,6 +50,28 @@
 	status = "ok";
 	nq@64 {
 		status = "disabled";
+	};
+
+	tps65132@3e {
+		compatible = "ti,tps65132";
+		reg = <0x3e>;
+
+		regulators {
+			tps65132_outp: outp {
+				regulator-name = "outp";
+				regulator-boot-on;
+				regulator-always-on;
+				enable-gpios = <&tlmm 2 0>;
+			};
+
+			tps65132_outn: outn {
+				regulator-name = "outn";
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-active-discharge = <0>;
+				enable-gpios = <&tlmm 3 0>;
+			};
+		};
 	};
 };
 
