@@ -16,6 +16,7 @@
 #include "lahaina-dubai-touchscreen.dtsi"
 #include <dt-bindings/clock/qcom,rpmh.h>
 #include "lahaina-moto-common-charger.dtsi"
+#include "lahaina-xpeng-audio-overlay.dtsi"
 
 &pm8008i_8 {
 	status = "disabled";
