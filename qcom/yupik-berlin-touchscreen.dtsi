@@ -114,6 +114,7 @@
 		pinctrl-0 = <&touch_reset_active_output_high &touch_int_active>;
 		pinctrl-1 = <&touch_reset_suspend &touch_int_suspend>;
 		/* touchscreen_mmi class entries */
+		mmi,enable-gestures;
 		mmi,power-off-suspend;
 		mmi,usb-charger-detection;
 	};
