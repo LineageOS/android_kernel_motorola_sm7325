@@ -42,6 +42,9 @@
 #include "lahaina-port-config.h"
 #include "msm_dailink.h"
 
+#define CS35L41_DRV_NAME "cs35l41-codec"
+#define CS35L45_DRV_NAME "cs35l45-codec"
+
 #define DRV_NAME "lahaina-asoc-snd"
 #define __CHIPSET__ "LAHAINA "
 #define MSM_DAILINK_NAME(name) (__CHIPSET__#name)
@@ -5830,6 +5833,45 @@ static void *def_wcd_mbhc_cal(void)
 	return wcd_mbhc_cal;
 }
 
+static int cirrus_amp_init(struct snd_soc_pcm_runtime *rtd)
+{
+	const char *name_prefix;
+	struct snd_soc_dapm_context *dapm;
+	struct snd_soc_component *component =
+		snd_soc_rtdcom_lookup(rtd, CS35L41_DRV_NAME);
+
+	if (!component)
+		component = snd_soc_rtdcom_lookup(rtd, CS35L45_DRV_NAME);
+	if (!component) {
+		pr_err("%s: No match for codec component\n", __func__);
+		return -1;
+	}
+	dapm = snd_soc_component_get_dapm(component);
+
+	name_prefix = component->name_prefix;
+	if (!name_prefix) {
+		dev_err(component->dev, "name prefix is empty, shoulbe be SPK or RCV\n");
+		return -1;
+	}
+	pr_info("%s: comonent %s prefix %s\n", __func__,
+		component->driver->name, name_prefix);
+
+	if (!strcmp("RCV", name_prefix)) {
+		snd_soc_dapm_ignore_suspend(dapm, "RCV AMP Playback");
+		snd_soc_dapm_ignore_suspend(dapm, "RCV SPK");
+		snd_soc_dapm_ignore_suspend(dapm, "RCV AMP Capture");
+		snd_soc_dapm_ignore_suspend(dapm, "RCV VMON ADC");
+	} else if(!strcmp("SPK", name_prefix)) {
+		snd_soc_dapm_ignore_suspend(dapm, "SPK AMP Playback");
+		snd_soc_dapm_ignore_suspend(dapm, "SPK SPK");
+		snd_soc_dapm_ignore_suspend(dapm, "SPK AMP Capture");
+		snd_soc_dapm_ignore_suspend(dapm, "SPK VMON ADC");
+	}
+
+	snd_soc_dapm_sync(dapm);
+	return 0;
+}
+
 /* Digital audio interface glue - connects codec <---> CPU */
 static struct snd_soc_dai_link msm_common_dai_links[] = {
 	/* FrontEnd DAI Links */
@@ -6832,6 +6874,7 @@ static struct snd_soc_dai_link msm_mi2s_stereo_prince_dai_links[] = {
 		.ops = &msm_mi2s_be_ops,
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
+		.init = cirrus_amp_init,
 		SND_SOC_DAILINK_REG(pri_mi2s_rx_stereo_prince),
 	},
 	{
@@ -6858,6 +6901,7 @@ static struct snd_soc_dai_link msm_mi2s_franklin_mono_dai_links[] = {
 		.ops = &msm_mi2s_be_ops,
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
+		.init = cirrus_amp_init,
 		SND_SOC_DAILINK_REG(pri_mi2s_rx_franklin),
 	},
 	{
@@ -6884,6 +6928,7 @@ static struct snd_soc_dai_link msm_mi2s_franklin_prince_dai_links[] = {
 		.ops = &msm_mi2s_be_ops,
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
+		.init = cirrus_amp_init,
 		SND_SOC_DAILINK_REG(pri_mi2s_rx_franklin_prince),
 	},
 	{
@@ -6978,6 +7023,7 @@ static struct snd_soc_dai_link msm_mi2s_cs35l41_dai_links[] = {
 		.ops = &msm_mi2s_be_ops,
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
+		.init = cirrus_amp_init,
 		SND_SOC_DAILINK_REG(sen_mi2s_rx_cs35l41),
 	},
 	{
