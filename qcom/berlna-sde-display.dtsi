@@ -14,8 +14,8 @@
 &pm7325b_wled {
 	qcom,string-cfg = <7>;
 	qcom,cabc-sel = <1>;
-	qcom,ovp = <29500>;
-	qcom,boost-current-limit = <1050>;
+	qcom,ovp = <26500>;
+	qcom,boost-current-limit = <1400>;
 	status = "ok";
 	mmi,low-bl-force-cabc-disable;
 	mmi,low-bl-threshold = <200>;
