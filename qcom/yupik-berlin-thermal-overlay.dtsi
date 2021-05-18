@@ -377,6 +377,12 @@
 			};
 		};
 	};
+	modem-sub6-pa1-step {
+		status = "disabled";
+	};
+	modem-lte-pa2-step {
+		status = "disabled";
+	};
 };
 
 &battery_charger {
