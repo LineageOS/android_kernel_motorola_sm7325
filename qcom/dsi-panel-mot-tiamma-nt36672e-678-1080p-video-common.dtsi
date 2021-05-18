@@ -22,13 +22,13 @@
 		qcom,mdss-dsi-reset-sequence = <1 10>, <0 10>, <1 10>;
 		qcom,mdss-dsi-tx-eot-append;
 		qcom,adjust-timer-wakeup-ms = <1>;
-		//qcom,mdss-dsi-panel-hdr-enabled;
-		qcom,mdss-dsi-panel-hdr-color-primaries = <15000 16000 33750
-						 15800 13250 34450 7500 3000>;
-		qcom,mdss-dsi-panel-peak-brightness = <6450000>;
-		qcom,mdss-dsi-panel-blackness-level = <4961>;
-		//need check
-		qcom,mdss-pan-physical-width-dimension = <67>;
+		qcom,mdss-dsi-panel-hdr-enabled;
+		qcom,mdss-dsi-panel-hdr-color-primaries = <15100 15745 32800
+						 16850 15150 32350 7450 3000>;
+		qcom,mdss-dsi-panel-peak-brightness = <4500000>;
+		qcom,mdss-dsi-panel-blackness-level = <3000>;
+
+		qcom,mdss-pan-physical-width-dimension = <69>;
 		qcom,mdss-pan-physical-height-dimension = <157>;
 
 		qcom,mdss-dsi-cabc-mv-command = [15 01 00 00 00 00 02 55 03];
