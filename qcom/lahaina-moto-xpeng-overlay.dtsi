@@ -96,30 +96,70 @@
                 aw99703,map-type = <1>; /* linear */
                 aw99703,work-mode = <1>; /* backlight */
 	};
+
+	redriver:redriver@30{
+		compatible = "parade,ps5169-redriver";
+		reg = <0x30>;
+		pinctrl-names = "enable_gpio", "disable_gpio";
+		pinctrl-0 = <&usb3phy_portselect_gpio &redriver_enable>;
+		pinctrl-1 = <&usb3phy_portselect_gpio &redriver_disable>;
+		gpios = <&tlmm 81 0>;
+		config-seq =
+		        /* <reg_offset, value, delay_us> */
+		        <0x9d 0x80 10000
+		        0x9d 0x00 0
+		        0x40 0x80 0
+		        0x9f 0x02 0
+		        0x8d 0x01 0
+		        0x90 0x01 0
+		        0x51 0x87 0
+		        0x50 0x20 0
+		        0x54 0x11 0
+		        0x5d 0x66 0
+		        0x52 0x20 0
+		        0x55 0x00 0
+		        0x56 0x00 0
+		        0x57 0x00 0
+		        0x58 0x00 0
+		        0x59 0x00 0
+		        0x5a 0x00 0
+		        0x5b 0x00 0
+		        0x5e 0x06 0
+		        0x5f 0x00 0
+		        0x60 0x00 0
+		        0x61 0x03 0
+		        0x65 0x40 0
+		        0x66 0x00 0
+		        0x67 0x03 0
+		        0x75 0x0c 0
+		        0x77 0x00 0
+		        0x78 0x7c 0
+		        >;
+	};
 };
 
 &tlmm {
 	redriver_enable: redriver_enable {
 		mux {
-			pins = "gpio27";
+			pins = "gpio7";
 			function = "gpio";
 		};
 
 		config {
-			pins = "gpio27";
+			pins = "gpio7";
 			drive-strength = <2>;
 			bias-disable; /* NO PULL */
-			input-enable;
+			output-high;
 		};
 	};
 	redriver_disable: redriver_disable {
 		mux {
-			pins = "gpio27";
+			pins = "gpio7";
 				function = "gpio";
 			};
 
 		config {
-			pins = "gpio27";
+			pins = "gpio7";
 			drive-strength = <2>;
 			output-low;
 		};
@@ -170,19 +210,6 @@
 
 &qupv3_se8_spi {
 	status = "disabled";
-};
-
-&qupv3_se8_i2c {
-	status = "ok";
-	#include "lahaina-moto-common-redriver.dtsi"
-};
-
-&redriver_diodes {
-	status = "disabled";
-};
-
-&redriver {
-	status = "ok";
 };
 
 &usb0 {
