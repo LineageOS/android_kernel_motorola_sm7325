@@ -136,6 +136,15 @@
 		        0x78 0x7c 0
 		        >;
 	};
+
+        fsa4480: fsa4480@42 {
+                compatible = "qcom,fsa4480-i2c";
+                reg = <0x42>;
+	};
+};
+
+&sde_dp {
+        qcom,dp-aux-switch = <&fsa4480>;
 };
 
 &tlmm {
