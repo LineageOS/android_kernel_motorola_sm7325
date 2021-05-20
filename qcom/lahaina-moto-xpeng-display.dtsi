@@ -175,10 +175,10 @@
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_ext_bias>;
 
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_i2c";
-	qcom,mdss-dsi-bl-min-level = <26>;
-	qcom,mdss-dsi-bl-max-level = <4095>;
-	qcom,mdss-dsi-bl-default-level = <2048>;
-	qcom,mdss-brightness-max-level = <4095>;
+	qcom,mdss-dsi-bl-min-level = <1>;
+	qcom,mdss-dsi-bl-max-level = <2047>;
+	qcom,mdss-dsi-bl-default-level = <1024>;
+	qcom,mdss-brightness-max-level = <2047>;
 
 	qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0",
 				"src_byte_clk0", "src_pixel_clk0",
