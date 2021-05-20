@@ -18,6 +18,8 @@
 #include "lahaina-moto-common-charger.dtsi"
 #include "lahaina-xpeng-audio-overlay.dtsi"
 #include "lahaina-moto-xpeng-fps.dtsi"
+#include "lahaina-xpeng-charger-therm-overlay.dtsi"
+
 &pm8008i_8 {
 	status = "disabled";
 };
