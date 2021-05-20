@@ -20,6 +20,7 @@
 #include "lahaina-moto-xpeng-fps.dtsi"
 #include "lahaina-xpeng-charger-therm-overlay.dtsi"
 #include "lahaina-xpeng-sensor-overlay.dtsi"
+#include "camera/lahaina-camera-sensor-mot-xpeng-overlay.dtsi"
 
 &pm8008i_8 {
 	status = "disabled";
@@ -120,6 +121,40 @@
 				regulator-always-on;
 				regulator-active-discharge = <0>;
 				enable-gpios = <&tlmm 3 0>;
+			};
+		};
+	};
+
+	cam_pmic: wl2866d@28{
+		compatible = "semi,wl2866d";
+		reg = <0x28>;
+
+		vin1-supply = <&S12B>;
+		vin2-supply = <&BOB>;
+
+		regulators {
+			cam_ldo1: ldo1 {
+				regulator-name = "ldo1";
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			cam_ldo2: ldo2 {
+				regulator-name = "ldo2";
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			cam_ldo3: ldo3 {
+				regulator-name = "ldo3";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <4300000>;
+			};
+
+			cam_ldo4: ldo4 {
+				regulator-name = "ldo4";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <4300000>;
 			};
 		};
 	};
