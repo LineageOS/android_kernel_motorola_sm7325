@@ -33,7 +33,7 @@
 #define WCD937X_MBHC_GET_C1(c)          ((c & 0xC000) >> 14)
 #define WCD937X_MBHC_GET_X1(x)          (x & 0x3FFF)
 /* Z value compared in milliOhm */
-#define WCD937X_MBHC_IS_SECOND_RAMP_REQUIRED(z) ((z > 400000) || (z < 32000))
+#define WCD937X_MBHC_IS_SECOND_RAMP_REQUIRED(z) ((z < 32000))
 #define WCD937X_MBHC_ZDET_CONST         (86 * 16384)
 #define WCD937X_MBHC_MOISTURE_RREF      R_24_KOHM
 
