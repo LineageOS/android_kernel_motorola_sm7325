@@ -511,7 +511,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-panel-jitter = <0x20 0xa>; /* 90fps +/- 2 */
 		qcom,mdss-dsi-timing-switch-command = [
 			15 01 00 00 06 00 02 2F 04 //08:49Hz 01:60Hz 03:90Hz 02:120Hz 04:144Hz
-			15 01 00 00 14 00 02 8B 00
+			15 01 00 00 14 00 02 8B 10
 		];
 
 		qcom,mdss-dsi-on-command = [
@@ -552,7 +552,7 @@ qcom,mdss-dsi-display-timings {
 			39 01 00 00 00 00 05 2B 00 00 09 5F
 
 			15 01 00 00 00 00 02 2F 04 //08:49Hz 01:60Hz 03:90Hz 02:120Hz 04:144Hz
-			15 01 00 00 14 00 02 8B 00
+			15 01 00 00 14 00 02 8B 10
 
 			05 01 00 00 78 00 01 11
 			05 01 00 00 00 00 01 29];	/* display on */
