@@ -16,5 +16,5 @@
 };
 
 &battery_charger {
-	qcom,thermal-mitigation = <5000000 4000000 3000000 1500000 1000000 500000>;
+	qcom,thermal-mitigation = <6000000 5000000 4000000 3000000 1500000 1000000 500000>;
 };
