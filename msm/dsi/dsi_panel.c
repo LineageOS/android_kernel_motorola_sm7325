@@ -12,7 +12,7 @@
 #include <video/mipi_display.h>
 
 #if defined(CONFIG_PANEL_NOTIFICATIONS)
-#include <linux/panel_notifier.h>
+#include "panel_notifier.h"
 
 #define PANEL_NOTIFY(note) { \
 	int idx = dsi_panel_get_index(panel); \
