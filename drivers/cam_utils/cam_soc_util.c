@@ -1230,6 +1230,11 @@ static int cam_soc_util_get_dt_regulator_info
 {
 	int rc = 0, count = 0, i = 0;
 	struct device_node *of_node = NULL;
+#ifdef CONFIG_CAMERA_VOLTAGE_COMPATIBLE
+	int idpin_gpio = 0, idpin_value = 0;
+	unsigned int second_vol_range[2];
+	const char *rgltr_name = "";
+#endif
 
 	if (!soc_info || !soc_info->dev) {
 		CAM_ERR(CAM_UTIL, "Invalid parameters");
@@ -1293,6 +1298,63 @@ static int cam_soc_util_get_dt_regulator_info
 		CAM_ERR(CAM_UTIL, "No Load curent found rc=%d", rc);
 		return -EINVAL;
 	}
+
+#ifdef CONFIG_CAMERA_VOLTAGE_COMPATIBLE
+	idpin_gpio = of_get_named_gpio(of_node, "volt-compat-gpio",0);
+	if (idpin_gpio < 0) {
+		CAM_ERR(CAM_UTIL, "Not volt-compat-gpio found ,gpio=%d",idpin_gpio);
+	} else {
+		if(gpio_is_valid(idpin_gpio)) {
+			if(!gpio_request(idpin_gpio,"volt-compat-gpio")) {
+				gpio_direction_input(idpin_gpio);
+				CAM_DBG(CAM_UTIL, "volt-compat-gpio:%d =%d ", idpin_gpio, gpio_get_value(idpin_gpio));
+
+				rc = of_property_read_u32_array(of_node, "volt-compat-range", second_vol_range, 2);
+				if (rc) {
+					CAM_ERR(CAM_UTIL, "No volt-compat-range found, rc=%d", rc);
+					gpio_free(idpin_gpio);
+					idpin_gpio = 0;
+					return -EINVAL;
+				}
+
+				rc = of_property_read_string(of_node,"volt-compat-rgltr-name",&rgltr_name);
+				if (rc) {
+					CAM_ERR(CAM_UTIL, "No volt-compat-rgltr-name found, rc=%d", rc);
+					gpio_free(idpin_gpio);
+					idpin_gpio = 0;
+					return -EINVAL;
+				}
+
+				rc = of_property_read_u32(of_node,"volt-compat-gpio-value",&idpin_value);
+				if (rc) {
+					CAM_ERR(CAM_UTIL, "No volt-compat-gpio-value found, rc=%d", rc);
+					gpio_free(idpin_gpio);
+					idpin_gpio = 0;
+					return -EINVAL;
+				}
+
+				if(soc_info->index == 0 && idpin_gpio > 0) {
+					for (i = 0; i < soc_info->num_rgltr; i++) {
+						if((strcmp(soc_info->rgltr_name[i], rgltr_name)== 0)) {
+							int val = 1;
+							val = gpio_get_value(idpin_gpio);
+							if(val == idpin_value) {
+								soc_info->rgltr_min_volt [i]= second_vol_range[0];
+								soc_info->rgltr_max_volt[i]= second_vol_range[1];
+							}
+							CAM_ERR(CAM_UTIL, "cam:%d, %s, voltage range: min:%d max:%d",
+								soc_info->index,soc_info->rgltr_name[i], soc_info->rgltr_min_volt [i],soc_info->rgltr_max_volt[i]);
+						}
+					}
+				}
+			}else{
+				CAM_ERR(CAM_UTIL, "volt-compat-gpio request failed");
+			}
+		}else{
+			CAM_ERR(CAM_UTIL, "volt-compat-gpio is not vaild");
+		}
+	}
+#endif
 
 	return rc;
 }
