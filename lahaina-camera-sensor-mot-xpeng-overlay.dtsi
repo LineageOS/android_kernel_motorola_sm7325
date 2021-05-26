@@ -249,6 +249,21 @@
 			drive-strength = <2>; /* 2 MA */
 		};
 	};
+
+	cam_sensor0_idpin: cam_sensor0_idpin {
+		/* ID PIN */
+		mux {
+			pins = "gpio48";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio48";
+			bias-pull-up; /* PULL UP */
+			input-enable;
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
 };
 
 &soc {
@@ -375,11 +390,12 @@
 		rgltr-max-voltage = <1800000 2800000 1104000 2800000 0>;
 		rgltr-load-current = <3000 132000 405000 100000 0>;
 		gpio-no-mux = <0>;
-		pinctrl-names = "cam_default", "cam_suspend";
+		pinctrl-names = "cam_default", "cam_suspend","default";
 		pinctrl-0 = <&cam_sensor_mclk2_active
 				&cam_sensor_active_main>;
 		pinctrl-1 = <&cam_sensor_mclk2_suspend
 				&cam_sensor_suspend_main>;
+		pinctrl-2 = <&cam_sensor0_idpin>;
 		gpios = <&tlmm 102 0>,
 			<&tlmm 106 0>;
 		gpio-reset = <1>;
@@ -393,6 +409,12 @@
 		clock-names = "cam_clk";
 		clock-cntl-level = "nominal";
 		clock-rates = <24000000>;
+		/* gpio for distinguish different camera sensor */
+		volt-compat-gpio = <&tlmm 48 0x0>;
+		volt-compat-gpio-value = <0>;
+		volt-compat-rgltr-name = "cam_vdig";
+		/* second rear camera sensor voltage */
+		volt-compat-range = <1050000 1050000>;
 	};
 
 	eeprom_front: qcom,cam-eeprom@1 {
