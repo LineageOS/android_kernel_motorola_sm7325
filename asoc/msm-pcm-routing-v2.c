@@ -33063,6 +33063,11 @@ static const char * const mi2s_rx_vi_fb_tx_mux_text[] = {
 	"ZERO", "SEN_MI2S_TX"
 };
 
+
+static const char * const pri_mi2s_rx_vi_fb_tx_mux_text[] = {
+        "ZERO", "PRI_MI2S_TX"
+};
+
 static const char * const int4_mi2s_rx_vi_fb_tx_mono_mux_text[] = {
 	"ZERO", "INT5_MI2S_TX"
 };
@@ -33095,6 +33100,9 @@ static const int wsa_rx_0_vi_fb_tx_rch_value[] = {
 	MSM_BACKEND_DAI_MAX, MSM_BACKEND_DAI_WSA_CDC_DMA_TX_0
 };
 
+static const int pri_mi2s_rx_vi_fb_tx_value[] = {
+	MSM_BACKEND_DAI_MAX, MSM_BACKEND_DAI_PRI_MI2S_TX
+};
 
 static const int mi2s_rx_vi_fb_tx_value[] = {
 	MSM_BACKEND_DAI_MAX, MSM_BACKEND_DAI_SENARY_MI2S_TX
@@ -33142,6 +33150,11 @@ static const struct soc_enum mi2s_rx_vi_fb_mux_enum =
 	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_PRI_MI2S_RX, 0, 0,
 	ARRAY_SIZE(mi2s_rx_vi_fb_tx_mux_text),
 	mi2s_rx_vi_fb_tx_mux_text, mi2s_rx_vi_fb_tx_value);
+
+static const struct soc_enum pri_mi2s_rx_vi_fb_mux_enum =
+	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_PRI_MI2S_RX, 0, 0,
+	ARRAY_SIZE(pri_mi2s_rx_vi_fb_tx_mux_text),
+	pri_mi2s_rx_vi_fb_tx_mux_text, pri_mi2s_rx_vi_fb_tx_value);
 
 static const struct soc_enum sen_mi2s_rx_vi_fb_mux_enum =
 	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_SENARY_MI2S_RX, 0, 0,
@@ -33194,6 +33207,11 @@ static const struct snd_kcontrol_new mi2s_rx_vi_fb_mux =
 	SOC_DAPM_ENUM_EXT("PRI_MI2S_RX_VI_FB_MUX",
 	mi2s_rx_vi_fb_mux_enum, spkr_prot_get_vi_lch_port,
 	spkr_prot_put_vi_lch_port);
+
+static const struct snd_kcontrol_new pri_mi2s_rx_vi_fb_mux =
+        SOC_DAPM_ENUM_EXT("PRI_MI2S_RX_VI_FB_MUX",
+        pri_mi2s_rx_vi_fb_mux_enum, spkr_prot_get_vi_lch_port,
+        spkr_prot_put_vi_lch_port);
 
 static const struct snd_kcontrol_new sen_mi2s_rx_vi_fb_mux =
 	SOC_DAPM_ENUM_EXT("SEN_MI2S_RX_VI_FB_MUX",
@@ -34198,7 +34216,7 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets_mi2s[] = {
 	int4_mi2s_rx_port_mixer_controls,
 	ARRAY_SIZE(int4_mi2s_rx_port_mixer_controls)),
 	SND_SOC_DAPM_MUX("PRI_MI2S_RX_VI_FB_MUX", SND_SOC_NOPM, 0, 0,
-				&mi2s_rx_vi_fb_mux),
+				&pri_mi2s_rx_vi_fb_mux),
 	SND_SOC_DAPM_MUX("SEN_MI2S_RX_VI_FB_MUX", SND_SOC_NOPM, 0, 0,
 				&sen_mi2s_rx_vi_fb_mux),
 	SND_SOC_DAPM_MUX("INT4_MI2S_RX_VI_FB_MONO_CH_MUX", SND_SOC_NOPM, 0, 0,
@@ -41871,6 +41889,7 @@ static const struct snd_soc_dapm_route intercon_mi2s[] = {
 	{"SEC_MI2S_TX", NULL, "BE_IN"},
 	{"SEN_MI2S_TX", NULL, "BE_IN"},
 
+	{"PRI_MI2S_RX_VI_FB_MUX", "PRI_MI2S_TX", "PRI_MI2S_TX"},
 	{"SEN_MI2S_RX_VI_FB_MUX", "SEN_MI2S_TX", "SEN_MI2S_TX"},
 	{"INT4_MI2S_RX_VI_FB_MONO_CH_MUX", "INT5_MI2S_TX", "INT5_MI2S_TX"},
 	{"INT4_MI2S_RX_VI_FB_STEREO_CH_MUX", "INT5_MI2S_TX", "INT5_MI2S_TX"},
