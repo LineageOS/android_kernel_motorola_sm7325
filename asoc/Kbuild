@@ -250,6 +250,10 @@ CDEFINES +=	-DANI_LITTLE_BYTE_ENDIAN \
 		-Werror\
 		-D__linux__
 
+ifeq ($(CONFIG_SND_PRI_MI2S_AW882XX), y)
+CDEFINES +=	-DCONFIG_PRI_MI2S_AW882XX
+endif
+
 KBUILD_CPPFLAGS += $(CDEFINES)
 
 # Currently, for versions of gcc which support it, the kernel Makefile
