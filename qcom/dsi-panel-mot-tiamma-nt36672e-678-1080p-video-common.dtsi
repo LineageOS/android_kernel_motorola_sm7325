@@ -103,7 +103,7 @@
 				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-off-command = [
 					05 01 00 00 10 00 01 28
-					05 01 00 00 32 00 01 10
+					05 01 00 00 46 00 01 10
 				];
 				qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
 				qcom,compression-mode = "dsc";
