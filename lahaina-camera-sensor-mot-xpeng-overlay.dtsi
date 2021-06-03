@@ -319,7 +319,25 @@
 	};
 };
 
+&L13C {
+    regulator-min-microvolt = <2800000>;
+    regulator-max-microvolt = <2800000>;
+};
+
 &cam_cci0 {
+	actuator_main: qcom,actuator@0 {
+		cell-index = <0>;
+		reg = <0x0>;
+		compatible = "qcom,actuator";
+		cam_vaf-supply = <&L13C>;
+		regulator-names = "cam_vaf";
+		rgltr-cntrl-support;
+		rgltr-min-voltage = <2800000>;
+		rgltr-max-voltage = <2800000>;
+		rgltr-load-current = <105000>;
+		cci-master = <0>;
+		status = "ok";
+	};
 
 	sensor_main: qcom,cam-sensor@0 {
 		cell-index = <0>;
@@ -328,9 +346,9 @@
 		sensor-position-roll = <90>;
 		sensor-position-pitch = <0>;
 		sensor-position-yaw = <180>;
-		//actuator-src = <&actuator_main>;
+		actuator-src = <&actuator_main>;
 		//eeprom-src = <&eeprom_main>;
-		//led-flash-src = <&led_flash_rear_main>;
+		led-flash-src = <&led_flash_rear_main>;
 		cam_vio-supply = <&L2C>;
 		cam_vana-supply = <&cam_ldo3>;
 		cam_vdig-supply = <&cam_ldo1>;
@@ -443,7 +461,6 @@
 		sensor-position-pitch = <0>;
 		sensor-position-yaw = <180>;
 		eeprom-src = <&eeprom_depth>;
-		//led-flash-src = <&led_flash_rear_depth>;
 		cam_vio-supply = <&L2C>;
 		cam_vana-supply = <&cam_ldo4>;
 		cam_clk-supply = <&cam_cc_titan_top_gdsc>;
@@ -487,6 +504,20 @@
 		status = "ok";
     };
 
+	actuator_wide: qcom,actuator@3 {
+		cell-index = <3>;
+		reg = <0x3>;
+		compatible = "qcom,actuator";
+		cam_vaf-supply = <&cam_afvdd_wide>;
+		regulator-names = "cam_vaf";
+		rgltr-cntrl-support;
+		rgltr-min-voltage = <2800000>;
+		rgltr-max-voltage = <2800000>;
+		rgltr-load-current = <105000>;
+		cci-master = <0>;
+		status = "ok";
+	};
+
 	sensor_wide: qcom,cam-sensor@3 {
 		cell-index = <3>;
 		compatible = "qcom,cam-sensor";
@@ -495,8 +526,8 @@
 		sensor-position-pitch = <0>;
 		sensor-position-yaw = <180>;
 		eeprom-src = <&eeprom_wide>;
-		//actuator-src = <&actuator_wide>;
-		//led-flash-src = <&led_flash_rear_wide>;
+		actuator-src = <&actuator_wide>;
+		led-flash-src = <&led_flash_rear_wide>;
 		cam_vio-supply = <&L2C>;
 		cam_vana-supply = <&cam_ldo4>;
 		cam_vdig-supply = <&cam_ldo2>;
