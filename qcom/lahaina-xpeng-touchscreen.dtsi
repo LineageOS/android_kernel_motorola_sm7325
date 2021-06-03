@@ -29,7 +29,7 @@
 		};
 	};
 
-	qupv3_se1_spi_cs_sleep: qupv3_se1_spi_cs_sleep {
+	qupv3_se6_spi_cs_sleep: qupv3_se6_spi_cs_sleep {
 		mux {
 			pins = "gpio31";
 			function = "gpio";
@@ -45,7 +45,7 @@
 
 &qupv3_se6_spi {
 	status = "ok";
-	pinctrl-1 = <&qupv3_se1_spi_sleep &qupv3_se1_spi_cs_sleep>;
+	pinctrl-1 = <&qupv3_se6_spi_sleep &qupv3_se6_spi_cs_sleep>;
 	novatek@0{
 		compatible = "novatek,NVT-ts-spi";
 		reg = <0x0>;
