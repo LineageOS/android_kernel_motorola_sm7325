@@ -125,7 +125,7 @@
 		"AMIC3", "Analog Mic3",
 		"Analog Mic3", "MIC BIAS3",
 		"AMIC4", "Analog Mic4",
-		"Analog Mic4", "MIC BIAS1",
+		"Analog Mic4", "MIC BIAS4",
 		"IN1_HPHL", "HPHL_OUT",
 		"IN2_HPHR", "HPHR_OUT",
 		"IN3_AUX", "AUX_OUT",
