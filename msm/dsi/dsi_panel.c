@@ -103,13 +103,17 @@ static struct panel_param_val_map dc_map_s[DC_STATE_NUM] = {
 };
 
 static struct panel_param_val_map sre_map[SRE_STATE_NUM] = {
-	{SRE_OFF_STATE, DSI_CMD_SET_SRE_OFF, NULL},
-	{SRE_ON_STATE, DSI_CMD_SET_SRE_ON, NULL},
+	{SRE_VBT_STATE, DSI_CMD_SET_SRE_VBT, NULL},
+	{SRE_STD_STATE, DSI_CMD_SET_SRE_STD, NULL},
+	{SRE_GAME_STATE, DSI_CMD_SET_SRE_GAME, NULL},
+	{SRE_NONE_STATE, DSI_CMD_SET_SRE_NONE, NULL},
 };
 
 static struct panel_param_val_map sre_map_s[SRE_STATE_NUM] = {
-	{SRE_OFF_STATE, DSI_CMD_SET_SRE_OFF, NULL},
-	{SRE_ON_STATE, DSI_CMD_SET_SRE_ON, NULL},
+	{SRE_VBT_STATE, DSI_CMD_SET_SRE_VBT, NULL},
+	{SRE_STD_STATE, DSI_CMD_SET_SRE_STD, NULL},
+	{SRE_GAME_STATE, DSI_CMD_SET_SRE_GAME, NULL},
+	{SRE_NONE_STATE, DSI_CMD_SET_SRE_NONE, NULL},
 };
 
 static struct panel_param dsi_panel_param[PANEL_IDX_MAX][PARAM_ID_NUM] = {
@@ -122,8 +126,8 @@ static struct panel_param dsi_panel_param[PANEL_IDX_MAX][PARAM_ID_NUM] = {
 			ACL_OFF_STATE, false},
 		{"DC", dc_map, DC_STATE_NUM, DC_OFF_STATE,
 			DC_OFF_STATE, false},
-		{"SRE", sre_map, SRE_STATE_NUM, SRE_OFF_STATE,
-			SRE_OFF_STATE, false}
+		{"SRE", sre_map, SRE_STATE_NUM, SRE_NONE_STATE,
+			SRE_NONE_STATE, false}
 	},
 	{
 		{"HBM", hbm_map_s, HBM_STATE_NUM, HBM_OFF_STATE,
@@ -134,8 +138,8 @@ static struct panel_param dsi_panel_param[PANEL_IDX_MAX][PARAM_ID_NUM] = {
 				CABC_UI_STATE, false},
 		{"DC", dc_map_s, DC_STATE_NUM, DC_OFF_STATE,
 			DC_OFF_STATE, false},
-		{"SRE", sre_map_s, SRE_STATE_NUM, SRE_OFF_STATE,
-			SRE_OFF_STATE, false}
+		{"SRE", sre_map_s, SRE_STATE_NUM, SRE_NONE_STATE,
+			SRE_NONE_STATE, false}
 	}
 };
 
@@ -2228,8 +2232,10 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-cabc-dis-command",
 	"qcom,mdss-dsi-dc-on-command",
 	"qcom,mdss-dsi-dc-off-command",
-	"qcom,mdss-dsi-sre-on-command",
-	"qcom,mdss-dsi-sre-off-command",
+	"qcom,mdss-dsi-sre-vbt-command",
+	"qcom,mdss-dsi-sre-std-command",
+	"qcom,mdss-dsi-sre-game-command",
+	"qcom,mdss-dsi-sre-none-command",
 };
 
 const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
@@ -2267,8 +2273,10 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-cabc-dis-command-state",
 	"qcom,mdss-dsi-dc-on-command-state",
 	"qcom,mdss-dsi-dc-off-command-state",
-	"qcom,mdss-dsi-sre-on-command-state",
-	"qcom,mdss-dsi-sre-off-command-state",
+	"qcom,mdss-dsi-sre-vbt-command-state",
+	"qcom,mdss-dsi-sre-std-command-state",
+	"qcom,mdss-dsi-sre-game-command-state",
+	"qcom,mdss-dsi-sre-none-command-state",
 };
 
 int dsi_panel_get_cmd_pkt_count(const char *data, u32 length, u32 *cnt)

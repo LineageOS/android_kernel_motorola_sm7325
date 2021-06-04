@@ -253,8 +253,10 @@ enum dc_state {
 };
 
 enum sre_state {
-	SRE_OFF_STATE = 0,
-	SRE_ON_STATE,
+	SRE_VBT_STATE = 0,
+	SRE_STD_STATE,
+	SRE_GAME_STATE,
+	SRE_NONE_STATE,
 	SRE_STATE_NUM,
 };
 
