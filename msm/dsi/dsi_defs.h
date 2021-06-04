@@ -273,8 +273,10 @@ enum dsi_dyn_clk_feature_type {
  * @DSI_CMD_SET_CABC_DIS:                  CABC DIS mode
  * @DSI_CMD_SET_DC_ON:                    DC mode on
  * @DSI_CMD_SET_DC_OFF:                   DC mode off
- * @DSI_CMD_SET_SRE_ON:                    SRE mode on
- * @DSI_CMD_SET_SRE_OFF:                   SRE mode off
+ * @DSI_CMD_SET_SRE_VBT :                    SRE VBT mode
+ * @DSI_CMD_SET_SRE_STD:                   SRE STD mode
+ * @DSI_CMD_SET_SRE_GAME :                    SRE GAME mode
+ * @DSI_CMD_SET_SRE_NONE:                   SRE NONE mode
  * @DSI_CMD_SET_MAX
  */
 enum dsi_cmd_set_type {
@@ -312,8 +314,10 @@ enum dsi_cmd_set_type {
 	DSI_CMD_SET_CABC_DIS,
 	DSI_CMD_SET_DC_ON,
 	DSI_CMD_SET_DC_OFF,
-	DSI_CMD_SET_SRE_ON,
-	DSI_CMD_SET_SRE_OFF,
+	DSI_CMD_SET_SRE_VBT,
+	DSI_CMD_SET_SRE_STD,
+	DSI_CMD_SET_SRE_GAME,
+	DSI_CMD_SET_SRE_NONE,
 	DSI_CMD_SET_MAX
 };
 
