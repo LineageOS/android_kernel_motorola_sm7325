@@ -36,6 +36,14 @@
 			linux,can-disable;
 		};
 	};
+
+	qcom,pmic_glink_log {
+		bm_adsp_ulog: qcom,bm_adsp_ulog {
+			compatible = "qcom,bm-adsp-ulog";
+			categories = <0xFFBFFFFF>;
+			level = <3>;
+		};
+	};
 };
 
 &ufsphy_mem {
