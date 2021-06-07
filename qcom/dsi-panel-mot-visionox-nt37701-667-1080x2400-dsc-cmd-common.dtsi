@@ -107,9 +107,9 @@ qcom,mdss-dsi-dc-off-command = [
 //Demura switch
  39 01 00 00 00 00 02 8B 00];
 
-qcom,mdss-dsi-sre-on-command = [
+qcom,mdss-dsi-sre-game-command = [
 		39 01 00 00 00 00 02 55 80];
-qcom,mdss-dsi-sre-off-command = [
+qcom,mdss-dsi-sre-none-command = [
 		39 01 00 00 00 00 02 55 90];
 
 //qcom,mdss-dsi-acl-on-command = [

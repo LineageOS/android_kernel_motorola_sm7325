@@ -59,9 +59,9 @@ qcom,mdss-dsi-hbm-on-command = [
 		39 01 00 00 00 00 03 51 0F FF];
 qcom,mdss-dsi-hbm-off-command = [
 		39 01 00 00 00 00 03 51 07 FF];
-qcom,mdss-dsi-sre-on-command = [
+qcom,mdss-dsi-sre-game-command = [
 		39 01 00 00 00 00 02 55 80];
-qcom,mdss-dsi-sre-off-command = [
+qcom,mdss-dsi-sre-none-command = [
 		39 01 00 00 00 00 02 55 90];
 
 //qcom,mdss-dsi-acl-on-command = [

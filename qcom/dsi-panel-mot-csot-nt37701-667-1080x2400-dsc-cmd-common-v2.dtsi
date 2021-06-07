@@ -137,9 +137,9 @@ qcom,mdss-dsi-dc-on-command = [
   39 01 00 00 00 00 1a D9 08 08 08 08 04 0A 0A 0A 0A 08 08 08 08 08 08 10 10 10 10 05 08 08 08 08 05
 ];
 
-qcom,mdss-dsi-sre-on-command = [
+qcom,mdss-dsi-sre-game-command = [
 		39 01 00 00 00 00 02 55 80];
-qcom,mdss-dsi-sre-off-command = [
+qcom,mdss-dsi-sre-none-command = [
 		39 01 00 00 00 00 02 55 90];
 
 //qcom,mdss-dsi-acl-on-command = [
