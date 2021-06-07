@@ -112,8 +112,8 @@
 
 };
 &L3C {
-	regulator-boot-on;
-	regulator-always-on;
+	//regulator-boot-on;
+	//regulator-always-on;
 	qcom,init-voltage = <3300000>;
 	regulator-max-microvolt = <3300000>;
 	regulator-min-microvolt = <3300000>;
@@ -126,6 +126,9 @@
 		status = "ok";
 		irq = <&tlmm 38 0>;
 		rst = <&tlmm 39 0>;
+		rgltr-ctrl-support;
+		fp,vdd-supply=<&L3C>;
+		fp,voltage-range = <3300000 3300000>;
 		pinctrl-names = "default", "suspend";
 		pinctrl-0 = <&int_active &rst_active>;
 		pinctrl-1 = < &int_suspend &rst_suspend>;
@@ -136,6 +139,10 @@
 		compatible = "goodix,fingerprint";
 		fp-gpio-irq = <&tlmm 38 0x00>;
 		fp-gpio-reset = <&tlmm 39 0x00>;
+		rgltr-ctrl-support;
+		fp,vdd-supply=<&L3C>;
+		fp,voltage-range = <3300000 3300000>;
+
 		interrupt-parent = <&tlmm>;
 		interrupts = <38 0>;
 		interrupt-controller;
@@ -149,7 +156,7 @@
 		//fp-ctrl-power;
 		egistec,gpio_reset = <&tlmm 39 0x00>;
 		egistec,gpio_irq = <&tlmm 38 0x00>;
-		vcc_fp-supply = <&pm8350c_l3>;
+		vcc_fp-supply=<&L3C>;
 		egis-fp,vcc-voltage = <3008000 3008000>;
 		egis-fp,vcc-current = <100000>;
 		pinctrl-names = "egis_rst_high", "egis_rst_low", "egis_irq_active";
