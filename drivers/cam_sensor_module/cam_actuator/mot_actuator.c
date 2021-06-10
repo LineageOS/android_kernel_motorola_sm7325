@@ -341,8 +341,9 @@ static mot_park_lens_step lens_park_table[PARK_LENS_MAX_STAGES] = {
 };
 static mot_launch_lens_step lens_launch_table[LAUNCH_LENS_MAX_STAGES] = {
 	{300, 300},
-	{720, 60},
-	{840, 40},
+	{700, 100},
+	{820, 60},
+	{900, 40},
 };
 static bool runtime_inited = 0;
 
@@ -560,13 +561,19 @@ static int32_t mot_actuator_launch_lens(uint32_t index, uint32_t dac_value)
 static int32_t mot_actuator_vib_move_lens(uint32_t index)
 {
 	int32_t ret = 0;
+	unsigned int consumers = 0;
 
 	if (mot_device_index >= MOT_DEVICE_NUM || index > mot_dev_list[mot_device_index].actuator_num) {
 		CAM_ERR(CAM_ACTUATOR, "INVALID device!!!");
 		return -1;
 	}
 
-	if (mot_actuator_state <= MOT_ACTUATOR_IDLE || mot_actuator_state >= MOT_ACTUATOR_RELEASED) {
+	consumers = mot_actuator_get_consumers();
+	CAM_DBG(CAM_ACTUATOR, "consumers=%d",consumers);
+	if (consumers & CLINET_CAMERA_MASK) {
+		/*Don't init actuator when camera on*/
+		CAM_WARN(CAM_ACTUATOR, "Camera is holding actuator,don't init actuator for vibrator,consumers=%d",consumers);
+	} else if (mot_actuator_state <= MOT_ACTUATOR_IDLE || mot_actuator_state >= MOT_ACTUATOR_RELEASED) {
 		mot_actuator_init_runtime();
 		mot_actuator_power_on(index);
 		ret = mot_actuator_init_cci(index);
@@ -591,8 +598,6 @@ static int32_t mot_actuator_vib_move_lens(uint32_t index)
 
 	if (ret == 0 && mot_actuator_state == MOT_ACTUATOR_INITED) {
 		/*Move lens to the specified position.*/
-		unsigned int consumers = mot_actuator_get_consumers();
-
 		CAM_WARN(CAM_ACTUATOR, "actuator consumers: %d", consumers);
 
 		if ((consumers & CLINET_VIBRATOR_MASK) == 0) {
