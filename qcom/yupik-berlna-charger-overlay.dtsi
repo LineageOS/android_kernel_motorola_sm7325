@@ -6,6 +6,7 @@
 	mmi,heartbeat-interval = <60000>;
 	mmi,dcp-power-max = <10000>;
 	mmi,hvdcp-power-max = <20000>;
+	mmi,pd-power-max = <30000>;
 };
 
 &qti_glink_charger {
