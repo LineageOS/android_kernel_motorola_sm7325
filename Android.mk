@@ -156,7 +156,7 @@ INSTALL_WLAN_UNSTRIPPED_MODULE := mkdir -p $(WLAN_SYMBOLS_OUT); \
    cp -rf $(UNSTRIPPED_FILE_PATH) $(WLAN_SYMBOLS_OUT);
 
 ifneq ($(filter lahaina, $(TARGET_BOARD_PLATFORM)),)
-    WLAN_ELF_FILE_PATH    := vendor/qcom/nonhlos/WLAN.MSL.1.0.1/wlan_proc/build/ms/orig_MODEM_PROC_IMG_QCAHNALAMSLKODIAKQ_WLAN_PD.elf
+    WLAN_ELF_FILE_PATH    := vendor/qcom/nonhlos/WLAN.MSL.1.0.1/wlan_proc/build/ms/orig_WPSS_PROC_IMG_QCAHNALAMSLKODIAKQ_WLAN_PD.elf
 endif
 
 ifneq ($(WLAN_ELF_FILE_PATH),)
