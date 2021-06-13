@@ -223,8 +223,8 @@ static int _sde_debugfs_motUtil_kms_prop_test(struct sde_kms *kms,
 		case KMSPROPTEST_TYPE_DC:
 			conn_prop_idx = CONNECTOR_PROP_DC;
 			break;
-		case KMSPROPTEST_TYPE_SRE:
-			conn_prop_idx = CONNECTOR_PROP_SRE;
+		case KMSPROPTEST_TYPE_COLOR:
+			conn_prop_idx = CONNECTOR_PROP_COLOR;
 			break;
 		default:
 			DRM_ERROR(" Invalid KMSPROPTEST_PROP_INDEX = %d\n",
