@@ -102,18 +102,18 @@ static struct panel_param_val_map dc_map_s[DC_STATE_NUM] = {
 	{DC_ON_STATE, DSI_CMD_SET_DC_ON, NULL},
 };
 
-static struct panel_param_val_map sre_map[SRE_STATE_NUM] = {
-	{SRE_VBT_STATE, DSI_CMD_SET_SRE_VBT, NULL},
-	{SRE_STD_STATE, DSI_CMD_SET_SRE_STD, NULL},
-	{SRE_GAME_STATE, DSI_CMD_SET_SRE_GAME, NULL},
-	{SRE_NONE_STATE, DSI_CMD_SET_SRE_NONE, NULL},
+static struct panel_param_val_map color_map[COLOR_STATE_NUM] = {
+	{COLOR_VBT_STATE, DSI_CMD_SET_COLOR_VBT, NULL},
+	{COLOR_STD_STATE, DSI_CMD_SET_COLOR_STD, NULL},
+	{COLOR_GAME_STATE, DSI_CMD_SET_COLOR_GAME, NULL},
+	{COLOR_NONE_STATE, DSI_CMD_SET_COLOR_NONE, NULL},
 };
 
-static struct panel_param_val_map sre_map_s[SRE_STATE_NUM] = {
-	{SRE_VBT_STATE, DSI_CMD_SET_SRE_VBT, NULL},
-	{SRE_STD_STATE, DSI_CMD_SET_SRE_STD, NULL},
-	{SRE_GAME_STATE, DSI_CMD_SET_SRE_GAME, NULL},
-	{SRE_NONE_STATE, DSI_CMD_SET_SRE_NONE, NULL},
+static struct panel_param_val_map color_map_s[COLOR_STATE_NUM] = {
+	{COLOR_VBT_STATE, DSI_CMD_SET_COLOR_VBT, NULL},
+	{COLOR_STD_STATE, DSI_CMD_SET_COLOR_STD, NULL},
+	{COLOR_GAME_STATE, DSI_CMD_SET_COLOR_GAME, NULL},
+	{COLOR_NONE_STATE, DSI_CMD_SET_COLOR_NONE, NULL},
 };
 
 static struct panel_param dsi_panel_param[PANEL_IDX_MAX][PARAM_ID_NUM] = {
@@ -126,8 +126,8 @@ static struct panel_param dsi_panel_param[PANEL_IDX_MAX][PARAM_ID_NUM] = {
 			ACL_OFF_STATE, false},
 		{"DC", dc_map, DC_STATE_NUM, DC_OFF_STATE,
 			DC_OFF_STATE, false},
-		{"SRE", sre_map, SRE_STATE_NUM, SRE_NONE_STATE,
-			SRE_NONE_STATE, false}
+		{"COLOR", color_map, COLOR_STATE_NUM, COLOR_NONE_STATE,
+			COLOR_NONE_STATE, false}
 	},
 	{
 		{"HBM", hbm_map_s, HBM_STATE_NUM, HBM_OFF_STATE,
@@ -138,8 +138,8 @@ static struct panel_param dsi_panel_param[PANEL_IDX_MAX][PARAM_ID_NUM] = {
 				CABC_UI_STATE, false},
 		{"DC", dc_map_s, DC_STATE_NUM, DC_OFF_STATE,
 			DC_OFF_STATE, false},
-		{"SRE", sre_map_s, SRE_STATE_NUM, SRE_NONE_STATE,
-			SRE_NONE_STATE, false}
+		{"COLOR", color_map_s, COLOR_STATE_NUM, COLOR_NONE_STATE,
+			COLOR_NONE_STATE, false}
 	}
 };
 
@@ -1053,12 +1053,12 @@ static int dsi_panel_set_dc(struct dsi_panel *panel,
         return rc;
 };
 
-static int dsi_panel_set_sre(struct dsi_panel *panel,
+static int dsi_panel_set_color(struct dsi_panel *panel,
                         struct msm_param_info *param_info)
 {
 	int rc = 0;
 
-	pr_info("Set SRE to (%d)\n", param_info->value);
+	pr_info("Set COLOR to (%d)\n", param_info->value);
 	rc = dsi_panel_send_param_cmd(panel, param_info);
 	if (rc < 0)
 		DSI_ERR("%s: failed to send param cmds. ret=%d\n", __func__, rc);
@@ -1089,8 +1089,8 @@ int dsi_panel_set_param(struct dsi_panel *panel,
 		case PARAM_DC_ID :
 			dsi_panel_set_dc(panel, param_info);
 			break;
-		case PARAM_SRE_ID :
-			dsi_panel_set_sre(panel, param_info);
+		case PARAM_COLOR_ID :
+			dsi_panel_set_color(panel, param_info);
 			break;
 		default:
 			DSI_ERR("%s: Invalid set_param type=%d\n",
@@ -2232,10 +2232,10 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-cabc-dis-command",
 	"qcom,mdss-dsi-dc-on-command",
 	"qcom,mdss-dsi-dc-off-command",
-	"qcom,mdss-dsi-sre-vbt-command",
-	"qcom,mdss-dsi-sre-std-command",
-	"qcom,mdss-dsi-sre-game-command",
-	"qcom,mdss-dsi-sre-none-command",
+	"qcom,mdss-dsi-color-vbt-command",
+	"qcom,mdss-dsi-color-std-command",
+	"qcom,mdss-dsi-color-game-command",
+	"qcom,mdss-dsi-color-none-command",
 };
 
 const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
@@ -2273,10 +2273,10 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-cabc-dis-command-state",
 	"qcom,mdss-dsi-dc-on-command-state",
 	"qcom,mdss-dsi-dc-off-command-state",
-	"qcom,mdss-dsi-sre-vbt-command-state",
-	"qcom,mdss-dsi-sre-std-command-state",
-	"qcom,mdss-dsi-sre-game-command-state",
-	"qcom,mdss-dsi-sre-none-command-state",
+	"qcom,mdss-dsi-color-vbt-command-state",
+	"qcom,mdss-dsi-color-std-command-state",
+	"qcom,mdss-dsi-color-game-command-state",
+	"qcom,mdss-dsi-color-none-command-state",
 };
 
 int dsi_panel_get_cmd_pkt_count(const char *data, u32 length, u32 *cnt)

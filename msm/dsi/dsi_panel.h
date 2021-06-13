@@ -252,12 +252,12 @@ enum dc_state {
 	DC_STATE_NUM,
 };
 
-enum sre_state {
-	SRE_VBT_STATE = 0,
-	SRE_STD_STATE,
-	SRE_GAME_STATE,
-	SRE_NONE_STATE,
-	SRE_STATE_NUM,
+enum color_state {
+	COLOR_VBT_STATE = 0,
+	COLOR_STD_STATE,
+	COLOR_GAME_STATE,
+	COLOR_NONE_STATE,
+	COLOR_STATE_NUM,
 };
 
 struct panel_param_val_map {
