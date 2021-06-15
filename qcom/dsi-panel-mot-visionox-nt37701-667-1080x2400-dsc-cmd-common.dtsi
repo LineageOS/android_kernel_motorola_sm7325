@@ -107,10 +107,18 @@ qcom,mdss-dsi-dc-off-command = [
 //Demura switch
  39 01 00 00 00 00 02 8B 00];
 
-qcom,mdss-dsi-sre-game-command = [
-		39 01 00 00 00 00 02 55 80];
-qcom,mdss-dsi-sre-none-command = [
-		39 01 00 00 00 00 02 55 90];
+qcom,mdss-dsi-color-vbt-command = [
+                15 01 00 00 00 00 02 55 90];
+qcom,mdss-dsi-color-vbt-command-state = "dsi_lp_mode";
+qcom,mdss-dsi-color-std-command = [
+                15 01 00 00 00 00 02 55 90];
+qcom,mdss-dsi-color-std-command-state = "dsi_lp_mode";
+qcom,mdss-dsi-color-game-command = [
+		15 01 00 00 00 00 02 55 80];
+qcom,mdss-dsi-color-game-command-state = "dsi_lp_mode";
+qcom,mdss-dsi-color-none-command = [
+		15 01 00 00 00 00 02 55 90];
+qcom,mdss-dsi-color-none-command-state = "dsi_lp_mode";
 
 //qcom,mdss-dsi-acl-on-command = [
 //		39 01 00 00 00 00 06 F0 55 AA 52 08 00
