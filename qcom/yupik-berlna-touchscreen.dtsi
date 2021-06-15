@@ -62,5 +62,6 @@
 		mmi,class-entry-name = "NVT-ts";
 		mmi,usb-charger-detection;
 		mmi,enable-gestures;
+		mmi,fw-load-on-resume;
 	};
 };
