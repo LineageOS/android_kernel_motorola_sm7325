@@ -96,7 +96,6 @@
 
 &sde_dsi {
 	qcom,platform-mot-ext-feature-enable;
-	qcom,platform-mot-early-power-enable;
 };
 
 &sde_dsi {

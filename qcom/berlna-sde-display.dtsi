@@ -42,7 +42,6 @@
 
 &sde_dsi {
 	qcom,platform-mot-ext-feature-enable;
-	qcom,platform-mot-early-power-enable;
 };
 &dsi_nt36672e_fhd_plus_144_video {
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_labibb>;
