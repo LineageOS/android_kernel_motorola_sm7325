@@ -11,14 +11,18 @@
  */
 
 /dts-v1/;
-/plugin/;
 
-#include "lahaina-moto-xpeng-overlay.dtsi"
+#include "lahaina-v2.1.dtsi"
 
 / {
-	model = "Xpeng";
-	compatible = "qcom,lahaina-Xpeng", "qcom,lahaina-moto", "qcom,lahaina";
-	qcom,msm-id = <415 0x20001>;
-	qcom,board-id = <0x41 0x9100>;
+	qcom,board-id = <0 0>;
+/*
+ * Some nodes need labels assigned to appear in __symbols__
+ */
+	chosen: chosen { };
+	aliases: aliases { };
+	reserved_memory: reserved-memory { };
+	mot_batterydata: qcom,battery-data { };
+	utags: utags { };
+	hw: hw { };
 };
-
