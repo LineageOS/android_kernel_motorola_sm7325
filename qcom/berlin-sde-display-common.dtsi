@@ -129,8 +129,7 @@
 	qcom,mdss-dsi-qsync-min-refresh-rate = <48>;
 	qcom,mdss-dsi-display-timings {
 		timing@0 {
-			qcom,mdss-dsi-panel-clockrate = <900000000>;
-			qcom,mdss-dsi-panel-phy-timings = [00 1E 08 07 18 22 08
+			qcom,mdss-dsi-panel-phy-timings = [00 1E 08 07 18 16 08
 				08 08 02 04 00 1A 0C];
 			qcom,display-topology = <1 1 1>;
 			qcom,default-topology-index = <0>;
