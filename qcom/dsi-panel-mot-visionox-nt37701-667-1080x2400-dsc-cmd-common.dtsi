@@ -122,7 +122,7 @@ qcom,mdss-dsi-color-none-command-state = "dsi_lp_mode";
 
 //qcom,mdss-dsi-acl-on-command = [
 //		39 01 00 00 00 00 06 F0 55 AA 52 08 00
-//		15 00 00 00 00 00 02 B0 0		C
+//		15 00 00 00 00 00 02 B0 0C
 //		15 01 00 00 00 00 02 55 05];
 //qcom,mdss-dsi-acl-off-command = [
 //		15 01 00 00 00 00 02 55 00];
@@ -148,7 +148,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-v-bottom-border = <0>;
 		qcom,mdss-dsi-panel-jitter = <0x20 0xa>; /* 90fps +/- 2 */
 		qcom,mdss-dsi-timing-switch-command = [
-			15 01 00 00 14 00 02 2F 07 //07:48Hz 01:60Hz 03:90Hz 02:120Hz 04:144Hz
+			15 01 00 00 00 00 02 2F 07 //07:48Hz 01:60Hz 03:90Hz 02:120Hz 04:144Hz
 		];
 
 		qcom,mdss-dsi-on-command = [
@@ -194,7 +194,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-timing-switch-command-state =
-			"dsi_lp_mode";
+			"dsi_hs_mode";
 		qcom,compression-mode = "dsc";
 		/* Why QCOM doesn't use this, even it used 2 encoder
 		 * as for that dsi_sw43404_amoled_cmd, for ex */
@@ -226,7 +226,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-v-bottom-border = <0>;
 		qcom,mdss-dsi-panel-jitter = <0x20 0xa>; /* 90fps +/- 2 */
 		qcom,mdss-dsi-timing-switch-command = [
-			15 01 00 00 10 00 02 2F 01 //08:48Hz 01:60Hz 03:90Hz 02:120Hz 04:144Hz
+			15 01 00 00 00 00 02 2F 01 //08:48Hz 01:60Hz 03:90Hz 02:120Hz 04:144Hz
 		];
 
 		qcom,mdss-dsi-on-command = [
@@ -272,7 +272,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-timing-switch-command-state =
-			"dsi_lp_mode";
+			"dsi_hs_mode";
 		qcom,compression-mode = "dsc";
 		/* Why QCOM doesn't use this, even it used 2 encoder
 		 * as for that dsi_sw43404_amoled_cmd, for ex */
@@ -304,7 +304,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-v-bottom-border = <0>;
 		qcom,mdss-dsi-panel-jitter = <0x20 0xa>; /* 90fps +/- 2 */
 		qcom,mdss-dsi-timing-switch-command = [
-			15 01 00 00 0b 00 02 2F 02 //08:48Hz 01:60Hz 02:90Hz 03:120Hz 04:144Hz
+			15 01 00 00 00 00 02 2F 02 //08:48Hz 01:60Hz 02:90Hz 03:120Hz 04:144Hz
 		];
 
 		qcom,mdss-dsi-on-command = [
@@ -350,7 +350,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-timing-switch-command-state =
-			"dsi_lp_mode";
+			"dsi_hs_mode";
 		qcom,compression-mode = "dsc";
 		/* Why QCOM doesn't use this, even it used 2 encoder
 		 * as for that dsi_sw43404_amoled_cmd, for ex */
@@ -382,7 +382,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-v-bottom-border = <0>;
 		qcom,mdss-dsi-panel-jitter = <0x20 0xa>; /* 90fps +/- 2 */
 		qcom,mdss-dsi-timing-switch-command = [
-			15 01 00 00 08 00 02 2F 03 //08:48Hz 01:60Hz 02:90Hz 03:120Hz 04:144Hz
+			15 01 00 00 00 00 02 2F 03 //08:48Hz 01:60Hz 02:90Hz 03:120Hz 04:144Hz
 		];
 
 		qcom,mdss-dsi-on-command = [
@@ -428,7 +428,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-timing-switch-command-state =
-			"dsi_lp_mode";
+			"dsi_hs_mode";
 		qcom,compression-mode = "dsc";
 		/* Why QCOM doesn't use this, even it used 2 encoder
 		 * as for that dsi_sw43404_amoled_cmd, for ex */
@@ -460,7 +460,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-v-bottom-border = <0>;
 		qcom,mdss-dsi-panel-jitter = <0x20 0xa>; /* 90fps +/- 2 */
 		qcom,mdss-dsi-timing-switch-command = [
-			15 01 00 00 06 00 02 2F 04 //08:49Hz 01:60Hz 03:90Hz 02:120Hz 04:144Hz
+			15 01 00 00 00 00 02 2F 04 //08:49Hz 01:60Hz 03:90Hz 02:120Hz 04:144Hz
 		];
 
 		qcom,mdss-dsi-on-command = [
@@ -506,7 +506,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-timing-switch-command-state =
-			"dsi_lp_mode";
+			"dsi_hs_mode";
 		qcom,compression-mode = "dsc";
 		/* Why QCOM doesn't use this, even it used 2 encoder
 		 * as for that dsi_sw43404_amoled_cmd, for ex */

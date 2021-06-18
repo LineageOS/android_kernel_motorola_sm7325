@@ -177,6 +177,7 @@
 	qcom,mdss-dsi-bl-default-level = <1024>;
 	qcom,mdss-brightness-max-level = <2047>;
 	qcom,platform-reset-gpio = <&tlmm 44 0>;
+	qcom,bl-dsc-cmd-state = "dsi_hs_mode";
 
 	qcom,mdss-dsi-panel-hdr-enabled;
 	qcom,mdss-dsi-panel-hdr-color-primaries = <14950 15750 34000
@@ -226,6 +227,7 @@
 	qcom,mdss-dsi-bl-default-level = <1024>;
 	qcom,mdss-brightness-max-level = <2047>;
 	qcom,platform-reset-gpio = <&tlmm 44 0>;
+	qcom,bl-dsc-cmd-state = "dsi_hs_mode";
 
 	qcom,mdss-dsi-panel-hdr-enabled;
 	qcom,mdss-dsi-panel-hdr-color-primaries = <14950 15750 34000
@@ -290,6 +292,7 @@
 	qcom,mdss-dsi-bl-default-level = <1024>;
 	qcom,mdss-brightness-max-level = <2047>;
 	qcom,platform-reset-gpio = <&tlmm 44 0>;
+	qcom,bl-dsc-cmd-state = "dsi_hs_mode";
 
 	qcom,mdss-dsi-panel-hdr-enabled;
 	qcom,mdss-dsi-panel-hdr-color-primaries = <14950 15750 34000
@@ -354,6 +357,7 @@
 	qcom,mdss-dsi-bl-default-level = <1024>;
 	qcom,mdss-brightness-max-level = <2047>;
 	qcom,platform-reset-gpio = <&tlmm 44 0>;
+	qcom,bl-dsc-cmd-state = "dsi_hs_mode";
 
 	qcom,mdss-dsi-panel-hdr-enabled;
 	qcom,mdss-dsi-panel-hdr-color-primaries = <14950 15750 34000
