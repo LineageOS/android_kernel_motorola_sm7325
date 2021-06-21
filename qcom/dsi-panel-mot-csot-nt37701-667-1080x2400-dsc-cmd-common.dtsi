@@ -102,7 +102,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-v-bottom-border = <0>;
 		qcom,mdss-dsi-panel-jitter = <0x20 0xa>; /* 90fps +/- 2 */
 		qcom,mdss-dsi-timing-switch-command = [
-			15 01 00 00 00 00 02 2F 01 //01:60 02:90 03:120
+			15 01 00 00 14 00 02 2F 01 //01:60 02:90 03:120
 			15 01 00 00 00 00 02 8B 00
 		];
 
@@ -154,7 +154,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-timing-switch-command-state =
-			"dsi_hs_mode";
+			"dsi_lp_mode";
 		qcom,compression-mode = "dsc";
 		/* Why QCOM doesn't use this, even it used 2 encoder
 		 * as for that dsi_sw43404_amoled_cmd, for ex */
@@ -187,7 +187,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-v-bottom-border = <0>;
 		qcom,mdss-dsi-panel-jitter = <0x20 0xa>; /* 90fps +/- 2 */
 		qcom,mdss-dsi-timing-switch-command = [
-			15 01 00 00 00 00 02 2F 02 //01:60 02:90 03:120
+			15 01 00 00 0b 00 02 2F 02 //01:60 02:90 03:120
 			15 01 00 00 00 00 02 8B 00
 		];
 
@@ -239,7 +239,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-timing-switch-command-state =
-			"dsi_hs_mode";
+			"dsi_lp_mode";
 		qcom,compression-mode = "dsc";
 		/* Why QCOM doesn't use this, even it used 2 encoder
 		 * as for that dsi_sw43404_amoled_cmd, for ex */
@@ -271,7 +271,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-v-bottom-border = <0>;
 		qcom,mdss-dsi-panel-jitter = <0x20 0xa>; /* 90fps +/- 2 */
 		qcom,mdss-dsi-timing-switch-command = [
-			15 01 00 00 00 00 02 2F 03 //01:60 02:90 03:120
+			15 01 00 00 08 00 02 2F 03 //01:60 02:90 03:120
 			15 01 00 00 00 00 02 8B 00
 		];
 
@@ -323,7 +323,7 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-timing-switch-command-state =
-			"dsi_hs_mode";
+			"dsi_lp_mode";
 		qcom,compression-mode = "dsc";
 		/* Why QCOM doesn't use this, even it used 2 encoder
 		 * as for that dsi_sw43404_amoled_cmd, for ex */
