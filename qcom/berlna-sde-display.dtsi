@@ -29,7 +29,7 @@
 
 	mmi,only-low-bl-force-cabc-disable;
 	mmi,low-bl-threshold = <200>;
-	mmi,low-bl-remap-percent = <69>;
+	mmi,low-bl-remap-percent = <89>;
 
 	/delete-node/ wled_switch;
 };
