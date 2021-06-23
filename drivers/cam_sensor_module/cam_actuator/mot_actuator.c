@@ -65,6 +65,11 @@ typedef struct {
 typedef struct {
 	uint16_t kneePoint;
 	uint16_t step;
+} mot_reset_lens_step;
+
+typedef struct {
+	uint16_t kneePoint;
+	uint16_t step;
 } mot_launch_lens_step;
 
 typedef struct {
@@ -81,6 +86,7 @@ typedef struct {
 	char *regulator_list[REGULATOR_NUM];
 	uint32_t regulator_volt_uv[REGULATOR_NUM];
 	bool park_lens_needed;
+	bool reset_lens_needed;
 	bool launch_lens_needed;
 } mot_actuator_hw_info;
 
@@ -230,6 +236,7 @@ static const mot_dev_info mot_dev_list[MOT_DEVICE_NUM] = {
 				.regulator_list = {"ldo7", "ldo5"},
 				.regulator_volt_uv = {1800000, 2800000},
 				.park_lens_needed = true,
+				.reset_lens_needed = true,
 				.launch_lens_needed = true,
 			},
 		},
@@ -307,6 +314,7 @@ static int cam_select_actuator_by_device_name(void)
 /*=================ACTUATOR RUNTIME====================*/
 #define VIBRATING_MAX_INTERVAL 2000//ms
 #define PARK_LENS_MAX_STAGES 10
+#define RESET_LENS_MAX_STAGES 10
 #define LAUNCH_LENS_MAX_STAGES 10
 
 struct mot_actuator_ctrl_t {
@@ -341,6 +349,10 @@ static uint32_t lens_park_pos = 100;
 static mot_park_lens_step lens_park_table[PARK_LENS_MAX_STAGES] = {
 	{300, 60},
 	{200, 40},
+};
+static mot_reset_lens_step lens_reset_table[RESET_LENS_MAX_STAGES] = {
+	{400, 0},
+	{100, 100},
 };
 static mot_launch_lens_step lens_launch_table[LAUNCH_LENS_MAX_STAGES] = {
 	{300, 300},
@@ -889,6 +901,88 @@ static struct platform_device mot_actuator_device = {
 	.id = -1,
 };
 
+static int32_t mot_actuator_reset_lens(uint32_t index)
+{
+	uint32_t cur_len_pos = mot_actuator_runtime[index].safe_dac_pos;
+	int stageIndex;
+	unsigned int consumers = 0;
+	int32_t ret = 0;
+
+	if (mot_dev_list[mot_device_index].actuator_info[index].reset_lens_needed == false) {
+		CAM_DBG(CAM_ACTUATOR, "reset lens is not needed.");
+		return 0;
+	}
+	/*The first step is to get back to a specify position,regardless of the step size*/
+	if(cur_len_pos > lens_reset_table[0].kneePoint)
+	{
+		cur_len_pos = lens_reset_table[0].kneePoint;
+		ret = mot_actuator_move_lens_by_dac(index, cur_len_pos);
+		usleep_range(10000, 12000);
+	}
+	while (cur_len_pos > lens_park_pos) {
+		consumers = mot_actuator_get_consumers();
+		if ((consumers & (~CLINET_VIBRATOR_MASK)) != 0) {
+			CAM_WARN(CAM_ACTUATOR, "reset lens was broken by other actuator requests.");
+			break;
+		}
+
+		for (stageIndex=1; stageIndex<RESET_LENS_MAX_STAGES; stageIndex++) {
+			if (cur_len_pos >= lens_reset_table[stageIndex].kneePoint && lens_reset_table[stageIndex].step > 0) {
+				cur_len_pos -= lens_reset_table[stageIndex].step;
+				break;
+			}
+		}
+
+		if (lens_reset_table[stageIndex].step <= 0 && cur_len_pos > lens_park_pos) {
+			cur_len_pos -= 10;
+		}
+
+		ret = mot_actuator_move_lens_by_dac(index, cur_len_pos);
+		if (ret < 0 ) {
+			CAM_ERR(CAM_ACTUATOR, "reset Lens encounter CCI error, break now.");
+			break;
+		}
+
+		if (cur_len_pos <= lens_park_pos) {
+			/*For skipping the last delay*/
+			CAM_DBG(CAM_ACTUATOR, "reset lens done.");
+			break;
+		}
+		usleep_range(10000, 12000);
+	}
+	return 0;
+}
+
+void mot_actuator_handle_exile(void)
+{
+	unsigned int consumers = 0,ret = 0;
+	int actuatorUsers = 0;
+	ktime_t start,end,duration;
+	mutex_lock(&mot_actuator_fctrl.actuator_lock);
+	consumers = mot_actuator_get_consumers();
+	/*Only reset lens when vibrator in consumer list*/
+	if ((consumers & CLINET_VIBRATOR_MASK) != 0) {
+		actuatorUsers = mot_actuator_put(ACTUATOR_CLIENT_VIBRATOR);
+		start = ktime_get();
+		if (mot_actuator_state >= MOT_ACTUATOR_INITED && mot_actuator_state < MOT_ACTUATOR_RELEASED) {
+			if ((consumers & (~CLINET_VIBRATOR_MASK)) == 0) {
+				//Only reset lens when there's no other user holding actuator.
+				CAM_DBG(CAM_ACTUATOR, "reset _lens_now");
+				ret = mot_actuator_reset_lens(0);
+			}
+			mot_actuator_power_off(0);
+			mot_actuator_release_cci(0);
+		}
+		mot_actuator_state = MOT_ACTUATOR_RELEASED;
+		end = ktime_get();
+		duration = ktime_sub(end, start);
+		duration /= 1000;
+		CAM_WARN(CAM_ACTUATOR, "reset lens delay: %dus", duration);
+	}
+	mutex_unlock(&mot_actuator_fctrl.actuator_lock);
+}
+
+EXPORT_SYMBOL(mot_actuator_handle_exile);
 static void mot_actuator_delayed_process(struct work_struct *work)
 {
 	struct mot_actuator_ctrl_t *actuator_fctrl = container_of(work,
