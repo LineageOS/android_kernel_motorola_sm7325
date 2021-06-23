@@ -46,7 +46,7 @@
 			qcom,supply-max-voltage = <1800000>;
 			qcom,supply-enable-load = <60700>;
 			qcom,supply-disable-load = <80>;
-			qcom,supply-post-on-sleep = <20>;
+		        qcom,supply-post-on-sleep = <2>;
 		};
 
 		qcom,panel-supply-entry@1 {
@@ -56,8 +56,8 @@
 			qcom,supply-max-voltage = <1260000>;
 			qcom,supply-enable-load = <60700>;
 			qcom,supply-disable-load = <10>;
-			qcom,supply-post-on-sleep = <10>;
-			qcom,supply-post-off-sleep = <2>;
+		        qcom,supply-post-on-sleep = <2>;
+		        qcom,supply-post-off-sleep = <2>;
 		};
 
 		qcom,panel-supply-entry@2 {
