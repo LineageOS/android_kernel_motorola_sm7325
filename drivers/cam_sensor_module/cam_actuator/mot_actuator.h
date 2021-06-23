@@ -30,6 +30,7 @@
 #define MOT_ACTUATOR_EXIT32 \
 	_IOWR('X', BASE_VIDIOC_PRIVATE + 54, int)
 
+void mot_actuator_handle_exile(void);
 int mot_actuator_driver_init(void);
 void mot_actuator_driver_exit(void);
 #endif /*__MOT_ACTUATOR_H__*/
