@@ -171,7 +171,7 @@ qcom,mdss-dsi-display-timings {
 			15 01 00 00 00 00 02 2F 01 //01:60 02:90 03:120
 			15 01 00 00 00 00 02 8B 00
 
-			05 01 00 00 56 00 01 11
+			05 01 00 00 6e 00 01 11
 			05 01 00 00 00 00 01 29];	/* display on */
 		qcom,mdss-dsi-off-command = [
 			05 01 00 00 00 00 01 28		/* display_off */
