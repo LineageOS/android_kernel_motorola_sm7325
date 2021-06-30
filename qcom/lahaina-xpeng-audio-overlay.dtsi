@@ -101,7 +101,7 @@
 &lahaina_snd {
 	qcom,model = "lahaina-xpeng-snd-card";
 	awinic,aw882xx-max-devs = <1>;
-	qcom,ext-disp-audio-rx = <0x0>;
+	qcom,ext-disp-audio-rx = <1>;
 	qcom,wsa-max-devs = <0x0>;
         qcom,wcn-bt = <0x1>;
         qcom,swr-dmic-max-devs = <0>;
@@ -140,8 +140,8 @@
 		"VA_AIF2 CAP", "VA_SWR_CLK",
 		"VA_AIF3 CAP", "VA_SWR_CLK";
 	asoc-codec  = <&stub_codec>, <&bolero>,
-		<&wcd938x_codec>, <&aw882xx>;
+		<&wcd938x_codec>, <&aw882xx>, <&ext_disp_audio_codec>;
 	asoc-codec-names = "msm-stub-codec.1", "bolero_codec",
-		"wcd938x_codec", "aw882xx_codec";
+		"wcd938x_codec", "aw882xx_codec", "msm-ext-disp-audio-codec-rx";
 
 };
