@@ -140,8 +140,8 @@
 		"VA_AIF2 CAP", "VA_SWR_CLK",
 		"VA_AIF3 CAP", "VA_SWR_CLK";
 	asoc-codec  = <&stub_codec>, <&bolero>,
-		<&wcd938x_codec>, <&aw882xx>, <&ext_disp_audio_codec>;
+		<&wcd938x_codec>, <&aw882xx>, <&ext_disp_audio_codec>, <&swr_haptics>;
 	asoc-codec-names = "msm-stub-codec.1", "bolero_codec",
-		"wcd938x_codec", "aw882xx_codec", "msm-ext-disp-audio-codec-rx";
+		"wcd938x_codec", "aw882xx_codec", "msm-ext-disp-audio-codec-rx", "swr-haptics";
 
 };
