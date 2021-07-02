@@ -5849,6 +5849,11 @@ static int _dsi_display_dev_init(struct dsi_display *display)
 		       display->name, rc);
 		goto error;
 	}
+	if( display->panel->paramNum != 0 && display->panel->paramVersion < 991231){
+		 dsi_panel_mot_parse_timing_from_file(display, display->panel->paramNum);
+		 display->panel->paramNum = 0;
+	}
+
 error:
 	mutex_unlock(&display->display_lock);
 	return rc;
