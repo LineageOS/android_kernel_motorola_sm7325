@@ -4165,6 +4165,15 @@ static int dsi_panel_parse_mot_panel_config(struct dsi_panel *panel,
 	    DSI_INFO("got paramVersion %d from qcom,mdss-dsi-panel-param-verision\n", panel->paramVersion);
        }
 
+	rc = of_property_read_u32(of_node,
+			"qcom,mdss-dsi-panel-param-num",
+			&panel->paramNum);
+       if (rc) {
+	    DSI_INFO("qcom,qcom,mdss-dsi-panel-param-num not found, set param num to 0\n");
+	    panel->paramNum = 0;
+       } else {
+	    DSI_INFO("got paramVersion %d from qcom,mdss-dsi-panel-param-num\n", panel->paramNum);
+       }
 	return rc;
 }
 
