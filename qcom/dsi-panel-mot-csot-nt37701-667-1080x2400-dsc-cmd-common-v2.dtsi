@@ -23,6 +23,7 @@ qcom,mdss-dsi-bpp = <30>;
 qcom,mdss-dsi-underflow-color = <0xff>;
 qcom,mdss-dsi-border-color = <0>;
 qcom,mdss-dsi-panel-param-verision = <121201>;
+qcom,mdss-dsi-panel-param-num = <5>;
 
 qcom,dsi-ctrl-num = <0>;
 qcom,dsi-phy-num = <0>;

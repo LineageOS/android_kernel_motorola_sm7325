@@ -27,6 +27,8 @@
 						 16850 15150 32350 7450 3000>;
 		qcom,mdss-dsi-panel-peak-brightness = <4500000>;
 		qcom,mdss-dsi-panel-blackness-level = <3000>;
+		qcom,mdss-dsi-panel-param-verision = <121201>;
+		qcom,mdss-dsi-panel-param-num = <1>;
 
 		qcom,mdss-pan-physical-width-dimension = <69>;
 		qcom,mdss-pan-physical-height-dimension = <157>;

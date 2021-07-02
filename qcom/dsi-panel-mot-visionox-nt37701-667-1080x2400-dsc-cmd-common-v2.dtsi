@@ -34,6 +34,8 @@ qcom,mdss-dsi-lane-1-state;
 qcom,mdss-dsi-lane-2-state;
 qcom,mdss-dsi-lane-3-state;
 qcom,mdss-dsi-panel-param-verision = <121201>;
+qcom,mdss-dsi-panel-param-num = <5>;
+
 qcom,mdss-dsi-dma-trigger = "trigger_sw";
 qcom,mdss-dsi-mdp-trigger = "none";
 qcom,mdss-dsi-reset-sequence = <0 11>, <1 1>, <0 1>, <1 11>;
