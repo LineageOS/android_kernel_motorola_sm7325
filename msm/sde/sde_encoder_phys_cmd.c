@@ -1865,6 +1865,7 @@ static void _sde_encoder_autorefresh_disable_seq2(
 	}
 
 	while (autorefresh_status & BIT(7)) {
+		cmd_enc->autorefresh.cfg.enable = 1;
 		if (!trial) {
 			SDE_ERROR_CMDENC(cmd_enc,
 			  "autofresh status:0x%x intf:%d\n", autorefresh_status,
