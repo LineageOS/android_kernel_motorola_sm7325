@@ -1,0 +1,9 @@
+# add -Wall to try to catch everything we can.
+EXTRA_CFLAGS += -Wall
+EXTRA_CFLAGS += -I$(TOP)/kernel/msm-5.4/techpack/audio/include
+EXTRA_CFLAGS += -I$(TOP)/kernel/msm-5.4/techpack/audio/include/uapi/
+
+EXTRA_CFLAGS += -DCONFIG_AW882XX_CODEC -DCONFIG_AW882XX_DSP
+
+aw882xx_k504-objs = aw882xx.o aw_init.o aw_bin_parse.o aw_calib.o aw_device.o aw_dsp.o aw_monitor.o
+obj-m += aw882xx_k504.o
