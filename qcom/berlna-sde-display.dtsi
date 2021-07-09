@@ -22,7 +22,7 @@
 
 
 	qcom,wled-bl-step-up;
-	qcom,wled-bl-step-sequence = <255 5>, <2048 6>;
+	qcom,wled-bl-step-sequence = <490 5>, <2047 6>;
 
 	qcom,ovp = <23500>;
 	qcom,boost-current-limit = <1050>;
