@@ -35,7 +35,7 @@
 #include "aw_log.h"
 #include "aw_dsp.h"
 
-#define AW882XX_DRIVER_VERSION "v1.4.0.1"
+#define AW882XX_DRIVER_VERSION "v1.4.0.2"
 #define AW882XX_I2C_NAME "aw882xx_smartpa"
 
 #define AW_READ_CHIPID_RETRIES		5	/* 5 times */
@@ -49,10 +49,14 @@ static unsigned int g_algo_copp_en = true;
 #ifdef AW_SPIN_ENABLE
 static unsigned int g_spin_value = 0;
 #endif
+#ifdef AW882XX_RUNIN_TEST
+static unsigned int g_runin_test;
+#endif
 
 static DEFINE_MUTEX(g_aw882xx_lock);
 struct aw_container *g_awinic_cfg = NULL;
 
+static const char *const switch_status[] = { "Off", "On" };
 static const char *const aw882xx_switch[] = {"Disable", "Enable"};
 #ifdef AW_SPIN_ENABLE
 static const char *const aw882xx_spin[] = {"spin_0", "spin_90",
@@ -387,6 +391,9 @@ static void aw882xx_start_pa(struct aw882xx *aw882xx)
 					if (ret)
 						aw_dev_err(aw882xx->dev, "set spin error, ret=%d", ret);
 				}
+#endif
+#ifdef AW882XX_RUNIN_TEST
+				schedule_delayed_work(&aw882xx->adsp_status, msecs_to_jiffies(50));
 #endif
 				break;
 			}
@@ -940,7 +947,7 @@ static int aw882xx_get_tx_en(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int aw882xx_set_copp_en(struct snd_kcontrol *kcontrol,
+static int aw882xx_set_copp_dis(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	int ret = -EINVAL;
@@ -957,7 +964,7 @@ static int aw882xx_set_copp_en(struct snd_kcontrol *kcontrol,
 	aw_dev = aw882xx->aw_pa;
 	ctrl_value = ucontrol->value.integer.value[0];
 
-	ret = aw_dev_set_copp_module_en(ctrl_value);
+	ret = aw_dev_set_copp_module_en(!ctrl_value);
 	if (ret)
 		aw_dev_err(aw882xx->dev, "dsp_msg error, ret=%d", ret);
 
@@ -966,7 +973,7 @@ static int aw882xx_set_copp_en(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int aw882xx_get_copp_en(struct snd_kcontrol *kcontrol,
+static int aw882xx_get_copp_dis(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	aw_snd_soc_codec_t *codec =
@@ -974,7 +981,7 @@ static int aw882xx_get_copp_en(struct snd_kcontrol *kcontrol,
 	struct aw882xx *aw882xx =
 		aw_componet_codec_ops.codec_get_drvdata(codec);
 
-	ucontrol->value.integer.value[0] = g_algo_copp_en;
+	ucontrol->value.integer.value[0] = !g_algo_copp_en;
 
 	aw_dev_dbg(aw882xx->dev, "done nothing");
 	return 0;
@@ -1106,8 +1113,62 @@ static int aw882xx_set_fade_out_time(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+#ifdef AW882XX_RUNIN_TEST
+static int aw882xx_runin_test_get(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	aw_pr_info("aw882xx_runin test get %d\n", g_runin_test);
+
+	ucontrol->value.integer.value[0] = g_runin_test;
+
+	return 0;
+}
+
+static int aw882xx_runin_test_set(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	int value = ucontrol->value.integer.value[0];
+
+	aw_pr_info("aw882xx_runin_test set %d \n", value);
+
+	if (value > 1 ) {
+		value = 0;
+	}
+
+	g_runin_test = value;
+
+	return 0;
+}
+
+static void aw882xx_set_adsp_module_status(struct work_struct *work)
+{
+	int ret = 0;
+	uint32_t ctrl_value = 0;
+
+	/*no test reg set default value*/
+	if (g_runin_test == 0) {
+		return;
+	}
+
+	/*set afe rx module*/
+	ret = aw_dev_set_afe_module_en(AW_RX_MODULE, ctrl_value);
+	if (ret) {
+		aw_pr_err("disable afe rx module %d falied , ret=%d\n", ctrl_value, ret);
+	}
+
+	/*set skt module*/
+	ret = aw_dev_set_copp_module_en(ctrl_value);
+	if (ret) {
+		 aw_pr_err("disable skt failed !\n");
+	}
+
+	aw_pr_info("disable skt and  afe module success\n");
+}
+#endif
+
 static const struct soc_enum aw882xx_snd_enum[] = {
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(aw882xx_switch), aw882xx_switch),
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(switch_status), switch_status),
 #ifdef AW_SPIN_ENABLE
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(aw882xx_spin), aw882xx_spin),
 #endif
@@ -1118,11 +1179,15 @@ static struct snd_kcontrol_new aw882xx_controls[] = {
 		aw882xx_get_rx_en, aw882xx_set_rx_en),
 	SOC_ENUM_EXT("aw882xx_tx_switch", aw882xx_snd_enum[0],
 		aw882xx_get_tx_en, aw882xx_set_tx_en),
-	SOC_ENUM_EXT("aw882xx_copp_switch", aw882xx_snd_enum[0],
-		aw882xx_get_copp_en, aw882xx_set_copp_en),
+	SOC_ENUM_EXT("aw882xx_skt_disable", aw882xx_snd_enum[1],
+		aw882xx_get_copp_dis, aw882xx_set_copp_dis),
 #ifdef AW_SPIN_ENABLE
-	SOC_ENUM_EXT("aw882xx_spin_switch", aw882xx_snd_enum[1],
+	SOC_ENUM_EXT("aw882xx_spin_switch", aw882xx_snd_enum[2],
 		aw882xx_get_spin, aw882xx_set_spin),
+#endif
+#ifdef AW882XX_RUNIN_TEST
+	SOC_ENUM_EXT("aw882xx_runin_test", aw882xx_snd_enum[1],
+		aw882xx_runin_test_get, aw882xx_runin_test_set),
 #endif
 	SOC_SINGLE_EXT("aw882xx_fadein_us", 0, 0, 1000000, 0,
 		aw882xx_get_fade_in_time, aw882xx_set_fade_in_time),
@@ -2167,6 +2232,10 @@ static int aw882xx_i2c_probe(struct i2c_client *i2c,
 	aw882xx->i2c_packet.reg_data = NULL;
 
 	aw882xx->index = g_aw882xx_dev_cnt;
+#ifdef AW882XX_RUNIN_TEST
+	g_runin_test = 0;
+	INIT_DELAYED_WORK(&aw882xx->adsp_status, aw882xx_set_adsp_module_status);
+#endif
 	/*add device to total list*/
 	mutex_lock(&g_aw882xx_lock);
 	g_aw882xx_dev_cnt++;
