@@ -768,7 +768,7 @@ int aw_dsp_read_f0_q(struct aw_device *aw_dev, int32_t *f0, int32_t *q)
 		*f0 = data[2];
 		*q  = data[3];
 	}
-	aw_dev_dbg(aw_dev->dev, "read f0 & q");
+	aw_dev_dbg(aw_dev->dev, "read f0 is %d, q is %d", *f0, *q);
 	return ret;
 }
 
