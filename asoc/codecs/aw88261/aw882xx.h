@@ -14,7 +14,7 @@
 #define AW882XX_DC_DELAY_TIME	(1000)
 #define AW882XX_LOAD_FW_DELAY_TIME	(0)
 #define AW_START_RETRIES	(5)
-
+#define AW882XX_RUNIN_TEST
 
 #define AW_I2C_RETRIES			5	/* 5 times */
 #define AW_I2C_RETRY_DELAY		5	/* 5 ms */
@@ -149,7 +149,9 @@ struct aw882xx {
 	struct delayed_work interrupt_work;
 	struct delayed_work dc_work;
 	struct delayed_work fw_work;
-
+#ifdef AW882XX_RUNIN_TEST
+	struct delayed_work adsp_status;
+#endif
 	struct mutex lock;
 };
 
