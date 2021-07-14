@@ -6480,118 +6480,6 @@ static void dsi_display_firmware_display(const struct firmware *fw,
 	DSI_DEBUG("success\n");
 }
 
-/*
-	Add /sys/class/drm path, other module can get panel info from this path.
-*/
-struct dsi_display *display_panel = NULL;
-static ssize_t panelId_show(struct device *dev,
-			struct device_attribute *attr,
-			char *buf)
-{
-	int written = 0;
-
-	mutex_lock(&display_panel->drm_conn->dev->mode_config.mutex);
-	written = snprintf(buf, PAGE_SIZE, "0x%016llx\n",
-	display_panel->panel->panel_id);
-	mutex_unlock(&display_panel->drm_conn->dev->mode_config.mutex);
-
-	return written;
-}
-
-static ssize_t panelVer_show(struct device *dev,
-			struct device_attribute *attr,
-			char *buf)
-{
-	int written = 0;
-
-	mutex_lock(&display_panel->drm_conn->dev->mode_config.mutex);
-	written = snprintf(buf, PAGE_SIZE, "0x%016llx\n",
-	display_panel->panel->panel_ver);
-	mutex_unlock(&display_panel->drm_conn->dev->mode_config.mutex);
-
-	return written;
-}
-
-static ssize_t panelName_show(struct device *dev,
-			struct device_attribute *attr,
-			char *buf)
-{
-	int written = 0;
-
-	mutex_lock(&display_panel->drm_conn->dev->mode_config.mutex);
-	written = snprintf(buf, PAGE_SIZE, "%s\n", display_panel->panel->panel_name);
-	mutex_unlock(&display_panel->drm_conn->dev->mode_config.mutex);
-
-	return written;
-}
-
-static ssize_t panelRegDA_show(struct device *dev,
-			struct device_attribute *attr,
-			char *buf)
-{
-	int written = 0;
-
-	mutex_lock(&display_panel->drm_conn->dev->mode_config.mutex);
-	written = snprintf(buf, PAGE_SIZE, "0x%02x\n", display_panel->panel->panel_regDA);
-	mutex_unlock(&display_panel->drm_conn->dev->mode_config.mutex);
-
-	return written;
-}
-
-static ssize_t panelSupplier_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	int written = 0;
-
-	mutex_lock(&display_panel->drm_conn->dev->mode_config.mutex);
-	written = scnprintf(buf, PAGE_SIZE, display_panel->panel->panel_supplier);
-	mutex_unlock(&display_panel->drm_conn->dev->mode_config.mutex);
-
-	return written;
-}
-
-static struct device_attribute panel_attributes[] = {
-	__ATTR_RO(panelId),
-	__ATTR_RO(panelVer),
-	__ATTR_RO(panelName),
-	__ATTR_RO(panelRegDA),
-	__ATTR_RO(panelSupplier),
-	__ATTR_NULL
-};
-
-#define DRM_RETRY_TIMES 3
-static int panel_class_create(struct platform_device *pdev)
-{
-	struct device_attribute *attrs = panel_attributes;
-	int i, j, error = 0;
-
-	display_panel = platform_get_drvdata(pdev);
-
-	for (j = 0; j < DRM_RETRY_TIMES; j++) {
-		if (display_panel->drm_conn->kdev) {
-			for (i = 0; attrs[i].attr.name != NULL; ++i) {
-				error = device_create_file(display_panel->drm_conn->kdev, &attrs[i]);
-				if (error)
-					break;
-			}
-		} else {
-			DSI_ERR("drm_conn->kdev is NULL, retry %d times\n", j);
-		}
-	}
-
-	if (error)
-		goto device_destroy;
-
-	return 0;
-
-device_destroy:
-	for (--i; i >= 0; --i)
-		device_remove_file(display_panel->drm_conn->kdev, &attrs[i]);
-	DSI_ERR("creating panel class failed\n");
-
-	return -ENODEV;
-}
-
 int dsi_display_dev_probe(struct platform_device *pdev)
 {
 	struct dsi_display *display = NULL;
@@ -6702,8 +6590,6 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 	}
 	pr_info("dsi_display_dev_probe: display(%p), name: %s, is_dsi_mot_early_power_enabled=%d, is_dsi_mot_ext_enabled=%d\n",
 		display, (display->name==NULL)?"Null":display->name, display->is_dsi_mot_early_power_enabled, display->is_dsi_mot_ext_enabled);
-	if( index == DSI_PRIMARY )
-		panel_class_create(pdev);
 
 	return 0;
 end:
