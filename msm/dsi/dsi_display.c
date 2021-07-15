@@ -6568,7 +6568,7 @@ static int panel_class_create(struct platform_device *pdev)
 	display_panel = platform_get_drvdata(pdev);
 
 	for (j = 0; j < DRM_RETRY_TIMES; j++) {
-		if (display_panel->drm_conn->kdev) {
+		if (display_panel->drm_conn && display_panel->drm_conn->kdev) {
 			for (i = 0; attrs[i].attr.name != NULL; ++i) {
 				error = device_create_file(display_panel->drm_conn->kdev, &attrs[i]);
 				if (error)
