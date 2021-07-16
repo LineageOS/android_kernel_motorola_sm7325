@@ -192,6 +192,8 @@
 				ramp-down-msec = <200>;
 				pwm-period = <0>;
 				current-mode = <2>;	/*2: 25mA*/
+				boost-ovp = <2>;	/*0:16v 1:24v 2:32v 3:40v*/
+				boost-freq = <1>;	/*0:500Khz 1:1Mhz*/
 				default-brightness-level = <255>;
 			};
 		};
