@@ -192,6 +192,7 @@
 };
 
 &wcd937x_codec {
+	qcom,cdc-micbias2-mv = <2800>;
 	status = "okay";
 };
 
