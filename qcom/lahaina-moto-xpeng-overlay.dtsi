@@ -159,10 +159,11 @@
 		};
 	};
 
-        aw99703@36 {
-                compatible = "awinic,aw99703-bl";
+        lcd_backlight@36 {
+                compatible = "awinic,aw99703-bl","ti,lm3697";
                 reg = <0x36>;
 
+		/* Awinic, aw99703 */
                 aw99703,hwen-gpio = <&tlmm 13 0>;
                 aw99703,bl-map = <3>; /* brightness map level 1:256,2:1024,3:2048 */
                 aw99703,using-lsb;
@@ -180,6 +181,20 @@
                 aw99703,pwm-mode = <1>; /* 1 pwm enable,0 PWM disable */
                 aw99703,map-type = <1>; /* linear */
                 aw99703,work-mode = <1>; /* backlight */
+
+		/* TI, lm3697*/
+		enable-gpios = <&tlmm 13 0>;
+		backlight {
+			compatible = "ti,lm3697-backlight";
+			lcd {
+				led-sources = <0 1 2>;
+				ramp-up-msec = <200>;
+				ramp-down-msec = <200>;
+				pwm-period = <0>;
+				current-mode = <2>;	/*2: 25mA*/
+				default-brightness-level = <255>;
+			};
+		};
 	};
 
 	redriver:redriver@30{
