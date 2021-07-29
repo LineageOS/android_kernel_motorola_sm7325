@@ -201,6 +201,7 @@
 		15890 13475 35235 6690 2885>;
 	qcom,mdss-dsi-panel-peak-brightness = <4200000>;
 	qcom,mdss-dsi-panel-blackness-level = <2730>;
+	qcom,tp_state_check_enable;
 
 	qcom,mdss-dsi-display-timings {
 		timing@0 {
