@@ -138,7 +138,7 @@ int aw_cali_write_re_to_nvram(int32_t cali_re, int32_t channel)
 	}
 	return aw_cali_write_cali_re_to_file(cali_re, channel);
 #else
-	return -EBUSY;
+	return 0;
 #endif
 }
 
@@ -152,7 +152,7 @@ int aw_cali_read_re_from_nvram(int32_t *cali_re, int32_t channel)
 	}
 	return aw_cali_get_read_cali_re(cali_re, channel);
 #else
-	return -EBUSY;
+	return 0;
 #endif
 }
 
@@ -210,12 +210,12 @@ static int aw_cali_svc_dev_get_re(struct aw_device *aw_dev)
 
 	aw_dev->cali_desc.cali_re = re[0];
 
-	if ((aw_dev->cali_desc.cali_re >= aw_dev->re_min) &&
+	/*if ((aw_dev->cali_desc.cali_re >= aw_dev->re_min) &&
 			(aw_dev->cali_desc.cali_re <= aw_dev->re_max)) {
 		ret = aw_cali_write_re_to_nvram(aw_dev->cali_desc.cali_re, aw_dev->channel);
 		if (ret)
 			aw_dev_err(aw_dev->dev, "write re to nvram failed!");
-	}
+	}*/
 	return 0;
 }
 
@@ -825,7 +825,9 @@ static int aw_cali_svc_set_devs_re_str(struct aw_device *aw_dev, const char *re_
 	list_for_each (pos, dev_list) {
 		local_dev = container_of(pos, struct aw_device, list_node);
 		if (local_dev->channel < AW_DEV_CH_MAX) {
-			aw_cali_store_cali_re(local_dev, re_data[local_dev->channel]);
+			ret = aw_cali_store_cali_re(local_dev, re_data[local_dev->channel]);
+			if (ret < 0)
+				return ret;
 			cnt++;
 		}
 	}
@@ -933,7 +935,7 @@ static ssize_t aw_cali_attr_re_store(struct device *dev,
 	struct aw882xx *aw882xx = dev_get_drvdata(dev);
 	struct aw_device *aw_dev = aw882xx->aw_pa;
 	int ret;
-	int data;
+	int data = 0;
 
 	if (is_single_cali) {
 		ret = kstrtoint(buf, 0, &data);
@@ -941,7 +943,11 @@ static ssize_t aw_cali_attr_re_store(struct device *dev,
 			aw_dev_err(aw882xx->dev, " read buf %s failed", buf);
 			return ret;
 		}
-		aw_cali_store_cali_re(aw_dev, data);
+		ret = aw_cali_store_cali_re(aw_dev, data);
+		if (ret < 0) {
+			aw_dev_err(aw_dev->dev, "set re %d failed", data);
+			return -EPERM;
+		}
 	} else {
 		ret = aw_cali_svc_set_devs_re_str(aw_dev, buf);
 		if (ret <= 0) {
@@ -1540,7 +1546,7 @@ static int aw_cali_misc_ops_write(struct aw_device *aw_dev,
 			ret = aw_cali_misc_params_ptr(aw_dev, (struct ptr_params_data *)data_ptr);
 		} break;
 		case AW_IOCTL_SET_CALI_RE: {
-			aw_cali_store_cali_re(aw_dev, *((int32_t *)data_ptr));
+			ret = aw_cali_store_cali_re(aw_dev, *((int32_t *)data_ptr));
 			/*ret = aw_dsp_write_cali_re(aw_dev, *(int32_t *)data_ptr);*/
 		} break;
 		case AW_IOCTL_SET_DSP_HMUTE: {

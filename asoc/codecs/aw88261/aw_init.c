@@ -223,8 +223,8 @@ static int aw_pid_1852_dev_init(struct aw882xx *aw882xx, int index)
 	aw_pa->prof_info.prof_desc = NULL;
 	aw_pa->prof_info.count = 0;
 	aw_pa->channel = 0;
-	aw_pa->frcpwm_en = AW_FRCPWM_DISABLE;
 	aw_pa->bstcfg_enable = AW_BSTCFG_DISABLE;
+	aw_pa->bop_en = AW_BOP_DISABLE;
 	aw_pa->vol_step = AW_PID_1852_VOL_STEP;
 
 	aw_pa->index = index;
@@ -310,6 +310,8 @@ static int aw_pid_1852_dev_init(struct aw882xx *aw882xx, int index)
 	aw_pa->volume_desc.shift = AW_PID_1852_VOL_START_BIT;
 	aw_pa->volume_desc.mute_volume = AW_PID_1852_MUTE_VOL;
 
+	aw_pa->bop_desc.reg = AW_REG_NONE;
+
 	aw_pa->soft_rst.reg = AW_PID_1852_ID_REG;
 	aw_pa->soft_rst.reg_value = AW882XX_SOFT_RESET_VALUE;
 
@@ -335,7 +337,6 @@ static unsigned int aw_pid_2013_db_val_to_reg(unsigned int value)
 {
 	return (((value / AW_PID_2013_VOL_STEP_DB) << 6) + (value % AW_PID_2013_VOL_STEP_DB));
 }
-
 
 static int aw_pid_2013_set_volume(struct aw_device *aw_dev, unsigned int value)
 {
@@ -498,7 +499,7 @@ static int aw_pid_2013_dev_init(struct aw882xx *aw882xx, int index)
 	aw_pa->prof_info.prof_desc = NULL;
 	aw_pa->prof_info.count = 0;
 	aw_pa->channel = 0;
-	aw_pa->frcpwm_en = AW_FRCPWM_DISABLE;
+	aw_pa->bop_en = AW_BOP_DISABLE;
 	aw_pa->vol_step = AW_PID_2013_VOL_STEP;
 
 	aw_pa->index = index;
@@ -592,6 +593,8 @@ static int aw_pid_2013_dev_init(struct aw882xx *aw882xx, int index)
 	aw_pa->volume_desc.mask = AW_PID_2013_VOL_MASK;
 	aw_pa->volume_desc.shift = AW_PID_2013_VOL_START_BIT;
 	aw_pa->volume_desc.mute_volume = AW_PID_2013_MUTE_VOL;
+
+	aw_pa->bop_desc.reg = AW_REG_NONE;
 
 	aw_pa->soft_rst.reg = AW_PID_2013_ID_REG;
 	aw_pa->soft_rst.reg_value = AW882XX_SOFT_RESET_VALUE;
@@ -761,7 +764,7 @@ static int aw_pid_2032_dev_init(struct aw882xx *aw882xx, int index)
 	aw_pa->prof_info.count = 0;
 	aw_pa->channel = 0;
 	aw_pa->bstcfg_enable = AW_BSTCFG_DISABLE;
-	aw_pa->frcpwm_en = AW_FRCPWM_DISABLE;
+	aw_pa->bop_en = AW_BOP_DISABLE;
 	aw_pa->vol_step = AW_PID_2032_VOL_STEP;
 
 	aw_pa->index = index;
@@ -846,6 +849,8 @@ static int aw_pid_2032_dev_init(struct aw882xx *aw882xx, int index)
 	aw_pa->volume_desc.mask = AW_PID_2032_VOL_MASK;
 	aw_pa->volume_desc.shift = AW_PID_2032_VOL_START_BIT;
 	aw_pa->volume_desc.mute_volume = AW_PID_2032_MUTE_VOL;
+
+	aw_pa->bop_desc.reg = AW_REG_NONE;
 
 	aw_pa->soft_rst.reg = AW_PID_2032_ID_REG;
 	aw_pa->soft_rst.reg_value = AW882XX_SOFT_RESET_VALUE;
@@ -986,8 +991,8 @@ static int aw_pid_2055_dev_init(struct aw882xx *aw882xx, int index)
 	aw_pa->prof_info.prof_desc = NULL;
 	aw_pa->prof_info.count = 0;
 	aw_pa->channel = 0;
-	aw_pa->frcpwm_en = AW_FRCPWM_DISABLE;
 	aw_pa->bstcfg_enable = AW_BSTCFG_DISABLE;
+	aw_pa->bop_en = AW_BOP_DISABLE;
 	aw_pa->vol_step = AW_PID_2055_VOL_STEP;
 
 	aw_pa->index = index;
@@ -1052,6 +1057,8 @@ static int aw_pid_2055_dev_init(struct aw882xx *aw882xx, int index)
 	aw_pa->cco_mux_desc.mask = AW_PID_2055_CCO_MUX_MASK;
 	aw_pa->cco_mux_desc.divided_val = AW_PID_2055_CCO_MUX_DIVIDED_VALUE;
 	aw_pa->cco_mux_desc.bypass_val = AW_PID_2055_CCO_MUX_BYPASS_VALUE;
+
+	aw_pa->bop_desc.reg = AW_REG_NONE;
 
 	aw_pa->soft_rst.reg = AW_PID_2055_ID_REG;
 	aw_pa->soft_rst.reg_value = AW882XX_SOFT_RESET_VALUE;
@@ -1213,8 +1220,8 @@ static int aw_pid_2071_dev_init(struct aw882xx *aw882xx, int index)
 	aw_pa->prof_info.prof_desc = NULL;
 	aw_pa->prof_info.count = 0;
 	aw_pa->channel = 0;
-	aw_pa->frcpwm_en = AW_FRCPWM_DISABLE;
 	aw_pa->bstcfg_enable = AW_BSTCFG_DISABLE;
+	aw_pa->bop_en = AW_BOP_DISABLE;
 	aw_pa->vol_step = AW_PID_2071_VOL_STEP;
 
 	aw_pa->index = index;
@@ -1302,6 +1309,8 @@ static int aw_pid_2071_dev_init(struct aw882xx *aw882xx, int index)
 	aw_pa->volume_desc.mask = AW_PID_2071_VOL_MASK;
 	aw_pa->volume_desc.shift = AW_PID_2071_VOL_START_BIT;
 	aw_pa->volume_desc.mute_volume = AW_PID_2071_MUTE_VOL;
+
+	aw_pa->bop_desc.reg = AW_REG_NONE;
 
 	aw_pa->soft_rst.reg = AW_PID_2071_ID_REG;
 	aw_pa->soft_rst.reg_value = AW882XX_SOFT_RESET_VALUE;
@@ -1457,13 +1466,42 @@ static void aw_pid_2113_efver_check(struct aw_device *aw_dev)
 			AW_PID_2113_EFRL3_REG, &reg_val);
 	teml = ((uint16_t)reg_val & (~AW_PID_2113_TEML_MASK));
 
-	if ((temh | teml) == AW_PID_2113_FRCPWM_CFG)
-		aw_dev->frcpwm_en = AW_FRCPWM_ENABLE;
+	if ((temh | teml) == AW_PID_2113_DEFAULT_CFG)
+		aw_dev->frcset_en = AW_FRCSET_ENABLE;
 	else
-		aw_dev->frcpwm_en = AW_FRCPWM_DISABLE;
+		aw_dev->frcset_en = AW_FRCSET_DISABLE;
 
-	aw_dev_info(aw_dev->dev, "tem is 0x%04x, frcpwm_en is %d",
-						(temh | teml), aw_dev->frcpwm_en);
+	aw_dev_info(aw_dev->dev, "tem is 0x%04x, frcset_en is %d",
+						(temh | teml), aw_dev->frcset_en);
+}
+
+static void aw_pid_2113_reg_force_set(struct aw_device *aw_dev)
+{
+	aw_dev_dbg(aw_dev->dev, "enter");
+
+	if (aw_dev->frcset_en == AW_FRCSET_ENABLE) {
+		/*set FORCE_PWM*/
+		aw_dev->ops.aw_i2c_write_bits(aw_dev, AW_PID_2113_BSTCTRL3_REG,
+				AW_PID_2113_FORCE_PWM_MASK, AW_PID_2113_FORCE_PWM_FORCEMINUS_PWM_VALUE);
+		/*set BOOST_OC_WIDTH*/
+		aw_dev->ops.aw_i2c_write_bits(aw_dev, AW_PID_2113_BSTCTRL5_REG,
+				AW_PID_2113_BST_OS_WIDTH_MASK, AW_PID_2113_BST_OS_WIDTH_50NS_VALUE);
+		/*set BURST_LOOPR*/
+		aw_dev->ops.aw_i2c_write_bits(aw_dev, AW_PID_2113_BSTCTRL6_REG,
+				AW_PID_2113_BST_LOOPR_MASK, AW_PID_2113_BST_LOOPR_340K_VALUE);
+		/*set RSQN_DLY*/
+		aw_dev->ops.aw_i2c_write_bits(aw_dev, AW_PID_2113_BSTCTRL7_REG,
+				AW_PID_2113_RSQN_DLY_MASK, AW_PID_2113_RSQN_DLY_35NS_VALUE);
+		/*set BURST_SSMODE*/
+		aw_dev->ops.aw_i2c_write_bits(aw_dev, AW_PID_2113_BSTCTRL8_REG,
+				AW_PID_2113_BURST_SSMODE_MASK, AW_PID_2113_BURST_SSMODE_FAST_VALUE);
+		/*set BST_BURST*/
+		aw_dev->ops.aw_i2c_write_bits(aw_dev, AW_PID_2113_BSTCTRL9_REG,
+				AW_PID_2113_BST_BURST_MASK, AW_PID_2113_BST_BURST_30MA_VALUE);
+		aw_dev_dbg(aw_dev->dev, "force set reg done!");
+	}else {
+		aw_dev_info(aw_dev->dev, "needn't set reg value");
+	}
 }
 
 static int aw_pid_2113_dev_init(struct aw882xx *aw882xx, int index)
@@ -1486,6 +1524,7 @@ static int aw_pid_2113_dev_init(struct aw882xx *aw882xx, int index)
 	aw_pa->prof_info.count = 0;
 	aw_pa->channel = 0;
 	aw_pa->bstcfg_enable = AW_BSTCFG_DISABLE;
+	aw_pa->bop_en = AW_BOP_DISABLE;
 	aw_pa->vol_step = AW_PID_2113_VOL_STEP;
 
 	aw_pa->index = index;
@@ -1506,6 +1545,7 @@ static int aw_pid_2113_dev_init(struct aw882xx *aw882xx, int index)
 	aw_pa->ops.aw_check_wr_access = aw_pid_2113_check_wr_access;
 	aw_pa->ops.aw_get_reg_num = aw_pid_2113_get_reg_num;
 	aw_pa->ops.aw_get_irq_type = aw_pid_2113_get_irq_type;
+	aw_pa->ops.aw_reg_force_set = aw_pid_2113_reg_force_set;
 
 	aw_pa->int_desc.mask_reg = AW_PID_2113_SYSINTM_REG;
 	aw_pa->int_desc.mask_default = AW_PID_2113_SYSINTM_DEFAULT;
@@ -1577,9 +1617,10 @@ static int aw_pid_2113_dev_init(struct aw882xx *aw882xx, int index)
 	aw_pa->volume_desc.shift = AW_PID_2113_VOL_START_BIT;
 	aw_pa->volume_desc.mute_volume = AW_PID_2113_MUTE_VOL;
 
-	aw_pa->frcpwm_desc.reg = AW_PID_2113_BSTCTRL3_REG;
-	aw_pa->frcpwm_desc.mask = AW_PID_2113_FORCE_PWM_MASK;
-	aw_pa->frcpwm_desc.frcpwm_val = AW_PID_2113_FORCE_PWM_FORCEMINUS_PWM_VALUE;
+	aw_pa->bop_desc.reg = AW_PID_2113_SADCCTRL3_REG;
+	aw_pa->bop_desc.mask = AW_PID_2113_BOP_EN_MASK;
+	aw_pa->bop_desc.enable = AW_PID_2113_BOP_EN_ENABLE_VALUE;
+	aw_pa->bop_desc.disbale = AW_PID_2113_BOP_EN_DISABLE_VALUE;
 
 	aw_pa->soft_rst.reg = AW_PID_2113_ID_REG;
 	aw_pa->soft_rst.reg_value = AW882XX_SOFT_RESET_VALUE;
@@ -1606,7 +1647,7 @@ int aw882xx_init(struct aw882xx *aw882xx, int index)
 	else if (aw882xx->chip_id == PID_2113_ID)
 		return aw_pid_2113_dev_init(aw882xx, index);
 
-	aw_dev_err(aw882xx->dev, "unsupported chip id %d", aw882xx->chip_id);
+	aw_dev_err(aw882xx->dev, "unsupported chip id 0x%04x", aw882xx->chip_id);
 	return -EINVAL;
 }
 

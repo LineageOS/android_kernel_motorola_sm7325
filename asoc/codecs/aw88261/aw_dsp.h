@@ -55,6 +55,7 @@ int aw_dsp_get_afe_module_en(int type, int *status);
 int aw_dsp_set_copp_module_en(bool enable);
 int aw_dsp_write_spin(int spin_mode);
 int aw_dsp_read_spin(int *spin_mode);
+int aw_get_algo_version(struct aw_device *aw_dev, char *algo_ver_buf);
 void aw_device_parse_topo_id_dt(struct aw_device *aw_dev);
 void aw_device_parse_port_id_dt(struct aw_device *aw_dev);
 

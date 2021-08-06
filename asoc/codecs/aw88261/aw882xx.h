@@ -54,6 +54,12 @@ enum aw882xx_int_type {
 #endif
 
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+#define AW_KERNEL_VER_OVER_5_4_0
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+#endif
+
+
 #ifdef AW_KERNEL_VER_OVER_4_19_1
 typedef struct snd_soc_component aw_snd_soc_codec_t;
 typedef struct snd_soc_component_driver aw_snd_soc_codec_driver_t;
@@ -95,8 +101,13 @@ enum {
 };
 
 enum {
-	AW_FRCPWM_DISABLE = 0,
-	AW_FRCPWM_ENABLE,
+	AW_FRCSET_DISABLE = 0,
+	AW_FRCSET_ENABLE,
+};
+
+enum {
+	AW_BOP_DISABLE = 0,
+	AW_BOP_ENABLE,
 };
 
 enum {
@@ -124,6 +135,7 @@ struct aw882xx {
 	int pstream;
 	int cstream;
 
+	unsigned int fade_flag;
 	unsigned char index;
 	unsigned char phase_sync;	/* phase sync */
 	unsigned char dc_flag;
