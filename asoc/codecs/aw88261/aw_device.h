@@ -8,6 +8,8 @@
 #define AW_VOLUME_STEP_DB	(6 * 2)
 #define AW_REG_NONE		(0xFF)
 #define AW_NAME_MAX		(50)
+#define ALGO_VERSION_MAX	(80)
+
 
 enum {
 	AW_1000_US = 1000,
@@ -64,6 +66,7 @@ struct aw_device_ops {
 	int (*aw_get_dev_num)(void);
 	void (*aw_set_algo)(struct aw_device *aw_dev);
 	unsigned int (*aw_get_irq_type)(struct aw_device *aw_dev, unsigned int value);
+	void (*aw_reg_force_set)(struct aw_device *aw_dev);
 };
 
 struct aw_int_desc {
@@ -71,12 +74,6 @@ struct aw_int_desc {
 	unsigned int st_reg;			/*interrupt status reg*/
 	unsigned int mask_default;		/*default mask close all*/
 	unsigned int int_mask;			/*set mask*/
-};
-
-struct aw_frcpwm_desc {
-	unsigned int reg;
-	unsigned int mask;
-	unsigned int frcpwm_val;
 };
 
 struct aw_soft_rst {
@@ -98,6 +95,12 @@ struct aw_amppd_desc {
 	unsigned int disable;
 };
 
+struct aw_bop_desc {
+	unsigned int reg;
+	unsigned int mask;
+	unsigned int enable;
+	unsigned int disbale;
+};
 
 struct aw_vcalb_desc {
 	unsigned int icalk_reg;
@@ -195,7 +198,8 @@ struct aw_device {
 	int index;
 	int status;
 	int bstcfg_enable;
-	int frcpwm_en;
+	int frcset_en;
+	int bop_en;
 	unsigned int mute_st;
 	unsigned int amppd_st;
 
@@ -229,7 +233,7 @@ struct aw_device {
 	struct aw_cali_desc cali_desc;
 	struct aw_monitor_desc monitor_desc;
 	struct aw_soft_rst soft_rst;
-	struct aw_frcpwm_desc frcpwm_desc;
+	struct aw_bop_desc bop_desc;
 	struct aw_device_ops ops;
 	struct list_head list_node;
 };

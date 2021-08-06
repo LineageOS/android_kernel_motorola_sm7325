@@ -23,6 +23,7 @@
 #include "aw_dsp.h"
 /*#include "aw_afe.h"*/
 #include "aw_bin_parse.h"
+#include "aw882xx.h"
 
 #define AW_DEV_SYSST_CHECK_MAX   (10)
 
@@ -35,7 +36,6 @@ static char *profile_name[AW_PROFILE_MAX] = {
 		"Music", "Voice", "Voip", "Ringtone", "Ringtone_hs",
 		"Lowpower", "Bypass", "Mmi", "Fm", "Notification", "Receiver"
 	};
-
 
 static char ext_dsp_prof_write = AW_EXT_DSP_WRITE_NONE;
 static DEFINE_MUTEX(g_ext_dsp_prof_wr_lock); /*lock ext wr flag*/
@@ -194,15 +194,13 @@ static int aw_dev_parse_raw_reg(struct aw_device *aw_dev,
 	return 0;
 }
 
-static int aw_dev_parse_raw_dsp(struct aw_device *aw_dev,
+static void aw_dev_parse_raw_dsp(struct aw_device *aw_dev,
 			uint8_t *data, uint32_t data_len, struct aw_prof_desc *prof_desc)
 {
 	aw_dev_info(aw_dev->dev, "data_size:%d enter", data_len);
 
 	prof_desc->sec_desc[AW_PROFILE_DATA_TYPE_DSP].data = data;
 	prof_desc->sec_desc[AW_PROFILE_DATA_TYPE_DSP].len = data_len;
-
-	return 0;
 }
 
 static int aw_dev_parse_reg_bin_with_hdr(struct aw_device *aw_dev,
@@ -363,11 +361,10 @@ static int aw_dev_parse_dev_default_type(struct aw_device *aw_dev,
 	return 0;
 }
 
-static int aw_dev_parse_skt_type(struct aw_device *aw_dev,
+static void aw_dev_parse_skt_type(struct aw_device *aw_dev,
 		struct aw_cfg_hdr *prof_hdr, struct aw_all_prof_info *all_prof_info)
 {
 	int i = 0;
-	int ret;
 	int sec_num = 0;
 	struct aw_cfg_dde *cfg_dde =
 		(struct aw_cfg_dde *)((char *)prof_hdr + prof_hdr->a_hdr_offset);
@@ -378,21 +375,16 @@ static int aw_dev_parse_skt_type(struct aw_device *aw_dev,
 		if ((aw_dev->index == cfg_dde[i].dev_index) &&
 			(cfg_dde[i].type == AW_SKT_TYPE_ID)) {
 			if (cfg_dde[i].data_type == ACF_SEC_TYPE_DSP) {
-				ret = aw_dev_parse_raw_dsp(aw_dev,
+				aw_dev_parse_raw_dsp(aw_dev,
 					(uint8_t *)prof_hdr + cfg_dde[i].data_offset,
 					cfg_dde[i].data_size,
 					&all_prof_info->prof_desc[cfg_dde[i].dev_profile]);
-				if (ret < 0) {
-					aw_dev_err(aw_dev->dev, "parse dsp bin data failed");
-					return ret;
-				}
 				sec_num++;
 			}
 		}
 	}
 
 	aw_dev_info(aw_dev->dev, "get dsp data prof cnt is %d ", sec_num);
-	return 0;
 }
 
 static int aw_dev_acf_load_by_hdr(struct aw_device *aw_dev,
@@ -410,9 +402,7 @@ static int aw_dev_acf_load_by_hdr(struct aw_device *aw_dev,
 			return ret;
 	}
 
-	ret = aw_dev_parse_skt_type(aw_dev, prof_hdr, all_prof_info);
-	if (ret < 0)
-		return ret;
+	aw_dev_parse_skt_type(aw_dev, prof_hdr, all_prof_info);
 
 	return 0;
 }
@@ -690,16 +680,16 @@ static void aw_dev_fade_in(struct aw_device *aw_dev)
 {
 	int i = 0;
 	int fade_step = aw_dev->vol_step;
+	struct aw882xx *aw882xx = (struct aw882xx *)aw_dev->private_data;
+	int fade_flag = aw882xx->fade_flag; 
 	struct aw_volume_desc *desc = &aw_dev->volume_desc;
 
-	if (fade_step == 0 || g_fade_in_time == 0) {
+	if (fade_step == 0 || g_fade_in_time == 0 || fade_flag == 0) {
 		aw_dev->ops.aw_set_volume(aw_dev, desc->init_volume);
 		return;
 	}
 	/*volume up*/
 	for (i = desc->mute_volume; i >= desc->init_volume; i -= fade_step) {
-		if (i < desc->init_volume)
-			i = desc->init_volume;
 		aw_dev->ops.aw_set_volume(aw_dev, i);
 		usleep_range(g_fade_in_time, g_fade_in_time + 10);
 	}
@@ -711,10 +701,12 @@ static void aw_dev_fade_out(struct aw_device *aw_dev)
 {
 	int i = 0;
 	unsigned start_volume = 0;
+	struct aw882xx *aw882xx = (struct aw882xx *)aw_dev->private_data;
+	int fade_flag = aw882xx->fade_flag;
 	int fade_step = aw_dev->vol_step;
 	struct aw_volume_desc *desc = &aw_dev->volume_desc;
 
-	if (fade_step == 0 || g_fade_out_time == 0) {
+	if (fade_step == 0 || g_fade_out_time == 0 || fade_flag == 0) {
 		aw_dev->ops.aw_set_volume(aw_dev, desc->mute_volume);
 		return;
 	}
@@ -722,8 +714,6 @@ static void aw_dev_fade_out(struct aw_device *aw_dev)
 	aw_dev->ops.aw_get_volume(aw_dev, &start_volume);
 	i = start_volume;
 	for (i = start_volume; i <= desc->mute_volume; i += fade_step) {
-		if (i > desc->mute_volume)
-			i = desc->mute_volume;
 		aw_dev->ops.aw_set_volume(aw_dev, i);
 		usleep_range(g_fade_out_time, g_fade_out_time + 10);
 	}
@@ -1031,7 +1021,7 @@ static int aw_dev_sysst_check(struct aw_device *aw_dev)
 int aw_dev_get_profile_count(struct aw_device *aw_dev)
 {
 	if (aw_dev == NULL) {
-		aw_dev_err(aw_dev->dev, "aw_dev is NULL");
+		aw_pr_err("aw_dev is NULL");
 		return -ENOMEM;
 	}
 
@@ -1338,18 +1328,6 @@ static void aw_dev_boost_type_recover(struct aw_device *aw_dev)
 	}
 }
 
-static void aw_dev_set_frcpwm_mode(struct aw_device *aw_dev)
-{
-	struct aw_frcpwm_desc *frcpwm_desc = &aw_dev->frcpwm_desc;
-
-	aw_dev_dbg(aw_dev->dev, "enter");
-
-	aw_dev->ops.aw_i2c_write_bits(aw_dev, frcpwm_desc->reg,
-			frcpwm_desc->mask, frcpwm_desc->frcpwm_val);
-
-	aw_dev_dbg(aw_dev->dev, "frcpwm_mode set done");
-}
-
 int aw_device_start(struct aw_device *aw_dev)
 {
 	int ret;
@@ -1407,8 +1385,8 @@ int aw_device_start(struct aw_device *aw_dev)
 		aw_dev_amppd(aw_dev, true);
 	}
 
-	if (aw_dev->frcpwm_en)
-		aw_dev_set_frcpwm_mode(aw_dev);
+	if (aw_dev->ops.aw_reg_force_set)
+		aw_dev->ops.aw_reg_force_set(aw_dev);
 
 	if (!aw_dev->mute_st) {
 		/*close mute*/
