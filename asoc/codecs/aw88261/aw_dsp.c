@@ -25,6 +25,9 @@ static DEFINE_MUTEX(g_aw_dsp_lock);
 #define AW_MSG_ID_F0_Q			(0x00000003)
 #define AW_MSG_ID_DIRECT_CUR_FLAG	(0x00000006)
 #define AW_MSG_ID_SPK_STATUS		(0x00000007)
+#define AW_MSG_ID_VERSION		(0x00000008)
+#define AW_MSG_ID_VERSION_NEW		(0x00000012)
+
 
 /*dsp params id*/
 #define AW_MSG_ID_RX_SET_ENABLE		(0x10013D11)
@@ -1141,6 +1144,36 @@ int aw_dsp_set_copp_module_en(bool enable)
 		return -EINVAL;
 
 	aw_pr_info("set skt %s", enable == 1 ? "enable" : "disable");
+	return 0;
+}
+
+int aw_get_algo_version(struct aw_device *aw_dev, char *algo_ver_buf)
+{
+	int ret;
+	unsigned int algo_ver = 0;
+	char *algo_data = NULL;
+	int msg_num;
+
+	ret = aw_get_msg_num(aw_dev->channel, &msg_num);
+	if (ret < 0) {
+		aw_dev_err(aw_dev->dev, "get msg_num failed");
+		return ret;
+	}
+
+	ret = aw_read_msg_from_dsp(msg_num, AW_MSG_ID_VERSION,
+				(char *)&algo_ver, sizeof(uint32_t));
+	if ((ret < 0) || (algo_ver == 0)) {
+		ret = aw_read_msg_from_dsp(msg_num, AW_MSG_ID_VERSION_NEW,
+					algo_ver_buf, ALGO_VERSION_MAX);
+		if (ret < 0)
+			return ret;
+	} else {
+		algo_data = (char *)&algo_ver;
+		snprintf(algo_ver_buf, ALGO_VERSION_MAX, "aw_algo_v%d.%d.%d.%d",
+				algo_data[3], algo_data[2], algo_data[1], algo_data[0]);
+	}
+
+	aw_dev_dbg(aw_dev->dev, "%s", algo_ver_buf);
 	return 0;
 }
 
