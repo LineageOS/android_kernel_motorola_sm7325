@@ -260,7 +260,7 @@
 		};
 	};
 */
-	chg_therm {
+/*	chg_therm {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";
@@ -273,7 +273,7 @@
 				type = "passive";
 			};
 		};
-	};
+	};*/
 
 	hot-pock-therm-usr {
 		status = "disabled";
