@@ -90,9 +90,11 @@
 	};
 
 	pm8350b_chg_temp {
-		reg = <PM8350B_ADC7_CHG_TEMP>;
+		reg = <PM8350B_ADC7_AMUX_THM3_100K_PU>;
 		label = "pm8350b_chg_temp";
-		qcom,pre-scaling = <1 1>;
+                qcom,ratiometric;
+                qcom,hw-settle-time = <200>;
+                qcom,pre-scaling = <1 1>;
 	};
 
 	pm8350b_iin_fb {
@@ -151,7 +153,7 @@
 			<&pmk8350_vadc PM8350_ADC7_AMUX_THM3_100K_PU>,
 			<&pmk8350_vadc PM8350_ADC7_AMUX_THM4_100K_PU>,
 			<&pmk8350_vadc PM8350_ADC7_AMUX_THM5_100K_PU>,
-			<&pmk8350_vadc PM8350B_ADC7_CHG_TEMP>,
+			<&pmk8350_vadc PM8350B_ADC7_AMUX_THM3_100K_PU>,
 			<&pmk8350_vadc PM8350B_ADC7_AMUX_THM4_100K_PU>,
 //			<&pmk8350_vadc PM8350B_ADC7_GPIO2_100K_PU>,
 			<&pmk8350_vadc PMK8350_ADC7_AMUX_THM1_100K_PU>;
@@ -197,7 +199,7 @@
 	};
 
 	pm8350b_chg_temp {
-		reg = <PM8350B_ADC7_CHG_TEMP>;
+		reg = <PM8350B_ADC7_AMUX_THM4_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
 	};
@@ -260,11 +262,11 @@
 		};
 	};
 */
-/*	chg_therm {
+	chg_therm {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";
-		thermal-sensors = <&pmk8350_adc_tm PM8350B_ADC7_CHG_TEMP>;
+		thermal-sensors = <&pmk8350_adc_tm PM8350B_ADC7_AMUX_THM4_100K_PU>;
 		wake-capable-sensor;
 		trips {
 			active-config0 {
@@ -273,7 +275,7 @@
 				type = "passive";
 			};
 		};
-	};*/
+	};
 
 	hot-pock-therm-usr {
 		status = "disabled";
