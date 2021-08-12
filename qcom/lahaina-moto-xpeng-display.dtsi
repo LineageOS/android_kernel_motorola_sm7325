@@ -16,7 +16,7 @@
 #include "dsi-panel-mot-dummy-qhd-video.dtsi"
 
 &mdss_mdp {
-	connectors = <&sde_wb &sde_dsi &sde_rscc &sde_dp>;
+	connectors = <&sde_wb &sde_dsi &sde_rscc &sde_dp &smmu_sde_unsec &smmu_sde_sec>;
 };
 
 
