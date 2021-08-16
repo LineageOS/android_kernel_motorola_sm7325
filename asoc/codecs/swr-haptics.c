@@ -371,7 +371,7 @@ static int haptics_vmax_put(struct snd_kcontrol *kcontrol,
 }
 
 static const struct snd_kcontrol_new haptics_snd_controls[] = {
-	SOC_SINGLE_EXT("Haptics Amplitude Step", SND_SOC_NOPM, 0, 100, 0,
+	SOC_SINGLE_EXT("Haptics Amplitude Step", SND_SOC_NOPM, 0, 255, 0,
 		haptics_vmax_get, haptics_vmax_put),
 };
 
