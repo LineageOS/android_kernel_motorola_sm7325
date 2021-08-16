@@ -103,26 +103,17 @@
 		status = "disabled";
 	};
 
-	tps65132@3e {
-		compatible = "ti,tps65132";
+	aw37501@3e {
+		status = "okay";
+		compatible = "awinic,aw37501";
+
+		bool_regulator_fixed; /* use gpio regulator-fixed  */
 		reg = <0x3e>;
-
-		regulators {
-			tps65132_outp: outp {
-				regulator-name = "outp";
-				regulator-boot-on;
-				regulator-always-on;
-				enable-gpios = <&tlmm 2 0>;
-			};
-
-			tps65132_outn: outn {
-				regulator-name = "outn";
-				regulator-boot-on;
-				regulator-always-on;
-				regulator-active-discharge = <0>;
-				enable-gpios = <&tlmm 3 0>;
-			};
-		};
+		outp = <0x0F>;
+		outn = <0x0F>;
+		power_mode = <0xC0>;
+		limit = <370>;
+		offset = <50>;
 	};
 
 	cam_pmic: wl2866d@28{
