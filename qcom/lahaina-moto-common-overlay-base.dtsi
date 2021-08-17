@@ -132,7 +132,6 @@
 
 	vcc-supply = <&pm8350_l7>;
 	vcc-voltage-level = <2504000 2950000>;
-	vcc-low-voltage-sup;
 	vcc-max-microamp = <800000>;
 
 	vccq-supply = <&pm8350_l9>;
@@ -140,6 +139,9 @@
 
 	qcom,vddp-ref-clk-supply = <&pm8350_l9>;
 	qcom,vddp-ref-clk-max-microamp = <100>;
+
+	qcom,vccq-parent-supply = <&pm8350_s12>;
+	qcom,vccq-parent-max-microamp = <210000>;
 
 	status = "ok";
 };
