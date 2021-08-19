@@ -3299,7 +3299,7 @@ static int cam_ope_mgr_prepare_hw_update(void *hw_priv,
 	prepare_args->priv = ctx_data->req_list[request_idx];
 	prepare_args->pf_data->packet = packet;
 	prepare_args->pf_data->req    = ope_req;
-	CAM_INFO(CAM_REQ, "OPE req %x num_batch %d", ope_req, ope_req->num_batch);
+	CAM_DBG(CAM_REQ, "OPE req %x num_batch %d", ope_req, ope_req->num_batch);
 	ope_req->hang_data.packet = packet;
 	ktime_get_boottime_ts64(&ts);
 	ctx_data->last_req_time = (uint64_t)((ts.tv_sec * 1000000000) +
