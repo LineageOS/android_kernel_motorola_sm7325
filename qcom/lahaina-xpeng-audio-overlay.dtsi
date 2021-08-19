@@ -96,6 +96,22 @@
         status = "disabled";
 };
 
+&swr_dmic_01 {
+        status = "disabled";
+};
+
+&swr_dmic_02 {
+        status = "disabled";
+};
+
+&swr_dmic_03 {
+        status = "disabled";
+};
+
+&swr_dmic_04 {
+        status = "disabled";
+};
+
 /* Modify headset's BIAS voltage to 2.8V */
 &wcd938x_codec {
 	qcom,cdc-micbias1-mv = <2800>;
