@@ -151,7 +151,7 @@
 	};
 
         lcd_backlight@36 {
-                compatible = "awinic,aw99703-bl","ti,lm3697";
+                compatible = "awinic,aw99703-bl";
                 reg = <0x36>;
 
 		/* Awinic, aw99703 */
@@ -173,6 +173,13 @@
                 aw99703,map-type = <1>; /* linear */
                 aw99703,work-mode = <1>; /* backlight */
 		aw99703,default-brightness = <1024>;
+
+	};
+
+
+        lm3697@35 {
+                compatible = "ti,lm3697";
+                reg = <0x35>;
 
 		/* TI, lm3697*/
 		enable-gpios = <&tlmm 13 0>;
