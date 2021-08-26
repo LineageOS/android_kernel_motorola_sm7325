@@ -317,6 +317,10 @@
 	};
 };
 
+&socd_trip {
+	temperature = <95>;
+};
+
 &pm8350b_haptics {
 	qcom,vmax-mv = <2800>;
 	qcom,lra-period-us = <4255>;
