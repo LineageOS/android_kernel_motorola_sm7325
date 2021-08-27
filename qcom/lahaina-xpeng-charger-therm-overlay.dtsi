@@ -199,7 +199,7 @@
 	};
 
 	pm8350b_chg_temp {
-		reg = <PM8350B_ADC7_AMUX_THM4_100K_PU>;
+		reg = <PM8350B_ADC7_AMUX_THM3_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
 	};
@@ -266,7 +266,7 @@
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";
-		thermal-sensors = <&pmk8350_adc_tm PM8350B_ADC7_AMUX_THM4_100K_PU>;
+		thermal-sensors = <&pmk8350_adc_tm PM8350_ADC7_AMUX_THM3_100K_PU>;
 		wake-capable-sensor;
 		trips {
 			active-config0 {
