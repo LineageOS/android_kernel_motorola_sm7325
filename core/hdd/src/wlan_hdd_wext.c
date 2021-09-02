@@ -7492,6 +7492,8 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 			//hdd_store_sar_config(hdd_ctx, sar_limit_cmd);
 			hdd_info("Setting maximum tx power successful");
 		}
+		if(sar_limit_cmd) {qdf_mem_free(sar_limit_cmd);}
+		if(row) {qdf_mem_free(row);}
 	}
 	break;
 
