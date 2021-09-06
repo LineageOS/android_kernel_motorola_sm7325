@@ -324,6 +324,8 @@
 &pm8350b_haptics {
 	qcom,vmax-mv = <2800>;
 	qcom,lra-period-us = <4255>;
+	haptic-gpio = <&tlmm 43 0x00>;
+	long-gain-reduced = <128>;
 	status = "ok";
 
 	effect_0 {
