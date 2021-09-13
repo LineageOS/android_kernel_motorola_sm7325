@@ -1456,7 +1456,8 @@ int bolero_runtime_resume(struct device *dev)
 
 	mutex_lock(&priv->vote_lock);
 	if (priv->lpass_core_hw_vote == NULL) {
-		dev_dbg(dev, "%s: Invalid lpass core hw node\n", __func__);
+		/* MMI_STOPSHIP audio: IKSWR-135337 enable debug logs, total 8 modifications */
+		dev_err(dev, "%s: Invalid lpass core hw node\n", __func__);
 		goto audio_vote;
 	}
 
@@ -1469,12 +1470,12 @@ int bolero_runtime_resume(struct device *dev)
 		}
 	}
 	priv->core_hw_vote_count++;
-	trace_printk("%s: hw vote count %d\n",
+	dev_err(dev, "%s: hw vote count %d\n",
 		__func__, priv->core_hw_vote_count);
 
 audio_vote:
 	if (priv->lpass_audio_hw_vote == NULL) {
-		dev_dbg(dev, "%s: Invalid lpass audio hw node\n", __func__);
+		dev_err(dev, "%s: Invalid lpass audio hw node\n", __func__);
 		goto done;
 	}
 
@@ -1488,7 +1489,7 @@ audio_vote:
 		}
 	}
 	priv->core_audio_vote_count++;
-	trace_printk("%s: audio vote count %d\n",
+	dev_err(dev, "%s: audio vote count %d\n",
 		__func__, priv->core_audio_vote_count);
 
 done:
@@ -1510,10 +1511,10 @@ int bolero_runtime_suspend(struct device *dev)
 		if (priv->core_hw_vote_count < 0)
 			priv->core_hw_vote_count = 0;
 	} else {
-		dev_dbg(dev, "%s: Invalid lpass core hw node\n",
+		dev_err(dev, "%s: Invalid lpass core hw node\n",
 			__func__);
 	}
-	trace_printk("%s: hw vote count %d\n",
+	dev_err(dev, "%s: hw vote count %d\n",
 		__func__, priv->core_hw_vote_count);
 
 	if (priv->lpass_audio_hw_vote != NULL) {
@@ -1523,10 +1524,10 @@ int bolero_runtime_suspend(struct device *dev)
 		if (priv->core_audio_vote_count < 0)
 			priv->core_audio_vote_count = 0;
 	} else {
-		dev_dbg(dev, "%s: Invalid lpass audio hw node\n",
+		dev_err(dev, "%s: Invalid lpass audio hw node\n",
 			__func__);
 	}
-	trace_printk("%s: audio vote count %d\n",
+	dev_err(dev, "%s: audio vote count %d\n",
 		__func__, priv->core_audio_vote_count);
 
 	mutex_unlock(&priv->vote_lock);
