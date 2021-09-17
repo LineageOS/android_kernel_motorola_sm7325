@@ -427,3 +427,7 @@
 &usb0 {
 	ssusb_redriver = <&redriver>;
 };
+
+&kryo_erp {
+	qcom,disable-panic-on-ce;
+};
