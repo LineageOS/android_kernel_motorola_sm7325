@@ -58,8 +58,9 @@
 		novatek,panel-supplier = "tm";
 		novatek,interpolation_cmd = /bits/ 8 <0x72 0x03>;
 		//novatek,jitter_cmd = /bits/ 8 <0x72 0x02>;
-		novatek,first_filter_cmd = /bits/ 8 <0x72 0x02>;
+		//novatek,first_filter_cmd = /bits/ 8 <0x72 0x02>;
 		novatek,edge_cmd = /bits/ 8 <0x72 0x01 0x00>;
+		novatek,gesture-wait-pm;
 		panel = <&dsi_nt36672e_fhd_plus_144_video>;
 		status = "ok";
 		/* touchscreen_mmi class entries */
