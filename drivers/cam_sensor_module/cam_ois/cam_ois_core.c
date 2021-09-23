@@ -339,6 +339,7 @@ static int cam_ois_slaveInfo_pkt_parser(struct cam_ois_ctrl_t *o_ctrl,
 		o_ctrl->ois_fw_txn_data_sz = ois_info->ois_fw_txn_data_sz;
 		o_ctrl->ois_fw_inc_addr = ois_info->ois_fw_inc_addr;
 		o_ctrl->ois_fw_addr_type = ois_info->ois_fw_addr_type;
+		o_ctrl->ois_fw_data_type = ois_info->ois_fw_data_type;
 		memcpy(o_ctrl->ois_name, ois_info->ois_name, OIS_NAME_LEN);
 		o_ctrl->ois_name[OIS_NAME_LEN - 1] = '\0';
 		o_ctrl->io_master_info.cci_client->retries = 3;
@@ -396,7 +397,7 @@ static int cam_ois_fw_prog_download(struct cam_ois_ctrl_t *o_ctrl)
 		txn_data_size = o_ctrl->ois_fw_txn_data_sz;
 
 	i2c_reg_setting.addr_type = o_ctrl->ois_fw_addr_type;
-	i2c_reg_setting.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
+	i2c_reg_setting.data_type = o_ctrl->ois_fw_data_type;
 	i2c_reg_setting.delay = 0;
 	txn_regsetting_size = sizeof(struct cam_sensor_i2c_reg_array) * txn_data_size;
 	vaddr = vmalloc(txn_regsetting_size);
@@ -476,7 +477,7 @@ static int cam_ois_fw_coeff_download(struct cam_ois_ctrl_t *o_ctrl)
 		txn_data_size = o_ctrl->ois_fw_txn_data_sz;
 
 	i2c_reg_setting.addr_type = o_ctrl->ois_fw_addr_type;
-	i2c_reg_setting.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
+	i2c_reg_setting.data_type = o_ctrl->ois_fw_data_type;
 	i2c_reg_setting.delay = 0;
 	txn_regsetting_size = sizeof(struct cam_sensor_i2c_reg_array) * txn_data_size;
 	vaddr = vmalloc(txn_regsetting_size);
