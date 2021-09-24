@@ -10,5 +10,5 @@
  * GNU General Public License for more details.
  */
 
-#include "yupik-moto-common-overlay-base.dtsi"
+#include "yupik-moto-common-overlay-base-pm7250b.dtsi"
 #include "yupik-moto-extra-overlay.dtsi"

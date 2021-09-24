@@ -1,0 +1,21 @@
+&mmi_charger {
+	compatible = "mmi,mmi-charger";
+	mmi,enable-charging-limit;
+	mmi,upper-limit-capacity = <75>;
+	mmi,lower-limit-capacity = <65>;
+	mmi,heartbeat-interval = <60000>;
+	mmi,dcp-power-max = <10000>;
+	mmi,hvdcp-power-max = <20000>;
+	mmi,pd-power-max = <30000>;
+};
+
+&qti_glink_charger {
+	compatible = "mmi,qti-glink-charger";
+	mmi,df-serialnum = "SB18D10750";
+	mmi,demo-fv-mv = <4000>;
+	profile-ids-map = "107000", "SB18D10750";
+};
+
+&battery_charger {
+	qcom,thermal-mitigation = <6000000 5000000 4000000 3000000 1500000 1000000 500000>;
+};
