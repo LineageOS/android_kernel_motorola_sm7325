@@ -12,6 +12,7 @@
  *
  */
 #include <linux/module.h>
+#include <linux/component.h>
 #include <linux/kernel.h>
 #include <uapi/linux/media.h>
 #include <linux/gpio.h>
@@ -34,6 +35,7 @@
 #define MAX_ACTUATOR_NUM 3
 #define REGULATOR_NAME_MAX_LEN 32
 #define ANDROIDBOOT_DEVICE_MAX_LEN 32
+#define LENS_MAX_STAGES 10
 
 typedef enum {
 	MOT_ACTUATOR_INVALID,
@@ -41,6 +43,7 @@ typedef enum {
 	MOT_ACTUATOR_GT9767 = MOT_ACTUATOR_FIRST,
 	MOT_ACTUATOR_GT9772,
 	MOT_ACTUATOR_DW9714,
+	MOT_ACTUATOR_DW9800V,
 	MOT_ACTUATOR_NUM,
 } mot_actuator_type;
 
@@ -54,6 +57,12 @@ typedef enum {
 	MOT_DEVICE_NIO,
 	MOT_DEVICE_BERLNA,
 	MOT_DEVICE_BERLIN,
+	MOT_DEVICE_CYPFG,
+	MOT_DEVICE_CYPFQ,
+	MOT_DEVICE_CYPFR,
+	MOT_DEVICE_CORFUP,
+	MOT_DEVICE_CORFUQ,
+	MOT_DEVICE_CORFUR,
 	MOT_DEVICE_NUM,
 } mot_dev_type;
 
@@ -76,10 +85,15 @@ typedef struct {
 	struct cam_sensor_i2c_reg_setting *init_setting;
 	struct cam_sensor_i2c_reg_setting *dac_setting;
 } mot_actuator_settings;
+typedef struct {
+	bool launch_lens_needed;
+	mot_launch_lens_step launch_lens_step[LENS_MAX_STAGES];
+} mot_launch_lens;
 
 typedef struct {
 	mot_actuator_type actuator_type;
 	uint16_t dac_pos;
+	uint16_t init_pos;
 	uint16_t cci_addr;
 	uint16_t cci_dev;
 	uint16_t cci_master;
@@ -87,7 +101,7 @@ typedef struct {
 	uint32_t regulator_volt_uv[REGULATOR_NUM];
 	bool park_lens_needed;
 	bool reset_lens_needed;
-	bool launch_lens_needed;
+	mot_launch_lens launch_lens;
 } mot_actuator_hw_info;
 
 typedef struct {
@@ -179,12 +193,38 @@ static struct cam_sensor_i2c_reg_setting mot_dw9714_dac_settings = {
 	.data_type = CAMERA_SENSOR_I2C_TYPE_WORD,
 };
 
+/*Register settings of DW9800V*/
+static struct cam_sensor_i2c_reg_array mot_dw9800v_init_setting[] ={
+	{0x02, 0x02, 300},
+	{0x06, 0x80, 0},
+	{0x07, 0x62, 0},
+};
+
+static struct cam_sensor_i2c_reg_array mot_dw9800v_dac_setting[] ={
+	{0x03, 0x3ff, 0}
+};
+
+static struct cam_sensor_i2c_reg_setting mot_dw9800v_init_settings = {
+	.reg_setting = mot_dw9800v_init_setting,
+	.size = ARRAY_SIZE(mot_dw9800v_init_setting),
+	.addr_type = CAMERA_SENSOR_I2C_TYPE_BYTE,
+	.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE,
+};
+
+static struct cam_sensor_i2c_reg_setting mot_dw9800v_dac_settings = {
+	.reg_setting = mot_dw9800v_dac_setting,
+	.size = ARRAY_SIZE(mot_dw9800v_dac_setting),
+	.addr_type = CAMERA_SENSOR_I2C_TYPE_BYTE,
+	.data_type = CAMERA_SENSOR_I2C_TYPE_WORD,
+};
+
 /*Register settings of all supported actuator types*/
 static mot_actuator_settings mot_actuator_list[MOT_ACTUATOR_NUM-1] = {
 	//MUST be sorted as definition order in above structure: mot_actuator_type
 	{&mot_gt9767_init_settings, &mot_gt9767_dac_settings},
 	{&mot_gt9772_init_settings, &mot_gt9772_dac_settings},
 	{&mot_dw9714_init_settings, &mot_dw9714_dac_settings},
+	{&mot_dw9800v_init_settings, &mot_dw9800v_dac_settings},
 };
 
 static const mot_dev_info mot_dev_list[MOT_DEVICE_NUM] = {
@@ -237,7 +277,170 @@ static const mot_dev_info mot_dev_list[MOT_DEVICE_NUM] = {
 				.regulator_volt_uv = {1800000, 2800000},
 				.park_lens_needed = true,
 				.reset_lens_needed = true,
-				.launch_lens_needed = true,
+				.launch_lens = {
+						.launch_lens_needed = true,
+						.launch_lens_step = {
+							{300, 300},
+							{700, 100},
+							{820, 60},
+							{900, 40},
+					},
+				},
+			},
+		},
+	},
+	{
+		.dev_type = MOT_DEVICE_CYPFG,
+		.actuator_num = 1,
+		.dev_name = "cypfg",
+		.actuator_info = {
+			[0] = {
+				.actuator_type = MOT_ACTUATOR_DW9800V,
+				.dac_pos = 0,
+				.init_pos = 512,
+				.cci_addr = 0x0c,
+				.cci_dev = 0x00,
+				.cci_master = 0x0,
+				.regulator_list = {"ldo7", "ldo5"},
+				.regulator_volt_uv = {1800000, 2800000},
+				.launch_lens = {
+						.launch_lens_needed = true,
+						.launch_lens_step = {
+									{200, 100},
+									{100, 60},
+									{50, 30},
+						},
+				},
+			},
+		},
+	},
+
+	{
+		.dev_type = MOT_DEVICE_CYPFQ,
+		.actuator_num = 1,
+		.dev_name = "cypfq",
+		.actuator_info = {
+			[0] = {
+				.actuator_type = MOT_ACTUATOR_DW9800V,
+				.dac_pos = 0,
+				.init_pos = 512,
+				.cci_addr = 0x0c,
+				.cci_dev = 0x00,
+				.cci_master = 0x0,
+				.regulator_list = {"ldo7", "ldo5"},
+				.regulator_volt_uv = {1800000, 2800000},
+				.launch_lens = {
+						.launch_lens_needed = true,
+						.launch_lens_step = {
+									{200, 100},
+									{100, 60},
+									{50, 30},
+						},
+				},
+			},
+		},
+	},
+
+	{
+		.dev_type = MOT_DEVICE_CYPFR,
+		.actuator_num = 1,
+		.dev_name = "cypfr",
+		.actuator_info = {
+			[0] = {
+				.actuator_type = MOT_ACTUATOR_DW9800V,
+				.dac_pos = 0,
+				.init_pos = 512,
+				.cci_addr = 0x0c,
+				.cci_dev = 0x00,
+				.cci_master = 0x0,
+				.regulator_list = {"ldo7", "ldo5"},
+				.regulator_volt_uv = {1800000, 2800000},
+				.launch_lens = {
+						.launch_lens_needed = true,
+						.launch_lens_step = {
+									{200, 100},
+									{100, 60},
+									{50, 30},
+						},
+				},
+			},
+		},
+	},
+
+	{
+		.dev_type = MOT_DEVICE_CORFUP,
+		.actuator_num = 1,
+		.dev_name = "corfup",
+		.actuator_info = {
+			[0] = {
+				.actuator_type = MOT_ACTUATOR_DW9800V,
+				.dac_pos = 0,
+				.init_pos = 512,
+				.cci_addr = 0x0c,
+				.cci_dev = 0x00,
+				.cci_master = 0x1,
+				.regulator_list = {"ldo7", "ldo5"},
+				.regulator_volt_uv = {1800000, 2800000},
+				.launch_lens = {
+						.launch_lens_needed = true,
+						.launch_lens_step = {
+									{200, 100},
+									{100, 60},
+									{50, 30},
+						},
+				},
+			},
+		},
+	},
+
+	{
+		.dev_type = MOT_DEVICE_CORFUQ,
+		.actuator_num = 1,
+		.dev_name = "corfuq",
+		.actuator_info = {
+			[0] = {
+				.actuator_type = MOT_ACTUATOR_DW9800V,
+				.dac_pos = 0,
+				.init_pos = 512,
+				.cci_addr = 0x0c,
+				.cci_dev = 0x00,
+				.cci_master = 0x1,
+				.regulator_list = {"ldo7", "ldo5"},
+				.regulator_volt_uv = {1800000, 2800000},
+				.launch_lens = {
+						.launch_lens_needed = true,
+						.launch_lens_step = {
+									{200, 100},
+									{100, 60},
+									{50, 30},
+						},
+				},
+			},
+		},
+	},
+
+	{
+		.dev_type = MOT_DEVICE_CORFUR,
+		.actuator_num = 1,
+		.dev_name = "corfur",
+		.actuator_info = {
+			[0] = {
+				.actuator_type = MOT_ACTUATOR_DW9800V,
+				.dac_pos = 0,
+				.init_pos = 512,
+				.cci_addr = 0x0c,
+				.cci_dev = 0x00,
+				.cci_master = 0x1,
+				.regulator_list = {"ldo7", "ldo5"},
+				.regulator_volt_uv = {1800000, 2800000},
+				.launch_lens = {
+						.launch_lens_needed = true,
+						.launch_lens_step = {
+									{200, 100},
+									{100, 60},
+									{50, 30},
+						},
+				},
 			},
 		},
 	},
@@ -315,7 +518,7 @@ static int cam_select_actuator_by_device_name(void)
 #define VIBRATING_MAX_INTERVAL 2000//ms
 #define PARK_LENS_MAX_STAGES 10
 #define RESET_LENS_MAX_STAGES 10
-#define LAUNCH_LENS_MAX_STAGES 10
+#define LAUNCH_LENS_MAX_STAGES LENS_MAX_STAGES
 
 struct mot_actuator_ctrl_t {
 	struct cam_subdev v4l2_dev_str;
@@ -354,12 +557,7 @@ static mot_reset_lens_step lens_reset_table[RESET_LENS_MAX_STAGES] = {
 	{400, 0},
 	{100, 100},
 };
-static mot_launch_lens_step lens_launch_table[LAUNCH_LENS_MAX_STAGES] = {
-	{300, 300},
-	{700, 100},
-	{820, 60},
-	{900, 40},
-};
+
 static bool runtime_inited = 0;
 
 static int mot_actuator_init_runtime(void)
@@ -523,13 +721,21 @@ int32_t mot_actuator_release_cci(uint32_t index)
 
 static int32_t mot_actuator_launch_lens(uint32_t index, uint32_t dac_value)
 {
-	uint32_t cur_len_pos = 0;
+	uint32_t init_len_pos = mot_dev_list[mot_device_index].actuator_info[0].init_pos;
+	uint32_t cur_len_pos = init_len_pos;
 	uint32_t last_len_pos = 0;
 	int stageIndex;
 	unsigned int consumers = 0;
 	int32_t ret = 0;
 	uint32_t lens_launch_pos = dac_value;
+	mot_launch_lens_step const *lens_launch_table = mot_dev_list[mot_device_index].actuator_info[index].launch_lens.launch_lens_step;
 
+	if (mot_dev_list[mot_device_index].actuator_info[index].launch_lens.launch_lens_needed == false) {
+		CAM_DBG(CAM_ACTUATOR, "Launch lens is not needed.");
+		return 0;
+	}
+
+	// from 0 to safe_dac_pos
 	while (cur_len_pos < lens_launch_pos) {
 		consumers = mot_actuator_get_consumers();
 		if ((consumers & (~CLINET_VIBRATOR_MASK)) != 0) {
@@ -562,6 +768,47 @@ static int32_t mot_actuator_launch_lens(uint32_t index, uint32_t dac_value)
 		}
 
 		if (cur_len_pos >= lens_launch_pos) {
+			/*For skipping the last delay*/
+			CAM_WARN(CAM_ACTUATOR, "Launch lens done.");
+			break;
+		}
+
+		usleep_range(10000, 12000);
+	}
+
+	// from 512 to 0
+	while ((cur_len_pos > lens_launch_pos) && init_len_pos) {
+		consumers = mot_actuator_get_consumers();
+		if ((consumers & (~CLINET_VIBRATOR_MASK)) != 0) {
+			CAM_WARN(CAM_ACTUATOR, "Launch lens was broken by other actuator requests.");
+			break;
+		}
+
+		for (stageIndex = 0; stageIndex < LENS_MAX_STAGES; stageIndex++) {
+			if (lens_launch_table[stageIndex].kneePoint == 0 && lens_launch_table[stageIndex].step == 0) {
+				break;
+			}
+
+			if (cur_len_pos >= lens_launch_table[stageIndex].kneePoint && lens_launch_table[stageIndex].step > 0) {
+				cur_len_pos -= lens_launch_table[stageIndex].step;
+				break;
+			}
+		}
+
+		if (lens_launch_table[stageIndex].step == 0 && cur_len_pos > lens_launch_pos) {
+			cur_len_pos -= 10;
+			if (cur_len_pos < 10)
+				cur_len_pos = 0;
+		}
+
+		ret = mot_actuator_move_lens_by_dac(index, cur_len_pos);
+
+		if (ret < 0 ) {
+			CAM_ERR(CAM_ACTUATOR, "Launch Lens encounter CCI error, break now.");
+			break;
+		}
+
+		if (cur_len_pos <= lens_launch_pos) {
 			/*For skipping the last delay*/
 			CAM_DBG(CAM_ACTUATOR, "Launch lens done.");
 			break;
@@ -622,7 +869,7 @@ static int32_t mot_actuator_vib_move_lens(uint32_t index)
 		if (consumers == 0) {
 			/*Just move lens when camera off and before first vibrating*/
 			/*use launch_lens to move lens step-by-step,reduce TICK noise*/
-			if (mot_dev_list[mot_device_index].actuator_info[index].launch_lens_needed == true) {
+			if (mot_dev_list[mot_device_index].actuator_info[index].launch_lens.launch_lens_needed == true) {
 				ret = mot_actuator_launch_lens(index, mot_actuator_runtime[index].safe_dac_pos);
 			}else {
 				ret = mot_actuator_move_lens_by_dac(index, mot_actuator_runtime[index].safe_dac_pos);
@@ -896,11 +1143,6 @@ static struct v4l2_subdev_ops mot_actuator_subdev_ops = {
 
 static const struct v4l2_subdev_internal_ops mot_actuator_internal_ops;
 
-static struct platform_device mot_actuator_device = {
-	.name = "mot_actuator",
-	.id = -1,
-};
-
 static int32_t mot_actuator_reset_lens(uint32_t index)
 {
 	uint32_t cur_len_pos = mot_actuator_runtime[index].safe_dac_pos;
@@ -1172,9 +1414,10 @@ static struct device_attribute mot_actuator_attrs[] = {
 			mot_actuator_dump_store),
 };
 
-static int mot_actuator_init_subdev(struct mot_actuator_ctrl_t *f_ctrl)
+static int mot_actuator_init_subdev(struct device *dev, struct mot_actuator_ctrl_t *f_ctrl)
 {
 	int rc = 0;
+	struct platform_device *pdev = to_platform_device(dev);
 
 	f_ctrl->v4l2_dev_str.internal_ops = &mot_actuator_internal_ops;
 	f_ctrl->v4l2_dev_str.ops = &mot_actuator_subdev_ops;
@@ -1185,13 +1428,12 @@ static int mot_actuator_init_subdev(struct mot_actuator_ctrl_t *f_ctrl)
 	f_ctrl->v4l2_dev_str.ent_function = CAM_MOT_ACTUATOR_TYPE;
 	f_ctrl->v4l2_dev_str.token = f_ctrl;
 
-	platform_device_register(&mot_actuator_device);
-	f_ctrl->v4l2_dev_str.pdev = &mot_actuator_device;
+	f_ctrl->v4l2_dev_str.pdev = pdev;
 
 	f_ctrl->mot_actuator_wq = NULL;
 	f_ctrl->mot_actuator_wq = create_singlethread_workqueue("mot_actuator_wq");
 	if (f_ctrl->mot_actuator_wq == NULL) {
-		pr_err("%s: create work queue failed!!!", __func__);
+		CAM_ERR(CAM_ACTUATOR, "create work queue failed!!!");
 	}
 
 	INIT_DELAYED_WORK(&f_ctrl->delay_work, mot_actuator_delayed_process);
@@ -1210,23 +1452,35 @@ static int mot_actuator_init_subdev(struct mot_actuator_ctrl_t *f_ctrl)
 
 	rc = cam_register_subdev(&(f_ctrl->v4l2_dev_str));
 	if (rc)
-		pr_err("%s: Fail with cam_register_subdev rc: %d", __func__, rc);
+		CAM_ERR(CAM_ACTUATOR, "Fail with cam_register_subdev rc: %d", rc);
 
 	return rc;
 }
 
-int mot_actuator_driver_init(void)
+static int mot_actuator_component_bind(struct device *dev,
+	struct device *master_dev, void *data)
 {
-	pr_debug("%s\n", __func__);
+	CAM_WARN(CAM_ACTUATOR,"enter");
 
-	mot_actuator_init_subdev(&mot_actuator_fctrl);
+	(void)master_dev;
+	(void)data;
+
+	mot_actuator_init_subdev(dev, &mot_actuator_fctrl);
 	cam_select_actuator_by_device_name();
+
+	CAM_WARN(CAM_ACTUATOR,"exit");
+
 	return 0;
 }
 
-void mot_actuator_driver_exit(void)
+static void mot_actuator_component_unbind(struct device *dev,
+	struct device *master_dev, void *data)
 {
-	pr_debug("%s\n", __func__);
+	CAM_WARN(CAM_ACTUATOR,"enter");
+
+	(void)dev;
+	(void)master_dev;
+	(void)data;
 
 	cancel_delayed_work_sync(&mot_actuator_fctrl.delay_work);
 	if (mot_actuator_fctrl.mot_actuator_wq != NULL) {
@@ -1237,7 +1491,71 @@ void mot_actuator_driver_exit(void)
 	cam_unregister_subdev(&mot_actuator_fctrl.v4l2_dev_str);
 	__pm_relax(&mot_actuator_fctrl.actuator_wakelock);
 	wakeup_source_remove(&mot_actuator_fctrl.actuator_wakelock);
+
+	CAM_WARN(CAM_ACTUATOR,"exit");
 }
 
-MODULE_DESCRIPTION("MOT ACTUATOR");
+const static struct component_ops mot_actuator_component_ops = {
+	.bind = mot_actuator_component_bind,
+	.unbind = mot_actuator_component_unbind,
+};
+
+static int32_t mot_actuator_platform_remove(
+	struct platform_device *pdev)
+{
+	component_del(&pdev->dev, &mot_actuator_component_ops);
+	return 0;
+}
+
+static const struct of_device_id mot_actuator_driver_dt_match[] = {
+	{.compatible = "mot,actuator"},
+	{}
+};
+
+static int32_t mot_actuator_driver_platform_probe(
+	struct platform_device *pdev)
+{
+	int rc = 0;
+
+	CAM_DBG(CAM_ACTUATOR, "Adding sensor actuator component");
+	rc = component_add(&pdev->dev, &mot_actuator_component_ops);
+	if (rc)
+		CAM_ERR(CAM_ICP, "failed to add component rc: %d", rc);
+
+	return rc;
+}
+
+MODULE_DEVICE_TABLE(of, mot_actuator_driver_dt_match);
+
+struct platform_driver mot_actuator_platform_driver = {
+	.probe = mot_actuator_driver_platform_probe,
+	.driver = {
+		.name = "mot,actuator",
+		.owner = THIS_MODULE,
+		.of_match_table = mot_actuator_driver_dt_match,
+		.suppress_bind_attrs = true,
+	},
+	.remove = mot_actuator_platform_remove,
+};
+
+int mot_actuator_driver_init(void)
+{
+	int32_t rc = 0;
+
+	rc = platform_driver_register(&mot_actuator_platform_driver);
+	if (rc < 0) {
+		CAM_ERR(CAM_ACTUATOR,
+			"platform_driver_register failed rc = %d", rc);
+		return rc;
+	}
+
+	return rc;
+}
+
+void mot_actuator_driver_exit(void)
+{
+	platform_driver_unregister(&mot_actuator_platform_driver);
+}
+
+MODULE_DESCRIPTION("mot_actuator_driver");
 MODULE_LICENSE("GPL v2");
