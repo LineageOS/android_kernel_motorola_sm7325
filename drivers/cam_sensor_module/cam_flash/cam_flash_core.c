@@ -15,6 +15,50 @@
 static uint default_on_timer = 2;
 module_param(default_on_timer, uint, 0644);
 
+static int flash_initstate = 0;
+static struct i2c_settings_list*  i2c_flash_off = NULL;
+static struct i2c_settings_list*
+	cam_flash_get_i2c_ptr(struct i2c_settings_list *pi2c_list)
+{
+	struct i2c_settings_list *tmp;
+	struct cam_sensor_i2c_reg_array *i2c_reg_settings =
+				pi2c_list->i2c_settings.reg_setting;
+	uint32_t size = pi2c_list->i2c_settings.size;
+	int i = 0;
+
+	tmp = kzalloc(sizeof(struct i2c_settings_list), GFP_KERNEL);
+	if (tmp == NULL) {
+		CAM_WARN(CAM_FLASH, "kzalloc failed");
+		return NULL;
+	}
+
+	tmp->i2c_settings.reg_setting = (struct cam_sensor_i2c_reg_array *)
+		vzalloc(size * sizeof(struct cam_sensor_i2c_reg_array));
+	if (tmp->i2c_settings.reg_setting == NULL) {
+		kfree(tmp);
+		CAM_WARN(CAM_FLASH, "vzalloc failed");
+		return NULL;
+	}
+
+	tmp->i2c_settings.size = size;
+	tmp->op_code = pi2c_list->op_code;
+	tmp->i2c_settings.addr_type = pi2c_list->i2c_settings.addr_type;
+	tmp->i2c_settings.data_type = pi2c_list->i2c_settings.data_type;
+
+	for( i = 0; i < size ; i++ ) {
+		tmp->i2c_settings.reg_setting[i].reg_addr  =
+						i2c_reg_settings[i].reg_addr;
+		tmp->i2c_settings.reg_setting[i].reg_data  =
+						i2c_reg_settings[i].reg_data;
+		tmp->i2c_settings.reg_setting[i].data_mask =
+						i2c_reg_settings[i].data_mask;
+		tmp->i2c_settings.reg_setting[i].delay     =
+						i2c_reg_settings[i].delay;
+	}
+
+	return tmp;
+}
+
 int cam_flash_led_prepare(struct led_trigger *trigger, int options,
 	int *max_current, bool is_wled)
 {
@@ -289,6 +333,7 @@ int cam_flash_i2c_flush_request(struct cam_flash_ctrl *fctrl,
 	int i = 0;
 	uint32_t cancel_req_id_found = 0;
 	struct i2c_settings_array *i2c_set = NULL;
+	struct i2c_settings_list *i2c_list = NULL;
 
 	if (!fctrl) {
 		CAM_ERR(CAM_FLASH, "Device data is NULL");
@@ -309,6 +354,17 @@ int cam_flash_i2c_flush_request(struct cam_flash_ctrl *fctrl,
 				continue;
 
 			if (i2c_set->is_settings_valid == 1) {
+				list_for_each_entry(i2c_list,
+					&(i2c_set->list_head), list) {
+					rc = cam_sensor_util_i2c_apply_setting(
+						&(fctrl->io_master_info),
+						i2c_list);
+					if (rc) {
+						CAM_ERR(CAM_FLASH,
+						"Failed to apply settings: %d",
+						rc);
+					}
+				}
 				rc = delete_request(i2c_set);
 				if (rc < 0)
 					CAM_ERR(CAM_FLASH,
@@ -479,6 +535,14 @@ int cam_flash_off(struct cam_flash_ctrl *flash_ctrl)
 			"cannot apply streamoff settings");
 		}
 	}
+
+	if(i2c_flash_off)
+	{
+		CAM_DBG(CAM_FLASH, "i2c Flash OFF Triggered");
+		cam_sensor_util_i2c_apply_setting(&(flash_ctrl->io_master_info),
+							i2c_flash_off);
+	}
+
 	return 0;
 }
 
@@ -705,6 +769,8 @@ int cam_flash_i2c_apply_setting(struct cam_flash_ctrl *fctrl,
 	CAM_DBG(CAM_FLASH, "req_id=%llu", req_id);
 	if (req_id == 0) {
 		/* NonRealTime Init settings*/
+
+
 		if (fctrl->apply_streamoff == true) {
 			fctrl->apply_streamoff = false;
 			i2c_set = &fctrl->i2c_data.streamoff_settings;
@@ -721,6 +787,9 @@ int cam_flash_i2c_apply_setting(struct cam_flash_ctrl *fctrl,
 				break;
 			}
 		} else if (fctrl->i2c_data.init_settings.is_settings_valid == true) {
+			if(flash_initstate)
+				goto config_setting;
+
 			list_for_each_entry(i2c_list,
 				&(fctrl->i2c_data.init_settings.list_head),
 				list) {
@@ -742,8 +811,14 @@ int cam_flash_i2c_apply_setting(struct cam_flash_ctrl *fctrl,
 					rc);
 					return rc;
 				}
+
+				if((NULL != i2c_list) && (NULL == i2c_flash_off)) {
+					i2c_flash_off = cam_flash_get_i2c_ptr(i2c_list);
+				}
 			}
+			flash_initstate = CAM_FLASH_STATE_CONFIG;
 		}
+config_setting:
 		/* NonRealTime (Widget/RER/INIT_FIRE settings) */
 		if (fctrl->i2c_data.config_settings.is_settings_valid == true) {
 			list_for_each_entry(i2c_list,
@@ -1230,7 +1305,12 @@ int cam_flash_i2c_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 			CAM_DBG(CAM_FLASH, "settings already valid");
 			i2c_reg_settings->request_id = 0;
 			i2c_reg_settings->is_settings_valid = false;
-			goto update_req_mgr;
+			//goto update_req_mgr;
+			rc = delete_request(i2c_reg_settings);
+			if (rc) {
+				CAM_ERR(CAM_FLASH, "Error deleting req: %d", rc);
+				return rc;
+			}
 		}
 		i2c_reg_settings->is_settings_valid = true;
 		i2c_reg_settings->request_id =
@@ -1905,6 +1985,18 @@ int cam_flash_release_dev(struct cam_flash_ctrl *fctrl)
 				"Failed to delete Stream off i2c_setting: %d",
 				rc);
 		}
+	}
+
+	if(i2c_flash_off != NULL)
+	{
+		if(i2c_flash_off->i2c_settings.reg_setting != NULL) {
+			vfree(i2c_flash_off->i2c_settings.reg_setting);
+			i2c_flash_off->i2c_settings.reg_setting = NULL;
+		}
+
+		kfree(i2c_flash_off);
+		i2c_flash_off = NULL;
+		flash_initstate = 0;
 	}
 
 	if (fctrl->bridge_intf.device_hdl != 1) {
