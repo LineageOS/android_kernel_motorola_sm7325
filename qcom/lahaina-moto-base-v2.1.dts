@@ -27,3 +27,7 @@
 	utags: utags { };
 	hw: hw { };
 };
+
+&sde_dp {
+	/delete-property/ qcom,mst-enable;
+};
