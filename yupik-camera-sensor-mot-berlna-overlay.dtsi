@@ -252,6 +252,11 @@
 };
 
 &soc {
+	mot,cam-actuator {
+		compatible = "mot,actuator";
+		status = "ok";
+	};
+
 	cam_dvdd_main: gpio-regulator@0 {
 		compatible = "regulator-fixed";
 		reg = <0x00 0x00>;
