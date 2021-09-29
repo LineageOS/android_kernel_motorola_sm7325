@@ -1007,6 +1007,7 @@ static void dp_display_set_mst_mgr_state(struct dp_display_private *dp,
 	DP_MST_DEBUG("mst_mgr_state: %d\n", state);
 }
 
+extern void set_dp_state(bool state);
 static int dp_display_host_init(struct dp_display_private *dp)
 {
 	bool flip = false;
@@ -1018,6 +1019,7 @@ static int dp_display_host_init(struct dp_display_private *dp)
 		return rc;
 	}
 
+	set_dp_state(true);
 	if (dp->hpd->orientation == ORIENTATION_CC2)
 		flip = true;
 
@@ -1124,6 +1126,7 @@ static void dp_display_host_deinit(struct dp_display_private *dp)
 		return;
 	}
 
+	set_dp_state(false);
 	if (!dp_display_state_is(DP_STATE_INITIALIZED)) {
 		dp_display_state_show("[not initialized]");
 		return;
@@ -2366,6 +2369,7 @@ static int dp_display_enable(struct dp_display *dp_display, void *panel)
 
 	dp_display_update_dsc_resources(dp, panel, true);
 	dp_display_state_add(DP_STATE_ENABLED);
+	set_dp_state(true);
 end:
 	mutex_unlock(&dp->session_lock);
 	SDE_EVT32_EXTERNAL(SDE_EVTLOG_FUNC_EXIT, dp->state, rc);
@@ -2655,6 +2659,7 @@ static int dp_display_unprepare(struct dp_display *dp_display, void *panel)
 	}
 
 	dp_display_state_remove(DP_STATE_ENABLED);
+	set_dp_state(false);
 	dp->aux->state = DP_STATE_CTRL_POWERED_OFF;
 
 	complete_all(&dp->notification_comp);
