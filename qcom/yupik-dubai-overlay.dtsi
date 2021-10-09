@@ -13,6 +13,7 @@
 #include "yupik-dubai-common-overlay.dtsi"
 #include "dubai-slim-sde-display.dtsi"
 #include "yupik-dubai-charger-overlay.dtsi"
+#include "yupik-dubai-vibrator.dtsi"
 
 &soc {
 	gpio_keys {
