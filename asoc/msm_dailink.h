@@ -1055,6 +1055,18 @@ SND_SOC_DAILINK_DEFS(sen_mi2s_tx_aw882xx,
 	DAILINK_COMP_ARRAY(COMP_CODEC("aw882xx_codec", "aw882xx-aif")),
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
 
+SND_SOC_DAILINK_DEFS(sen_mi2s_rx_stereo_aw882xx,
+	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-mi2s.5")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("aw882xxacf_smartpa.0-0034", "aw882xx-aif-0-34"),
+			   COMP_CODEC("aw882xxacf_smartpa.0-0035", "aw882xx-aif-0-35")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
+
+SND_SOC_DAILINK_DEFS(sen_mi2s_tx_stereo_aw882xx,
+	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-mi2s.5")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("aw882xxacf_smartpa.0-0034", "aw882xx-aif-0-34"),
+			   COMP_CODEC("aw882xxacf_smartpa.0-0035", "aw882xx-aif-0-35")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
+
 SND_SOC_DAILINK_DEFS(sen_mi2s_rx_cs35l41,
 	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-mi2s.5")),
 	DAILINK_COMP_ARRAY(COMP_CODEC("cirrus_spk", "cs35l41-pcm")),

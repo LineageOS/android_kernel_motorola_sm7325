@@ -277,6 +277,10 @@ else
 	obj-y   += aw882xx/
 endif
 
+ifeq ($(CONFIG_AW882XX_DUAL_SMARTPA), y)
+CDEFINES +=	-DCONFIG_AW882XX_STEREO_SMARTPA
+endif
+
 # Module information used by KBuild framework
 obj-$(CONFIG_WCD9XXX_CODEC_CORE) += wcd_core_dlkm.o
 obj-$(CONFIG_WCD9XXX_CODEC_CORE_V2) += wcd_core_dlkm.o

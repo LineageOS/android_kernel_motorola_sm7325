@@ -243,7 +243,7 @@ int aw882xx_i2c_write_bits(struct aw882xx *aw882xx,
 
 	return 0;
 }
-#if 0
+#ifdef CONFIG_AW882XX_STEREO_SMARTPA
 static void *aw882xx_devm_kstrdup(struct device *dev, char *buf)
 {
 	char *str;
@@ -1433,7 +1433,7 @@ static int aw882xx_codec_remove(aw_snd_soc_codec_t *aw_codec)
 }
 #endif
 
-#if 0
+#ifdef CONFIG_AW882XX_STEREO_SMARTPA
 static int aw882xx_dai_drv_append_suffix(struct aw882xx *aw882xx,
 				struct snd_soc_dai_driver *dai_drv,
 				int num_dai)
@@ -1519,7 +1519,9 @@ int aw_componet_codec_register(struct aw882xx *aw882xx)
 
 	memcpy(dai_drv, aw882xx_dai, sizeof(aw882xx_dai));
 
-	/*aw882xx_dai_drv_append_suffix(aw882xx, dai_drv, ARRAY_SIZE(aw882xx_dai));*/
+#ifdef CONFIG_AW882XX_STEREO_SMARTPA
+	aw882xx_dai_drv_append_suffix(aw882xx, dai_drv, ARRAY_SIZE(aw882xx_dai));
+#endif
 
 	ret = aw882xx->codec_ops->register_codec(aw882xx->dev,
 			&soc_codec_dev_aw882xx,
