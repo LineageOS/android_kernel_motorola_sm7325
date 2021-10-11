@@ -14,7 +14,7 @@
 #include "dubai-slim-sde-display.dtsi"
 #include "yupik-dubai-charger-overlay.dtsi"
 #include "yupik-dubai-vibrator.dtsi"
-
+#include "yupik-dubai-fps.dtsi"
 &soc {
 	gpio_keys {
 		pinctrl-0 = <&key_vol_up_default &google_key_default>;

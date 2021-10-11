@@ -1,0 +1,82 @@
+/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&tlmm {
+
+	fingerfp_rst_high: fingerfp_rst_high {
+		mux {
+			pins = "gpio35";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio35";
+			drive-strength = <8>;
+			output-high;
+			bias-pull-up;
+		};
+	};
+
+	fingerfp_rst_low: fingerfp_rst_low {
+		mux {
+			pins = "gpio35";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio35";
+			drive-strength = <8>;
+			output-low;
+			bias-pull-down;
+		};
+	};
+
+	fingerfp_irq_active: fingerfp_irq_active {
+		mux {
+			pins = "gpio34";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio34";
+			drive-strength = <2>;
+			bias-disable;
+			input-enable;
+		};
+	};
+};
+
+&L9C {
+	regulator-boot-on;
+	regulator-always-on;
+	qcom,init-voltage = <3008000>;
+	regulator-min-microvolt = <3008000>;
+	regulator-max-microvolt = <3300000>;
+	status = "ok";
+};
+
+&soc {
+	et528: et528 {
+		status = "ok";
+		compatible = "fp-egistec";
+		fp-ctrl-power;
+
+		egistec,gpio_irq = <&tlmm 34 0x00>;
+		egistec,gpio_reset = <&tlmm 35 0x00>;
+		vcc_fp-supply=<&L9C>;
+		egis-fp,vcc-voltage = <3300000 3300000>;
+		egis-fp,vcc-current = <100000>;
+		pinctrl-names = "egis_rst_high", "egis_rst_low", "egis_irq_active";
+		pinctrl-0 = <&fingerfp_rst_high>;
+		pinctrl-1 = <&fingerfp_rst_low>;
+		pinctrl-2 = <&fingerfp_irq_active>;
+	};
+};
+
