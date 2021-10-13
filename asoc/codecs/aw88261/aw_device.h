@@ -9,6 +9,7 @@
 #define AW_REG_NONE		(0xFF)
 #define AW_NAME_MAX		(50)
 #define ALGO_VERSION_MAX	(80)
+#define AW_ALGO_PATH_MAX	(256)
 
 
 enum {
@@ -215,6 +216,7 @@ struct aw_device {
 	char acf_name[AW_NAME_MAX];
 	char monitor_name[AW_NAME_MAX];
 	void *private_data;
+	char algo_path[AW_ALGO_PATH_MAX];
 
 	struct aw_int_desc int_desc;
 	struct aw_pwd_desc pwd_desc;
@@ -278,6 +280,9 @@ int aw_dev_get_afe_module_en(int type, int *status);
 int aw_dev_set_copp_module_en(bool enable);
 int aw_dev_set_spin(int spin_mode);
 int aw_dev_get_spin(int *spin_mode);
+int aw_dev_set_algo_prof(struct aw_device *aw_dev, int prof_id);
+int aw_dev_get_algo_prof(struct aw_device *aw_dev, int *prof_id);
+int aw_dev_set_algo_params_path(struct aw_device *aw_dev);
 
 int aw_device_probe(struct aw_device *aw_dev);
 int aw_device_remove(struct aw_device *aw_dev);
