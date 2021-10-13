@@ -844,6 +844,7 @@ static int aw882xx_set_rx_en(struct snd_kcontrol *kcontrol,
 {
 	int ret = -EINVAL;
 	uint32_t ctrl_value = 0;
+	struct aw_device *aw_dev = NULL;
 	aw_snd_soc_codec_t *codec =
 		aw_componet_codec_ops.kcontrol_codec(kcontrol);
 	struct aw882xx *aw882xx =
@@ -852,6 +853,7 @@ static int aw882xx_set_rx_en(struct snd_kcontrol *kcontrol,
 	aw_dev_dbg(aw882xx->dev, "ucontrol->value.integer.value[0]=%ld",
 				ucontrol->value.integer.value[0]);
 
+	aw_dev = aw882xx->aw_pa;
 	ctrl_value = ucontrol->value.integer.value[0];
 
 	ret = aw_dev_set_afe_module_en(AW_RX_MODULE, ctrl_value);
@@ -860,6 +862,12 @@ static int aw882xx_set_rx_en(struct snd_kcontrol *kcontrol,
 
 	g_algo_rx_en = ctrl_value;
 	aw_dev_info(aw882xx->dev, "set value %d", ctrl_value);
+
+	if (ctrl_value) {
+		ret = aw_dev_set_algo_params_path(aw_dev);
+		if (ret < 0)
+			aw_dev_err(aw882xx->dev, "set algo params path failed, ret=%d", ret);
+	}
 	return 0;
 }
 
@@ -886,8 +894,8 @@ static int aw882xx_get_rx_en(struct snd_kcontrol *kcontrol,
 		aw_dev_info(aw882xx->dev, "no stream, rx disable");
 	}
 
-	aw_dev_dbg(aw882xx->dev, "aw882xx_rx_enable %ld",
-				ucontrol->value.integer.value[0]);
+	aw_dev_dbg(aw882xx->dev, "aw882xx_rx_enable %d",
+				ctrl_value);
 	return 0;
 }
 
@@ -926,6 +934,13 @@ static int aw882xx_get_tx_en(struct snd_kcontrol *kcontrol,
 	struct aw882xx *aw882xx =
 		aw_componet_codec_ops.codec_get_drvdata(codec);
 
+	/*ret = aw_dev_get_afe_module_en(AW_TX_MODULE, &ctrl_value);
+	if (ret) {
+		aw_dev_err(aw882xx->dev, "dsp_msg error, ret=%d", ret);
+		ctrl_value = 0;
+	}
+	ucontrol->value.integer.value[0] = ctrl_value;*/
+
 	if (aw882xx->pstream) {
 		ret = aw_dev_get_afe_module_en(AW_TX_MODULE, &ctrl_value);
 		if (ret) {
@@ -938,8 +953,8 @@ static int aw882xx_get_tx_en(struct snd_kcontrol *kcontrol,
 		aw_dev_info(aw882xx->dev, "no stream, tx disable");
 	}
 
-	aw_dev_dbg(aw882xx->dev, "aw882xx_tx_enable %ld",
-				ucontrol->value.integer.value[0]);
+	aw_dev_dbg(aw882xx->dev, "aw882xx_tx_enable %d",
+				ctrl_value);
 	return 0;
 }
 
@@ -1054,6 +1069,50 @@ static int aw882xx_get_spin(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 #endif
+
+static int aw882xx_set_prof_id(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct aw_device *aw_dev;
+	aw_snd_soc_codec_t *codec =
+		aw_componet_codec_ops.kcontrol_codec(kcontrol);
+	struct aw882xx *aw882xx =
+		aw_componet_codec_ops.codec_get_drvdata(codec);
+	int ctrl_value;
+
+	aw_dev_dbg(aw882xx->dev, "ucontrol->value.integer.value[0]=%ld",
+			ucontrol->value.integer.value[0]);
+
+	aw_dev = aw882xx->aw_pa;
+
+	ctrl_value = ucontrol->value.integer.value[0];
+
+	aw_dev_set_algo_prof(aw_dev, ctrl_value);
+
+	return 0;
+}
+
+static int aw882xx_get_prof_id(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct aw_device *aw_dev;
+	aw_snd_soc_codec_t *codec =
+		aw_componet_codec_ops.kcontrol_codec(kcontrol);
+	struct aw882xx *aw882xx =
+		aw_componet_codec_ops.codec_get_drvdata(codec);
+	int ctrl_value;
+
+	aw_dev = aw882xx->aw_pa;
+
+	aw_dev_get_algo_prof(aw_dev, &ctrl_value);
+
+	ucontrol->value.integer.value[0] = ctrl_value;
+
+	aw_dev_dbg(aw882xx->dev, "ucontrol->value.integer.value[0]=%ld",
+				ucontrol->value.integer.value[0]);
+
+	return 0;
+}
 
 static int aw882xx_get_fade_in_time(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
@@ -1240,6 +1299,8 @@ static struct snd_kcontrol_new aw882xx_controls[] = {
 		aw882xx_get_fade_in_time, aw882xx_set_fade_in_time),
 	SOC_SINGLE_EXT("aw882xx_fadeout_us", 0, 0, 1000000, 0,
 		aw882xx_get_fade_out_time, aw882xx_set_fade_out_time),
+	SOC_SINGLE_EXT("aw882xx_algo_prof_switch", 0, 0, 100, 0,
+		aw882xx_get_prof_id, aw882xx_set_prof_id),
 };
 
 static void aw882xx_add_codec_controls(struct aw882xx *aw882xx)
