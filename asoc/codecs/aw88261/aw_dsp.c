@@ -25,6 +25,8 @@ static DEFINE_MUTEX(g_aw_dsp_lock);
 #define AW_MSG_ID_F0_Q			(0x00000003)
 #define AW_MSG_ID_DIRECT_CUR_FLAG	(0x00000006)
 #define AW_MSG_ID_SPK_STATUS		(0x00000007)
+#define AW_MSG_ID_SWITCH_SCENE		(0x00000013)
+#define AW_MSG_ID_ALGO_PARAMS_PATH	(0x00000014)
 #define AW_MSG_ID_VERSION		(0x00000008)
 #define AW_MSG_ID_VERSION_NEW		(0x00000012)
 
@@ -45,6 +47,7 @@ static DEFINE_MUTEX(g_aw_dsp_lock);
 #define AW_MSG_ID_F0_R			(0X10013D20)
 #define AW_MSG_ID_REAL_DATA_L		(0X10013D21)
 #define AW_MSG_ID_REAL_DATA_R		(0X10013D22)
+#define AW_MSG_ID_SET_BIN_PARAMS	(0X10013D30)
 
 #define AFE_MSG_ID_MSG_0	(0X10013D2A)
 #define AFE_MSG_ID_MSG_1	(0X10013D2B)
@@ -443,84 +446,121 @@ dsp_msg_failed:
 	return ret;
 }
 
-#endif
-
 /******************* afe module communication function ************************/
 static int aw_dsp_set_afe_rx_module_enable(void *buf, int size)
 {
-#ifdef AW_MTK_PLATFORM_WITH_DSP
-	return aw_mtk_write_data_to_dsp(AW_MSG_ID_RX_SET_ENABLE, buf, size);
-#else
 	return aw_send_afe_rx_module_enable(g_rx_port_id, buf, size);
-#endif
 }
 
 static int aw_dsp_set_afe_tx_module_enable(void *buf, int size)
 {
-#ifdef AW_MTK_PLATFORM_WITH_DSP
-	return aw_mtk_write_data_to_dsp(AW_MSG_ID_TX_SET_ENABLE, buf, size);
-#else
 	return aw_send_afe_tx_module_enable(g_tx_port_id, buf, size);
-#endif
 }
 
 static int aw_dsp_get_afe_rx_module_enable(void *buf, int size)
 {
-#ifdef AW_MTK_PLATFORM_WITH_DSP
-	return aw_mtk_write_data_to_dsp(AW_MSG_ID_RX_SET_ENABLE, buf, size);
-#else
 	return aw_qcom_read_data_from_dsp(AW_MSG_ID_RX_SET_ENABLE, buf, size);
-#endif
 }
 
 static int aw_dsp_get_afe_tx_module_enable(void *buf, int size)
 {
-#ifdef AW_MTK_PLATFORM_WITH_DSP
-	return aw_mtk_write_data_to_dsp(AW_MSG_ID_TX_SET_ENABLE, buf, size);
-#else
 	return aw_qcom_read_data_from_dsp(AW_MSG_ID_TX_SET_ENABLE, buf, size);
-#endif
 }
 
 /******************* read/write msg communication function ***********************/
 static int aw_read_msg_from_dsp(int msg_num, uint32_t msg_id, char *data_ptr, unsigned int size)
 {
-#ifdef AW_MTK_PLATFORM_WITH_DSP
-	return aw_mtk_read_msg_from_dsp(msg_num, msg_id, data_ptr, size);
-#else
 	return aw_qcom_read_msg_from_dsp(msg_num, msg_id, data_ptr, size);
-#endif
 }
 
 static int aw_write_msg_to_dsp(int msg_num, uint32_t msg_id, char *data_ptr, unsigned int size)
 {
-#ifdef AW_MTK_PLATFORM_WITH_DSP
-	return aw_mtk_write_msg_to_dsp(msg_num, msg_id, data_ptr, size);
-#else
 	return aw_qcom_write_msg_to_dsp(msg_num, msg_id, data_ptr, size);
-#endif
 }
 
 /******************* read/write data communication function ***********************/
 static int aw_read_data_from_dsp(uint32_t param_id, void *data, int size)
 {
-#ifdef AW_MTK_PLATFORM_WITH_DSP
-	return aw_mtk_read_data_from_dsp(param_id, data, size);
-#else
 	return aw_qcom_read_data_from_dsp(param_id, data, size);
-#endif
 }
 
 static int aw_write_data_to_dsp(uint32_t param_id, void *data, int size)
 {
-#ifdef AW_MTK_PLATFORM_WITH_DSP
-	return aw_mtk_write_data_to_dsp(param_id, data, size);
-#else
 	return aw_qcom_write_data_to_dsp(param_id, data, size);
-#endif
 }
+#endif
 
 /************************* dsp communication function *****************************/
+int aw_dsp_set_algo_prof(struct aw_device *aw_dev, int prof_id)
+{
+	int ret;
+	int msg_num;
+	int32_t data = prof_id;
+
+	ret = aw_get_msg_num(aw_dev->channel, &msg_num);
+	if (ret < 0) {
+		aw_dev_err(aw_dev->dev, "get msg_num failed ");
+		return ret;
+	}
+
+	ret = aw_write_msg_to_dsp(msg_num, AW_MSG_ID_SWITCH_SCENE,
+				(char *)&data, sizeof(int32_t));
+	if (ret < 0) {
+		aw_pr_err("write prof_id failed ");
+		return ret;
+	}
+	aw_pr_dbg("write prof_id done");
+
+	return 0;
+
+}
+
+int aw_dsp_get_algo_prof(struct aw_device *aw_dev, int *prof_id)
+{
+	int ret;
+	int msg_num;
+	int32_t data = 0;
+
+	ret = aw_get_msg_num(aw_dev->channel, &msg_num);
+	if (ret < 0) {
+		aw_dev_err(aw_dev->dev, "get msg_num failed ");
+		return ret;
+	}
+
+	ret = aw_read_msg_from_dsp(msg_num, AW_MSG_ID_SWITCH_SCENE,
+				(char *)&data, sizeof(int32_t));
+	if (ret < 0) {
+		*prof_id = 0;
+		aw_dev_err(aw_dev->dev, "read algo prof failed");
+		return ret;
+	}
+
+	*prof_id = data;
+	aw_pr_dbg("read prof_id:%d done", *prof_id);
+	return 0;
+}
+
+int aw_dsp_set_algo_params_path(struct aw_device *aw_dev)
+{
+	int ret;
+	int msg_num;
+
+	ret = aw_get_msg_num(aw_dev->channel, &msg_num);
+	if (ret < 0) {
+		aw_dev_err(aw_dev->dev, "get msg_num failed ");
+		return ret;
+	}
+
+	ret = aw_write_msg_to_dsp(msg_num, AW_MSG_ID_ALGO_PARAMS_PATH,
+				(char *)aw_dev->algo_path,
+				sizeof(aw_dev->algo_path));
+	if (ret)
+		return -EINVAL;
+
+	aw_pr_info("set algo params path: %s", aw_dev->algo_path);
+	return 0;
+}
+
 int aw_dsp_set_afe_module_en(int type, int enable)
 {
 	int ret;

@@ -26,6 +26,7 @@
 #include "aw882xx.h"
 
 #define AW_DEV_SYSST_CHECK_MAX   (10)
+#define AW_ALGO_PARAMS_PATH "/vendor/firmware/aw_skt.bin"
 
 enum {
 	AW_EXT_DSP_WRITE_NONE = 0,
@@ -1469,6 +1470,21 @@ int aw_dev_get_spin(int *spin_mode)
 	return aw_dsp_read_spin(spin_mode);
 }
 
+int aw_dev_set_algo_prof(struct aw_device *aw_dev, int prof_id)
+{
+	return aw_dsp_set_algo_prof(aw_dev, prof_id);
+}
+
+int aw_dev_get_algo_prof(struct aw_device *aw_dev, int *prof_id)
+{
+	return aw_dsp_get_algo_prof(aw_dev, prof_id);
+}
+
+int aw_dev_set_algo_params_path(struct aw_device *aw_dev)
+{
+	return aw_dsp_set_algo_params_path(aw_dev);
+}
+
 static void aw_device_parse_sound_channel_dt(struct aw_device *aw_dev)
 {
 	int ret;
@@ -1505,18 +1521,27 @@ int aw_dev_get_list_head(struct list_head **head)
 	return 0;
 }
 
+void aw_device_algo_path_init(struct aw_device *aw_dev)
+{
+
+	memcpy(aw_dev->algo_path, AW_ALGO_PARAMS_PATH, sizeof(AW_ALGO_PARAMS_PATH));
+	aw_dev_dbg(aw_dev->dev, "aw_device_algo_path_init");
+}
+
 int aw_device_probe(struct aw_device *aw_dev)
 {
 	int ret;
 	INIT_LIST_HEAD(&aw_dev->list_node);
-
+	aw_dev_dbg(aw_dev->dev, "aw_device_probe 01");
 	aw_device_parse_dt(aw_dev);
 	ret = aw_cali_init(&aw_dev->cali_desc);
 	if (ret)
 		return ret;
-
+	aw_dev_dbg(aw_dev->dev, "aw_device_probe 02");
 	aw_monitor_init(&aw_dev->monitor_desc);
 	/*aw_afe_init();*/
+
+	aw_device_algo_path_init(aw_dev);
 
 	mutex_lock(&g_dev_lock);
 	list_add(&aw_dev->list_node, &g_dev_list);
