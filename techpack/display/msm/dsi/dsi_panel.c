@@ -995,9 +995,32 @@ static int dsi_panel_set_hbm(struct dsi_panel *panel,
                         struct msm_param_info *param_info)
 {
 	int rc = 0;
+	char name[30], val[30];
+	char *envp[3];
+	struct panel_param *panel_param;
+
+	snprintf(name, 30, "name=%s", "HBM");
+	snprintf(val, 30, "status=%d", param_info->value);
+	pr_info("[%s] [%s]\n", name, val);
+
+	panel_param = &panel->param_cmds[param_info->param_idx];
+	if (!panel_param) {
+		DSI_ERR("%s: invalid panel_param.\n", __func__);
+		return -EINVAL;
+	}
+	if (panel_param->value == param_info->value)
+	{
+		DSI_INFO("(mode=%d): requested value=%d is same. Do nothing\n",
+				param_info->param_idx, param_info->value);
+		return 0;
+	}
+
+	envp[0] = name;
+	envp[1] = val;
+	envp[2] = NULL;
+	kobject_uevent_env(&panel->parent->kobj, KOBJ_CHANGE, envp);
 
 	pr_info("Set HBM to (%d)\n", param_info->value);
-
 	rc = dsi_panel_send_param_cmd(panel, param_info);
 	if (rc < 0) {
 		DSI_ERR("%s: failed to send param cmds. ret=%d\n", __func__, rc);
