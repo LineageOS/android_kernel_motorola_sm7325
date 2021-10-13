@@ -1089,13 +1089,36 @@ static int dsi_panel_set_hbm(struct dsi_panel *panel,
 	int rc = 0;
 	u32 bl_lvl;
 	struct dsi_panel_lhbm_config *lhbm_config = &panel->lhbm_config;
+	char name[30], val[30];
+	char *envp[3];
+	struct panel_param *panel_param;
 
-	pr_info("Set HBM to (%d)\n", param_info->value);
+	snprintf(name, 30, "name=%s", "HBM");
+	snprintf(val, 30, "status=%d", param_info->value);
+	pr_info("[%s] [%s]\n", name, val);
 
 	if(lhbm_config->enable && param_info->value != HBM_ON_STATE) {
 		dsi_panel_set_local_hbm_param(panel, param_info, lhbm_config);
 	}
 
+	panel_param = &panel->param_cmds[param_info->param_idx];
+	if (!panel_param) {
+		DSI_ERR("%s: invalid panel_param.\n", __func__);
+		return -EINVAL;
+	}
+	if (panel_param->value == param_info->value)
+	{
+		DSI_INFO("(mode=%d): requested value=%d is same. Do nothing\n",
+				param_info->param_idx, param_info->value);
+		return 0;
+	}
+
+	envp[0] = name;
+	envp[1] = val;
+	envp[2] = NULL;
+	kobject_uevent_env(&panel->parent->kobj, KOBJ_CHANGE, envp);
+
+	pr_info("Set HBM to (%d)\n", param_info->value);
 	rc = dsi_panel_send_param_cmd(panel, param_info);
 	if (rc < 0) {
 		DSI_ERR("%s: failed to send param cmds. ret=%d\n", __func__, rc);
