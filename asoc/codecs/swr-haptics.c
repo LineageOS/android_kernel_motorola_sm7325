@@ -258,7 +258,7 @@ static int hap_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 		return -ENODEV;
 	}
 
-	dev_dbg(swr_hap->dev, "%s: %s event %d\n", __func__, w->name, event);
+	dev_err(swr_hap->dev, "%s: %s event %d\n", __func__, w->name, event);
 	num_port = 1;
 	port_id = swr_hap->port.port_id;
 	ch_mask = swr_hap->port.ch_mask;
@@ -397,6 +397,9 @@ static int haptics_comp_probe(struct snd_soc_component *component)
 	struct swr_haptics_dev *swr_hap =
 		snd_soc_component_get_drvdata(component);
 
+	unsigned int val;
+	int rc;
+
 	if (!swr_hap) {
 		pr_err("%s: get swr_haptics_dev failed\n", __func__);
 		return -EINVAL;
@@ -408,6 +411,19 @@ static int haptics_comp_probe(struct snd_soc_component *component)
 	if (dapm && dapm->component) {
 		snd_soc_dapm_ignore_suspend(dapm, "HAP_IN");
 		snd_soc_dapm_ignore_suspend(dapm, "HAP_OUT");
+	}
+
+	regmap_read(swr_hap->regmap, SWR_PLAY_REG, &val);
+	regmap_read(swr_hap->regmap, SWR_READ_DATA_REG, &val);
+	dev_err(swr_hap->dev, "%s: SWR_PLAY_REG:0x%x\n", __func__, val);
+
+	if (val != 0){
+		val = 0;
+		rc = regmap_write(swr_hap->regmap, SWR_PLAY_REG, val);
+                if (rc) {
+                        dev_err(swr_hap->dev, "%s: Clear SWR_PLAY failed, rc=%d\n",
+			__func__, rc);
+                }
 	}
 
 	return 0;
