@@ -261,8 +261,8 @@
 		compatible = "regulator-fixed";
 		reg = <0x00 0x00>;
 		regulator-name = "cam_dvdd_wide";
-		regulator-min-microvolt = <1100000>;
-		regulator-max-microvolt = <1100000>;
+		regulator-min-microvolt = <1050000>;
+		regulator-max-microvolt = <1050000>;
 		regulator-enable-ramp-delay = <233>;
 		enable-active-high;
 		gpio = <&tlmm 63 0>;
@@ -342,8 +342,8 @@
 		regulator-names = "cam_vio", "cam_vana", "cam_vdig",
 			"cam_vaf","cam_clk";
 		rgltr-cntrl-support;
-		rgltr-min-voltage = <1800000 2800000 1100000 2800000 0>;
-		rgltr-max-voltage = <1800000 2800000 1100000 2800000 0>;
+		rgltr-min-voltage = <1800000 2800000 1050000 2800000 0>;
+		rgltr-max-voltage = <1800000 2800000 1050000 2800000 0>;
 		rgltr-load-current = <3000 80000 105000 100000 0>;
 		gpio-no-mux = <0>;
 		pinctrl-names = "cam_default", "cam_suspend";
