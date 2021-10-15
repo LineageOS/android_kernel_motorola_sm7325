@@ -12,6 +12,7 @@
 
 #include "yupik-dubai-common-overlay.dtsi"
 #include "dubai-slim-sde-display.dtsi"
+#include "yupik-dubai-audio-overlay.dtsi"
 #include "yupik-dubai-charger-overlay.dtsi"
 #include "yupik-dubai-vibrator.dtsi"
 #include "yupik-dubai-fps.dtsi"

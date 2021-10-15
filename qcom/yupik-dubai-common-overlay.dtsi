@@ -52,6 +52,14 @@
 	temperature = <95>;
 };
 
+&qupv3_se4_i2c {
+        status = "ok";
+        fsa4480: fsa4480@42 {
+                compatible = "qcom,fsa4480-i2c";
+                reg = <0x42>;
+        };
+};
+
 &qupv3_se9_i2c {
         status = "ok";
         qcom,clk-freq-out = <1000000>;
