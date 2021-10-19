@@ -5,7 +5,7 @@
 
 
 &tlmm {
-	disp_vci_en_default: disp_vci_en_default {
+	disp_dvdd_en_default: disp_dvdd_en_default {
 		mux {
 			pins = "gpio19";
 			function = "gpio";
@@ -21,16 +21,18 @@
 };
 
 &soc {
-	disp_vci: disp_vci {
+	disp_dvdd: disp_dvdd {
 		compatible = "regulator-fixed";
-		regulator-name = "disp_vci";
-		vin-supply = <&L13C>;
+		regulator-name = "disp_dvdd";
+		regulator-min-microvolt = <1250000>;
+		regulator-max-microvolt = <1250000>;
+		vin-supply = <&S1B>;
 		gpio = <&tlmm 19 0>;
 		startup-delay-us = <300>;
 		enable-active-high;
 		regulator-boot-on;
 		pinctrl-names = "default";
-		pinctrl-0 = <&disp_vci_en_default>;
+		pinctrl-0 = <&disp_dvdd_en_default>;
 	};
 
 	dsi_panel_pwr_supply_amoled: dsi_panel_pwr_supply_amoled {
@@ -45,13 +47,14 @@
 			qcom,supply-enable-load = <60700>;
 			qcom,supply-disable-load = <80>;
 		        qcom,supply-post-on-sleep = <2>;
+			qcom,supply-post-off-sleep = <0>;
 		};
 
 		qcom,panel-supply-entry@1 {
 			reg = <1>;
-			qcom,supply-name = "ddic";
-			qcom,supply-min-voltage = <1260000>;
-			qcom,supply-max-voltage = <1260000>;
+			qcom,supply-name = "dvdd";
+			qcom,supply-min-voltage = <1250000>;
+			qcom,supply-max-voltage = <1250000>;
 			qcom,supply-enable-load = <60700>;
 			qcom,supply-disable-load = <10>;
 		        qcom,supply-post-on-sleep = <2>;
@@ -60,7 +63,7 @@
 
 		qcom,panel-supply-entry@2 {
 			reg = <2>;
-			qcom,supply-name = "vdd";
+			qcom,supply-name = "vci";
 			qcom,supply-min-voltage = <3000000>;
 			qcom,supply-max-voltage = <3000000>;
 			qcom,supply-enable-load = <30000>;
@@ -139,21 +142,21 @@
 	qcom,panel-te-source = <0>;
 
 	vddio-supply = <&L12C>;
-	ddic-supply = <&L16B>;
-	vdd-supply = <&disp_vci>;
+        dvdd-supply = <&disp_dvdd>;
+        vci-supply = <&L13C>;
 
+};
+
+&L12C {
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+	qcom,init-voltage = <1800000>;
 };
 
 &L13C {
 	regulator-min-microvolt = <3000000>;
 	regulator-max-microvolt = <3000000>;
 	qcom,init-voltage = <3000000>;
-};
-
-&L16B {
-	regulator-min-microvolt = <1260000>;
-	regulator-max-microvolt = <1260000>;
-	qcom,init-voltage = <1260000>;
 };
 
 &mdss_mdp {
