@@ -154,6 +154,29 @@ compatible = "mmi,mmi-charger";
 	};
 };
 
+&pm7250b_vadc {
+	smb_therm {
+		reg = <ADC5_AMUX_THM2_100K_PU>;
+		label = "smb_therm";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+		qcom,pre-scaling = <1 1>;
+	};
+};
+
+&pm7250b_adc_tm {
+	/delete-property/ io-channels;
+	io-channels = <&pm7250b_vadc ADC5_AMUX_THM1_100K_PU>,
+			<&pm7250b_vadc ADC5_AMUX_THM2_100K_PU>,
+			<&pm7250b_vadc ADC5_AMUX_THM3_100K_PU>;
+
+	smb_therm {
+		reg = <ADC5_AMUX_THM2_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+	};
+};
+
 &thermal_zones {
 	modem-wifi-usr {
 		status = "disabled";
@@ -201,7 +224,7 @@ compatible = "mmi,mmi-charger";
                 polling-delay-passive = <0>;
                 polling-delay = <0>;
                 thermal-governor = "user_space";
-                thermal-sensors = <&pm7250b_adc_tm ADC5_AMUX_THM1_100K_PU>;
+                thermal-sensors = <&pm7250b_adc_tm ADC5_AMUX_THM2_100K_PU>;
                 wake-capable-sensor;
                 trips {
                         active-config0 {
