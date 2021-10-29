@@ -26,7 +26,7 @@
 		compatible = "goodix,gt9916S";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
-		mmi,status = "/chosen","mmi,panel_name","contains","csot_nt37701","tianma_nt37701";
+		mmi,status = "/chosen","mmi,panel_name","contains","nt37701";
 
 		goodix,reset-gpio = <&tlmm 105 0x0>;
 		goodix,irq-gpio = <&tlmm 81 0x2002>;
@@ -38,14 +38,13 @@
 		goodix,panel-max-p = <4096>;
 		goodix,avdd-name = "pm8350c_l3";
 		goodix,iovdd-name = "pm8350c_l2";
-		panel = <&mot_csot_nt37701_655_1080x2400_dsc_cmd_v0>;
+		panel = <&mot_csot_nt37701_655_1080x2400_dsc_cmd_v0
+                         &mot_tm_nt37701_655_1080x2400_dsc_cmd_v0>;
 		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend", "pmx_ts_release";
 		pinctrl-0 = <&ts_active>;
 		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
 		pinctrl-2 = <&ts_release>;
 		mmi,power-off-suspend;
-		goodix,firmware-name = "goodix_firmware.bin";
-		goodix,config-name = "goodix_cfg_group.bin";
 	};
 };
 
