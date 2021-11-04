@@ -2534,6 +2534,7 @@
 
 /* for moto SAR features, support tx pwr limit settings on mimo device */
 #define WE_SET_MIMO_TX_POWER 32
+#define WE_SET_MIMO_TX_POWER_DBS 33
 
 #ifdef FEATURE_WLAN_TDLS
 #undef  MAX_VAR_ARGS
@@ -7497,6 +7498,57 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 	}
 	break;
 
+	case WE_SET_MIMO_TX_POWER_DBS:
+	{
+		struct sar_limit_cmd_params *sar_limit_cmd;
+		mac_handle_t mac_handle = hdd_ctx->mac_handle;
+		int ret = -EINVAL;
+		uint32_t num_limit_rows = 2;
+		struct sar_limit_cmd_row *row;
+		if (!mac_handle)
+			return -EINVAL;
+		sar_limit_cmd = qdf_mem_malloc(sizeof(struct sar_limit_cmd_params));
+		if (!sar_limit_cmd)
+			return -ENOMEM;
+		sar_limit_cmd->commit_limits = 1;
+		sar_limit_cmd->sar_enable = WMI_SAR_FEATURE_ON_SAR_V3;
+
+		row = qdf_mem_malloc(sizeof(*row) * num_limit_rows);
+		if (!row) {
+			qdf_mem_free(sar_limit_cmd);
+			hdd_err("Failed to allocate memory for sar_limit_row_list");
+			return -EINVAL;
+		}
+		row[0].chain_id = 0;
+		row[0].limit_value = apps_args[0];
+		row[0].validity_bitmap = WMI_SAR_CHAIN_ID_VALID_MASK;
+
+		row[1].chain_id = 1;
+		row[1].limit_value = apps_args[0];
+		row[1].validity_bitmap = WMI_SAR_CHAIN_ID_VALID_MASK;
+
+		sar_limit_cmd->num_limit_rows = num_limit_rows;
+		sar_limit_cmd->sar_limit_row_list = row;
+		hdd_info("SAR index being passed is %d %d",row[0].limit_value, row[1].limit_value);
+
+		if (sme_set_sar_power_limits(mac_handle,sar_limit_cmd)
+			!= QDF_STATUS_SUCCESS) {
+			hdd_err("Setting maximum tx power for DBS failed");
+			if(sar_limit_cmd) {
+				qdf_mem_free(sar_limit_cmd->sar_limit_row_list);
+				qdf_mem_free(sar_limit_cmd);
+			}
+			ret = -EIO;
+			break;
+		}
+		else {
+			hdd_info("Setting maximum tx power successful");
+		}
+		if(sar_limit_cmd) {qdf_mem_free(sar_limit_cmd);}
+		if(row) {qdf_mem_free(row);}
+	}
+	break;
+
 	default:
 	{
 		hdd_err("Invalid IOCTL command %d", sub_cmd);
@@ -10139,6 +10191,10 @@ static const struct iw_priv_args we_private_args[] = {
 	 IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
 	 0,
 	 "setTxPowerM"},
+	{WE_SET_MIMO_TX_POWER_DBS,
+	 IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
+	 0,
+	 "setTxPowerMDbs"},
 	/* handlers for main ioctl */
 	{WLAN_PRIV_FIPS_TEST,
 	 IW_PRIV_TYPE_BYTE | WE_MAX_STR_LEN,
