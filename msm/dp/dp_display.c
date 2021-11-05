@@ -1126,7 +1126,10 @@ static void dp_display_host_deinit(struct dp_display_private *dp)
 		return;
 	}
 
-	set_dp_state(false);
+	if (!dp_display_state_is(DP_STATE_CONNECTED)){
+		set_dp_state(false);
+	}
+
 	if (!dp_display_state_is(DP_STATE_INITIALIZED)) {
 		dp_display_state_show("[not initialized]");
 		return;
@@ -2659,7 +2662,9 @@ static int dp_display_unprepare(struct dp_display *dp_display, void *panel)
 	}
 
 	dp_display_state_remove(DP_STATE_ENABLED);
-	set_dp_state(false);
+	if (!dp_display_state_is(DP_STATE_CONNECTED)){
+		set_dp_state(false);
+	}
 	dp->aux->state = DP_STATE_CTRL_POWERED_OFF;
 
 	complete_all(&dp->notification_comp);
