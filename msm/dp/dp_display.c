@@ -12,6 +12,7 @@
 #include <linux/soc/qcom/fsa4480-i2c.h>
 #include <linux/usb/phy.h>
 #include <linux/jiffies.h>
+#include <linux/pm_wakeup.h>
 
 #include "sde_connector.h"
 
@@ -200,6 +201,8 @@ struct dp_display_private {
 	bool process_hpd_connect;
 
 	struct notifier_block usb_nb;
+
+	struct wakeup_source *dp_wakelock;
 };
 
 static const struct of_device_id dp_dt_match[] = {
@@ -563,6 +566,8 @@ static void dp_display_hdcp_cb_work(struct work_struct *work)
 		return;
 	}
 
+	__pm_stay_awake(dp->dp_wakelock);
+
 	dp_display_hdcp_process_delayed_off(dp);
 
 	rc = dp_display_hdcp_process_sink_sync(dp);
@@ -582,6 +587,8 @@ static void dp_display_hdcp_cb_work(struct work_struct *work)
 	dp_display_update_hdcp_status(dp, false);
 
 	dp_display_hdcp_process_state(dp);
+
+	__pm_relax(dp->dp_wakelock);
 }
 
 static void dp_display_notify_hdcp_status_cb(void *ptr,
@@ -3644,6 +3651,11 @@ static int dp_display_probe(struct platform_device *pdev)
 		goto error;
 	}
 
+	dp->dp_wakelock = wakeup_source_register(&pdev->dev, "dp_wakelock");
+	if(!dp->dp_wakelock){
+		DP_ERR("failed to create dp_wakelock!\n");
+		goto error;
+	}
 	return 0;
 error:
 	devm_kfree(&pdev->dev, dp);
@@ -3705,6 +3717,8 @@ static int dp_display_remove(struct platform_device *pdev)
 		return -EINVAL;
 
 	dp = platform_get_drvdata(pdev);
+
+	wakeup_source_unregister(dp->dp_wakelock);
 
 	dp_display_deinit_sub_modules(dp);
 
