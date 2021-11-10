@@ -123,6 +123,18 @@
         };
 };
 
+&fsa4480 {
+        status = "disabled";
+};
+
+&qupv3_se4_i2c {
+        status = "ok";
+        fsa4480_switch: fsa4480@42 {
+                compatible = "qcom,fsa4480-i2c";
+                reg = <0x42>;
+        };
+};
+
 &yupik_snd {
 	qcom,model = "lahaina-yupik-snd-card";
 	awinic,aw882xx-max-devs = <2>;
@@ -134,6 +146,8 @@
 		Third     AMIC4  SEC_MIC_BIAS  MIC_BIAS1
 		HS        AMIC2  HS_MIC_BIAS   MIC_BIAS2
 	*/
+	fsa4480-i2c-handle = <&fsa4480_switch>;
+
 	qcom,audio-routing =
 		"AMIC1", "Analog Mic1",
 		"Analog Mic1", "MIC BIAS1",
