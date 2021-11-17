@@ -444,6 +444,14 @@ int32_t cam_sensor_update_slave_info(struct cam_cmd_probe *probe_info,
 
 	s_ctrl->sensor_probe_addr_type =  probe_info->addr_type;
 	s_ctrl->sensor_probe_data_type =  probe_info->data_type;
+
+	s_ctrl->probe_sub_device       =  probe_info->probe_sub_device;
+	s_ctrl->sub_device_addr        =  probe_info->sub_device_addr;
+	s_ctrl->sub_device_data_type   =  probe_info->sub_device_data_type;
+	s_ctrl->sub_device_addr_type   =  probe_info->sub_device_addr_type;
+	s_ctrl->sub_device_id_addr     =  probe_info->sub_device_id_addr;
+	s_ctrl->expected_sub_device_id =  probe_info->expected_sub_device_id;
+
 	CAM_DBG(CAM_SENSOR,
 		"Sensor Addr: 0x%x sensor_id: 0x%x sensor_mask: 0x%x sensor_pipeline_delay:0x%x",
 		s_ctrl->sensordata->slave_info.sensor_id_reg_addr,
@@ -703,6 +711,54 @@ int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 	return rc;
 }
 
+int cam_sensor_match_sub_device_id(struct cam_sensor_ctrl_t *s_ctrl)
+{
+	int rc = 0;
+	uint32_t sub_device_id = 0;
+	uint16_t sensor_address = 0;
+
+	/* if hal doesn't config ProbeSubDevice parameter in sensor xml, return success immediately */
+	if (!s_ctrl->probe_sub_device) {
+		return 0;
+	}
+
+	/* save sensor i2c address */
+	sensor_address = s_ctrl->io_master_info.cci_client->sid;
+
+	/* set sub-device i2c address */
+	if (s_ctrl->sub_device_addr) {
+		s_ctrl->io_master_info.cci_client->sid = s_ctrl->sub_device_addr >> 1;
+	}
+
+	rc = camera_io_dev_read(
+		&(s_ctrl->io_master_info),
+		s_ctrl->sub_device_id_addr,
+		&sub_device_id,
+		s_ctrl->sub_device_addr_type,
+		s_ctrl->sub_device_data_type);
+
+	CAM_INFO(CAM_SENSOR, "Read sub device id: 0x%x expected sub device id 0x%x:",
+		sub_device_id, s_ctrl->expected_sub_device_id);
+
+	if (sub_device_id == s_ctrl->expected_sub_device_id) {
+		CAM_INFO(CAM_SENSOR,
+			"Probe sub device success,slot:%d,sub_device_addr:0x%x,sub_device_id:0x%x",
+			s_ctrl->soc_info.index,
+			s_ctrl->sub_device_addr,
+			s_ctrl->expected_sub_device_id);
+		rc = 0;
+	}
+	else {
+		CAM_ERR(CAM_SENSOR, "Probe sub device fail");
+		rc = -EINVAL;
+	}
+
+	/* restore sensor i2c address */
+	s_ctrl->io_master_info.cci_client->sid = sensor_address;
+
+	return rc;
+}
+
 int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 	void *arg)
 {
@@ -779,6 +835,14 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 
 		/* Match sensor ID */
 		rc = cam_sensor_match_id(s_ctrl);
+		if (rc < 0) {
+			cam_sensor_power_down(s_ctrl);
+			msleep(20);
+			goto free_power_settings;
+		}
+
+		/* Match sub-device ID */
+		rc = cam_sensor_match_sub_device_id(s_ctrl);
 		if (rc < 0) {
 			cam_sensor_power_down(s_ctrl);
 			msleep(20);
