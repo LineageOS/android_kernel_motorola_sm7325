@@ -142,6 +142,7 @@ struct cam_ois_ctrl_t {
 	uint8_t ois_fw_inc_addr;
 	uint8_t ois_fw_addr_type;
 	uint8_t ois_fw_data_type;
+	uint64_t prevTimeStamp;
 	struct cam_ois_opcode opcode;
 };
 
