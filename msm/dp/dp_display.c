@@ -13,6 +13,7 @@
 #include <linux/usb/phy.h>
 #include <linux/jiffies.h>
 #include <linux/pm_wakeup.h>
+#include <linux/of_gpio.h>
 
 #include "sde_connector.h"
 
@@ -1932,6 +1933,38 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		DP_ERR("failed to initialize aux, rc = %d\n", rc);
 		dp->aux = NULL;
 		goto error_aux;
+	}
+
+	dp->aux->dp_aux_switch_enable_gpio = of_get_named_gpio(dp->pdev->dev.of_node,
+			"mmi,aux-switch-enable-gpio", 0);
+	if (gpio_is_valid(dp->aux->dp_aux_switch_enable_gpio)) {
+		rc = devm_gpio_request(dev, dp->aux->dp_aux_switch_enable_gpio,
+				"aux-switch-enable-gpio");
+		if (rc < 0) {
+			DP_ERR("Failed to request switch_enable_gpio: %d\n",
+					dp->aux->dp_aux_switch_enable_gpio);
+			dp->aux->dp_aux_switch_enable_gpio = -EINVAL;
+		}
+	}
+	dp->aux->dp_aux_switch_flip_gpio = of_get_named_gpio(dp->pdev->dev.of_node,
+			"mmi,aux-switch-flip-gpio", 0);
+	if (gpio_is_valid(dp->aux->dp_aux_switch_flip_gpio)) {
+		rc = devm_gpio_request(dev, dp->aux->dp_aux_switch_flip_gpio,
+				"aux-switch-flip-gpio");
+		if (rc < 0) {
+			DP_ERR("Failed to request switch_flip_gpio: %d\n",
+					dp->aux->dp_aux_switch_flip_gpio);
+			dp->aux->dp_aux_switch_flip_gpio = -EINVAL;
+		}
+	}
+	if (gpio_is_valid(dp->aux->dp_aux_switch_flip_gpio)) {
+		if (gpio_is_valid(dp->aux->dp_aux_switch_enable_gpio))
+			gpio_direction_output(dp->aux->dp_aux_switch_enable_gpio, 1);
+		gpio_direction_output(dp->aux->dp_aux_switch_flip_gpio, 0);
+	} else {
+		if (gpio_is_valid(dp->aux->dp_aux_switch_enable_gpio))
+			devm_gpio_free(dev, dp->aux->dp_aux_switch_enable_gpio);
+		dp->aux->dp_aux_switch_enable_gpio = -EINVAL;
 	}
 
 	rc = dp->aux->drm_aux_register(dp->aux);
