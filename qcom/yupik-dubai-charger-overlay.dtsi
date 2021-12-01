@@ -13,9 +13,9 @@ compatible = "mmi,mmi-charger";
 
 &qti_glink_charger {
 	compatible = "mmi,qti-glink-charger";
-	mmi,df-serialnum = "SB18D10750";
+	mmi,df-serialnum = "SB18D34507";
 	mmi,demo-fv-mv = <4000>;
-	profile-ids-map = "107000", "SB18D10750";
+	profile-ids-map = "107000", "SB18D34507", "107000", "SB18D34508";
 };
 
 &battery_charger {
