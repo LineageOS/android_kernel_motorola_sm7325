@@ -271,8 +271,8 @@ int aw_dev_set_intmask(struct aw_device *aw_dev, bool flag);
 /*fade int / out*/
 void aw_dev_set_fade_vol_step(struct aw_device *aw_dev, unsigned int step);
 int aw_dev_get_fade_vol_step(struct aw_device *aw_dev);
-void aw_dev_get_fade_time(unsigned int *time, bool fade_in);
-void aw_dev_set_fade_time(unsigned int time, bool fade_in);
+void aw_dev_get_fade_time(struct aw_device *aw_dev, unsigned int *time, bool fade_in);
+void aw_dev_set_fade_time(struct aw_device *aw_dev, unsigned int time, bool fade_in);
 
 /*dsp kcontrol*/
 int aw_dev_set_afe_module_en(int type, int enable);
