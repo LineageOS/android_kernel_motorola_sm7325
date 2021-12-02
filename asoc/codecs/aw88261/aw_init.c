@@ -1068,6 +1068,11 @@ static int aw_pid_2055_dev_init(struct aw882xx *aw882xx, int index)
 					AW_PID_2055_INIT_CHECK_VALUE);
 	usleep_range(AW_3000_US, AW_3000_US +10);
 
+	usleep_range(AW_2000_US, AW_2000_US +10);
+	aw_pa->ops.aw_i2c_write(aw_pa, AW_PID_2055_INIT_CHECK_REG,
+					AW_PID_2055_INIT_CHECK_VALUE);
+	usleep_range(AW_3000_US, AW_3000_US +10);
+
 	ret = aw_device_probe(aw_pa);
 
 	aw882xx->aw_pa = aw_pa;
