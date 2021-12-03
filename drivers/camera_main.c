@@ -26,6 +26,7 @@
 #include "cam_csiphy_dev.h"
 #include "cam_eeprom_dev.h"
 #include "cam_ois_dev.h"
+#include "pm6125_flash_gpio.h"
 
 #if IS_REACHABLE(CONFIG_LEDS_QPNP_FLASH_V2) || \
 	IS_REACHABLE(CONFIG_LEDS_QTI_FLASH)
@@ -117,6 +118,9 @@ static const struct camera_submodule_component camera_sensor[] = {
 #if IS_REACHABLE(CONFIG_LEDS_QPNP_FLASH_V2) || \
 	IS_REACHABLE(CONFIG_LEDS_QTI_FLASH)
 	{&cam_flash_init_module, &cam_flash_exit_module},
+#endif
+#if IS_REACHABLE(CONFIG_CAMERA_FLASH_PWM)
+    {&pm6125_flash_gpio_init_module, &pm6125_flash_gpio_exit_module},
 #endif
 #endif
 };
