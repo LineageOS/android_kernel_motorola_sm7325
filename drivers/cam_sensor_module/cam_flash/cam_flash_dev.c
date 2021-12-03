@@ -142,6 +142,10 @@ static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 		CAM_DBG(CAM_FLASH, "CAM_QUERY_CAP");
 		flash_cap.slot_info  = fctrl->soc_info.index;
 		flash_cap.flash_type = soc_private->flash_type;
+		CAM_DBG(CAM_FLASH, "dts flash_type is %d, it should same with camx&chi flash_type", soc_private->flash_type);
+#ifdef CONFIG_CAMERA_FLASH_PWM
+		CAM_DBG(CAM_FLASH, "get flash_enabel_gpio %d", soc_private->flash_gpio_enable);
+#endif
 		for (i = 0; i < fctrl->flash_num_sources; i++) {
 			flash_cap.max_current_flash[i] =
 				soc_private->flash_max_current[i];

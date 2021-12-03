@@ -171,6 +171,7 @@ camera-$(CONFIG_SPECTRA_SENSOR) += \
 	cam_sensor_module/cam_sensor_io/cam_sensor_qup_i2c.o \
 	cam_sensor_module/cam_sensor_io/cam_sensor_spi.o \
 	cam_sensor_module/cam_sensor_utils/cam_sensor_util.o \
+	cam_sensor_module/cam_flash_pm6125_gpio/pm6125_flash_gpio.o \
 	cam_sensor_module/cam_res_mgr/cam_res_mgr.o
 
 ifneq (,$(filter $(CONFIG_AF_NOISE_ELIMINATION), y m))
