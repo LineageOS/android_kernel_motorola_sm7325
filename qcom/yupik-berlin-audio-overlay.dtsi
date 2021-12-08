@@ -37,30 +37,54 @@
 	};
 };
 
-&dai_mi2s0 {
-	status = "disabled";
+&dai_mi2s0_rx {
+        status = "disabled";
 };
 
-&dai_mi2s1 {
-	status = "disabled";
+&dai_mi2s0_tx {
+        status = "disabled";
 };
 
-&dai_mi2s2 {
-	status = "disabled";
+&dai_mi2s1_rx {
+        status = "disabled";
 };
 
-&dai_mi2s3 {
-	status = "disabled";
+&dai_mi2s1_tx {
+        status = "disabled";
 };
 
-&dai_mi2s4 {
-	status = "disabled";
+&dai_mi2s2_rx {
+        status = "disabled";
 };
 
-&dai_mi2s5 {
-	status = "ok";
-	qcom,msm-mi2s-rx-lines = <1>;
-	qcom,msm-mi2s-tx-lines = <2>;
+&dai_mi2s2_tx {
+        status = "disabled";
+};
+
+&dai_mi2s3_rx {
+        status = "disabled";
+};
+
+&dai_mi2s3_tx {
+        status = "disabled";
+};
+
+&dai_mi2s4_rx {
+        status = "disabled";
+};
+
+&dai_mi2s4_tx {
+        status = "disabled";
+};
+
+&dai_mi2s5_rx {
+        status = "ok";
+        qcom,msm-mi2s-rx-lines = <1>;
+};
+
+&dai_mi2s5_tx {
+        status = "ok";
+        qcom,msm-mi2s-tx-lines = <2>;
 };
 
 &soc {

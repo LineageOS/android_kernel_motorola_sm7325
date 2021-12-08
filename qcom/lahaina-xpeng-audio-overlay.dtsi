@@ -39,12 +39,15 @@
 	};
 };
 
-&dai_mi2s0 {
+&dai_mi2s0_rx {
 	status = "ok";
 	qcom,msm-mi2s-rx-lines = <1>;
-	qcom,msm-mi2s-tx-lines = <2>;
 };
 
+&dai_mi2s0_tx {
+        status = "ok";
+        qcom,msm-mi2s-tx-lines = <2>;
+};
 
 &q6core {
         cdc_pri_mi2s_gpios: cdc_pri_mi2s_gpios {
