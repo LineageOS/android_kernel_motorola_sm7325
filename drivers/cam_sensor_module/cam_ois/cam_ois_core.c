@@ -112,7 +112,8 @@ static int cam_ois_power_up(struct cam_ois_ctrl_t *o_ctrl)
 		&o_ctrl->soc_info;
 	struct cam_ois_soc_private *soc_private;
 	struct cam_sensor_power_ctrl_t  *power_info;
-	o_ctrl->prevTimeStamp = 0;
+	o_ctrl->previous_timestamp = 0;
+	o_ctrl->current_timestamp = 0;
 
 	soc_private =
 		(struct cam_ois_soc_private *)o_ctrl->soc_info.soc_private;
@@ -1157,7 +1158,6 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		struct i2c_settings_array i2c_read_settings;
 		uintptr_t buf_addr = 0x0;
 		size_t buf_size = 0;
-		uint64_t timestamp, qtime_ns;
 		uint8_t *timestampBuf;
 		uint32_t timestampBufLen;
 		struct i2c_settings_list *i2c_list;
@@ -1167,6 +1167,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		uint32_t i, size;
 		uint8_t packetCounter = 0;
 		uint32_t k = 0, remain_len = 0, read_len = 0;
+		unsigned long flags;
 
 		if (o_ctrl->cam_ois_state < CAM_OIS_CONFIG) {
 			rc = -EINVAL;
@@ -1251,7 +1252,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				do {
 					// SM6375: CCI_VERSION_1_2_9 can only support read 0xE bytes data one time.
 					// Each loop read max supported bytes(0xE), to save read time.
-					for (k = 0; k < read_length/READ_BTYE + 1; k++) {
+					for (k = 0; (k < read_length/READ_BTYE + 1) && (read_len != 0); k++) {
 						rc = camera_io_dev_read_seq(
 							&o_ctrl->io_master_info,
 							i2c_list->i2c_settings.reg_setting[0].reg_addr + k*READ_BTYE/2,
@@ -1261,32 +1262,25 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 							read_len);
 						remain_len -= read_len;
 						read_len = remain_len > READ_BTYE ? READ_BTYE:remain_len;
+
+						if (rc < 0) {
+							CAM_ERR(CAM_OIS, "Failed: seq read I2C settings: %d", rc);
+							delete_request(&i2c_read_settings);
+							return rc;
+						}
+
+						if (k == 0 && read_buff[1] == 0) {
+							CAM_WARN(CAM_OIS,"No-fatal: sample data is zero, break the loop read");
+							break;
+						}
 					}
 
-					if (rc < 0) {
-						CAM_ERR(CAM_SENSOR,
-							"failed: seq read I2C settings: %d",
-							rc);
-						delete_request(&i2c_read_settings);
-						return rc;
-					}
 					if (!rc){
 						if (read_buff[1] == 0){
-							CAM_ERR(CAM_OIS,"Header is zero, break the read");
+							CAM_WARN(CAM_OIS,"No-fatal: header is zero, break the read");
 							rc = -EINVAL;
 							break;
 						} else if ((read_buff[1] != 0) && (packetCounter == 0)) {
-
-							//TODO: change to use interrupt
-							timestamp     = o_ctrl->prevTimeStamp;
-
-							rc = cam_sensor_util_get_current_qtimer_ns(&qtime_ns);
-							if (rc < 0) {
-								CAM_ERR(CAM_SENSOR, "failed to get qtimer rc:%d");
-								return rc;
-							}
-
-							o_ctrl->prevTimeStamp = qtime_ns;
 
 							rc = cam_mem_get_cpu_buf(timestamp_io_cfg->mem_handle[0],
 									&buf_addr, &buf_size);
@@ -1297,7 +1291,12 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 								CAM_ERR(CAM_OIS, "Buffer not large enough for timestamp");
 								return -EINVAL;
 							}
-							memcpy((void *)timestampBuf, (void *)&timestamp, sizeof(uint64_t));
+
+							spin_lock_irqsave(&o_ctrl->ois_lock, flags);
+							memcpy((void *)timestampBuf,
+								(void *)&o_ctrl->previous_timestamp,
+								sizeof(uint64_t));
+							spin_unlock_irqrestore(&o_ctrl->ois_lock, flags);
 
 							packetCounter = (read_buff[1] + 9)/10;
 						}
