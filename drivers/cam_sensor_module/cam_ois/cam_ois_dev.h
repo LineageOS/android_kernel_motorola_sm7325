@@ -142,8 +142,12 @@ struct cam_ois_ctrl_t {
 	uint8_t ois_fw_inc_addr;
 	uint8_t ois_fw_addr_type;
 	uint8_t ois_fw_data_type;
-	uint64_t prevTimeStamp;
+	uint64_t previous_timestamp;
+	uint64_t current_timestamp;
 	struct cam_ois_opcode opcode;
+	bool is_ois_vsync_irq_supported;
+	int vsync_irq;
+	spinlock_t ois_lock;
 };
 
 /**

@@ -271,6 +271,30 @@ static int cam_ois_i2c_driver_remove(struct i2c_client *client)
 	return 0;
 }
 
+static irqreturn_t ois_vsync_irq_handler(int irq, void *data)
+{
+	struct cam_ois_ctrl_t *o_ctrl = data;
+	int rc;
+	uint64_t qtime_ns = 0;
+
+	rc = cam_sensor_util_get_current_qtimer_ns(&qtime_ns);
+	if (rc < 0) {
+		CAM_ERR(CAM_OIS, "failed to get qtimer rc:%d");
+		return IRQ_NONE;
+	}
+
+	CAM_DBG(CAM_OIS, "vsync sof timestamp is %lld", qtime_ns);
+
+	spin_lock(&o_ctrl->ois_lock);
+
+	o_ctrl->previous_timestamp = o_ctrl->current_timestamp;
+	o_ctrl->current_timestamp = qtime_ns;
+
+	spin_unlock(&o_ctrl->ois_lock);
+
+	return IRQ_HANDLED;
+}
+
 static int cam_ois_component_bind(struct device *dev,
 	struct device *master_dev, void *data)
 {
@@ -331,6 +355,30 @@ static int cam_ois_component_bind(struct device *dev,
 
 	platform_set_drvdata(pdev, o_ctrl);
 	o_ctrl->cam_ois_state = CAM_OIS_INIT;
+
+	spin_lock_init(&o_ctrl->ois_lock);
+
+	if (o_ctrl->is_ois_vsync_irq_supported) {
+		o_ctrl->vsync_irq = platform_get_irq_optional(pdev, 0);
+
+		if (o_ctrl->vsync_irq > 0) {
+			CAM_DBG(CAM_OIS, "get ois-vsync irq: %d", o_ctrl->vsync_irq);
+
+			rc = devm_request_threaded_irq(dev,
+							o_ctrl->vsync_irq,
+							NULL,
+							ois_vsync_irq_handler,
+							(IRQF_TRIGGER_RISING | IRQF_ONESHOT),
+							"ois-vsync-irq",
+							o_ctrl);
+			if (rc != 0)
+				CAM_ERR(CAM_OIS, "failed: to request ois-vsync IRQ %d, rc %d", o_ctrl->vsync_irq, rc);
+			else
+				CAM_DBG(CAM_OIS, "request ois-vsync IRQ success");
+		} else
+			CAM_ERR(CAM_OIS, "failed: to get ois-vsync IRQ");
+	}
+
 	CAM_DBG(CAM_OIS, "Component bound successfully");
 	return rc;
 unreg_subdev:
