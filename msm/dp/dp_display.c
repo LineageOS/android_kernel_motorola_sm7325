@@ -571,12 +571,16 @@ static void dp_display_hdcp_cb_work(struct work_struct *work)
 	dp_display_hdcp_process_delayed_off(dp);
 
 	rc = dp_display_hdcp_process_sink_sync(dp);
-	if (rc)
+	if (rc) {
+		__pm_relax(dp->dp_wakelock);
 		return;
+	}
 
 	rc = dp_display_hdcp_start(dp);
-	if (!rc)
+	if (!rc) {
+		__pm_relax(dp->dp_wakelock);
 		return;
+	}
 
 	dp_display_hdcp_print_auth_state(dp);
 
