@@ -28,7 +28,7 @@
 		aw8622x_vib_trig_config = < 0 0 0 1 0 2 0
 					    0 0 0 1 0 2 0
 					    0 0 0 1 0 2 0 >;
-		aw8622x_vib_duration_time = < 20 30 60 >;
+		aw8622x_vib_duration_time = < 30 60 102 >;
 		status = "okay";
 	};
 };
