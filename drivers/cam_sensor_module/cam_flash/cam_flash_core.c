@@ -556,7 +556,7 @@ int cam_flash_off(struct cam_flash_ctrl *flash_ctrl)
 	CAM_ERR(CAM_SENSOR,"cam_flash_off");
 	cam_res_mgr_gpio_set_value(soc_private->flash_gpio_enable, 0);
 	cam_res_mgr_gpio_free(soc_info.dev, soc_private->flash_gpio_enable);
-	pm6125_flash_gpio_select_state(PM6125_FLASH_GPIO_STATE_SUSPEND,1);
+	pm6125_flash_gpio_select_state(PM6125_FLASH_GPIO_STATE_SUSPEND, CAMERA_SENSOR_FLASH_OP_OFF, 0);
 #endif
 	return 0;
 }
@@ -589,14 +589,16 @@ static int cam_flash_low(
 		CAM_ERR(CAM_FLASH, "Fire Torch failed: %d", rc);
 
 #ifdef CONFIG_CAMERA_FLASH_PWM
-	CAM_ERR(CAM_FLASH, "Flash low Triggered");
+	CAM_DBG(CAM_FLASH, "Flash low Triggered flash_data->led_current_ma[0] = %u", flash_data->led_current_ma[0]);
 	rc = cam_res_mgr_gpio_request(soc_info.dev, soc_private->flash_gpio_enable, 0, "CUSTOM_GPIO1");
 	if(rc) {
 		CAM_ERR(CAM_FLASH, "gpio %d request fails", soc_private->flash_gpio_enable);
 		return rc;
 	}
 	cam_res_mgr_gpio_set_value(soc_private->flash_gpio_enable, 0);
-	pm6125_flash_gpio_select_state(PM6125_FLASH_GPIO_STATE_ACTIVE, (u64)flash_data->led_current_ma[0]*10000/1500);
+	pm6125_flash_gpio_select_state(PM6125_FLASH_GPIO_STATE_ACTIVE, CAMERA_SENSOR_FLASH_OP_FIRELOW, FLASH_FIRE_LOW_MAXCURRENT);
+	usleep_range(5000,6000);
+	pm6125_flash_gpio_select_state(PM6125_FLASH_GPIO_STATE_ACTIVE, CAMERA_SENSOR_FLASH_OP_FIRELOW, flash_data->led_current_ma[0]);
 #endif
 
 	return rc;
@@ -630,14 +632,14 @@ static int cam_flash_high(
 		CAM_ERR(CAM_FLASH, "Fire Flash Failed: %d", rc);
 
 #ifdef CONFIG_CAMERA_FLASH_PWM
-	CAM_ERR(CAM_FLASH, "Flash high Triggered");
+	CAM_DBG(CAM_FLASH, "Flash high Triggered flash_data->led_current_ma[0] = %u", flash_data->led_current_ma[0]);
 	rc = cam_res_mgr_gpio_request(soc_info.dev, soc_private->flash_gpio_enable, 0, "CUSTOM_GPIO1");
 	if(rc) {
 		CAM_ERR(CAM_FLASH, "gpio %d request fails", soc_private->flash_gpio_enable);
 		return rc;
 	}
 	cam_res_mgr_gpio_set_value(soc_private->flash_gpio_enable, 1);
-	pm6125_flash_gpio_select_state(PM6125_FLASH_GPIO_STATE_ACTIVE, (u64)flash_data->led_current_ma[0]*10000/1500);
+	pm6125_flash_gpio_select_state(PM6125_FLASH_GPIO_STATE_ACTIVE, CAMERA_SENSOR_FLASH_OP_FIREHIGH, flash_data->led_current_ma[0]);
 #endif
 
 	return rc;
