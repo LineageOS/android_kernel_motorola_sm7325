@@ -25,6 +25,11 @@
 #define DEFINE_MSM_MUTEX(mutexname) \
 	static struct mutex mutexname = __MUTEX_INITIALIZER(mutexname)
 
+#define PACKET_ADDR 0x70B0
+#define PACKET_BYTE 62
+#define MAX_PACKET 3
+#define READ_BYTE 0xE
+
 enum cam_ois_state {
 	CAM_OIS_INIT,
 	CAM_OIS_ACQUIRE,
@@ -142,12 +147,15 @@ struct cam_ois_ctrl_t {
 	uint8_t ois_fw_inc_addr;
 	uint8_t ois_fw_addr_type;
 	uint8_t ois_fw_data_type;
-	uint64_t previous_timestamp;
-	uint64_t current_timestamp;
+	uint64_t prev_timestamp;
+	uint64_t curr_timestamp;
 	struct cam_ois_opcode opcode;
 	bool is_ois_vsync_irq_supported;
 	int vsync_irq;
-	spinlock_t ois_lock;
+	struct mutex vsync_mutex;
+	struct completion ois_data_complete;
+	bool is_first_vsync;
+	uint8_t ois_data[PACKET_BYTE*MAX_PACKET];
 };
 
 /**
