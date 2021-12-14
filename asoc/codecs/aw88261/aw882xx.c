@@ -1513,7 +1513,7 @@ static int aw882xx_get_algo_prof_id_by_scene_st(struct aw882xx *aw882xx)
 		return aw882xx_scene_state[index].skt_profile_id;
 	}
 
-	return AW_ALGO_PROFILE_ID_MAX;
+	return AW_ALGO_PROFILE_ID_0;
 }
 
 static void aw882xx_update_algo_scene_st(struct aw882xx *aw882xx,
