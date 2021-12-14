@@ -230,4 +230,5 @@
 	qcom,msm-mbhc-gnd-swh = <0>;
 
 	qcom,wsa-max-devs = <0>;
+        qcom,msm-hs-linein-threshold = <4000>;
 };
