@@ -10,6 +10,28 @@
 #include "cam_debug_util.h"
 #include "camera_main.h"
 
+static int cam_ois_clear_data_ready(struct cam_ois_ctrl_t *o_ctrl)
+{
+	struct cam_sensor_i2c_reg_setting  i2c_reg_setting = {NULL,1,CAMERA_SENSOR_I2C_TYPE_WORD,CAMERA_SENSOR_I2C_TYPE_WORD,0};
+	struct cam_sensor_i2c_reg_array i2c_write_settings = {0x70DA,0x0000,0,0};
+	int32_t rc = 0;
+
+	if (!o_ctrl) {
+		CAM_ERR(CAM_OIS, "Invalid Args");
+		return -EINVAL;
+	}
+
+	i2c_reg_setting.reg_setting = &(i2c_write_settings);
+
+	rc = camera_io_dev_write(&(o_ctrl->io_master_info), &(i2c_reg_setting));
+	if (rc < 0) {
+		CAM_ERR(CAM_OIS, "Failed in Applying i2c wrt settings");
+	}
+
+	CAM_DBG(CAM_OIS,"Clear data-ready success");
+	return rc;
+}
+
 static int cam_ois_subdev_close_internal(struct v4l2_subdev *sd,
 	struct v4l2_subdev_fh *fh)
 {
@@ -271,28 +293,109 @@ static int cam_ois_i2c_driver_remove(struct i2c_client *client)
 	return 0;
 }
 
-static irqreturn_t ois_vsync_irq_handler(int irq, void *data)
+static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 {
 	struct cam_ois_ctrl_t *o_ctrl = data;
-	int rc;
-	uint64_t qtime_ns = 0;
+	int rc = 0, handled = IRQ_NONE;
+	uint64_t qtime_ns;
+	uint8_t *read_buff, packet_cnt, sample_cnt;
+	uint32_t k, read_len;
+
+	if (!mutex_trylock(&o_ctrl->vsync_mutex)) {
+		CAM_ERR(CAM_OIS, "try lock fail, skip this irq");
+		return IRQ_NONE;
+	}
+
+	if (o_ctrl->cam_ois_state < CAM_OIS_CONFIG) {
+		CAM_WARN(CAM_OIS, "Not in right state to read OIS: %d", o_ctrl->cam_ois_state);
+		goto release_mutex;
+	}
 
 	rc = cam_sensor_util_get_current_qtimer_ns(&qtime_ns);
 	if (rc < 0) {
 		CAM_ERR(CAM_OIS, "failed to get qtimer rc:%d");
-		return IRQ_NONE;
+		goto release_mutex;
 	}
 
 	CAM_DBG(CAM_OIS, "vsync sof timestamp is %lld", qtime_ns);
 
-	spin_lock(&o_ctrl->ois_lock);
+	o_ctrl->prev_timestamp = o_ctrl->curr_timestamp;
+	o_ctrl->curr_timestamp = qtime_ns;
 
-	o_ctrl->previous_timestamp = o_ctrl->current_timestamp;
-	o_ctrl->current_timestamp = qtime_ns;
+	// when the first vsync arrived, clear data-ready, and return.
+	if (o_ctrl->is_first_vsync) {
+		o_ctrl->is_first_vsync = 0;
+		rc = cam_ois_clear_data_ready(o_ctrl);
+		udelay(1000);
+		goto release_mutex;
+	}
 
-	spin_unlock(&o_ctrl->ois_lock);
+	memset(o_ctrl->ois_data, 0, sizeof(o_ctrl->ois_data));
+	read_buff = o_ctrl->ois_data;
+	packet_cnt = 0;
+	sample_cnt = 0;
 
-	return IRQ_HANDLED;
+	do {
+		// SM6375: CCI_VERSION_1_2_9 can only support read 0xE bytes data one time.
+		// Each loop read max supported bytes(0xE). One packet(62 bytes) need 5 times loop read.
+		for (k = 0; k < PACKET_BYTE/READ_BYTE + 1; k++) {
+			if (k == PACKET_BYTE/READ_BYTE)
+				read_len = PACKET_BYTE%READ_BYTE;
+			else
+				read_len = READ_BYTE;
+
+			rc = camera_io_dev_read_seq(
+				&o_ctrl->io_master_info,
+				PACKET_ADDR + k*READ_BYTE/2,
+				read_buff + k*READ_BYTE,
+				CAMERA_SENSOR_I2C_TYPE_WORD,
+				CAMERA_SENSOR_I2C_TYPE_WORD,
+				read_len);
+
+			if (rc < 0) {
+				CAM_ERR(CAM_OIS, "Failed: seq read I2C settings: %d", rc);
+				goto release_mutex;
+			}
+
+			if (k == 0 && packet_cnt == 0) {
+				sample_cnt = read_buff[1];
+				if (sample_cnt != 0) {
+					packet_cnt = (sample_cnt + 9)/10;
+					CAM_DBG(CAM_OIS,"sample data = 0x%x, packet_cnt = %d", sample_cnt, packet_cnt);
+				} else {
+					CAM_WARN(CAM_OIS,"No-fatal: sample data is zero, break the loop read");
+					goto release_mutex;
+				}
+			}
+		}
+
+		if (sample_cnt > 10 && packet_cnt > 1) {
+			CAM_DBG(CAM_OIS,"more than 1 packet, clear data-ready and read next packet");
+			rc = cam_ois_clear_data_ready(o_ctrl);
+			udelay(1000);
+
+			if (rc < 0) {
+				CAM_ERR(CAM_OIS,"Write failed rc: %d", rc);
+				goto release_mutex;
+			}
+		}
+
+		packet_cnt--;
+		read_buff += PACKET_BYTE;
+	} while(packet_cnt);
+
+release_mutex:
+	if (rc < 0) {
+		memset(o_ctrl->ois_data, 0, sizeof(o_ctrl->ois_data));
+		handled = IRQ_NONE;
+	} else
+		handled = IRQ_HANDLED;
+
+	mutex_unlock(&(o_ctrl->vsync_mutex));
+
+	complete(&o_ctrl->ois_data_complete);
+
+	return handled;
 }
 
 static int cam_ois_component_bind(struct device *dev,
@@ -356,7 +459,8 @@ static int cam_ois_component_bind(struct device *dev,
 	platform_set_drvdata(pdev, o_ctrl);
 	o_ctrl->cam_ois_state = CAM_OIS_INIT;
 
-	spin_lock_init(&o_ctrl->ois_lock);
+	mutex_init(&(o_ctrl->vsync_mutex));
+	init_completion(&o_ctrl->ois_data_complete);
 
 	if (o_ctrl->is_ois_vsync_irq_supported) {
 		o_ctrl->vsync_irq = platform_get_irq_optional(pdev, 0);
@@ -367,7 +471,7 @@ static int cam_ois_component_bind(struct device *dev,
 			rc = devm_request_threaded_irq(dev,
 							o_ctrl->vsync_irq,
 							NULL,
-							ois_vsync_irq_handler,
+							cam_ois_vsync_irq_thread,
 							(IRQF_TRIGGER_RISING | IRQF_ONESHOT),
 							"ois-vsync-irq",
 							o_ctrl);

@@ -112,8 +112,9 @@ static int cam_ois_power_up(struct cam_ois_ctrl_t *o_ctrl)
 		&o_ctrl->soc_info;
 	struct cam_ois_soc_private *soc_private;
 	struct cam_sensor_power_ctrl_t  *power_info;
-	o_ctrl->previous_timestamp = 0;
-	o_ctrl->current_timestamp = 0;
+	o_ctrl->prev_timestamp = 0;
+	o_ctrl->curr_timestamp = 0;
+	o_ctrl->is_first_vsync = 1;
 
 	soc_private =
 		(struct cam_ois_soc_private *)o_ctrl->soc_info.soc_private;
@@ -570,28 +571,6 @@ release_firmware:
 	txn_regsetting_size = 0;
 	release_firmware(fw);
 
-	return rc;
-}
-
-static int cam_ois_write_dw(struct cam_ois_ctrl_t *o_ctrl)
-{
-	struct cam_sensor_i2c_reg_setting  i2c_reg_setting = {NULL,1,CAMERA_SENSOR_I2C_TYPE_WORD,CAMERA_SENSOR_I2C_TYPE_WORD,0};
-	struct cam_sensor_i2c_reg_array i2c_write_settings = {0x70DA,0x0000,0,0};
-	int32_t rc = 0;
-
-	if (!o_ctrl) {
-		CAM_ERR(CAM_OIS, "Invalid Args");
-		return -EINVAL;
-	}
-
-	i2c_reg_setting.reg_setting = &(i2c_write_settings);
-
-	rc = camera_io_dev_write(&(o_ctrl->io_master_info),
-			&(i2c_reg_setting));
-	if (rc < 0) {
-		CAM_ERR(CAM_OIS,
-				"Failed in Applying i2c wrt settings");
-	}
 	return rc;
 }
 
@@ -1164,10 +1143,8 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		uint8_t *read_buff = NULL;
 		uint32_t buff_length = 0;
 		uint32_t read_length = 0;
-		uint32_t i, size;
-		uint8_t packetCounter = 0;
-		uint32_t k = 0, remain_len = 0, read_len = 0;
-		unsigned long flags;
+		uint32_t size;
+		unsigned long rem_jiffies = 0;
 
 		if (o_ctrl->cam_ois_state < CAM_OIS_CONFIG) {
 			rc = -EINVAL;
@@ -1235,82 +1212,46 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 					return rc;
 				}
 			} else if (i2c_list->op_code == CAM_SENSOR_I2C_READ_SEQ) {
-				#define READ_BTYE 0xE
 				read_buff     = i2c_list->i2c_settings.read_buff;
 				buff_length   = i2c_list->i2c_settings.read_buff_len;
 				read_length   = i2c_list->i2c_settings.size;
-				remain_len    = read_length;
-				read_len      = READ_BTYE;
-				packetCounter = 0;
 
 				if (read_length > buff_length) {
 					CAM_ERR(CAM_SENSOR,
 					"Invalid buffer size, readLen: %d, bufLen: %d",
 					read_length, buff_length);
+					delete_request(&i2c_read_settings);
 					return -EINVAL;
 				}
-				do {
-					// SM6375: CCI_VERSION_1_2_9 can only support read 0xE bytes data one time.
-					// Each loop read max supported bytes(0xE), to save read time.
-					for (k = 0; (k < read_length/READ_BTYE + 1) && (read_len != 0); k++) {
-						rc = camera_io_dev_read_seq(
-							&o_ctrl->io_master_info,
-							i2c_list->i2c_settings.reg_setting[0].reg_addr + k*READ_BTYE/2,
-							read_buff + k*READ_BTYE,
-							i2c_list->i2c_settings.addr_type,
-							i2c_list->i2c_settings.data_type,
-							read_len);
-						remain_len -= read_len;
-						read_len = remain_len > READ_BTYE ? READ_BTYE:remain_len;
 
-						if (rc < 0) {
-							CAM_ERR(CAM_OIS, "Failed: seq read I2C settings: %d", rc);
-							delete_request(&i2c_read_settings);
-							return rc;
-						}
+				rc = cam_mem_get_cpu_buf(timestamp_io_cfg->mem_handle[0],
+						&buf_addr, &buf_size);
+				timestampBuf    = (uint8_t *)buf_addr + timestamp_io_cfg->offsets[0];
+				timestampBufLen = buf_size - timestamp_io_cfg->offsets[0];
 
-						if (k == 0 && read_buff[1] == 0) {
-							CAM_WARN(CAM_OIS,"No-fatal: sample data is zero, break the loop read");
-							break;
-						}
-					}
+				if(timestampBufLen < sizeof(uint64_t)) {
+					CAM_ERR(CAM_OIS, "Buffer not large enough for timestamp");
+					delete_request(&i2c_read_settings);
+					return -EINVAL;
+				}
 
-					if (!rc){
-						if (read_buff[1] == 0){
-							CAM_WARN(CAM_OIS,"No-fatal: header is zero, break the read");
-							rc = -EINVAL;
-							break;
-						} else if ((read_buff[1] != 0) && (packetCounter == 0)) {
+				rem_jiffies = wait_for_completion_timeout(&o_ctrl->ois_data_complete,
+										msecs_to_jiffies(120));
+				if (rem_jiffies == 0) {
+					CAM_ERR(CAM_OIS, "Wait ois data completion timeout 120 ms");
+					delete_request(&i2c_read_settings);
+					return -ETIMEDOUT;
+				}
 
-							rc = cam_mem_get_cpu_buf(timestamp_io_cfg->mem_handle[0],
-									&buf_addr, &buf_size);
-							timestampBuf    = (uint8_t *)buf_addr + timestamp_io_cfg->offsets[0];
-							timestampBufLen = buf_size - timestamp_io_cfg->offsets[0];
+				mutex_lock(&(o_ctrl->vsync_mutex));
+				memcpy((void *)timestampBuf,
+					(void *)&o_ctrl->prev_timestamp,
+					sizeof(uint64_t));
 
-							if(timestampBufLen < sizeof(uint64_t)) {
-								CAM_ERR(CAM_OIS, "Buffer not large enough for timestamp");
-								return -EINVAL;
-							}
-
-							spin_lock_irqsave(&o_ctrl->ois_lock, flags);
-							memcpy((void *)timestampBuf,
-								(void *)&o_ctrl->previous_timestamp,
-								sizeof(uint64_t));
-							spin_unlock_irqrestore(&o_ctrl->ois_lock, flags);
-
-							packetCounter = (read_buff[1] + 9)/10;
-						}
-					}
-					rc = cam_ois_write_dw(o_ctrl);
-					usleep_range(1000, 1010);
-					if (!rc){
-						read_buff += i2c_list->i2c_settings.size;
-						packetCounter--;
-					} else {
-						CAM_ERR(CAM_OIS,"Write failed rc: %d", rc);
-						break;
-					}
-				} while(packetCounter);
+				memcpy((void *)read_buff,
+					(void *)o_ctrl->ois_data,
+					sizeof(o_ctrl->ois_data));
+				mutex_unlock(&(o_ctrl->vsync_mutex));
 			} else if (i2c_list->op_code == CAM_SENSOR_I2C_POLL) {
 				size = i2c_list->i2c_settings.size;
 				for (i = 0; i < size; i++) {
