@@ -1046,12 +1046,12 @@ SND_SOC_DAILINK_DEFS(pri_mi2s_tx_aw882xx,
         DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
 
 SND_SOC_DAILINK_DEFS(sen_mi2s_rx_aw882xx,
-	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-mi2s.5")),
+	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-mi2s.10")),
 	DAILINK_COMP_ARRAY(COMP_CODEC("aw882xx_codec", "aw882xx-aif")),
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
 
 SND_SOC_DAILINK_DEFS(sen_mi2s_tx_aw882xx,
-	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-mi2s.5")),
+	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-mi2s.11")),
 	DAILINK_COMP_ARRAY(COMP_CODEC("aw882xx_codec", "aw882xx-aif")),
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
 
@@ -1068,12 +1068,12 @@ SND_SOC_DAILINK_DEFS(sen_mi2s_tx_stereo_aw882xx,
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
 
 SND_SOC_DAILINK_DEFS(sen_mi2s_rx_cs35l41,
-	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-mi2s.5")),
+	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-mi2s.10")),
 	DAILINK_COMP_ARRAY(COMP_CODEC("cirrus_spk", "cs35l41-pcm")),
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
 
 SND_SOC_DAILINK_DEFS(sen_mi2s_tx_cs35l41,
-	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-mi2s.5")),
+	DAILINK_COMP_ARRAY(COMP_CPU("msm-dai-q6-mi2s.11")),
 	DAILINK_COMP_ARRAY(COMP_CODEC("cirrus_spk", "cs35l41-pcm")),
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("msm-pcm-routing")));
 
