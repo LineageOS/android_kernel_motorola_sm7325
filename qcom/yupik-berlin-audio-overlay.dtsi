@@ -79,12 +79,12 @@
 
 &dai_mi2s5_rx {
         status = "ok";
-        qcom,msm-mi2s-rx-lines = <1>;
+        qcom,msm-mi2s-lines = <1>;
 };
 
 &dai_mi2s5_tx {
         status = "ok";
-        qcom,msm-mi2s-tx-lines = <2>;
+        qcom,msm-mi2s-lines = <2>;
 };
 
 &soc {
