@@ -7011,7 +7011,7 @@ static struct snd_soc_dai_link msm_pri_mi2s_aw882xx_dai_links[] = {
                 .ops = &msm_mi2s_be_ops,
                 .ignore_suspend = 1,
                 .ignore_pmdown_time = 1,
-                SND_SOC_DAILINK_REG(pri_mi2s_tx_aw882xx),
+                SND_SOC_DAILINK_REG(pri_mi2s_rx_aw882xx),
         },
         {
                 .name = LPASS_BE_PRI_MI2S_TX,
