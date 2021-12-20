@@ -7,8 +7,8 @@
 #define AW_ERRO_CALI_VALUE (0)
 #define AW_CALI_RE_DEFAULT_TIMER	(3000)
 
-#define AW_CALI_RE_MAX     (15000)
-#define AW_CALI_RE_MIN     (4000)
+#define AW_CALI_RE_MAX	(15000)
+#define AW_CALI_RE_MIN	(4000)
 
 #define AW_CALI_CFG_NUM (3)
 #define AW_CALI_DATA_NUM (6)
