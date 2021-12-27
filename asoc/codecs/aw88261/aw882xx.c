@@ -35,7 +35,7 @@
 #include "aw_log.h"
 #include "aw_dsp.h"
 
-#define AW882XX_DRIVER_VERSION "v1.9.0.3"
+#define AW882XX_DRIVER_VERSION "v1.9.0.4"
 #define AW882XX_I2C_NAME "aw882xxacf_smartpa"
 
 #define AW_READ_CHIPID_RETRIES		5	/* 5 times */
@@ -48,6 +48,7 @@ static unsigned int g_algo_tx_en = false;
 static unsigned int g_algo_copp_en = false;
 #ifdef AW_SPIN_ENABLE
 static unsigned int g_spin_value = 0;
+static uint32_t g_spin_en = 0;
 #endif
 #ifdef AW882XX_RUNIN_TEST
 static unsigned int g_runin_test;
@@ -1297,6 +1298,126 @@ static int aw882xx_get_spin(struct snd_kcontrol *kcontrol,
 	aw_dev_dbg(aw882xx->dev, "spin value is %ld", ucontrol->value.integer.value[0]);
 	return 0;
 }
+
+static int aw882xx_get_spin_status(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct aw_device *aw_dev;
+	aw_snd_soc_codec_t *codec =
+		aw_componet_codec_ops.kcontrol_codec(kcontrol);
+	struct aw882xx *aw882xx =
+		aw_componet_codec_ops.codec_get_drvdata(codec);
+	struct aw_spin_param spin_param;
+	int ctrl_value;
+	int ret = -EINVAL;
+
+	aw_dev = aw882xx->aw_pa;
+
+	if (aw882xx->pstream) {
+		ret = aw_dev_get_spin_param(aw_dev, &ctrl_value, &(spin_param.relase_time));
+		if (ret) {
+			aw_dev_err(aw882xx->dev, "get spin status failed!, ret = %d", ret);
+			ctrl_value = 0;
+		}
+		ucontrol->value.integer.value[0] = ctrl_value;
+	} else {
+		aw_dev_info(aw882xx->dev, "no stream, use record value");
+
+	}
+	aw_dev_dbg(aw882xx->dev, "spin value is %ld", ucontrol->value.integer.value[0]);
+	return 0;
+}
+
+static int aw882xx_set_spin_status(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	int ret = -EINVAL;
+	uint32_t ctrl_value = 0;
+	struct aw_device *aw_dev;
+	aw_snd_soc_codec_t *codec =
+		aw_componet_codec_ops.kcontrol_codec(kcontrol);
+	struct aw882xx *aw882xx =
+		aw_componet_codec_ops.codec_get_drvdata(codec);
+	struct aw_spin_param spin_param;
+
+	aw_dev_dbg(aw882xx->dev, "ucontrol->value.integer.value[0]=%ld",
+			ucontrol->value.integer.value[0]);
+
+	aw_dev = aw882xx->aw_pa;
+
+	ctrl_value = ucontrol->value.integer.value[0];
+	
+	if ((aw882xx->pstream) && (g_algo_rx_en == true) ) {
+		ret = aw_dev_set_spin_param(aw_dev, ctrl_value, spin_param.relase_time);
+		if (ret)
+			aw_dev_err(aw882xx->dev, "set spin status error, ret=%d", ret);
+		
+		g_spin_en = ctrl_value;
+	} else {
+		aw_dev_info(aw882xx->dev, "stream no start only record");
+	}
+
+	return 0;
+}
+
+static int aw882xx_get_spin_relase_time(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct aw_device *aw_dev;
+	aw_snd_soc_codec_t *codec =
+		aw_componet_codec_ops.kcontrol_codec(kcontrol);
+	struct aw882xx *aw882xx =
+		aw_componet_codec_ops.codec_get_drvdata(codec);
+	struct aw_spin_param spin_param;
+	int ctrl_value;
+	int ret = -EINVAL;
+
+	aw_dev = aw882xx->aw_pa;
+
+	if (aw882xx->pstream) {
+		ret = aw_dev_get_spin_param(aw_dev, &(spin_param.enable), &ctrl_value);
+		if (ret) {
+			aw_dev_err(aw882xx->dev, "get spin release time failed!, ret = %d", ret);
+			ctrl_value = 0;
+		}
+		ucontrol->value.integer.value[0] = ctrl_value;
+	} else {
+		aw_dev_info(aw882xx->dev, "no stream, use record value");
+
+	}
+	aw_dev_dbg(aw882xx->dev, "spin value is %ld", ucontrol->value.integer.value[0]);
+	return 0;
+}
+
+static int aw882xx_set_spin_relase_time(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	int ret = -EINVAL;
+	uint32_t ctrl_value = 0;
+	struct aw_device *aw_dev;
+	aw_snd_soc_codec_t *codec =
+		aw_componet_codec_ops.kcontrol_codec(kcontrol);
+	struct aw882xx *aw882xx =
+		aw_componet_codec_ops.codec_get_drvdata(codec);
+	//struct aw_spin_param spin_param;
+
+	aw_dev_dbg(aw882xx->dev, "ucontrol->value.integer.value[0]=%ld",
+			ucontrol->value.integer.value[0]);
+
+	aw_dev = aw882xx->aw_pa;
+
+	ctrl_value = ucontrol->value.integer.value[0];
+	if ((aw882xx->pstream) && (g_spin_en == 1) && (g_algo_rx_en == true)) {
+		ret = aw_dev_set_spin_param(aw_dev, g_spin_en , ctrl_value);
+		if (ret)
+			aw_dev_err(aw882xx->dev, "set spin release time error, ret=%d", ret);
+	} else {
+		aw_dev_info(aw882xx->dev, "set release time failed");
+	}
+
+	return 0;
+}
+
 #endif
 
 static int aw882xx_get_fade_in_time(struct snd_kcontrol *kcontrol,
@@ -1887,6 +2008,10 @@ static struct snd_kcontrol_new aw882xx_controls[] = {
 #ifdef AW_SPIN_ENABLE
 	SOC_ENUM_EXT("aw882xx_spin_switch", aw882xx_snd_enum[2],
 		aw882xx_get_spin, aw882xx_set_spin),
+	SOC_ENUM_EXT("aw882xx_spin_status", aw882xx_snd_enum[1],
+		aw882xx_get_spin_status, aw882xx_set_spin_status),
+	SOC_SINGLE_EXT("aw882xx_spin_relase_time", 0, 0, 1000000, 0,
+		aw882xx_get_spin_relase_time, aw882xx_set_spin_relase_time),
 #endif
 #ifdef AW882XX_RUNIN_TEST
 	SOC_ENUM_EXT("aw882xx_runin_test", aw882xx_snd_enum[1],

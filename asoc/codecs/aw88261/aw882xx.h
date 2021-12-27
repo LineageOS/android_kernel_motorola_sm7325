@@ -2,6 +2,11 @@
 #define _AW882XX_H_
 #include <linux/version.h>
 #include <linux/kernel.h>
+
+#ifndef AW_SPIN_ENABLE
+#define AW_SPIN_ENABLE	1
+#endif
+
 #include "aw_device.h"
 
 /*
