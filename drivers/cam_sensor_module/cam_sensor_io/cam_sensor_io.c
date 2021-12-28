@@ -115,6 +115,31 @@ int32_t camera_io_dev_read_seq(struct camera_io_master *io_master_info,
 	return 0;
 }
 
+int32_t camera_io_dev_ois_read_seq(struct camera_io_master *io_master_info,
+	uint32_t addr, uint8_t *data,
+	enum camera_sensor_i2c_type addr_type,
+	enum camera_sensor_i2c_type data_type, int32_t num_bytes)
+{
+	if (io_master_info->master_type == CCI_MASTER) {
+		return cam_camera_cci_i2c_ois_read_seq(io_master_info->cci_client,
+			addr, data, addr_type, data_type, num_bytes);
+	} else if (io_master_info->master_type == I2C_MASTER) {
+		return cam_qup_i2c_read_seq(io_master_info->client,
+			addr, data, addr_type, num_bytes);
+	} else if (io_master_info->master_type == SPI_MASTER) {
+		return cam_spi_read_seq(io_master_info,
+			addr, data, addr_type, num_bytes);
+	} else if (io_master_info->master_type == SPI_MASTER) {
+		return cam_spi_write_seq(io_master_info,
+			addr, data, addr_type, num_bytes);
+	} else {
+		CAM_ERR(CAM_SENSOR, "Invalid Comm. Master:%d",
+			io_master_info->master_type);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 int32_t camera_io_dev_write(struct camera_io_master *io_master_info,
 	struct cam_sensor_i2c_reg_setting *write_setting)
 {

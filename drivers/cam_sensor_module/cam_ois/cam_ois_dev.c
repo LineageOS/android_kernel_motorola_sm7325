@@ -343,7 +343,7 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 			else
 				read_len = READ_BYTE;
 
-			rc = camera_io_dev_read_seq(
+			rc = camera_io_dev_ois_read_seq(
 				&o_ctrl->io_master_info,
 				PACKET_ADDR + k*READ_BYTE/2,
 				read_buff + k*READ_BYTE,
