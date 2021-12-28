@@ -337,7 +337,6 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 
 	do {
 		// SM6375: CCI_VERSION_1_2_9 can only support read 0xE bytes data one time.
-		// Each loop read max supported bytes(0xE). One packet(62 bytes) need 5 times loop read.
 		for (k = 0; k < PACKET_BYTE/READ_BYTE + 1; k++) {
 			if (k == PACKET_BYTE/READ_BYTE)
 				read_len = PACKET_BYTE%READ_BYTE;
