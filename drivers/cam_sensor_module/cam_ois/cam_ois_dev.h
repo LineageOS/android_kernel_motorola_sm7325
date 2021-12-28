@@ -28,7 +28,7 @@
 #define PACKET_ADDR 0x70B0
 #define PACKET_BYTE 62
 #define MAX_PACKET 3
-#define READ_BYTE 0xE
+#define READ_BYTE 0xC
 
 enum cam_ois_state {
 	CAM_OIS_INIT,
