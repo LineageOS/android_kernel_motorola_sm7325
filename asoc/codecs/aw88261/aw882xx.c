@@ -54,6 +54,12 @@ static uint32_t g_spin_en = 0;
 static unsigned int g_runin_test;
 #endif
 
+#define AW882XX_SPIN_FOR_LOW_LATENCY_ONLY 1
+
+#ifdef AW882XX_SPIN_FOR_LOW_LATENCY_ONLY
+static unsigned int g_skt_prof_id = 0;
+#endif
+
 static DEFINE_MUTEX(g_aw882xx_lock);
 struct aw_container *g_awinic_cfg = NULL;
 
@@ -1258,12 +1264,21 @@ static int aw882xx_set_spin(struct snd_kcontrol *kcontrol,
 	aw_dev = aw882xx->aw_pa;
 
 	ctrl_value = ucontrol->value.integer.value[0];
+
+#ifdef AW882XX_SPIN_FOR_LOW_LATENCY_ONLY
+	if (g_skt_prof_id == (AW882XX_SCENE_FASTTRACK_ID+1)) {
+#else
 	if (aw882xx->pstream) {
+#endif
 		ret = aw_dev_set_spin(ctrl_value);
 		if (ret)
 			aw_dev_err(aw882xx->dev, "set spin error, ret=%d", ret);
 	} else {
+#ifdef AW882XX_SPIN_FOR_LOW_LATENCY_ONLY
+		aw_dev_info(aw882xx->dev, "fasttrack stream no start");
+#else
 		aw_dev_info(aw882xx->dev, "stream no start only record");
+#endif
 	}
 
 	g_spin_value = ctrl_value;
@@ -1346,12 +1361,12 @@ static int aw882xx_set_spin_status(struct snd_kcontrol *kcontrol,
 	aw_dev = aw882xx->aw_pa;
 
 	ctrl_value = ucontrol->value.integer.value[0];
-	
-	if ((aw882xx->pstream) && (g_algo_rx_en == true) ) {
+
+	if (g_algo_rx_en == true) {
 		ret = aw_dev_set_spin_param(aw_dev, ctrl_value, spin_param.relase_time);
 		if (ret)
 			aw_dev_err(aw882xx->dev, "set spin status error, ret=%d", ret);
-		
+
 		g_spin_en = ctrl_value;
 	} else {
 		aw_dev_info(aw882xx->dev, "stream no start only record");
@@ -1407,7 +1422,8 @@ static int aw882xx_set_spin_relase_time(struct snd_kcontrol *kcontrol,
 	aw_dev = aw882xx->aw_pa;
 
 	ctrl_value = ucontrol->value.integer.value[0];
-	if ((aw882xx->pstream) && (g_spin_en == 1) && (g_algo_rx_en == true)) {
+	//if ((aw882xx->pstream) && (g_spin_en == 1) && (g_algo_rx_en == true)) {
+	if ( (g_spin_en == 1) && (g_algo_rx_en == true)) {
 		ret = aw_dev_set_spin_param(aw_dev, g_spin_en , ctrl_value);
 		if (ret)
 			aw_dev_err(aw882xx->dev, "set spin release time error, ret=%d", ret);
@@ -1701,9 +1717,26 @@ static int aw882xx_update_algo_profile(struct aw882xx *aw882xx)
 		aw_dev_err(aw882xx->dev, "set algo prof failed");
 		return -1;
 	}
-		
-	aw_dev_info(aw882xx->dev, "algo scene hold, cur scene %d", 
+
+	aw_dev_info(aw882xx->dev, "algo scene hold, cur scene %d",
 					new_skt_prof_id);
+
+#ifdef AW882XX_SPIN_FOR_LOW_LATENCY_ONLY
+	aw_dev_info(aw882xx->dev, "g_skt_prof_id=%d\n",g_skt_prof_id);
+
+	if (new_skt_prof_id == (AW882XX_SCENE_FASTTRACK_ID+1)){
+		ret = aw_dev_set_spin(g_spin_value);
+		if (ret)
+			aw_dev_err(aw882xx->dev, "set spin error when switch prof id to %d, ret=%d", ret, new_skt_prof_id);
+	} else if ((g_skt_prof_id == (AW882XX_SCENE_FASTTRACK_ID+1))
+		&& (new_skt_prof_id != (AW882XX_SCENE_FASTTRACK_ID+1))){
+		ret = aw_dev_set_spin(1);
+		if (ret)
+			aw_dev_err(aw882xx->dev, "set spin error when switch prof id to %d, ret=%d", ret, new_skt_prof_id);
+	}
+
+	g_skt_prof_id = new_skt_prof_id;
+#endif
 
 	return 0;
 
