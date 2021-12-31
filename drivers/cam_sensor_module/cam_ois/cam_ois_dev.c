@@ -296,9 +296,9 @@ static int cam_ois_i2c_driver_remove(struct i2c_client *client)
 static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 {
 	struct cam_ois_ctrl_t *o_ctrl = data;
-	int rc = 0, handled = IRQ_NONE;
+	int rc = 0, handled = IRQ_NONE, packet_cnt;
 	uint64_t qtime_ns;
-	uint8_t *read_buff, packet_cnt, sample_cnt;
+	uint8_t *read_buff, sample_cnt;
 	uint32_t k, read_len;
 
 	if (!mutex_trylock(&o_ctrl->vsync_mutex)) {
@@ -330,12 +330,15 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 		goto release_mutex;
 	}
 
-	memset(o_ctrl->ois_data, 0, sizeof(o_ctrl->ois_data));
+	memset(o_ctrl->ois_data, 0, o_ctrl->ois_data_size);
 	read_buff = o_ctrl->ois_data;
 	packet_cnt = 0;
 	sample_cnt = 0;
 
 	do {
+		if (packet_cnt > 0)
+			read_buff += PACKET_BYTE;
+
 		// SM6375: CCI_VERSION_1_2_9 can only support read 0xE bytes data one time.
 		for (k = 0; k < PACKET_BYTE/READ_BYTE + 1; k++) {
 			if (k == PACKET_BYTE/READ_BYTE)
@@ -380,12 +383,11 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 		}
 
 		packet_cnt--;
-		read_buff += PACKET_BYTE;
 	} while(packet_cnt);
 
 release_mutex:
 	if (rc < 0) {
-		memset(o_ctrl->ois_data, 0, sizeof(o_ctrl->ois_data));
+		memset(o_ctrl->ois_data, 0, o_ctrl->ois_data_size);
 		handled = IRQ_NONE;
 	} else
 		handled = IRQ_HANDLED;
@@ -415,12 +417,17 @@ static int cam_ois_component_bind(struct device *dev,
 	o_ctrl->soc_info.dev_name = pdev->name;
 
 	o_ctrl->ois_device_type = MSM_CAMERA_PLATFORM_DEVICE;
+	o_ctrl->ois_data_size = PACKET_BYTE*MAX_PACKET;
+
+	o_ctrl->ois_data = kzalloc(o_ctrl->ois_data_size, GFP_KERNEL);
+	if (!o_ctrl->ois_data)
+		goto free_o_ctrl;
 
 	o_ctrl->io_master_info.master_type = CCI_MASTER;
 	o_ctrl->io_master_info.cci_client = kzalloc(
 		sizeof(struct cam_sensor_cci_client), GFP_KERNEL);
 	if (!o_ctrl->io_master_info.cci_client)
-		goto free_o_ctrl;
+		goto free_ois_data;
 
 	soc_private = kzalloc(sizeof(struct cam_ois_soc_private),
 		GFP_KERNEL);
@@ -490,6 +497,8 @@ free_soc:
 	kfree(soc_private);
 free_cci_client:
 	kfree(o_ctrl->io_master_info.cci_client);
+free_ois_data:
+	kfree(o_ctrl->ois_data);
 free_o_ctrl:
 	kfree(o_ctrl);
 	return rc;
@@ -527,6 +536,7 @@ static void cam_ois_component_unbind(struct device *dev,
 
 	kfree(o_ctrl->soc_info.soc_private);
 	kfree(o_ctrl->io_master_info.cci_client);
+	kfree(o_ctrl->ois_data);
 	platform_set_drvdata(pdev, NULL);
 	v4l2_set_subdevdata(&o_ctrl->v4l2_dev_str.sd, NULL);
 	kfree(o_ctrl);

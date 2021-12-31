@@ -27,7 +27,7 @@
 
 #define PACKET_ADDR 0x70B0
 #define PACKET_BYTE 62
-#define MAX_PACKET 3
+#define MAX_PACKET 5
 #define READ_BYTE 0xC
 
 enum cam_ois_state {
@@ -155,7 +155,8 @@ struct cam_ois_ctrl_t {
 	struct mutex vsync_mutex;
 	struct completion ois_data_complete;
 	bool is_first_vsync;
-	uint8_t ois_data[PACKET_BYTE*MAX_PACKET];
+	uint8_t *ois_data;
+	int ois_data_size;
 };
 
 /**
