@@ -43,7 +43,7 @@
 		aw8622x_vib_trig_config = < 0 0 0 1 0 2 0
 					    0 0 0 1 0 2 0
 					    0 0 0 1 0 2 0 >;
-		aw8622x_vib_duration_time = < 30 70 105 >;
+		aw8622x_vib_duration_time = < 30 65 105 >;
 		pinctrl-names = "default";
 		pinctrl-0 = <&haptic_irq_default>;
 		status = "okay";
