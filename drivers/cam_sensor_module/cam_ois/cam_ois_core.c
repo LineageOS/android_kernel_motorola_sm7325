@@ -1216,6 +1216,8 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				buff_length   = i2c_list->i2c_settings.read_buff_len;
 				read_length   = i2c_list->i2c_settings.size;
 
+				CAM_DBG(CAM_OIS, "buff_length = %d, read_length = %d", buff_length, read_length);
+
 				if (read_length > buff_length) {
 					CAM_ERR(CAM_SENSOR,
 					"Invalid buffer size, readLen: %d, bufLen: %d",
@@ -1244,13 +1246,13 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				}
 
 				mutex_lock(&(o_ctrl->vsync_mutex));
-				memcpy((void *)timestampBuf,
-					(void *)&o_ctrl->prev_timestamp,
-					sizeof(uint64_t));
+				memcpy((void *)timestampBuf, (void *)&o_ctrl->prev_timestamp, sizeof(uint64_t));
 
-				memcpy((void *)read_buff,
-					(void *)o_ctrl->ois_data,
-					sizeof(o_ctrl->ois_data));
+				if (o_ctrl->ois_data_size <= buff_length)
+					memcpy((void *)read_buff, (void *)o_ctrl->ois_data, o_ctrl->ois_data_size);
+				else
+					memcpy((void *)read_buff, (void *)o_ctrl->ois_data, buff_length);
+
 				mutex_unlock(&(o_ctrl->vsync_mutex));
 			} else if (i2c_list->op_code == CAM_SENSOR_I2C_POLL) {
 				size = i2c_list->i2c_settings.size;
