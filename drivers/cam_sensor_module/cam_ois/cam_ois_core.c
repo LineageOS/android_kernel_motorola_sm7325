@@ -115,6 +115,8 @@ static int cam_ois_power_up(struct cam_ois_ctrl_t *o_ctrl)
 	o_ctrl->prev_timestamp = 0;
 	o_ctrl->curr_timestamp = 0;
 	o_ctrl->is_first_vsync = 1;
+	o_ctrl->q_timer_cnt       = QTIMER_SAMPLE_TIME*10*2;
+	o_ctrl->q_timer_timestamp = 0;
 
 	soc_private =
 		(struct cam_ois_soc_private *)o_ctrl->soc_info.soc_private;
@@ -571,6 +573,42 @@ release_firmware:
 	txn_regsetting_size = 0;
 	release_firmware(fw);
 
+	return rc;
+}
+
+static int cam_ois_write_q_timer(struct cam_ois_ctrl_t *o_ctrl)
+{
+	struct cam_sensor_i2c_reg_setting i2c_reg_setting = {NULL,1,CAMERA_SENSOR_I2C_TYPE_WORD,CAMERA_SENSOR_I2C_TYPE_WORD,0};
+	struct cam_sensor_i2c_reg_array i2c_write_settings = {QTIMER_ADDR,0x0000,0,0};
+	int32_t rc        = 0;
+	uint32_t data     = 0;
+	uint64_t qtime_ns = 0;
+
+	if (!o_ctrl) {
+		CAM_ERR(CAM_OIS, "Invalid Args");
+		return -EINVAL;
+	}
+
+	if (o_ctrl->q_timer_cnt > 60000)
+		o_ctrl->q_timer_cnt = QTIMER_SAMPLE_TIME*10*2;
+
+	data = ++o_ctrl->q_timer_cnt;
+
+	i2c_write_settings.reg_data = data;
+	i2c_reg_setting.reg_setting = &(i2c_write_settings);
+
+	rc = camera_io_dev_write(&(o_ctrl->io_master_info), &(i2c_reg_setting));
+	if (rc < 0) {
+		CAM_ERR(CAM_OIS, "Failed in Applying Q-timer settings");
+	} else {
+		rc = cam_sensor_util_get_current_qtimer_ns(&qtime_ns);
+		if (rc < 0)
+			CAM_ERR(CAM_OIS, "failed to get qtimer rc:%d");
+		else
+			o_ctrl->q_timer_timestamp = qtime_ns;
+	}
+
+	CAM_DBG(CAM_OIS,"Write Q-timer %d, timestamp %lld", data, qtime_ns);
 	return rc;
 }
 
@@ -1278,6 +1316,179 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		if (rc < 0) {
 			CAM_ERR(CAM_OIS,
 			"Failed in deleting the read settings");
+			return rc;
+		}
+		break;
+	}
+	case CAM_OIS_PACKET_OPCODE_ACTIVE_OIS_DONGWOON_QTIMER: {
+		struct cam_buf_io_cfg *io_cfg;
+		struct cam_buf_io_cfg *timestamp_io_cfg;
+		struct i2c_settings_array i2c_read_settings;
+		uintptr_t buf_addr = 0x0;
+		size_t buf_size = 0;
+		uint8_t *timestampBuf;
+		uint32_t timestampBufLen;
+		struct i2c_settings_list *i2c_list;
+		uint8_t *read_buff = NULL;
+		uint32_t buff_length = 0, read_length = 0;
+		uint16_t sample_cnt = 0, flag = 0, latest_data_ts = 0;
+		uint64_t delta_timestamp_ns = 0;
+
+		if (o_ctrl->cam_ois_state < CAM_OIS_CONFIG) {
+			rc = -EINVAL;
+			CAM_WARN(CAM_OIS,
+				"Not in right state to read OIS: %d",
+				o_ctrl->cam_ois_state);
+			return rc;
+		}
+		CAM_DBG(CAM_OIS, "number of I/O configs: %d:",
+			csl_packet->num_io_configs);
+		if (csl_packet->num_io_configs < 2) {
+			CAM_ERR(CAM_OIS, "Not enough I/O Configs");
+			rc = -EINVAL;
+			return rc;
+		}
+
+		INIT_LIST_HEAD(&(i2c_read_settings.list_head));
+
+		io_cfg = (struct cam_buf_io_cfg *) ((uint8_t *)
+			&csl_packet->payload +
+			csl_packet->io_configs_offset);
+
+		if (io_cfg == NULL) {
+			CAM_ERR(CAM_OIS, "I/O config is invalid(NULL)");
+			rc = -EINVAL;
+			return rc;
+		}
+
+		timestamp_io_cfg = &io_cfg[1];
+
+		if (timestamp_io_cfg == NULL) {
+			CAM_ERR(CAM_OIS, "timestamp I/O config is invalid(NULL)");
+			rc = -EINVAL;
+			return rc;
+		}
+
+		offset = (uint32_t *)&csl_packet->payload;
+		offset += (csl_packet->cmd_buf_offset / sizeof(uint32_t));
+		cmd_desc = (struct cam_cmd_buf_desc *)(offset);
+		if (cmd_desc == NULL) {
+			CAM_ERR(CAM_OIS, "cmd desc is invalid(NULL)");
+			rc = -EINVAL;
+			return rc;
+		}
+
+		i2c_read_settings.is_settings_valid = 1;
+		i2c_read_settings.request_id = 0;
+		rc = cam_sensor_i2c_command_parser(&o_ctrl->io_master_info,
+			&i2c_read_settings,
+			cmd_desc, 1, io_cfg);
+		if (rc < 0) {
+			CAM_ERR(CAM_OIS, "OIS read pkt parsing failed: %d", rc);
+			return rc;
+		}
+
+		list_for_each_entry(i2c_list,
+			&(i2c_read_settings.list_head), list) {
+			if (i2c_list->op_code == CAM_SENSOR_I2C_WRITE_RANDOM) {
+				rc = camera_io_dev_write(&(o_ctrl->io_master_info), &(i2c_list->i2c_settings));
+				if (rc < 0) {
+					CAM_ERR(CAM_OIS, "Failed in Applying i2c wrt settings");
+					delete_request(&i2c_read_settings);
+					return rc;
+				}
+			} else if (i2c_list->op_code == CAM_SENSOR_I2C_READ_SEQ) {
+				read_buff     = i2c_list->i2c_settings.read_buff;
+				buff_length   = i2c_list->i2c_settings.read_buff_len;
+				read_length   = i2c_list->i2c_settings.size;
+
+				CAM_DBG(CAM_OIS, "buff_length = %d, read_length = %d", buff_length, read_length);
+
+				if (buff_length < read_length) {
+					CAM_ERR(CAM_SENSOR, "Invalid buffer size, readLen: %d, bufLen: %d", read_length, buff_length);
+					delete_request(&i2c_read_settings);
+					return -EINVAL;
+				}
+
+				rc = cam_mem_get_cpu_buf(timestamp_io_cfg->mem_handle[0],
+						&buf_addr, &buf_size);
+				timestampBuf    = (uint8_t *)buf_addr + timestamp_io_cfg->offsets[0];
+				timestampBufLen = buf_size - timestamp_io_cfg->offsets[0];
+
+				if(timestampBufLen < sizeof(uint64_t)) {
+					CAM_ERR(CAM_OIS, "Buffer not large enough for timestamp");
+					delete_request(&i2c_read_settings);
+					return -EINVAL;
+				}
+
+				rc = cam_ois_write_q_timer(o_ctrl);
+				udelay(300);
+
+				if (rc < 0) {
+					CAM_ERR(CAM_OIS,"Write Q-timer failed rc: %d", rc);
+					delete_request(&i2c_read_settings);
+					return -EINVAL;
+				}
+
+				// SM7325 support burst read
+				rc = camera_io_dev_read_seq(
+					&o_ctrl->io_master_info,
+					i2c_list->i2c_settings.reg_setting[0].reg_addr,
+					read_buff,
+					i2c_list->i2c_settings.addr_type,
+					i2c_list->i2c_settings.data_type,
+					i2c_list->i2c_settings.size);
+				if (rc < 0) {
+					CAM_ERR(CAM_OIS, "Failed: seq read I2C settings: %d", rc);
+					delete_request(&i2c_read_settings);
+					return -EINVAL;
+				}
+
+				flag           = (read_buff[0] >> 4) & 0xF;
+				sample_cnt     = ((read_buff[0] & 0xF) << 8) | read_buff[1];
+				latest_data_ts = (read_buff[2] << 8) | read_buff[3];
+
+				CAM_DBG(CAM_OIS, "flag = %d, sample_cnt = %d, latest_data_ts = %d",
+						flag, sample_cnt, latest_data_ts);
+
+				if (flag != 0x2 && flag != 0x3) {
+					CAM_ERR(CAM_OIS, "flag %d is not in correct status", flag);
+					delete_request(&i2c_read_settings);
+					return -EINVAL;
+				}
+
+				if (sample_cnt == 0 || sample_cnt > QTIMER_MAX_SAMPLE) {
+					CAM_ERR(CAM_OIS, "sample_cnt %d is out of range", sample_cnt);
+					delete_request(&i2c_read_settings);
+					return -EINVAL;
+				}
+
+				if (latest_data_ts == 0 ||
+					latest_data_ts > o_ctrl->q_timer_cnt ||
+					((QTIMER_SAMPLE_TIME*10+3) + latest_data_ts) <= o_ctrl->q_timer_cnt) {
+						CAM_ERR(CAM_OIS, "latest_data_ts %d is out of range, q_timer_cnt %d",
+								latest_data_ts, o_ctrl->q_timer_cnt);
+						delete_request(&i2c_read_settings);
+						return -EINVAL;
+				}
+
+				delta_timestamp_ns = (o_ctrl->q_timer_cnt - latest_data_ts)*100000;
+				o_ctrl->q_timer_timestamp -= delta_timestamp_ns; // latest ois data timestamp
+
+				if (o_ctrl->q_timer_timestamp == 0) {
+					CAM_ERR(CAM_OIS, "q_timer_timestamp is zero.");
+					delete_request(&i2c_read_settings);
+					return -EINVAL;
+				}
+
+				CAM_DBG(CAM_OIS,"latest ois data timestamp %lld", o_ctrl->q_timer_timestamp);
+
+				memcpy((void *)timestampBuf, (void *)&o_ctrl->q_timer_timestamp, sizeof(uint64_t));
+			}
+		}
+		rc = delete_request(&i2c_read_settings);
+		if (rc < 0) {
+			CAM_ERR(CAM_OIS, "Failed in deleting the read settings");
 			return rc;
 		}
 		break;
