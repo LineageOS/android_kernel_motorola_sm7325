@@ -31,6 +31,10 @@
 #define MAX_SAMPLE 30
 #define READ_BYTE 0xC
 
+#define QTIMER_ADDR 0x70DB
+#define QTIMER_SAMPLE_TIME 2
+#define QTIMER_MAX_SAMPLE 20
+
 enum cam_ois_state {
 	CAM_OIS_INIT,
 	CAM_OIS_ACQUIRE,
@@ -158,6 +162,8 @@ struct cam_ois_ctrl_t {
 	bool is_first_vsync;
 	uint8_t *ois_data;
 	int ois_data_size;
+	uint16_t q_timer_cnt;
+	uint64_t q_timer_timestamp;
 };
 
 /**
