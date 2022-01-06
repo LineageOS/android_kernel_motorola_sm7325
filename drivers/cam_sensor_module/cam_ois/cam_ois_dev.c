@@ -296,9 +296,9 @@ static int cam_ois_i2c_driver_remove(struct i2c_client *client)
 static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 {
 	struct cam_ois_ctrl_t *o_ctrl = data;
-	int rc = 0, handled = IRQ_NONE, packet_cnt;
+	int rc = 0, handled = IRQ_NONE, packet_cnt = 0, sample_cnt = 0;
 	uint64_t qtime_ns;
-	uint8_t *read_buff, sample_cnt;
+	uint8_t *read_buff;
 	uint32_t k, read_len;
 
 	if (!mutex_trylock(&o_ctrl->vsync_mutex)) {
@@ -332,11 +332,9 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 
 	memset(o_ctrl->ois_data, 0, o_ctrl->ois_data_size);
 	read_buff = o_ctrl->ois_data;
-	packet_cnt = 0;
-	sample_cnt = 0;
 
 	do {
-		if (packet_cnt > 0)
+		if (packet_cnt > 0 && packet_cnt < MAX_PACKET)
 			read_buff += PACKET_BYTE;
 
 		// SM6375: CCI_VERSION_1_2_9 can only support read 0xE bytes data one time.
@@ -364,6 +362,13 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 				if (sample_cnt != 0) {
 					packet_cnt = (sample_cnt + 9)/10;
 					CAM_DBG(CAM_OIS,"sample data = 0x%x, packet_cnt = %d", sample_cnt, packet_cnt);
+
+					// we only need max 30 sample.
+					if (packet_cnt > MAX_PACKET || sample_cnt > MAX_SAMPLE) {
+						CAM_WARN(CAM_OIS,"Too many packet, skip this read");
+						rc = -EINVAL;
+						goto release_mutex;
+					}
 				} else {
 					CAM_WARN(CAM_OIS,"No-fatal: sample data is zero, break the loop read");
 					goto release_mutex;

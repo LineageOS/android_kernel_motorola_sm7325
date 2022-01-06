@@ -1218,7 +1218,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 
 				CAM_DBG(CAM_OIS, "buff_length = %d, read_length = %d", buff_length, read_length);
 
-				if (read_length > buff_length) {
+				if (read_length > buff_length || buff_length < PACKET_BYTE*MAX_PACKET) {
 					CAM_ERR(CAM_SENSOR,
 					"Invalid buffer size, readLen: %d, bufLen: %d",
 					read_length, buff_length);
