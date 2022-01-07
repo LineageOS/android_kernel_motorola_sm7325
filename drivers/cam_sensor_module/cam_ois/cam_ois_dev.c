@@ -301,6 +301,11 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 	uint8_t *read_buff;
 	uint32_t k, read_len;
 
+	if (!o_ctrl) {
+		CAM_ERR(CAM_OIS, "Invalid Args");
+		return IRQ_NONE;
+	}
+
 	if (!mutex_trylock(&o_ctrl->vsync_mutex)) {
 		CAM_ERR(CAM_OIS, "try lock fail, skip this irq");
 		return IRQ_NONE;
@@ -344,6 +349,11 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 			else
 				read_len = READ_BYTE;
 
+			if (read_len == 0) {
+				CAM_WARN(CAM_OIS, "Read length is zero, break loop read");
+				break;
+			}
+
 			rc = camera_io_dev_ois_read_seq(
 				&o_ctrl->io_master_info,
 				PACKET_ADDR + k*READ_BYTE/2,
@@ -377,7 +387,7 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 		}
 
 		if (sample_cnt > 10 && packet_cnt > 1) {
-			CAM_DBG(CAM_OIS,"more than 1 packet, clear data-ready and read next packet");
+			CAM_WARN(CAM_OIS,"more than 1 packet, clear data-ready and read next packet");
 			rc = cam_ois_clear_data_ready(o_ctrl);
 			udelay(1000);
 
@@ -388,7 +398,7 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 		}
 
 		packet_cnt--;
-	} while(packet_cnt);
+	} while(packet_cnt > 0);
 
 release_mutex:
 	if (rc < 0) {
