@@ -16,6 +16,7 @@
 #include <dt-bindings/clock/qcom,rpmh.h>
 #include "lahaina-moto-common-charger.dtsi"
 #include "lahaina-xpeng-charger-therm-overlay.dtsi"
+#include "camera/lahaina-camera-sensor-mot-tundra-overlay.dtsi"
 
 &pm8008i_8 {
 	status = "disabled";
@@ -53,9 +54,9 @@
 	};
 
 
-	cam_pmic: wl2866d@28{
-		compatible = "semi,wl2866d";
-		reg = <0x28>;
+	cam_pmic: wl2864c@29{
+		compatible = "semi,wl2864c";
+		reg = <0x29>;
 
 		vin1-supply = <&S12B>;
 		vin2-supply = <&BOB>;
@@ -81,6 +82,24 @@
 
 			cam_ldo4: ldo4 {
 				regulator-name = "ldo4";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <4300000>;
+			};
+
+			cam_ldo5: ldo5 {
+				regulator-name = "ldo5";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <4300000>;
+			};
+
+			cam_ldo6: ldo6 {
+				regulator-name = "ldo6";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <4300000>;
+			};
+
+			cam_ldo7: ldo7 {
+				regulator-name = "ldo7";
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <4300000>;
 			};
