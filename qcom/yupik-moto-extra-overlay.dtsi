@@ -44,6 +44,11 @@
 			  reg = <0x0 0xadfcf800 0x0 0x800>;
 	};
 
+	wdog_cpuctx_mem: wdog_cpuctx_regsion {
+			no-map;
+			reg =  <0x0 0xadf90000 0x0 (0x5c00 * 8)>;
+	};
+
 	mmi_relay_mem: mmi_relay_mem_region {
 			  compatible = "mmi,sys-relay";
 	};
@@ -57,6 +62,14 @@
 };
 
 &soc {
+	tzlog_dump {
+		compatible = "mmi,tzlog-dump";
+                memory-region = <&tzlog_dump_mem>;
+	};
+	wdog_cputctx {
+	        compatible = "mmi,watchdog_cpu_ctx";
+                memory-region = <&wdog_cpuctx_mem>;
+        };
 	mmi_annotate {
 		compatible = "mmi,annotate";
 		memory-region = <&mmi_annotate_mem>;
