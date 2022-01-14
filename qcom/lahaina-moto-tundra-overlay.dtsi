@@ -15,7 +15,7 @@
 #include "lahaina-tundra-touchscreen-overlay.dtsi"
 #include <dt-bindings/clock/qcom,rpmh.h>
 #include "lahaina-moto-common-charger.dtsi"
-#include "lahaina-xpeng-charger-therm-overlay.dtsi"
+#include "lahaina-tundra-charger-therm-overlay.dtsi"
 #include "camera/lahaina-camera-sensor-mot-tundra-overlay.dtsi"
 
 &pm8008i_8 {
