@@ -353,6 +353,15 @@ compatible = "mmi,mmi-charger";
 		status = "disabled";
 	};
 
+	pm7250b-bcl-lvl1 {
+		cooling-maps {
+			vbat_modem2 {
+				trip = <&b_bcl_lvl1>;
+				cooling-device = <&modem_tj 1 1>;
+			};
+		};
+	};
+
 	modem-mmw-pa1-usr {
 		status = "disabled";
 	};
