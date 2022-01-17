@@ -12,7 +12,7 @@
 
 #include "lahaina-moto-common-overlay.dtsi"
 #include "lahaina-moto-tundra-display.dtsi"
-#include "lahaina-dubai-vibrator.dtsi"
+#include "lahaina-tundra-touchscreen-overlay.dtsi"
 #include <dt-bindings/clock/qcom,rpmh.h>
 #include "lahaina-moto-common-charger.dtsi"
 #include "lahaina-xpeng-charger-therm-overlay.dtsi"
