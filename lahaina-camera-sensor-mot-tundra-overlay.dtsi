@@ -226,12 +226,12 @@
 
 	cam_dvdd_main_en_default: cam_dvdd_main_en_default {
 		mux {
-			pins = "gpio32";
+			pins = "gpio34";
 			function = "gpio";
 		};
 
 		config {
-			pins = "gpio32";
+			pins = "gpio34";
 			bias-pull-down; /* PULL DOWN */
 			drive-strength = <2>; /* 2 MA */
 		};
@@ -239,12 +239,12 @@
 
 	cam_avdd_main_en_default: cam_avdd_main_en_default {
 		mux {
-			pins = "gpio35";
+			pins = "gpio32";
 			function = "gpio";
 		};
 
 		config {
-			pins = "gpio35";
+			pins = "gpio32";
 			bias-pull-down; /* PULL DOWN */
 			drive-strength = <2>; /* 2 MA */
 		};
@@ -252,12 +252,12 @@
 
 	cam_avdd_front_en_default: cam_avdd_front_en_default {
 		mux {
-			pins = "gpio34";
+			pins = "gpio35";
 			function = "gpio";
 		};
 
 		config {
-			pins = "gpio34";
+			pins = "gpio35";
 			bias-pull-down; /* PULL DOWN */
 			drive-strength = <2>; /* 2 MA */
 		};
@@ -281,12 +281,12 @@
 	cam_dvdd_main: gpio-regulator@0 {
 		compatible = "regulator-fixed";
 		reg = <0x00 0x00>;
-		regulator-name = "cam_dvdd_front";
+		regulator-name = "cam_dvdd_main";
 		regulator-min-microvolt = <1100000>;
 		regulator-max-microvolt = <1100000>;
 		regulator-enable-ramp-delay = <233>;
 		enable-active-high;
-		gpio = <&tlmm 32 0>;
+		gpio = <&tlmm 34 0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_dvdd_main_en_default>;
 		vin-supply = <&S12B>;
@@ -300,7 +300,7 @@
 		regulator-max-microvolt = <2800000>;
 		regulator-enable-ramp-delay = <233>;
 		enable-active-high;
-		gpio = <&tlmm 35 0>;
+		gpio = <&tlmm 32 0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_avdd_main_en_default>;
 		vin-supply = <&BOB>;
@@ -314,7 +314,7 @@
 		regulator-max-microvolt = <2800000>;
 		regulator-enable-ramp-delay = <233>;
 		enable-active-high;
-		gpio = <&tlmm 34 0>;
+		gpio = <&tlmm 35 0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_avdd_front_en_default>;
 		vin-supply = <&BOB>;
@@ -634,9 +634,9 @@
 		gpio-no-mux = <0>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		pinctrl-0 = <&cam_sensor_mclk4_active
-				&cam_sensor_active_main>;
+				&cam_sensor_active_front>;
 		pinctrl-1 = <&cam_sensor_mclk4_suspend
-				&cam_sensor_suspend_main>;
+				&cam_sensor_suspend_front>;
 		gpios = <&tlmm 104 0>,
 			<&tlmm 115 0>;
 		gpio-reset = <1>;
