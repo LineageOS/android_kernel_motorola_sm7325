@@ -150,18 +150,19 @@
 };
 
 &sde_dp {
-        qcom,dp-aux-switch = <&fsa4480>;
+	mmi,aux-switch-enable-gpio = <&tlmm 42 0x00>;
+	mmi,aux-switch-flip-gpio = <&tlmm 44 0x00>;
 };
 
 &tlmm {
 	redriver_enable: redriver_enable {
 		mux {
-			pins = "gpio7";
+			pins = "gpio3";
 			function = "gpio";
 		};
 
 		config {
-			pins = "gpio7";
+			pins = "gpio3";
 			drive-strength = <2>;
 			bias-disable; /* NO PULL */
 			output-high;
@@ -169,12 +170,12 @@
 	};
 	redriver_disable: redriver_disable {
 		mux {
-			pins = "gpio7";
+			pins = "gpio3";
 				function = "gpio";
 			};
 
 		config {
-			pins = "gpio7";
+			pins = "gpio3";
 			drive-strength = <2>;
 			output-low;
 		};
