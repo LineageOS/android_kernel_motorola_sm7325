@@ -27,6 +27,7 @@
 #include <dsp/q6afe-v2.h>
 #include <dsp/q6core.h>
 #include <soc/soundwire.h>
+#include <asoc/msm-cdc-supply.h>
 #include "device_event.h"
 #include "msm-pcm-routing-v2.h"
 #include "asoc/msm-cdc-pinctrl.h"
@@ -191,6 +192,10 @@ struct msm_asoc_mach_data {
 	struct device_node *dmic01_gpio_p; /* used by pinctrl API */
 	struct device_node *dmic23_gpio_p; /* used by pinctrl API */
 	struct device_node *dmic45_gpio_p; /* used by pinctrl API */
+	struct device_node *dmic_supply; /* used by dmic power supply */
+	struct cdc_regulator *regulator;
+	int num_supplies;
+	struct regulator_bulk_data *supplies;
 	struct device_node *mi2s_gpio_p[MI2S_MAX]; /* used by pinctrl API */
 	atomic_t mi2s_gpio_ref_count[MI2S_MAX]; /* used by pinctrl API */
 	struct device_node *us_euro_gpio_p; /* used by pinctrl API */
@@ -7053,7 +7058,33 @@ static struct snd_soc_dai_link msm_mi2s_aw882xx_dai_links[] = {
 };
 #endif
 
-
+#ifdef CONFIG_PRI_MI2S_AW882XX
+static struct snd_soc_dai_link msm_pri_mi2s_stereo_aw882xx_dai_links[] = {
+        {
+                .name = LPASS_BE_PRI_MI2S_RX,
+                .stream_name = "Primary MI2S Playback",
+                .no_pcm = 1,
+                .dpcm_playback = 1,
+                .id = MSM_BACKEND_DAI_PRI_MI2S_RX,
+                .be_hw_params_fixup = msm_be_hw_params_fixup,
+                .ops = &msm_mi2s_be_ops,
+                .ignore_suspend = 1,
+                .ignore_pmdown_time = 1,
+                SND_SOC_DAILINK_REG(pri_mi2s_rx_stereo_aw882xx),
+        },
+        {
+                .name = LPASS_BE_PRI_MI2S_TX,
+                .stream_name = "Primary MI2S Capture",
+                .no_pcm = 1,
+                .dpcm_capture = 1,
+                .id = MSM_BACKEND_DAI_PRI_MI2S_TX,
+                .be_hw_params_fixup = msm_be_hw_params_fixup,
+                .ops = &msm_mi2s_be_ops,
+                .ignore_suspend = 1,
+                SND_SOC_DAILINK_REG(pri_mi2s_tx_stereo_aw882xx),
+        },
+};
+#else
 static struct snd_soc_dai_link msm_mi2s_stereo_aw882xx_dai_links[] = {
         {
                 .name = LPASS_BE_SENARY_MI2S_RX,
@@ -7079,6 +7110,7 @@ static struct snd_soc_dai_link msm_mi2s_stereo_aw882xx_dai_links[] = {
                 SND_SOC_DAILINK_REG(sen_mi2s_tx_stereo_aw882xx),
         },
 };
+#endif
 
 static struct snd_soc_dai_link msm_mi2s_cs35l41_dai_links[] = {
 	{
@@ -8077,12 +8109,19 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 					ARRAY_SIZE(msm_mi2s_aw882xx_dai_links);
 #endif
 			} else if  (awinic_aw882xx_max_devs == 2) {
-
+#ifdef CONFIG_PRI_MI2S_AW882XX
+				memcpy(msm_lahaina_dai_links + total_links,
+                                        msm_pri_mi2s_stereo_aw882xx_dai_links,
+                                        sizeof(msm_pri_mi2s_stereo_aw882xx_dai_links));
+                                total_links +=
+                                        ARRAY_SIZE(msm_pri_mi2s_stereo_aw882xx_dai_links);
+#else
 				memcpy(msm_lahaina_dai_links + total_links,
                                         msm_mi2s_stereo_aw882xx_dai_links,
                                         sizeof(msm_mi2s_stereo_aw882xx_dai_links));
                                 total_links +=
                                         ARRAY_SIZE(msm_mi2s_stereo_aw882xx_dai_links);
+#endif
 			} else if (cirrus_franklin_max_devs) {
 				memcpy(msm_lahaina_dai_links + total_links,
 					msm_mi2s_be_dai_links,
@@ -8653,6 +8692,37 @@ static void parse_cps_configuration(struct platform_device *pdev,
 	}
 }
 
+static int dmic_enable_supplies(struct platform_device *pdev)
+{
+	int ret = 0;
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
+
+	/* Parse power supplies */
+	msm_cdc_get_power_supplies(&pdev->dev, &pdata->regulator,
+		&pdata->num_supplies);
+	if (!pdata->regulator || (pdata->num_supplies <= 0)) {
+		pr_err("%s: no power supplies defined\n", __func__);
+		return -EINVAL;
+	}
+
+	ret = msm_cdc_init_supplies(&pdev->dev, &pdata->supplies,
+		pdata->regulator, pdata->num_supplies);
+	if (!pdata->supplies) {
+		pr_err("%s: Cannot init dmic supplies\n", __func__);
+		return ret;
+	}
+
+	ret = msm_cdc_enable_static_supplies(&pdev->dev, pdata->supplies,
+		pdata->regulator,
+		pdata->num_supplies);
+
+	if (ret)
+		pr_err("%s: dmic static supply enable failed!\n", __func__);
+
+	return ret;
+}
+
 static int msm_asoc_machine_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = NULL;
@@ -8811,6 +8881,19 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 			"fsa4480-i2c-handle", pdev->dev.of_node->full_name);
 
 	msm_i2s_auxpcm_init(pdev);
+
+	pdata->dmic_supply = of_parse_phandle(pdev->dev.of_node,
+		"cdc-vdd-dmic1-supply",
+		0);
+
+	if(pdata->dmic_supply) {
+		ret = dmic_enable_supplies(pdev);
+		if (ret) {
+			ret = -EPROBE_DEFER;
+			dev_err(&pdev->dev, "%s: dmic supplies failed\n", __func__);
+		}
+	}
+
 	pdata->dmic01_gpio_p = of_parse_phandle(pdev->dev.of_node,
 					      "qcom,cdc-dmic01-gpios",
 					       0);
