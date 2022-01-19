@@ -178,6 +178,8 @@ struct cam_cmd_probe {
 	__u8   sub_device_addr_type;
 	__u32  sub_device_id_addr;
 	__u32  expected_sub_device_id;
+	__u8   sub_device_cci_master;
+	__u8   sub_device_i2c_freq_mode;
 } __attribute__((packed));
 
 /**
