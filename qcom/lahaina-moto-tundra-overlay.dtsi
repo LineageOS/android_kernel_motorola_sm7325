@@ -17,6 +17,7 @@
 #include "lahaina-moto-common-charger.dtsi"
 #include "lahaina-tundra-charger-therm-overlay.dtsi"
 #include "lahaina-tundra-sensor-overlay.dtsi"
+#include "lahaina-tundra-audio-overlay.dtsi"
 #include "camera/lahaina-camera-sensor-mot-tundra-overlay.dtsi"
 
 &pm8008i_8 {
