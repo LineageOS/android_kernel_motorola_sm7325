@@ -19,6 +19,7 @@
 #include "lahaina-tundra-sensor-overlay.dtsi"
 #include "lahaina-tundra-audio-overlay.dtsi"
 #include "camera/lahaina-camera-sensor-mot-tundra-overlay.dtsi"
+#include "lahaina-moto-tundra-fps-overlay.dtsi"
 
 &pm8008i_8 {
 	status = "disabled";
@@ -318,4 +319,8 @@
 
 &kryo_erp {
 	qcom,disable-panic-on-ce;
+};
+
+&sdhc_2 {
+	status = "disabled";
 };
