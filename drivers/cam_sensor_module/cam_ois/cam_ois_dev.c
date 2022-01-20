@@ -300,6 +300,7 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 	uint64_t qtime_ns;
 	uint8_t *read_buff;
 	uint32_t k, read_len;
+	uint32_t mode_val = 0xFFFF, enable_val = 0xFFFF;
 
 	if (!o_ctrl) {
 		CAM_ERR(CAM_OIS, "Invalid Args");
@@ -316,9 +317,38 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 		goto release_mutex;
 	}
 
+	rc = camera_io_dev_read(
+		&o_ctrl->io_master_info,
+		MODE_ADDR,
+		&mode_val,
+		CAMERA_SENSOR_I2C_TYPE_WORD,
+		CAMERA_SENSOR_I2C_TYPE_WORD);
+	if (rc < 0) {
+		CAM_ERR(CAM_OIS, "failed to read OIS 0x7014 reg rc: %d", rc);
+		goto release_mutex;
+	}
+
+	rc = camera_io_dev_read(
+		&o_ctrl->io_master_info,
+		ENABLE_ADDR,
+		&enable_val,
+		CAMERA_SENSOR_I2C_TYPE_WORD,
+		CAMERA_SENSOR_I2C_TYPE_WORD);
+	if (rc < 0) {
+		CAM_ERR(CAM_OIS, "failed to read OIS 0x7015 reg rc: %d", rc);
+		goto release_mutex;
+	}
+
+	CAM_DBG(CAM_OIS, "mode_val = 0x%02x, enable_val = 0x%02x", mode_val, enable_val);
+
+	if (mode_val != 0 || enable_val != 0) {
+		CAM_DBG(CAM_OIS, "ois is not in move mode, skip this irq");
+		goto release_mutex;
+	}
+
 	rc = cam_sensor_util_get_current_qtimer_ns(&qtime_ns);
 	if (rc < 0) {
-		CAM_ERR(CAM_OIS, "failed to get qtimer rc:%d");
+		CAM_ERR(CAM_OIS, "failed to get qtimer rc:%d", rc);
 		goto release_mutex;
 	}
 
