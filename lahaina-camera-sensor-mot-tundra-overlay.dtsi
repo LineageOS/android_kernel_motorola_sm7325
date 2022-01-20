@@ -589,13 +589,13 @@
 		cell-index = <1>;
 		reg = <0x1>;
 		compatible = "qcom,actuator";
-		cam_vaf-supply = <&cam_ldo3>;
+		cam_vaf-supply = <&cam_ldo6>;
 		regulator-names = "cam_vaf";
 		rgltr-cntrl-support;
 		rgltr-min-voltage = <2800000>;
 		rgltr-max-voltage = <2800000>;
 		rgltr-load-current = <105000>;
-		cci-master = <0>;
+		cci-master = <1>;
 		status = "ok";
 	};
 
@@ -621,7 +621,7 @@
 		sensor-position-pitch = <0>;
 		sensor-position-yaw = <0>;
 		//eeprom-src = <&eeprom_front>;
-		//actuator-src = <&actuator_front>;
+		actuator-src = <&actuator_front>;
 		cam_vio-supply = <&cam_ldo7>;
 		cam_vana-supply = <&cam_avdd_front>;
 		cam_vdig-supply = <&cam_ldo1>;
