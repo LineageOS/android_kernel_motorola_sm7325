@@ -337,18 +337,18 @@
 	led_flash_rear_main: qcom,camera-flash@0 {
 		cell-index = <0>;
 		compatible = "qcom,camera-flash";
-		flash-source = <&pm8350c_flash0 &pm8350c_flash1>;
-		torch-source = <&pm8350c_torch0 &pm8350c_torch1>;
-		switch-source = <&pm8350c_switch2>;
+		flash-source = <&pm8350c_flash2>;
+		torch-source = <&pm8350c_torch2>;
+		switch-source = <&pm8350c_switch1>;
 		status = "ok";
 	};
 
 	led_flash_rear_wide: qcom,camera-flash@1 {
 		cell-index = <1>;
 		compatible = "qcom,camera-flash";
-		flash-source = <&pm8350c_flash0 &pm8350c_flash1>;
-		torch-source = <&pm8350c_torch0 &pm8350c_torch1>;
-		switch-source = <&pm8350c_switch2>;
+		flash-source = <&pm8350c_flash2>;
+		torch-source = <&pm8350c_torch2>;
+		switch-source = <&pm8350c_switch1>;
 		status = "ok";
 	};
 
@@ -481,7 +481,7 @@
 		sensor-position-yaw = <180>;
 		//eeprom-src = <&eeprom_wide>;
 		actuator-src = <&actuator_wide>;
-		//led-flash-src = <&led_flash_rear_wide>;
+		led-flash-src = <&led_flash_rear_wide>;
 		cam_vio-supply = <&cam_ldo7>;
 		cam_vana-supply = <&cam_avdd_wide>;
 		cam_vdig-supply = <&cam_ldo2>;
@@ -552,7 +552,7 @@
 		sensor-position-yaw = <180>;
 		actuator-src = <&actuator_main>;
 		eeprom-src = <&eeprom_main>;
-		//led-flash-src = <&led_flash_rear_main>;
+		led-flash-src = <&led_flash_rear_main>;
 		cam_vio-supply = <&cam_ldo7>;
 		cam_vana-supply = <&cam_avdd_main>;
 		cam_vdig-supply = <&cam_dvdd_main>;
