@@ -25,6 +25,8 @@
 #define DEFINE_MSM_MUTEX(mutexname) \
 	static struct mutex mutexname = __MUTEX_INITIALIZER(mutexname)
 
+#define MODE_ADDR 0x7014
+#define ENABLE_ADDR 0x7015
 #define PACKET_ADDR 0x70B0
 #define PACKET_BYTE 62
 #define MAX_PACKET 5
