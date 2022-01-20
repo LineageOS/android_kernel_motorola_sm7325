@@ -59,6 +59,7 @@
 		interrupts = <141 0x02>;
 		interrupt-names = "sx937x_irq";
 		Semtech,nirq-gpio= <&tlmm 141 0x02>;
+                reinit-on-i2c-failure;
 		/*use PH4/5/6 as the reference sensor
 		set it to 0xff if the ref-phases-x is not used*/
 		Semtech,ref-phases-a = <4>;
