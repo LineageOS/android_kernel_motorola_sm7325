@@ -297,7 +297,8 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 {
 	struct cam_ois_ctrl_t *o_ctrl = data;
 	int rc = 0, handled = IRQ_NONE, packet_cnt = 0, sample_cnt = 0;
-	uint64_t qtime_ns;
+	uint64_t mono_time_ns;
+	struct timespec64 ts;
 	uint8_t *read_buff;
 	uint32_t k, read_len;
 	uint32_t mode_val = 0xFFFF, enable_val = 0xFFFF;
@@ -346,16 +347,13 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 		goto release_mutex;
 	}
 
-	rc = cam_sensor_util_get_current_qtimer_ns(&qtime_ns);
-	if (rc < 0) {
-		CAM_ERR(CAM_OIS, "failed to get qtimer rc:%d", rc);
-		goto release_mutex;
-	}
+	ktime_get_boottime_ts64(&ts);
+	mono_time_ns = (uint64_t)((ts.tv_sec * 1000000000) + ts.tv_nsec);
 
-	CAM_DBG(CAM_OIS, "vsync sof timestamp is %lld", qtime_ns);
+	CAM_DBG(CAM_OIS, "vsync sof mono timestamp is %lld", mono_time_ns);
 
 	o_ctrl->prev_timestamp = o_ctrl->curr_timestamp;
-	o_ctrl->curr_timestamp = qtime_ns;
+	o_ctrl->curr_timestamp = mono_time_ns;
 
 	// when the first vsync arrived, clear data-ready, and return.
 	if (o_ctrl->is_first_vsync) {
