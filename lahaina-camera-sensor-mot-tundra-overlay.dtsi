@@ -413,7 +413,7 @@
 		sensor-position-roll = <90>;
 		sensor-position-pitch = <0>;
 		sensor-position-yaw = <180>;
-		//eeprom-src = <&eeprom_depth>;
+		eeprom-src = <&eeprom_depth>;
 		cam_vio-supply = <&cam_ldo7>;
 		cam_vana-supply = <&cam_avdd_wide>;
 		cam_clk-supply = <&cam_cc_titan_top_gdsc>;
