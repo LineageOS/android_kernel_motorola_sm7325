@@ -165,7 +165,7 @@ struct cam_ois_ctrl_t {
 	uint8_t *ois_data;
 	int ois_data_size;
 	uint16_t q_timer_cnt;
-	uint64_t q_timer_timestamp;
+	uint64_t mono_timestamp;
 };
 
 /**
