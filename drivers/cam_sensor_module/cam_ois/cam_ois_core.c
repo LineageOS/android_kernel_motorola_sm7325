@@ -115,8 +115,8 @@ static int cam_ois_power_up(struct cam_ois_ctrl_t *o_ctrl)
 	o_ctrl->prev_timestamp = 0;
 	o_ctrl->curr_timestamp = 0;
 	o_ctrl->is_first_vsync = 1;
-	o_ctrl->q_timer_cnt       = QTIMER_SAMPLE_TIME*10*2;
-	o_ctrl->q_timer_timestamp = 0;
+	o_ctrl->q_timer_cnt    = QTIMER_SAMPLE_TIME*10*2;
+	o_ctrl->mono_timestamp = 0;
 
 	soc_private =
 		(struct cam_ois_soc_private *)o_ctrl->soc_info.soc_private;
@@ -582,7 +582,8 @@ static int cam_ois_write_q_timer(struct cam_ois_ctrl_t *o_ctrl)
 	struct cam_sensor_i2c_reg_array i2c_write_settings = {QTIMER_ADDR,0x0000,0,0};
 	int32_t rc        = 0;
 	uint32_t data     = 0;
-	uint64_t qtime_ns = 0;
+	uint64_t mono_time_ns = 0;
+	struct timespec64 ts;
 
 	if (!o_ctrl) {
 		CAM_ERR(CAM_OIS, "Invalid Args");
@@ -601,14 +602,12 @@ static int cam_ois_write_q_timer(struct cam_ois_ctrl_t *o_ctrl)
 	if (rc < 0) {
 		CAM_ERR(CAM_OIS, "Failed in Applying Q-timer settings");
 	} else {
-		rc = cam_sensor_util_get_current_qtimer_ns(&qtime_ns);
-		if (rc < 0)
-			CAM_ERR(CAM_OIS, "failed to get qtimer rc:%d");
-		else
-			o_ctrl->q_timer_timestamp = qtime_ns;
+		ktime_get_boottime_ts64(&ts);
+		mono_time_ns = (uint64_t)((ts.tv_sec * 1000000000) + ts.tv_nsec);
+		o_ctrl->mono_timestamp = mono_time_ns;
 	}
 
-	CAM_DBG(CAM_OIS,"Write Q-timer %d, timestamp %lld", data, qtime_ns);
+	CAM_DBG(CAM_OIS,"Write Q-timer %d, mono timestamp %lld", data, mono_time_ns);
 	return rc;
 }
 
@@ -1473,17 +1472,17 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				}
 
 				delta_timestamp_ns = (o_ctrl->q_timer_cnt - latest_data_ts)*100000;
-				o_ctrl->q_timer_timestamp -= delta_timestamp_ns; // latest ois data timestamp
+				o_ctrl->mono_timestamp -= delta_timestamp_ns; // latest ois data timestamp
 
-				if (o_ctrl->q_timer_timestamp == 0) {
-					CAM_ERR(CAM_OIS, "q_timer_timestamp is zero.");
+				if (o_ctrl->mono_timestamp == 0) {
+					CAM_ERR(CAM_OIS, "mono_timestamp is zero.");
 					delete_request(&i2c_read_settings);
 					return -EINVAL;
 				}
 
-				CAM_DBG(CAM_OIS,"latest ois data timestamp %lld", o_ctrl->q_timer_timestamp);
+				CAM_DBG(CAM_OIS,"latest ois data mono timestamp %lld", o_ctrl->mono_timestamp);
 
-				memcpy((void *)timestampBuf, (void *)&o_ctrl->q_timer_timestamp, sizeof(uint64_t));
+				memcpy((void *)timestampBuf, (void *)&o_ctrl->mono_timestamp, sizeof(uint64_t));
 			}
 		}
 		rc = delete_request(&i2c_read_settings);
