@@ -85,7 +85,7 @@
                 status = "okay";
                 compatible = "awinic,aw882xx_smartpa";
                 reg = <0x35>;
-                /*irq-gpio = <&tlmm 99 0x2008>;*/
+                irq-gpio = <&tlmm 99 0x2008>;
                 dc-flag = <0>;
                 sync-flag = <0>;
                 sound-channel = <1>;
@@ -130,6 +130,10 @@
 
 &swr_dmic_04 {
         status = "enabled";
+};
+
+&pcie1 {
+        status = "disabled";
 };
 
 /* Modify headset's BIAS voltage to 2.8V */
