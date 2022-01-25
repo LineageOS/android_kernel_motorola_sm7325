@@ -316,6 +316,7 @@ void dw9781_post_firmware_download(struct camera_io_master * io_master_info, con
 		CAM_ERR(CAM_OIS, "[dw9781c] change dw9781c state to shutdown mode");
 	} else {
 		CAM_DBG(CAM_OIS, "[dw9781c] Firmware download succes...");
+		dw9781_ois_reset(io_master_info);
 	}
 
 	return;
