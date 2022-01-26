@@ -346,3 +346,19 @@
 &sdhc_2 {
 	status = "disabled";
 };
+&reserved_memory{
+	wdog_cpuctx_mem: wdog_cpuctx_region{
+		no-map;
+		reg = <0x0 0xadf90000 0x0 (0x5c00*8)>;
+	};
+};
+&soc {
+	tzlog_dump {
+		compatible = "mmi,tzlog-dump";
+		memory-region = <&tzlog_dump_mem>;
+	};
+	wdog_cpuctx{
+		compatible = "mmi,watchdog_cpu_ctx";
+		memory-region = <&wdog_cpuctx_mem>;
+	};
+};
