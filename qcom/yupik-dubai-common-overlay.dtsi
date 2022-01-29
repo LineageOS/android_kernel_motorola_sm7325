@@ -91,6 +91,15 @@
     };
 };
 
+/*
+ * Each QUP device that's a parent to PMIC must be listed as a critical device
+ * to GCC
+ */
+&gcc {
+    qcom,critical-devices = <&qupv3_se1_i2c>,
+                            <&qupv3_se4_i2c>;
+};
+
 &qupv3_se4_i2c {
     status = "ok";
     cam_pmic: wl2864c@29 {
