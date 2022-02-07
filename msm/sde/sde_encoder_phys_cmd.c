@@ -98,10 +98,6 @@ static void _sde_encoder_phys_cmd_config_autorefresh(
 	SDE_EVT32(DRMID(phys_enc->parent), hw_pp->idx, hw_intf->idx,
 			cfg_cur->enable, cfg_nxt.enable, cfg_nxt.frame_count);
 
-	/* only proceed on state changes */
-	if (cfg_nxt.enable == cfg_cur->enable)
-		return;
-
 	memcpy(cfg_cur, &cfg_nxt, sizeof(*cfg_cur));
 
 	if (phys_enc->has_intf_te && hw_intf->ops.setup_autorefresh)
