@@ -28,7 +28,7 @@ static int cam_ois_clear_data_ready(struct cam_ois_ctrl_t *o_ctrl)
 		CAM_ERR(CAM_OIS, "Failed in Applying i2c wrt settings");
 	}
 
-	CAM_DBG(CAM_OIS,"Clear data-ready success");
+	CAM_INFO(CAM_OIS,"Clear data-ready success");
 	return rc;
 }
 
@@ -56,7 +56,7 @@ static int cam_ois_subdev_close(struct v4l2_subdev *sd,
 	bool crm_active = cam_req_mgr_is_open(CAM_OIS);
 
 	if (crm_active) {
-		CAM_DBG(CAM_OIS, "CRM is ACTIVE, close should be from CRM");
+		CAM_INFO(CAM_OIS, "CRM is ACTIVE, close should be from CRM");
 		return 0;
 	}
 
@@ -340,17 +340,17 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 		goto release_mutex;
 	}
 
-	CAM_DBG(CAM_OIS, "mode_val = 0x%02x, enable_val = 0x%02x", mode_val, enable_val);
+	CAM_INFO(CAM_OIS, "mode_val = 0x%02x, enable_val = 0x%02x", mode_val, enable_val);
 
 	if (mode_val != 0 || enable_val != 0) {
-		CAM_DBG(CAM_OIS, "ois is not in move mode, skip this irq");
+		CAM_INFO(CAM_OIS, "ois is not in move mode, skip this irq");
 		goto release_mutex;
 	}
 
 	ktime_get_boottime_ts64(&ts);
 	mono_time_ns = (uint64_t)((ts.tv_sec * 1000000000) + ts.tv_nsec);
 
-	CAM_DBG(CAM_OIS, "vsync sof mono timestamp is %lld", mono_time_ns);
+	CAM_INFO(CAM_OIS, "vsync sof mono timestamp is %lld", mono_time_ns);
 
 	o_ctrl->prev_timestamp = o_ctrl->curr_timestamp;
 	o_ctrl->curr_timestamp = mono_time_ns;
@@ -399,7 +399,7 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 				sample_cnt = read_buff[1];
 				if (sample_cnt != 0) {
 					packet_cnt = (sample_cnt + 9)/10;
-					CAM_DBG(CAM_OIS,"sample data = 0x%x, packet_cnt = %d", sample_cnt, packet_cnt);
+					CAM_INFO(CAM_OIS,"sample data = 0x%x, packet_cnt = %d", sample_cnt, packet_cnt);
 
 					// we only need max 30 sample.
 					if (packet_cnt > MAX_PACKET || sample_cnt > MAX_SAMPLE) {
@@ -515,7 +515,7 @@ static int cam_ois_component_bind(struct device *dev,
 		o_ctrl->vsync_irq = platform_get_irq_optional(pdev, 0);
 
 		if (o_ctrl->vsync_irq > 0) {
-			CAM_DBG(CAM_OIS, "get ois-vsync irq: %d", o_ctrl->vsync_irq);
+			CAM_INFO(CAM_OIS, "get ois-vsync irq: %d", o_ctrl->vsync_irq);
 
 			rc = devm_request_threaded_irq(dev,
 							o_ctrl->vsync_irq,
@@ -527,12 +527,12 @@ static int cam_ois_component_bind(struct device *dev,
 			if (rc != 0)
 				CAM_ERR(CAM_OIS, "failed: to request ois-vsync IRQ %d, rc %d", o_ctrl->vsync_irq, rc);
 			else
-				CAM_DBG(CAM_OIS, "request ois-vsync IRQ success");
+				CAM_INFO(CAM_OIS, "request ois-vsync IRQ success");
 		} else
 			CAM_ERR(CAM_OIS, "failed: to get ois-vsync IRQ");
 	}
 
-	CAM_DBG(CAM_OIS, "Component bound successfully");
+	CAM_INFO(CAM_OIS, "Component bound successfully");
 	return rc;
 unreg_subdev:
 	cam_unregister_subdev(&(o_ctrl->v4l2_dev_str));
@@ -595,7 +595,7 @@ static int32_t cam_ois_platform_driver_probe(
 {
 	int rc = 0;
 
-	CAM_DBG(CAM_OIS, "Adding OIS Sensor component");
+	CAM_INFO(CAM_OIS, "Adding OIS Sensor component");
 	rc = component_add(&pdev->dev, &cam_ois_component_ops);
 	if (rc)
 		CAM_ERR(CAM_OIS, "failed to add component rc: %d", rc);

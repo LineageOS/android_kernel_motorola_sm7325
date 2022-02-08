@@ -92,7 +92,7 @@ static int cam_ois_get_dev_handle(struct cam_ois_ctrl_t *o_ctrl,
 	o_ctrl->bridge_intf.device_hdl = ois_acq_dev.device_handle;
 	o_ctrl->bridge_intf.session_hdl = ois_acq_dev.session_handle;
 
-	CAM_DBG(CAM_OIS, "Device Handle: %d", ois_acq_dev.device_handle);
+	CAM_INFO(CAM_OIS, "Device Handle: %d", ois_acq_dev.device_handle);
 	if (copy_to_user(u64_to_user_ptr(cmd->handle), &ois_acq_dev,
 		sizeof(struct cam_sensor_acquire_dev))) {
 		CAM_ERR(CAM_OIS, "ACQUIRE_DEV: copy to user failed");
@@ -245,7 +245,7 @@ static int cam_ois_update_time(struct i2c_settings_array *i2c_set)
 				return -EINVAL;
 			}
 			for (i = 0; i < size; i++) {
-				CAM_DBG(CAM_OIS, "time: reg_data[%d]: 0x%x",
+				CAM_INFO(CAM_OIS, "time: reg_data[%d]: 0x%x",
 					i, (qtime_ns & 0xFF));
 				i2c_list->i2c_settings.reg_setting[i].reg_data =
 					(qtime_ns & 0xFF);
@@ -357,11 +357,11 @@ static int cam_ois_slaveInfo_pkt_parser(struct cam_ois_ctrl_t *o_ctrl,
 		o_ctrl->io_master_info.cci_client->id_map = 0;
 		memcpy(&(o_ctrl->opcode), &(ois_info->opcode),
 			sizeof(struct cam_ois_opcode));
-		CAM_DBG(CAM_OIS, "Slave addr: 0x%x Freq Mode: %d",
+		CAM_INFO(CAM_OIS, "Slave addr: 0x%x Freq Mode: %d",
 			ois_info->slave_addr, ois_info->i2c_freq_mode);
 	} else if (o_ctrl->io_master_info.master_type == I2C_MASTER) {
 		o_ctrl->io_master_info.client->addr = ois_info->slave_addr;
-		CAM_DBG(CAM_OIS, "Slave addr: 0x%x", ois_info->slave_addr);
+		CAM_INFO(CAM_OIS, "Slave addr: 0x%x", ois_info->slave_addr);
 	} else {
 		CAM_ERR(CAM_OIS, "Invalid Master type : %d",
 			o_ctrl->io_master_info.master_type);
@@ -427,7 +427,7 @@ static int cam_ois_fw_prog_download(struct cam_ois_ctrl_t *o_ctrl)
 		return -ENOMEM;
 	}
 
-	CAM_DBG(CAM_OIS, "fw len: %d, addr_type: %d, data_type: %d, chunck: %d, ois_fw_data_type:%d", total_bytes,
+	CAM_INFO(CAM_OIS, "fw len: %d, addr_type: %d, data_type: %d, chunck: %d, ois_fw_data_type:%d", total_bytes,
 	                 i2c_reg_setting.addr_type,
 	                 i2c_reg_setting.data_type,
 	                 txn_data_size,
@@ -453,7 +453,7 @@ static int cam_ois_fw_prog_download(struct cam_ois_ctrl_t *o_ctrl)
 			}
 			i2c_reg_setting.reg_setting[packet_idx].delay = 0;
 			i2c_reg_setting.reg_setting[packet_idx].data_mask = 0;
-			CAM_DBG(CAM_OIS, "OIS_FW Reg:[0x%04x]: 0x%04x P:0x%x",
+			CAM_INFO(CAM_OIS, "OIS_FW Reg:[0x%04x]: 0x%04x P:0x%x",
 			    i2c_reg_setting.reg_setting[packet_idx].reg_addr,
 			    i2c_reg_setting.reg_setting[packet_idx].reg_data,
 			    (ptr-(uint8_t *)fw->data));
@@ -471,7 +471,7 @@ static int cam_ois_fw_prog_download(struct cam_ois_ctrl_t *o_ctrl)
 			goto release_firmware;
 		}
 		total_idx += packet_idx*o_ctrl->ois_fw_data_type;
-		CAM_DBG(CAM_OIS, "packet_idx: %d, total_idx: %d", packet_idx, total_idx);
+		CAM_INFO(CAM_OIS, "packet_idx: %d, total_idx: %d", packet_idx, total_idx);
 	}
 
 	if (strstr(o_ctrl->ois_name, "dw9781")) {
@@ -506,7 +506,7 @@ static int cam_ois_fw_coeff_download(struct cam_ois_ctrl_t *o_ctrl)
 	}
 
 	if (strstr(o_ctrl->ois_name, "dw9781")) {
-		CAM_DBG(CAM_OIS, "not need download coeff fw!");
+		CAM_INFO(CAM_OIS, "not need download coeff fw!");
 		return 0;
 	}
 
@@ -603,7 +603,7 @@ static int cam_ois_write_q_timer(struct cam_ois_ctrl_t *o_ctrl)
 		o_ctrl->mono_timestamp = mono_time_ns;
 	}
 
-	CAM_DBG(CAM_OIS,"Write Q-timer %d, mono timestamp %lld", data, mono_time_ns);
+	CAM_INFO(CAM_OIS,"Write Q-timer %d, mono timestamp %lld", data, mono_time_ns);
 	return rc;
 }
 
@@ -717,7 +717,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				break;
 			case CAMERA_SENSOR_CMD_TYPE_PWR_UP:
 			case CAMERA_SENSOR_CMD_TYPE_PWR_DOWN:
-				CAM_DBG(CAM_OIS,
+				CAM_INFO(CAM_OIS,
 					"Received power settings buffer");
 				rc = cam_sensor_update_power_settings(
 					cmd_buf,
@@ -731,7 +731,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				break;
 			default:
 			if (o_ctrl->i2c_init_data.is_settings_valid == 0) {
-				CAM_DBG(CAM_OIS,
+				CAM_INFO(CAM_OIS,
 				"Received init settings");
 				i2c_reg_settings =
 					&(o_ctrl->i2c_init_data);
@@ -748,7 +748,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				}
 			} else if (((o_ctrl->ois_preprog_flag) != 0) &&
 				o_ctrl->i2c_preprog_data.is_settings_valid == 0) {
-				CAM_DBG(CAM_OIS, "Received PreProg Settings");
+				CAM_INFO(CAM_OIS, "Received PreProg Settings");
 				i2c_reg_settings = &(o_ctrl->i2c_preprog_data);
 				i2c_reg_settings->request_id = 0;
 				rc = cam_sensor_i2c_command_parser(
@@ -762,7 +762,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				}
 			} else if (((o_ctrl->ois_precoeff_flag) != 0) &&
 				o_ctrl->i2c_precoeff_data.is_settings_valid == 0) {
-				CAM_DBG(CAM_OIS, "Received PreCoeff Settings");
+				CAM_INFO(CAM_OIS, "Received PreCoeff Settings");
 				i2c_reg_settings = &(o_ctrl->i2c_precoeff_data);
 				i2c_reg_settings->request_id = 0;
 				rc = cam_sensor_i2c_command_parser(
@@ -777,7 +777,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 			} else if ((o_ctrl->is_ois_calib != 0) &&
 				(o_ctrl->i2c_calib_data.is_settings_valid ==
 				0)) {
-				CAM_DBG(CAM_OIS,
+				CAM_INFO(CAM_OIS,
 					"Received calib settings");
 				i2c_reg_settings = &(o_ctrl->i2c_calib_data);
 				i2c_reg_settings->is_settings_valid = 1;
@@ -793,7 +793,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				}
 			} else if (((o_ctrl->ois_postcalib_flag) != 0) &&
 				o_ctrl->i2c_postcalib_data.is_settings_valid == 0) {
-				CAM_DBG(CAM_OIS, "Received PostCalib Settings");
+				CAM_INFO(CAM_OIS, "Received PostCalib Settings");
 				i2c_reg_settings = &(o_ctrl->i2c_postcalib_data);
 				i2c_reg_settings->request_id = 0;
 				rc = cam_sensor_i2c_command_parser(
@@ -879,7 +879,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		}
 
 		if (o_ctrl->ois_postcalib_flag) {
-			CAM_DBG(CAM_OIS, "starting post calib data");
+			CAM_INFO(CAM_OIS, "starting post calib data");
 			rc = cam_ois_apply_settings(o_ctrl,
 			&o_ctrl->i2c_postcalib_data);
 			if (rc) {
@@ -965,7 +965,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				o_ctrl->cam_ois_state);
 			return rc;
 		}
-		CAM_DBG(CAM_OIS, "number of I/O configs: %d:",
+		CAM_INFO(CAM_OIS, "number of I/O configs: %d:",
 			csl_packet->num_io_configs);
 		if (csl_packet->num_io_configs == 0) {
 			CAM_ERR(CAM_OIS, "No I/O configs to process");
@@ -1087,7 +1087,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				o_ctrl->cam_ois_state);
 			return rc;
 		}
-		CAM_DBG(CAM_OIS, "number of I/O configs: %d:",
+		CAM_INFO(CAM_OIS, "number of I/O configs: %d:",
 			csl_packet->num_io_configs);
 		if (csl_packet->num_io_configs < 2) {
 			CAM_ERR(CAM_OIS, "Not enough I/O Configs");
@@ -1186,7 +1186,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				o_ctrl->cam_ois_state);
 			return rc;
 		}
-		CAM_DBG(CAM_OIS, "number of I/O configs: %d:",
+		CAM_INFO(CAM_OIS, "number of I/O configs: %d:",
 			csl_packet->num_io_configs);
 		if (csl_packet->num_io_configs < 2) {
 			CAM_ERR(CAM_OIS, "Not enough I/O Configs");
@@ -1249,7 +1249,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				buff_length   = i2c_list->i2c_settings.read_buff_len;
 				read_length   = i2c_list->i2c_settings.size;
 
-				CAM_DBG(CAM_OIS, "buff_length = %d, read_length = %d", buff_length, read_length);
+				CAM_INFO(CAM_OIS, "buff_length = %d, read_length = %d", buff_length, read_length);
 
 				if (read_length > buff_length || buff_length < PACKET_BYTE*MAX_PACKET) {
 					CAM_ERR(CAM_SENSOR,
@@ -1336,7 +1336,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				o_ctrl->cam_ois_state);
 			return rc;
 		}
-		CAM_DBG(CAM_OIS, "number of I/O configs: %d:",
+		CAM_INFO(CAM_OIS, "number of I/O configs: %d:",
 			csl_packet->num_io_configs);
 		if (csl_packet->num_io_configs < 2) {
 			CAM_ERR(CAM_OIS, "Not enough I/O Configs");
@@ -1397,7 +1397,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				buff_length   = i2c_list->i2c_settings.read_buff_len;
 				read_length   = i2c_list->i2c_settings.size;
 
-				CAM_DBG(CAM_OIS, "buff_length = %d, read_length = %d", buff_length, read_length);
+				CAM_INFO(CAM_OIS, "buff_length = %d, read_length = %d", buff_length, read_length);
 
 				if (buff_length < read_length) {
 					CAM_ERR(CAM_SENSOR, "Invalid buffer size, readLen: %d, bufLen: %d", read_length, buff_length);
@@ -1443,7 +1443,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 				sample_cnt     = ((read_buff[0] & 0xF) << 8) | read_buff[1];
 				latest_data_ts = (read_buff[2] << 8) | read_buff[3];
 
-				CAM_DBG(CAM_OIS, "flag = %d, sample_cnt = %d, latest_data_ts = %d",
+				CAM_INFO(CAM_OIS, "flag = %d, sample_cnt = %d, latest_data_ts = %d",
 						flag, sample_cnt, latest_data_ts);
 
 				if (flag != 0x2 && flag != 0x3) {
@@ -1476,7 +1476,7 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 					return -EINVAL;
 				}
 
-				CAM_DBG(CAM_OIS,"latest ois data mono timestamp %lld", o_ctrl->mono_timestamp);
+				CAM_INFO(CAM_OIS,"latest ois data mono timestamp %lld", o_ctrl->mono_timestamp);
 
 				memcpy((void *)timestampBuf, (void *)&o_ctrl->mono_timestamp, sizeof(uint64_t));
 			}
@@ -1588,7 +1588,7 @@ int cam_ois_driver_cmd(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 			rc = -EFAULT;
 			goto release_mutex;
 		}
-		CAM_DBG(CAM_OIS, "ois_cap: ID: %d", ois_cap.slot_info);
+		CAM_INFO(CAM_OIS, "ois_cap: ID: %d", ois_cap.slot_info);
 		break;
 	case CAM_ACQUIRE_DEV:
 		rc = cam_ois_get_dev_handle(o_ctrl, arg);
