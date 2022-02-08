@@ -45,7 +45,7 @@ static int cam_ois_get_dt_data(struct cam_ois_ctrl_t *o_ctrl)
 	o_ctrl->is_ois_vsync_irq_supported = false;
 	CAM_WARN(CAM_OIS, "disable ois vsync irq in factory build");
 #endif
-	CAM_DBG(CAM_OIS, "is_ois_vsync_irq_supported %d", o_ctrl->is_ois_vsync_irq_supported);
+	CAM_INFO(CAM_OIS, "is_ois_vsync_irq_supported %d", o_ctrl->is_ois_vsync_irq_supported);
 
 	rc = cam_soc_util_get_dt_properties(soc_info);
 	if (rc < 0) {
@@ -116,7 +116,7 @@ int cam_ois_driver_soc_init(struct cam_ois_ctrl_t *o_ctrl)
 		rc = of_property_read_u32(of_node, "cci-master",
 			&o_ctrl->cci_i2c_master);
 		if (rc < 0) {
-			CAM_DBG(CAM_OIS, "failed rc %d", rc);
+			CAM_INFO(CAM_OIS, "failed rc %d", rc);
 			return rc;
 		}
 
@@ -127,13 +127,13 @@ int cam_ois_driver_soc_init(struct cam_ois_ctrl_t *o_ctrl)
 			o_ctrl->cci_num = CCI_DEVICE_0;
 
 		o_ctrl->io_master_info.cci_client->cci_device = o_ctrl->cci_num;
-		CAM_DBG(CAM_OIS, "cci-device %d", o_ctrl->cci_num, rc);
+		CAM_INFO(CAM_OIS, "cci-device %d", o_ctrl->cci_num, rc);
 
 	}
 
 	rc = cam_ois_get_dt_data(o_ctrl);
 	if (rc < 0)
-		CAM_DBG(CAM_OIS, "failed: ois get dt data rc %d", rc);
+		CAM_INFO(CAM_OIS, "failed: ois get dt data rc %d", rc);
 
 	return rc;
 }
