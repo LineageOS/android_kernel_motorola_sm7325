@@ -452,6 +452,7 @@ int32_t cam_sensor_update_slave_info(struct cam_cmd_probe *probe_info,
 	s_ctrl->sub_device_id_addr        =  probe_info->sub_device_id_addr;
 	s_ctrl->expected_sub_device_id    =  probe_info->expected_sub_device_id;
 	s_ctrl->sub_device_cci_master     =  probe_info->sub_device_cci_master;
+	s_ctrl->sub_device_cci_device     =  probe_info->sub_device_cci_device;
 	s_ctrl->sub_device_i2c_freq_mode  =  probe_info->sub_device_i2c_freq_mode;
 
 	CAM_DBG(CAM_SENSOR,
@@ -721,6 +722,7 @@ int cam_sensor_match_sub_device_id(struct cam_sensor_ctrl_t *s_ctrl)
 	uint16_t sensor_address = 0;
 	uint16_t sensor_freq_mode = 0;
 	uint8_t sensor_cci_master = 0;
+	uint8_t sensor_cci_device = 0;
 
 	/* if hal doesn't config ProbeSubDevice parameter in sensor xml, return success immediately */
 	if (!s_ctrl->probe_sub_device) {
@@ -739,6 +741,7 @@ int cam_sensor_match_sub_device_id(struct cam_sensor_ctrl_t *s_ctrl)
 	if (s_ctrl->need_change_cci_master) {
 		sensor_cci_master = s_ctrl->io_master_info.cci_client->cci_i2c_master;
 		sensor_freq_mode = s_ctrl->io_master_info.cci_client->i2c_freq_mode;
+		sensor_cci_device = s_ctrl->io_master_info.cci_client->cci_device;
 
 		ret = camera_io_release(&(s_ctrl->io_master_info));
 		if (ret != 0) {
@@ -748,6 +751,10 @@ int cam_sensor_match_sub_device_id(struct cam_sensor_ctrl_t *s_ctrl)
 		s_ctrl->io_master_info.cci_client->cci_i2c_master = s_ctrl->sub_device_cci_master;
 		s_ctrl->io_master_info.cci_client->i2c_freq_mode = s_ctrl->sub_device_i2c_freq_mode;
 
+		if(s_ctrl->io_master_info.cci_client->cci_device != s_ctrl->sub_device_cci_device)
+		{
+			s_ctrl->io_master_info.cci_client->cci_device = s_ctrl->sub_device_cci_device;
+		}
 		rc = camera_io_init(&(s_ctrl->io_master_info));
 		if(rc != 0) {
 			ret = camera_io_release(&(s_ctrl->io_master_info));
@@ -783,6 +790,7 @@ int cam_sensor_match_sub_device_id(struct cam_sensor_ctrl_t *s_ctrl)
 
 		s_ctrl->io_master_info.cci_client->cci_i2c_master = sensor_cci_master;
 		s_ctrl->io_master_info.cci_client->i2c_freq_mode = sensor_freq_mode;
+		s_ctrl->io_master_info.cci_client->cci_device = sensor_cci_device;
 
 		rc = camera_io_init(&(s_ctrl->io_master_info));
 		if(rc != 0) {
