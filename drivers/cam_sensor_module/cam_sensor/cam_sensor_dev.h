@@ -118,6 +118,7 @@ struct cam_sensor_ctrl_t {
 	uint16_t  sub_device_id_addr;
 	uint16_t  expected_sub_device_id;
 	uint8_t   sub_device_cci_master;
+	uint8_t   sub_device_cci_device;
 	uint8_t   sub_device_i2c_freq_mode;
 	bool need_change_cci_master;
 };
