@@ -6,12 +6,10 @@
 #include "yupik-audio-overlay.dtsi"
 #include "yupik-pm7250b-thermal-overlay.dtsi"
 
-/*
 / {
 	qcom,pmic-id = <0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x2e>;
 	qcom,pmic-id-size = <9>;
 };
-*/
 
 &soc {
 	gpio_keys {
