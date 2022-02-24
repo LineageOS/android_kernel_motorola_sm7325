@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022. Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CAM_HW_MGR_INTF_H_
@@ -25,6 +26,12 @@
 
 /* Maximum reg dump cmd buffer entries in a context */
 #define CAM_REG_DUMP_MAX_BUF_ENTRIES        10
+
+/*
+ * This value should align with MAX requests supported by
+ * hw modules like ICP, IFE, JPEG etc.
+ */
+#define CAM_MAX_FLUSH_REQS		    40
 
 /**
  * enum cam_context_dump_id -
@@ -289,9 +296,9 @@ struct cam_hw_config_args {
 struct cam_hw_flush_args {
 	void                           *ctxt_to_hw_map;
 	uint32_t                        num_req_pending;
-	void                           *flush_req_pending[20];
+	void                           *flush_req_pending[CAM_MAX_FLUSH_REQS];
 	uint32_t                        num_req_active;
-	void                           *flush_req_active[20];
+	void                           *flush_req_active[CAM_MAX_FLUSH_REQS];
 	enum flush_type_t               flush_type;
 	uint32_t                        last_flush_req;
 };
