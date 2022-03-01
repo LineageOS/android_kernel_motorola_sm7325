@@ -126,7 +126,9 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-on-command = [
 			39 01 00 00 00 00 06 F0 55 AA 52 08 00
 			15 01 00 00 00 00 02 6F 06
-			39 01 00 00 00 00 04 B5 4B 22 4F //swire pulse
+			39 01 00 00 00 00 04 B5 2B 1C 32 //swire pulse
+			15 01 00 00 00 00 02 6F 10
+			39 01 00 00 00 00 06 B5 1C 1C 1C 1C 1C
 
 			39 00 00 00 00 00 06 F0 55 AA 52 08 00
 			15 00 00 00 00 00 02 B2 18
@@ -208,7 +210,9 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-on-command = [
 			39 01 00 00 00 00 06 F0 55 AA 52 08 00
 			15 01 00 00 00 00 02 6F 06
-			39 01 00 00 00 00 04 B5 4B 22 4F //swire pulse
+			39 01 00 00 00 00 04 B5 2B 1C 32 //swire pulse
+			15 01 00 00 00 00 02 6F 10
+			39 01 00 00 00 00 06 B5 1C 1C 1C 1C 1C
 
 			39 00 00 00 00 00 06 F0 55 AA 52 08 00
 			15 00 00 00 00 00 02 B2 18
@@ -290,7 +294,9 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-on-command = [
 			39 01 00 00 00 00 06 F0 55 AA 52 08 00
 			15 01 00 00 00 00 02 6F 06
-			39 01 00 00 00 00 04 B5 4B 22 4F //swire pulse
+			39 01 00 00 00 00 04 B5 2B 1C 32 //swire pulse
+			15 01 00 00 00 00 02 6F 10
+			39 01 00 00 00 00 06 B5 1C 1C 1C 1C 1C
 
 			39 00 00 00 00 00 06 F0 55 AA 52 08 00
 			15 00 00 00 00 00 02 B2 18
@@ -372,7 +378,9 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-on-command = [
 			39 01 00 00 00 00 06 F0 55 AA 52 08 00
 			15 01 00 00 00 00 02 6F 06
-			39 01 00 00 00 00 04 B5 4B 22 4F //swire pulse
+			39 01 00 00 00 00 04 B5 2B 1C 32 //swire pulse
+			15 01 00 00 00 00 02 6F 10
+			39 01 00 00 00 00 06 B5 1C 1C 1C 1C 1C
 
 			39 00 00 00 00 00 06 F0 55 AA 52 08 00
 			15 00 00 00 00 00 02 B2 18
@@ -454,7 +462,9 @@ qcom,mdss-dsi-display-timings {
 		qcom,mdss-dsi-on-command = [
 			39 01 00 00 00 00 06 F0 55 AA 52 08 00
 			15 01 00 00 00 00 02 6F 06
-			39 01 00 00 00 00 04 B5 4B 22 4F //swire pulse
+			39 01 00 00 00 00 04 B5 2B 1C 32 //swire pulse
+			15 01 00 00 00 00 02 6F 10
+			39 01 00 00 00 00 06 B5 1C 1C 1C 1C 1C
 
 			39 00 00 00 00 00 06 F0 55 AA 52 08 00
 			15 00 00 00 00 00 02 B2 18
