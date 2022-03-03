@@ -49,7 +49,7 @@
 };
 
 &socd_trip {
-	temperature = <95>;
+	temperature = <98>;
 };
 
 &qupv3_se9_i2c {
