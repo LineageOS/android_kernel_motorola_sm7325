@@ -251,7 +251,7 @@ qcom,mdss-dsi-display-timings {
 
 			15 01 00 00 00 00 02 2F 03 //08:49Hz 03:60Hz 07:90Hz 02:120Hz 04:144Hz
 
-			05 01 00 00 6e 00 01 11
+			05 01 00 00 78 00 01 11
 			05 01 00 00 00 00 01 29];	/* display on */
 		qcom,mdss-dsi-off-command = [
 			05 01 00 00 00 00 01 28		/* display_off */
@@ -337,7 +337,7 @@ qcom,mdss-dsi-display-timings {
 
 			15 01 00 00 00 00 02 2F 07 //08:49Hz 03:60Hz 07:90Hz 02:120Hz 04:144Hz
 
-			05 01 00 00 56 00 01 11
+			05 01 00 00 78 00 01 11
 			05 01 00 00 00 00 01 29];	/* display on */
 		qcom,mdss-dsi-off-command = [
 			05 01 00 00 00 00 01 28		/* display_off */
@@ -423,7 +423,7 @@ qcom,mdss-dsi-display-timings {
 
 			15 01 00 00 00 00 02 2F 02 //08:49Hz 03:60Hz 07:90Hz 02:120Hz 04:144Hz
 
-			05 01 00 00 56 00 01 11
+			05 01 00 00 78 00 01 11
 			05 01 00 00 00 00 01 29];	/* display on */
 		qcom,mdss-dsi-off-command = [
 			05 01 00 00 00 00 01 28		/* display_off */
@@ -509,7 +509,7 @@ qcom,mdss-dsi-display-timings {
 
 			15 01 00 00 00 00 02 2F 04 //08:49Hz 03:60Hz 07:90Hz 02:120Hz 04:144Hz
 
-			05 01 00 00 56 00 01 11
+			05 01 00 00 78 00 01 11
 			05 01 00 00 00 00 01 29];	/* display on */
 		qcom,mdss-dsi-off-command = [
 			05 01 00 00 00 00 01 28		/* display_off */
