@@ -121,6 +121,15 @@ struct cam_sensor_ctrl_t {
 	uint8_t   sub_device_cci_device;
 	uint8_t   sub_device_i2c_freq_mode;
 	bool need_change_cci_master;
+#ifdef CONFIG_CAMERA_CCI_ADDR_SWITCH
+	uint8_t i2c_addr_switch;
+	uint16_t second_i2c_address;
+	uint8_t i2c_switch_reg_addr_Type;
+	uint8_t i2c_switch_reg_data_Type;
+	uint16_t i2c_switch_reg_addr;
+	uint16_t i2c_switch_reg_data;
+	uint16_t i2c_switch_reg_delayMs;
+#endif
 };
 
 /**
