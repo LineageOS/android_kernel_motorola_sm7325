@@ -10,6 +10,9 @@
 #include "cam_debug_util.h"
 #include "camera_main.h"
 
+extern int aw_ois_init(struct cam_ois_ctrl_t *o_ctrl); /* awinic add */
+extern int aw_ois_exit(struct cam_ois_ctrl_t *o_ctrl); /* awinic add */
+
 static int cam_ois_clear_data_ready(struct cam_ois_ctrl_t *o_ctrl)
 {
 	struct cam_sensor_i2c_reg_setting  i2c_reg_setting = {NULL,1,CAMERA_SENSOR_I2C_TYPE_WORD,CAMERA_SENSOR_I2C_TYPE_WORD,0};
@@ -511,6 +514,9 @@ static int cam_ois_component_bind(struct device *dev,
 	mutex_init(&(o_ctrl->vsync_mutex));
 	init_completion(&o_ctrl->ois_data_complete);
 
+	if (o_ctrl->ic_name != NULL && strstr(o_ctrl->ic_name, "aw86006"))
+		aw_ois_init(o_ctrl);
+
 	if (o_ctrl->is_ois_vsync_irq_supported) {
 		o_ctrl->vsync_irq = platform_get_irq_optional(pdev, 0);
 
@@ -564,6 +570,9 @@ static void cam_ois_component_unbind(struct device *dev,
 	}
 
 	CAM_INFO(CAM_OIS, "platform driver remove invoked");
+	if (o_ctrl->ic_name != NULL && strstr(o_ctrl->ic_name, "aw86006"))
+		aw_ois_exit(o_ctrl);
+
 	soc_info = &o_ctrl->soc_info;
 	for (i = 0; i < soc_info->num_clk; i++)
 		devm_clk_put(soc_info->dev, soc_info->clk[i]);

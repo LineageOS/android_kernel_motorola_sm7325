@@ -166,6 +166,13 @@ struct cam_ois_ctrl_t {
 	int ois_data_size;
 	uint16_t q_timer_cnt;
 	uint64_t mono_timestamp;
+	/* awinic_add */
+	const char *ic_name;
+	struct work_struct fw_update_work;
+	uint32_t awrw_flag;
+	uint32_t reg_num;
+	uint8_t *reg_data;
+	struct mutex ois_mutex_aw;
 };
 
 /**
