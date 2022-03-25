@@ -1,0 +1,9 @@
+config BM_ADSP_ULOG
+        tristate "BM ADSP ULOG"
+        default n
+        help
+         Say Y here if you have a bm adsp ulog compatible
+         device connected.
+
+         This driver can also be built as a module.  If so, the module
+         will be called bm_adsp_ulog.

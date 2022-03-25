@@ -1230,5 +1230,7 @@ config VIRTIO_REGULATOR
 	  regulator for pass through peripheral devices via regulator backend in
 	  host.
 
+source "drivers/regulator/wl2864c/Kconfig"
+
 endif
 

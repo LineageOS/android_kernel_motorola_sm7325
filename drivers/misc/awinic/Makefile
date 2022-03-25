@@ -1,0 +1,1 @@
+obj-$(CONFIG_AW8695_HAPTIC) += aw8695/

@@ -539,4 +539,8 @@ source "drivers/misc/cxl/Kconfig"
 source "drivers/misc/ocxl/Kconfig"
 source "drivers/misc/cardreader/Kconfig"
 source "drivers/misc/habanalabs/Kconfig"
+source "drivers/misc/awinic/Kconfig"
+source "drivers/misc/mmi_sys_temp/Kconfig"
+source "drivers/misc/sx937x/Kconfig"
+source "drivers/misc/utag/Kconfig"
 endmenu

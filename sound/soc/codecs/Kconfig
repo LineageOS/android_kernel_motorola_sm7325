@@ -1492,4 +1492,24 @@ config SND_SOC_TPA6130A2
 	tristate "Texas Instruments TPA6130A2 headphone amplifier"
 	depends on I2C
 
+config SND_SOC_TAS2560
+	tristate
+
+config SND_SOC_TAS2560_ALGO
+	tristate
+	depends on SND_SOC_TAS2560
+
+config SND_SOC_TAS2560_CALIB
+	tristate
+	depends on SND_SOC_TAS2560
+
+config SND_SOC_TAS2562
+	tristate
+
+config SND_SOC_SMARTPA_AW882xx
+	tristate
+
+config SND_SOC_TFA9874
+	tristate
+
 endmenu

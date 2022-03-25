@@ -1,0 +1,4 @@
+config SENSORS_CLASS
+	tristate "Enable Sensors Class Driver Support"
+	help
+	  Add support for sensors CLASS driver.
