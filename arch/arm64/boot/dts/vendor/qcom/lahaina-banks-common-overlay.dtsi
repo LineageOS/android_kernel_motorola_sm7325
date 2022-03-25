@@ -1,0 +1,475 @@
+/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "lahaina-moto-common-overlay.dtsi"
+#include "lahaina-moto-banks-display.dtsi"
+#include "lahaina-banks-touchscreen.dtsi"
+#include "lahaina-banks-fingerprint.dtsi"
+#include "lahaina-banks-audio.dtsi"
+#include "camera/lahaina-camera-sensor-mot-banks-overlay.dtsi"
+
+/* No sd card */
+&sdhc_2 {
+	status = "disabled";
+};
+
+&qupv3_se11_i2c {
+	status = "ok";
+
+	io_exp: io_exp@34 {
+		compatible = "ti,tca6418e";
+		reg = <0x34>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpios = <&tlmm 78 GPIO_ACTIVE_LOW>; /* Reset gpio */
+	};
+
+	cam_pmic: slg51000@75{
+		compatible = "dlg,slg51000";
+		reg = <0x75>;
+
+		/* FIXME - interrupt storm
+		interrupt-parent = <&tlmm>;
+		interrupts = <32 IRQ_TYPE_LEVEL_LOW>;*/
+		dlg,cs-gpios = <&io_exp 8 0x00>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&rear_pmic_irq>;
+
+		vin3-supply = <&pm8350c_bob>;
+		vin4-supply = <&pm8350c_bob>;
+		vin5-supply = <&pm8350_s12>;
+		vin6-supply = <&pm8350_s12>;
+		vin7-supply = <&pm8350c_bob>;
+
+		regulators {
+			cam_f_vdda_ldo: ldo1 {
+				regulator-name = "ldo1";
+				regulator-min-microvolt = <2100000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			cam_r_vdda_ldo: ldo2 {
+				regulator-name = "ldo2";
+				regulator-min-microvolt = <2100000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			cam_af_vdd_ldo: ldo3 {
+				regulator-name = "ldo3";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			ois_vdd_ldo: ldo4 {
+				regulator-name = "ldo4";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			cam_f_vddd_ldo: ldo5 {
+				regulator-name = "ldo5";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			cam_r_vddd_ldo: ldo6 {
+				regulator-name = "ldo6";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			cam_f_vio_ldo: ldo7 {
+				regulator-name = "ldo7";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+		};
+	};
+};
+
+&tlmm {
+	uwb_irq: uwb_irq {
+		mux {
+			pins = "gpio51";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio51";
+			bias-pull-down;
+		};
+	};
+
+	rear_pmic_irq: rear_pmic_irq {
+		mux {
+			pins = "gpio32";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio32";
+			bias-pull-up;
+		};
+	};
+
+	flip_balance_en_n: flip-balance-en-n {
+		mux {
+			pins = "gpio77";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio77";
+			drive-strength = <6>;
+			bias-disable;
+			output-low;
+		};
+	};
+
+	flip_battplus_dis: flip-battplus-dis {
+		mux {
+			pins = "gpio76";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio76";
+			drive-strength = <6>;
+			bias-disable;
+			output-low;
+		};
+	};
+
+	flip_chrg_en: flip-chrg-en {
+		mux {
+			pins = "gpio3";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio3";
+			drive-strength = <2>; /* 2 MA */
+			bias-disable;
+			output-high;
+		};
+	};
+
+};
+
+&pm8350b_gpios {
+	chrg_fullcurr_en {
+		chrg_fullcurr_en_default: chrg_fullcurr_en_default {
+			pins = "gpio8";
+			function = "normal";
+			output-high;
+			bias-disable;
+			power-source = <0>;
+			qcom,drive-strength = <2>;
+			input-disable;
+		};
+	};
+};
+
+/* enable gpio6 as qup6 L4 to connect receiver spi cs*/
+&qupv3_se6_spi_pins {
+	qupv3_se6_spi_active: qupv3_se6_spi_active {
+		mux {
+			pins = "gpio28", "gpio29",
+					"gpio30";
+			function = "qup6";
+		};
+
+		config {
+			pins = "gpio28", "gpio29",
+					"gpio30";
+			drive-strength = <6>;
+			bias-disable;
+		};
+	};
+
+	qupv3_se6_spi_sleep: qupv3_se6_spi_sleep {
+		mux {
+			pins = "gpio28", "gpio29",
+					"gpio30";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio28", "gpio29",
+					"gpio30";
+			drive-strength = <6>;
+			bias-disable;
+		};
+	};
+
+	qupv3_se6_spi_cs0_active: qupv3_se6_spi_cs0_active {
+		mux {
+			pins = "gpio31";
+			function = "qup6";
+		};
+
+		config {
+			pins = "gpio31";
+			drive-strength = <6>;
+			bias-disable;
+		};
+	};
+
+	qupv3_se6_spi_cs0_sleep: qupv3_se6_spi_cs0_sleep {
+		mux {
+			pins = "gpio31";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio31";
+			drive-strength = <6>;
+			bias-pull-up;
+		};
+	};
+
+	qupv3_se6_spi_cs1_active: qupv3_se6_spi_cs1_active {
+		mux {
+			pins = "gpio6";
+			function = "qup_l4";
+		};
+
+		config {
+			pins = "gpio6";
+			drive-strength = <6>;
+			bias-disable;
+		};
+	};
+
+	qupv3_se6_spi_cs1_sleep: qupv3_se6_spi_cs1_sleep {
+		mux {
+			pins = "gpio6";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio6";
+			drive-strength = <6>;
+			bias-pull-up;
+		};
+	};
+};
+
+&qupv3_se15_i2c {
+	status = "ok";
+	qcom,clk-freq-out = <1000000>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	nq@28 {
+		compatible = "qcom,sn-nci";
+		mmi,status = "/chosen", "mmi,nfc", "ese_nq";
+		status = "ok";
+		reg = <0x28>;
+		qcom,sn-irq = <&tlmm 87 0x00>;
+		qcom,sn-ven = <&tlmm 62 0x00>;
+		qcom,sn-firm = <&tlmm 86 0x00>;
+		qcom,sn-clkreq = <&tlmm 63 0x00>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <87 0>;
+		interrupt-names = "nfc_irq";
+		pinctrl-names = "nfc_active", "nfc_suspend";
+		pinctrl-0 = <&nfc_int_active &nfc_enable_active
+						&nfc_clk_req_active &nfc_fwdl_active>;
+		pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend
+						&nfc_clk_req_suspend &nfc_fwdl_suspend>;
+	};
+};
+
+&qupv3_se6_spi {
+	status = "ok";
+	pinctrl-0 = <&qupv3_se6_spi_active &qupv3_se6_spi_cs0_active &qupv3_se6_spi_cs1_active>;
+	pinctrl-1 = <&qupv3_se6_spi_sleep &qupv3_se6_spi_cs0_sleep &qupv3_se6_spi_cs1_sleep>;
+
+	sr100@0 {
+		compatible = "nxp,sr100";
+		reg = <0>;
+		nxp,sr100-irq = <&tlmm 51 0x00>;
+		nxp,sr100-ce = <&io_exp 9 0x00>;
+		nxp,sr100-ri = <&io_exp 10 0x00>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <51 0>;
+		spi-max-frequency = <20000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uwb_irq>;
+	};
+};
+
+&soc {
+	mmi_charger: mmi,charger {
+		compatible = "mmi,mmi-charger";
+		mmi,enable-charging-limit;
+		mmi,enable-factory-poweroff;
+		mmi,upper-limit-capacity = <75>;
+		mmi,lower-limit-capacity = <60>;
+		mmi,heartbeat-interval = <60000>;
+		mmi,dcp-power-max = <10000>;
+		mmi,hvdcp-power-max = <20000>;
+	};
+
+	qcom,pmic_glink {
+		qti_glink_charger: mmi,qti-glink-charger {
+			compatible = "mmi,qti-glink-charger";
+			mmi,df-serialnum = "SB18C71005";
+			mmi,chrg-iterm-ma = <300>;
+			mmi,fg-iterm-ma = <350>;
+			mmi,max-fv-mv = <4400>;
+			mmi,max-fcc-ma = <1100>;
+			mmi,demo-fv-mv = <4000>;
+			mmi,mmi-temp-zones = <0 4200 243 0>,
+					<10 4200 608 243>,
+					<15 0 608 608>,
+					<45 4450 1210 1200>,
+					<60 4200 608 0>;
+		};
+	};
+
+	ext_mmi_chg {
+		compatible = "mmi,ext-mmi-chg";
+		mmi,df-serialnum = "SB18C71004";
+		mmi,chrg-iterm-ma = <100>;
+		mmi,fg-iterm-ma = <150>;
+		mmi,max-fv-mv = <4450>;
+		mmi,max-fcc-ma = <1250>;
+		mmi,demo-fv-mv = <4000>;
+		mmi,chg-psy = "bq25890-charger";
+		mmi,fg-psy = "fg_flip_battery";
+		mmi,mmi-temp-zones = <0 4200 300 0>,
+			<10 4200 750 300>,
+			<15 0 750 750>,
+			<45 4450 1250 1200>,
+			<60 4200 750 0>;
+	};
+
+	flip_fet_control {
+		compatible = "mmi,fet-control";
+		pinctrl-names = "default";
+		pinctrl-0 = <&flip_battplus_dis &flip_balance_en_n &chrg_fullcurr_en_default  &flip_chrg_en>;
+		mmi,main-batt-psy = "main_battery";
+		mmi,flip-batt-psy = "fg_flip_battery";
+		mmi,flip_battplus_en_gpio = <&tlmm 76 0>;
+		mmi,flip_balance_en_n_gpio = <&tlmm 77 0>;
+		mmi,flip-chrg-en-gpios = <&tlmm 3 0>;
+		mmi,chrg-fullcurr-en-gpio = <&pm8350b_gpios 8 GPIO_ACTIVE_HIGH>;
+	};
+
+};
+
+&tlmm{
+	bq27426_irq_flip: bq27426-irq-battery-flip {
+		mux {
+			pins = "gpio27";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio27";
+			drive-strength = <2>; /* 2 MA */
+			bias-disable;
+			input-enable;
+		};
+	};
+
+	bq25890_irq: bq25890-irq {
+		mux {
+			pins = "gpio7";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio7";
+			drive-strength = <2>; /* 2 MA */
+			bias-disable;
+			input-enable;
+		};
+	};
+};
+
+&qupv3_se0_i2c {
+	status = "ok";
+
+	bq27426_flip: bq27426-battery-flip@55 {
+		compatible = "ti,bq27426";
+		reg = <0x55>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&bq27426_irq_flip>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <27 0>;
+		mmi,fg-psy-name = "fg_flip_battery";
+		design-capacity = <1545>;
+		mmi,batt-profile-name = "LS40_ATL_1545MAH";
+	};
+
+	bq25890@6b {
+		compatible = "ti,bq25890-mmi";
+		reg = <0x6b>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&bq25890_irq>;
+
+		ti,battery-regulation-voltage = <0>;
+		ti,charge-current = <0>;
+		ti,termination-current = <100000>;
+		ti,precharge-current = <128000>;
+		ti,minimum-sys-voltage = <3600000>;
+		ti,boost-voltage = <0>;
+		ti,boost-max-current = <0>;
+
+		ti,use-ilim-pin;
+		ti,thermal-regulation-threshold = <120>;
+
+		bq25890_irq-gpios = <&tlmm 7 0>;
+	};
+};
+
+&battery_charger {
+	status = "disabled";
+};
+
+&soc {
+	qcom,pmic_glink {
+		battery_charger_mmi {
+			compatible = "qcom,battery-charger-mmi";
+		};
+	};
+};
+
+&tlmm {
+	qrng_pwdn: qrng_pwdn {
+		mux {
+			pins = "gpio10";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio10";
+			bias-pull-up;
+		};
+	};
+};
+
+&qupv3_se1_i2c {
+	status = "ok";
+
+	qrng@38 {
+		compatible = "qrng,qrng-i2c";
+		reg = <0x37>;
+		pwdn-gpio = <&tlmm 10 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&qrng_pwdn>;
+	};
+};

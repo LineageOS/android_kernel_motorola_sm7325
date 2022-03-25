@@ -1,0 +1,42 @@
+redriver: redriver@1a {
+	compatible = "onnn,redriver";
+	reg = <0x1a>;
+	vcc-supply = <&S10B>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb3phy_portselect_gpio &redriver_enable>;
+	gpios = <&tlmm 81 0>;
+
+	eq = /bits/ 8 <
+			/* Parameters for USB */
+			0x4 0x4 0x4 0x4
+			/* Parameters for DP */
+			0x6 0x4 0x4 0x6>;
+	flat-gain = /bits/ 8 <
+			/* Parameters for USB */
+			0x3 0x1 0x1 0x3
+			/* Parameters for DP */
+			0x2 0x1 0x1 0x2>;
+	output-comp = /bits/ 8 <
+			/* Parameters for USB */
+			0x3 0x3 0x3 0x3
+			/* Parameters for DP */
+			0x3 0x3 0x3 0x3>;
+	loss-match = /bits/ 8 <
+			/* Parameters for USB */
+			0x1 0x3 0x3 0x1
+			/* Parameters for DP */
+			0x3 0x3 0x3 0x3>;
+};
+
+redriver_diodes: redriver@52 {
+	compatible = "diodes,redriver";
+	reg = <0x52>;
+	vcc-supply = <&S10B>;
+	pinctrl-names = "enable_gpio", "disable_gpio";
+	pinctrl-0 = <&usb3phy_portselect_gpio &redriver_enable>;
+	pinctrl-1 = <&usb3phy_portselect_gpio &redriver_disable>;
+	gpios = <&tlmm 81 0>;
+
+	/* Parameters for channel rx2,tx2,tx1,rx1 */
+	eq-fg = /bits/ 8 <0x08 0x08 0x08 0x08>;
+};

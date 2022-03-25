@@ -1,0 +1,29 @@
+/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+&L3C {
+	regulator-boot-on;
+	regulator-always-on;
+	qcom,init-voltage = <3400000>;
+	status = "ok";
+};
+
+&soc {
+	goodix_fingerprint{
+		compatible = "goodix,fingerprint";
+		fp-gpio-reset = <&io_exp 6 0x00>;
+		fp-gpio-irq = <&tlmm 38 0x00>;
+		//fp-gpio-ven = <&tlmm 45 0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <38 0>;
+		interrupt-controller;
+	};
+};

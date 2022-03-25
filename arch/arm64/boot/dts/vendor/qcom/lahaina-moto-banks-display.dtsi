@@ -1,0 +1,427 @@
+/* Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/clock/mdss-5nm-pll-clk.h>
+#include "dsi-panel-mot-dummy-qhd-video.dtsi"
+
+&mdss_mdp {
+	/* Primary Display: CSOT LSI V1*/
+	mot_csot_lsi_620_876x2142_cmd_v1: qcom,mdss_dsi_mot_csot_lsi_620_876x2142_cmd_v1 {
+		#include "dsi-panel-mot-csot-620-876x2142-cmd-common.dtsi"
+	};
+
+	/* Primary Display: CSOT ST V0*/
+	mot_csot_st_620_876x2142_cmd_v0: qcom,mdss_dsi_mot_csot_st_620_876x2142_cmd_v0 {
+		#include "dsi-panel-mot-csot-st-620-876x2142-cmd-common.dtsi"
+	};
+
+	/* Secondary Display: BOE */
+	mot_boe_269_800x600_cmd_v0: qcom,mdss_dsi_mot_boe_269_800x600_cmd_v0 {
+		#include "dsi-panel-mot-boe-269-800x600-cmd-common.dtsi"
+	};
+
+	mot_boe_269_800x600_cmd_v1: qcom,mdss_dsi_mot_boe_269_800x600_cmd_v1 {
+		#include "dsi-panel-mot-boe-269-800x600-cmd-common.dtsi"
+	};
+
+	mot_boe_269_800x600_cmd_v2: qcom,mdss_dsi_mot_boe_269_800x600_cmd_v2 {
+		#include "dsi-panel-mot-boe-269-800x600-cmd-common.dtsi"
+	};
+};
+
+&tlmm {
+	vio_en_s {
+		vio_en_s_default: vio_en_s_default {
+			mux {
+				pins = "gpio46";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio46";
+				drive-strength = <2>;   /* 2 mA */
+				bias-disable = <0>;   /* no pull */
+				output-high;
+			};
+		};
+	};
+	vci_en_s {
+		vci_en_s_default: vci_en_s_default {
+			mux {
+				pins = "gpio44";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio44";
+				drive-strength = <2>;   /* 2 mA */
+				bias-disable = <0>;   /* no pull */
+				output-enable;
+			};
+		};
+	};
+	pmx_sde: pmx_sde {
+		sde_dsi1_active: sde_dsi1_active {
+			mux {
+				pins = "gpio12";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio12";
+				drive-strength = <8>;   /* 8 mA */
+				bias-disable = <0>;   /* no pull */
+			};
+		};
+
+		sde_dsi1_suspend: sde_dsi1_suspend {
+			mux {
+				pins = "gpio12";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio12";
+				drive-strength = <2>;   /* 2 mA */
+				bias-pull-down;         /* PULL DOWN */
+			};
+		};
+	};
+};
+
+&soc {
+	vci_disp_s_vreg:  vci_disp_s_vreg{
+		compatible = "regulator-fixed";
+		regulator-name = "vci_disp_s_supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		regulator-boot-on;
+
+		gpio = <&tlmm 44 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vci_en_s_default>;
+		vin-supply = <&L3C>;
+	};
+
+	vio_disp_s_vreg: vio_disp_s_vreg{
+		compatible = "regulator-fixed";
+		regulator-name = "vio_disp_s_vreg";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-enable-ramp-delay = <233>;
+		enable-active-high;
+		regulator-boot-on;
+
+		gpio = <&tlmm 46 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vio_en_s_default>;
+		vin-supply = <&L2C>;
+	};
+
+	sde_dsi: qcom,dsi-display-primary {
+		compatible = "qcom,dsi-display";
+		label = "primary";
+
+		qcom,dsi-ctrl = <&mdss_dsi0 &mdss_dsi1>;
+		qcom,dsi-phy = <&mdss_dsi_phy0 &mdss_dsi_phy1>;
+
+		clocks = <&mdss_dsi_phy0 BYTECLK_MUX_0_CLK>,
+				 <&mdss_dsi_phy0 PCLK_MUX_0_CLK>,
+				 <&mdss_dsi_phy0 CPHY_BYTECLK_SRC_0_CLK>,
+				 <&mdss_dsi_phy0 CPHY_PCLK_SRC_0_CLK>,
+				 <&mdss_dsi_phy0 BYTECLK_SRC_0_CLK>,
+				 <&mdss_dsi_phy0 PCLK_SRC_0_CLK>,
+				 <&mdss_dsi_phy0 SHADOW_BYTECLK_SRC_0_CLK>,
+				 <&mdss_dsi_phy0 SHADOW_PCLK_SRC_0_CLK>,
+				 <&mdss_dsi_phy1 BYTECLK_MUX_1_CLK>,
+				 <&mdss_dsi_phy1 PCLK_MUX_1_CLK>,
+				 <&mdss_dsi_phy1 CPHY_BYTECLK_SRC_1_CLK>,
+				 <&mdss_dsi_phy1 CPHY_PCLK_SRC_1_CLK>,
+				 <&mdss_dsi_phy1 BYTECLK_SRC_1_CLK>,
+				 <&mdss_dsi_phy1 PCLK_SRC_1_CLK>,
+				 <&mdss_dsi_phy1 SHADOW_BYTECLK_SRC_1_CLK>,
+				 <&mdss_dsi_phy1 SHADOW_PCLK_SRC_1_CLK>;
+		clock-names = "mux_byte_clk0", "mux_pixel_clk0",
+				"cphy_byte_clk0", "cphy_pixel_clk0",
+				"src_byte_clk0", "src_pixel_clk0",
+				"shadow_byte_clk0", "shadow_pixel_clk0",
+				"mux_byte_clk1", "mux_pixel_clk1",
+				"cphy_byte_clk1", "cphy_pixel_clk1",
+				"src_byte_clk1", "src_pixel_clk1",
+				"shadow_byte_clk1", "shadow_pixel_clk1";
+
+		pinctrl-names = "panel_active", "panel_suspend";
+		pinctrl-0 = <&sde_dsi_active &sde_te_active>;
+		pinctrl-1 = <&sde_dsi_suspend &sde_te_suspend>;
+
+		qcom,platform-te-gpio = <&tlmm 82 0>;
+		qcom,panel-te-source = <0>;
+
+		vddio-supply = <&L12C>;
+		vdd-supply = <&L13C>;
+		ddic-supply = <&L1D>;
+
+		qcom,mdp = <&mdss_mdp>;
+		qcom,dsi-default-panel = <&mot_csot_lsi_620_876x2142_cmd_v1>;
+		qcom,platform-mot-ext-feature-enable;
+	};
+
+	sde_dsi1: qcom,dsi-display-secondary {
+		compatible = "qcom,dsi-display";
+		label = "secondary";
+
+		qcom,dsi-ctrl = <&mdss_dsi0 &mdss_dsi1>;
+		qcom,dsi-phy = <&mdss_dsi_phy0 &mdss_dsi_phy1>;
+
+		clocks = <&mdss_dsi_phy0 BYTECLK_MUX_0_CLK>,
+			 <&mdss_dsi_phy0 PCLK_MUX_0_CLK>,
+			 <&mdss_dsi_phy0 CPHY_BYTECLK_SRC_0_CLK>,
+			 <&mdss_dsi_phy0 CPHY_PCLK_SRC_0_CLK>,
+			 <&mdss_dsi_phy1 BYTECLK_MUX_1_CLK>,
+			 <&mdss_dsi_phy1 PCLK_MUX_1_CLK>,
+			 <&mdss_dsi_phy1 CPHY_BYTECLK_SRC_1_CLK>,
+			 <&mdss_dsi_phy1 CPHY_PCLK_SRC_1_CLK>;
+		clock-names = "mux_byte_clk0", "mux_pixel_clk0",
+				"cphy_byte_clk0", "cphy_pixel_clk0",
+				"mux_byte_clk1", "mux_pixel_clk1",
+				"cphy_byte_clk1", "cphy_pixel_clk1";
+
+		pinctrl-names = "panel_active", "panel_suspend";
+		pinctrl-0 = <&sde_dsi1_active &sde_te1_active>;
+		pinctrl-1 = <&sde_dsi1_suspend &sde_te1_suspend>;
+
+		qcom,platform-te-gpio = <&tlmm 83 0>;
+		qcom,panel-te-source = <1>;
+
+		vio_disp-supply = <&vio_disp_s_vreg>;
+		vci_disp-supply = <&vci_disp_s_vreg>;
+
+		qcom,mdp = <&mdss_mdp>;
+		qcom,dsi-default-panel = <&mot_boe_269_800x600_cmd_v2>;
+	};
+
+	sde_wb: qcom,wb-display@0 {
+		compatible = "qcom,wb-display";
+		cell-index = <0>;
+		label = "wb_display";
+	};
+};
+
+&L3C {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	qcom,init-voltage = <3000000>;
+};
+
+&L2C {
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+	qcom,init-voltage = <1800000>;
+};
+
+&pm8350b_amoled {
+	status = "ok";
+};
+
+&mdss_mdp {
+	connectors = <&smmu_sde_unsec &smmu_sde_sec &sde_wb &sde_dsi &sde_dsi1 &sde_rscc>;
+};
+
+&mot_csot_lsi_620_876x2142_cmd_v1 {
+	qcom,platform-te-gpio = <&tlmm 82 0>;
+	qcom,platform-reset-gpio = <&tlmm 24 0>;
+	//qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+	qcom,mdss-dsi-no-panel-on-read-support;
+
+	qcom,bklt-dcs-2bytes-enabled;
+	qcom,mdss-dsi-bl-min-level = <3>;
+	qcom,mdss-dsi-bl-max-level = <2047>;
+
+	qcom,mdss-dsi-hbm-on-command = [39 01 00 00 00 00 03 51 0F FF];
+	qcom,mdss-dsi-hbm-off-command = [39 01 00 00 00 00 03 51 07 FF];
+
+	qcom,mdss-dsi-panel-hbm-is-51cmd;
+
+	qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0";
+	qcom,mdss-dsi-display-timings {
+	        timing@0{
+			//qcom,mdss-dsi-panel-phy-drive-strength = <0x66>;
+
+			qcom,display-topology = <1 0 1>;
+			qcom,default-topology-index = <0>;
+
+			qcom,mdss-dsi-on-command = [
+				15 00 00 00 00 00 02 FE 40 /*switch CMD2*/
+				15 00 00 00 00 00 02 9A 00 /* corner R function off, 0x00 for off, 0x01 for on*/
+				15 00 00 00 00 00 02 6F 02 /*swire update by vsync*/
+				15 00 00 00 00 00 02 FE 00
+				15 00 00 00 00 00 02 5E 01 /* swire control Enable */
+				15 00 00 00 00 00 02 FE E0 /* */
+				15 00 00 00 00 00 02 C3 00 /* Enable Avg Y */
+				15 00 00 00 00 00 02 8B 12 /* ops dimming off*/
+				15 00 00 00 00 00 02 8E 21 /* Step width*/
+				15 00 00 00 00 00 02 90 14 /* First pulse width*/
+				15 00 00 00 00 00 02 FE 70 /* */
+				15 00 00 00 00 00 02 11 C0 /* Ops_ref_bc */
+				15 00 00 00 00 00 02 17 00 /* opsen_3mode */
+				/* Lookup table setting swire pulse */
+				15 00 00 00 00 00 02 FE E0 /* */
+				15 00 00 00 00 00 02 91 19 /* lut1 = -3v */
+				15 00 00 00 00 00 02 92 19 /* lut2 = -3v */
+				15 00 00 00 00 00 02 93 19 /* lut3 = -3v */
+				15 00 00 00 00 00 02 94 19 /* lut4 = -3v */
+				15 00 00 00 00 00 02 95 0F /* lut5 = -3v */
+				15 00 00 00 00 00 02 96 0F /* lut6 = -3v */
+				15 00 00 00 00 00 02 97 0F /* lut7 = -3v */
+				15 00 00 00 00 00 02 98 0F /* lut8 = -3v */
+				15 00 00 00 00 00 02 99 0F /* lut9 = -3v */
+				/* Lookup table setting 51 ratio */
+				15 00 00 00 00 00 02 9A 7F /* lut1 = 000~7FF */
+				15 00 00 00 00 00 02 9B 7F /* lut2 = 000~7FF */
+				15 00 00 00 00 00 02 9C 7F /* lut3 = 000~7FF */
+				15 00 00 00 00 00 02 9D 7F /* lut4 = 800~7FF */
+				15 00 00 00 00 00 02 9E FF /* lut5 = 800~7FF */
+				15 00 00 00 00 00 02 9F FF /* lut6 = 800~7FF */
+				15 00 00 00 00 00 02 A0 FF /* lut7 = 800~7FF */
+				15 00 00 00 00 00 02 A2 FF /* lut8 = 800~7FF */
+				15 00 00 00 00 00 02 FE 00
+				15 00 00 00 00 00 02 C2 08
+				05 01 00 00 78 00 01 11
+				15 00 00 00 00 00 02 35 00
+				15 00 00 00 00 00 02 53 20 /* HBM off ,dimming=1frame*/
+				39 00 00 00 00 00 03 51 00 00
+				15 00 00 00 00 00 02 55 00      /* ACL OFF */
+				05 01 00 00 00 00 01 29];       /* display on */
+		};
+	};
+};
+
+&mot_csot_st_620_876x2142_cmd_v0 {
+        qcom,platform-te-gpio = <&tlmm 82 0>;
+        qcom,platform-reset-gpio = <&tlmm 24 0>;
+        //qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+        qcom,mdss-dsi-no-panel-on-read-support;
+
+        qcom,bklt-dcs-2bytes-enabled;
+        qcom,mdss-dsi-bl-min-level = <3>;
+        qcom,mdss-dsi-bl-max-level = <2047>;
+
+        qcom,mdss-dsi-hbm-on-command = [39 01 00 00 00 00 03 51 0F FF];
+        qcom,mdss-dsi-hbm-off-command = [39 01 00 00 00 00 03 51 07 FF];
+
+        qcom,mdss-dsi-panel-hbm-is-51cmd;
+
+        qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0";
+        qcom,mdss-dsi-display-timings {
+                timing@0{
+                        //qcom,mdss-dsi-panel-phy-drive-strength = <0x66>;
+
+                        qcom,display-topology = <1 0 1>;
+                        qcom,default-topology-index = <0>;
+                };
+        };
+};
+
+
+&mot_boe_269_800x600_cmd_v0 {
+	qcom,platform-te-gpio = <&tlmm 83 0>;
+	qcom,platform-sec-reset-gpio = <&tlmm 12 0>;
+
+        qcom,mdss-dsi-no-panel-on-read-support;
+	qcom,dsi-select-sec-clocks = "mux_byte_clk1", "mux_pixel_clk1";
+	qcom,mdss-dsi-display-timings {
+		timing@0{
+			//qcom,mdss-dsi-panel-phy-drive-strength = <0xcc>;
+			qcom,display-topology = <1 0 1>;
+			qcom,default-topology-index = <0>;
+			qcom,mdss-dsi-on-command = [
+				15 00 00 00 00 00 02 FE 72
+				15 00 00 00 00 00 02 10 85
+				15 00 00 00 00 00 02 FE 40 /* Switch to CMD2 */
+				15 00 00 00 00 00 02 2F 80 /* fixed charged pump of power */
+				15 00 00 00 00 00 02 31 80
+				15 00 00 00 00 00 02 33 80
+				15 00 00 00 00 00 02 35 80
+				15 00 00 00 00 00 02 FE 00 /* Switch back CMD0 */
+				05 01 00 00 78 00 01 11
+				15 00 00 00 00 00 02 35 00
+				15 00 00 00 00 00 02 53 20 /* HBM off ,dimming=1frame*/
+				15 00 00 00 00 00 02 51 00
+				15 00 00 00 00 00 02 55 00 /* ACL OFF */
+				05 01 00 00 00 00 01 29];       /* display on */
+		};
+	};
+};
+
+&mot_boe_269_800x600_cmd_v1 {
+	qcom,platform-te-gpio = <&tlmm 83 0>;
+	qcom,platform-sec-reset-gpio = <&tlmm 12 0>;
+
+        qcom,mdss-dsi-no-panel-on-read-support;
+	qcom,dsi-select-sec-clocks = "mux_byte_clk1", "mux_pixel_clk1";
+	qcom,mdss-dsi-display-timings {
+		timing@0{
+			qcom,display-topology = <1 0 1>;
+			qcom,default-topology-index = <0>;
+			qcom,mdss-dsi-on-command = [
+				15 00 00 00 00 00 02 FE 40 /* Switch to CMD2 */
+				15 00 00 00 00 00 02 2F 80 /* Fixed charged pump of power */
+				15 00 00 00 00 00 02 31 80
+				15 00 00 00 00 00 02 33 80
+				15 00 00 00 00 00 02 35 80
+				15 00 00 00 00 00 02 24 50
+				15 00 00 00 00 00 02 47 13
+				15 00 00 00 00 00 02 FE 50
+				15 00 00 00 00 00 02 C0 20
+				15 00 00 00 00 00 02 FE 60 /* Switch to CMD2 */
+				15 00 00 00 00 00 02 95 CE /* EM pull high */
+				15 00 00 00 00 00 02 FE 00 /* Switch back CMD0 */
+				05 01 00 00 78 00 01 11
+				15 00 00 00 00 00 02 35 00
+				15 00 00 00 00 00 02 53 20 /* HBM off ,dimming=1frame*/
+				15 00 00 00 00 00 02 51 00
+				15 00 00 00 00 00 02 55 00 /* ACL OFF */
+				05 01 00 00 00 00 01 29];       /* display on */
+		};
+	};
+};
+
+&mot_boe_269_800x600_cmd_v2 {
+	qcom,platform-te-gpio = <&tlmm 83 0>;
+	qcom,platform-sec-reset-gpio = <&tlmm 12 0>;
+
+        qcom,mdss-dsi-no-panel-on-read-support;
+	qcom,dsi-select-sec-clocks = "mux_byte_clk1", "mux_pixel_clk1";
+	qcom,mdss-dsi-display-timings {
+		timing@0{
+			qcom,display-topology = <1 0 1>;
+			qcom,default-topology-index = <0>;
+		};
+	};
+};
+
+&mot_dummy_vid_qhd {
+	qcom,platform-te-gpio = <&tlmm 82 0>;
+	qcom,platform-reset-gpio = <&tlmm 24 0>;
+
+	qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0";
+	qcom,mdss-dsi-display-timings {
+		timing@0 {
+			qcom,mdss-dsi-panel-phy-timings = [00 0B 02 02 1C 1C 03
+							02 01 02 04 00 0C 12];
+			qcom,display-topology = <1 0 1>;
+			qcom,default-topology-index = <0>;
+		};
+	};
+};

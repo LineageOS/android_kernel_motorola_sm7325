@@ -1,0 +1,46 @@
+&tlmm{
+	haptic_irq {
+		haptic_irq_default: haptic_irq_default {
+			pins = "gpio44";
+			bias-pull-up;
+		};
+	};
+};
+
+&qupv3_se13_i2c {
+	status = "okay";
+
+	aw869xx_haptic: aw869xx_haptic@5A {
+		status = "okay";
+		compatible = "awinic,awinic_haptic";
+		reg = <0x5A>;
+		reset-gpio = <&tlmm 47 0>;
+		irq-gpio = <&tlmm 44 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&haptic_irq_default>;
+		vib_mode = < 0 >; /* mode: RAM mode->0; CONT mode->1 */
+		vib_f0_ref = < 1700 >;
+		vib_f0_cali_percent = < 7 >;
+		vib_cont_drv1_lvl = < 0x7F >;
+		vib_cont_drv2_lvl = < 0x36 >;
+		vib_cont_brk_time = < 0x06 >;
+		vib_cont_tset = < 0x06 >;
+		vib_cont_bemf_set = < 0x02 >;
+		vib_cont_drv_width = < 0x6A >;
+		vib_cont_wait_num = < 0x06 >;
+		vib_cont_bst_brk_gain = < 0x05 >;
+		vib_cont_brk_gain = < 0x08 >;
+		vib_cont_drv1_time = < 0x04 >;
+		vib_cont_drv2_time = < 0x14 >;
+		vib_cont_track_margin = < 0x12 >;
+		vib_sine_array = < 0x05 0xB2 0xFF 0xEF >;
+		vib_d2s_gain = < 0x05 >;
+		vib_bstcfg = < 0x20 0x24 0x9A 0x40 0x11 >;
+		vib_prctmode = < 0x2D 0x3E 0x3F >;
+		vib_trig_config = < 1 0 1 1 1 2 0 0
+			1 0 0 1 0 2 0 0
+			1 0 0 1 0 2 0 0 >;
+		vib_is_enabled_auto_bst;
+		vib_is_enabled_i2s;
+	};
+};
