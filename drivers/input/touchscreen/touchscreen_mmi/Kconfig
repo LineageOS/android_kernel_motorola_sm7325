@@ -1,0 +1,38 @@
+config INPUT_TOUCHSCREEN_MMI
+	tristate "Moto touchscreen gestures"
+	default n
+	help
+	 Say Y here if you wish to include support for Moto touchscreen gestures.
+	 If unsure, say N.
+
+config TOUCHCLASS_MMI_DEBUG_INFO
+	bool "Moto touchscreen gestures debug info"
+	depends on INPUT_TOUCHSCREEN_MMI
+	default n
+	help
+	 Say Y here if you wish to include support for Moto touchscreen gestures debugging info.
+	 If unsure, say N.
+
+config DRM_DYNAMIC_REFRESH_RATE
+	bool "Moto DRM dynamic refresh rate"
+	depends on INPUT_TOUCHSCREEN_MMI
+	default n
+	help
+	 Say Y here if your panel supports drm dynamic refresh rate.
+	 If unsure, say N.
+
+config TOUCHCLASS_MMI_GESTURE_POISON_EVENT
+	bool "Moto gestures event poison"
+	depends on INPUT_TOUCHSCREEN_MMI
+	default n
+	help
+	 Say Y here if you wish to include support for Moto gestures event poison.
+	 If unsure, say N.
+
+config DRM_PANEL_NOTIFICATIONS
+	bool "Moto DRM panel notifications"
+	depends on INPUT_TOUCHSCREEN_MMI
+	default n
+	help
+	 Say Y here if your panel includes support for drm notifications.
+	 If unsure, say N.

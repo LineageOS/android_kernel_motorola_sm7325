@@ -186,3 +186,12 @@ obj-$(CONFIG_SIOX)		+= siox/
 obj-$(CONFIG_GNSS)		+= gnss/
 obj-$(CONFIG_INTERCONNECT)	+= interconnect/
 obj-$(CONFIG_COUNTER)		+= counter/
+
+obj-$(CONFIG_MMI_ANNOTATE)	+= mmi_annotate/
+obj-$(CONFIG_MMI_INFO)		+= mmi_info/
+obj-$(CONFIG_MMI_RELAY)	+= mmi_relay/
+obj-$(CONFIG_MOTO_F_USBNET)	+= moto_f_usbnet/
+obj-$(CONFIG_SENSORS_CLASS)	+= sensors/
+obj-$(CONFIG_TZLOG_DUMP)	+= tzlog_dump/
+obj-$(CONFIG_WATCHDOG_CPU_CTX)	+= watchdog_cpu_ctx/
+obj-$(CONFIG_WATCHDOGTEST)	+= watchdogtest/

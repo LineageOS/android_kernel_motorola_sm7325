@@ -1,6 +1,1 @@
-# add -Wall to try to catch everything we can.
-EXTRA_CFLAGS += -Wall
-EXTRA_CFLAGS += -I$(ANDROID_BUILD_TOP)/motorola/kernel/modules/drivers/power/mmi_charger
-EXTRA_CFLAGS += -I$(ANDROID_BUILD_TOP)/motorola/kernel/modules/include
-
-obj-m += mmi_charger.o
+obj-$(CONFIG_USE_MMI_CHARGER) += mmi_charger.o

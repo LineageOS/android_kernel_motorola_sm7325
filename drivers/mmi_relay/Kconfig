@@ -1,0 +1,8 @@
+config MMI_RELAY
+        tristate "MMI RELAY"
+        default n
+        help
+         Say Y here if you have a MMI Relay
+
+         This driver can also be built as a module.  If so, the module
+         will be called mmi_relay.
