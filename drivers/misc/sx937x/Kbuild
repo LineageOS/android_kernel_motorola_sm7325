@@ -1,4 +1,4 @@
-ccflags-y += -I$(src)/../../../drivers/base
+ccflags-y += -I$(srctree)/$(src)/../../../drivers/base
 
 ifneq ($(filter m y,$(CONFIG_SX937X_USB_CAL)),)
 	ccflags-y += -DCONFIG_CAPSENSE_USB_CAL

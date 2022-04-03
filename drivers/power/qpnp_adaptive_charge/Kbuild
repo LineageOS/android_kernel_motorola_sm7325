@@ -1,6 +1,6 @@
 ifneq ($(filter m y,$(CONFIG_USE_MMI_CHARGER)),)
 	EXTRA_CFLAGS += -DUSE_MMI_CHARGER
-	EXTRA_CFLAGS += -I$(src)/../mmi_charger
+	EXTRA_CFLAGS += -I$(srctree)/$(src)/../mmi_charger
 endif
 
 obj-$(CONFIG_QPNP_ADAPTIVE_CHARGE) += qpnp_adaptive_charge.o
