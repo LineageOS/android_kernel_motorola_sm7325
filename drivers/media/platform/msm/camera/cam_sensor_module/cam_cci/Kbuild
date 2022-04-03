@@ -1,4 +1,4 @@
-KERNEL_CAMERA_DRIVER_PATH ?= $(src)/../../../../../../../techpack/camera/drivers
+KERNEL_CAMERA_DRIVER_PATH ?= $(srctree)/$(src)/../../../../../../../techpack/camera/drivers
 
 ccflags-y += -DCONFIG_SPECTRA_CAMERA=1
 ccflags-y += -I$(KERNEL_CAMERA_DRIVER_PATH)/../include

@@ -1,5 +1,6 @@
 ifneq ($(filter m y,$(CONFIG_USE_MMI_CHARGER)),)
 	ccflags-y += -DUSE_MMI_CHARGER
+	EXTRA_CFLAGS += -I$(srctree)/$(src)/../mmi_charger
 endif
 
 ifneq ($(filter m y, $(ADAPTIVE_TOLERANCE_OPTIMIZATION)),)
