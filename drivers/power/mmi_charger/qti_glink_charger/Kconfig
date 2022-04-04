@@ -1,11 +1,10 @@
-config USE_MMI_CHARGER
-        tristate "MMI CHARGER"
+config QTI_GLINK_CHARGER
+        tristate "QTI GLINK CHARGER"
         default n
         help
          Say Y here if you have a mmi charger compatible
          device connected.
 
          This driver can also be built as a module.  If so, the module
-         will be called mmi_charger.
+         will be called qqti_glink_charger.
 
-source "drivers/power/mmi_charger/qti_glink_charger/Kconfig"
