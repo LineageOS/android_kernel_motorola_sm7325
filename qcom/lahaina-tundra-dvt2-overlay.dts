@@ -20,11 +20,11 @@
 	platinfo = "Qualcomm Technologies, Inc SM8350";
 	compatible = "qcom,lahaina-Tundra", "qcom,lahaina-moto", "qcom,lahaina";
 	qcom,msm-id = <415 0x20001>;
-	qcom,board-id = <0x41 0x9100>;
+	qcom,board-id = <0x41 0xB200>;
 };
 
 &qti_glink_charger {
-        mmi,df-serialnum = "SB18D47432";
-        profile-ids-map = "38000", "SB18D47432","38000","SB18D47433";
+	mmi,df-serialnum = "SB18D47432";
+        profile-ids-map = "107000", "SB18D47432","107000","SB18D47433";
 };
 
