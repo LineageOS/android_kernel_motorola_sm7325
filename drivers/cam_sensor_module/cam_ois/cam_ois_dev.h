@@ -94,6 +94,13 @@ struct cam_ois_intf_params {
 	struct cam_req_mgr_crm_cb *crm_cb;
 };
 
+struct awrw_ctrl {
+	uint32_t addr[4];
+	uint16_t reg_num;
+	uint8_t flag;
+	uint8_t *reg_data;
+};
+
 /**
  * struct cam_ois_ctrl_t - OIS ctrl private data
  * @device_name     :   ois device_name
@@ -168,11 +175,9 @@ struct cam_ois_ctrl_t {
 	uint64_t mono_timestamp;
 	/* awinic_add */
 	const char *ic_name;
-	struct work_struct fw_update_work;
-	uint32_t awrw_flag;
-	uint32_t reg_num;
-	uint8_t *reg_data;
-	struct mutex ois_mutex_aw;
+	struct work_struct aw_fw_update_work;
+	struct mutex aw_ois_mutex;
+	struct awrw_ctrl *awrw_ctrl;
 };
 
 /**

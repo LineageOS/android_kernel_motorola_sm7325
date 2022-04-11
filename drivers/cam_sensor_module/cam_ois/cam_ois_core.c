@@ -17,7 +17,7 @@
 
 extern int dw9781c_check_fw_download(struct camera_io_master * io_master_info, const uint8_t *fwData, uint32_t fwSize);
 extern void dw9781_post_firmware_download(struct camera_io_master * io_master_info, const uint8_t *fwData, uint32_t fwSize);
-extern int aw_firmware_update(struct cam_ois_ctrl_t *o_ctrl, const struct firmware *fw);
+extern int aw86006_firmware_update(struct cam_ois_ctrl_t *o_ctrl, const struct firmware *fw);
 
 int32_t cam_ois_construct_default_power_setting(
 	struct cam_sensor_power_ctrl_t *power_info)
@@ -415,9 +415,9 @@ static int cam_ois_fw_prog_download(struct cam_ois_ctrl_t *o_ctrl)
 		CAM_INFO(CAM_OIS, "Firmware download started.");
 	}
 	else if (strstr(o_ctrl->ois_name, "aw86006")) {
-		mutex_lock(&o_ctrl->ois_mutex_aw);
-		rc = aw_firmware_update(o_ctrl, fw);
-		mutex_unlock(&o_ctrl->ois_mutex_aw);
+		mutex_lock(&o_ctrl->aw_ois_mutex);
+		rc = aw86006_firmware_update(o_ctrl, fw);
+		mutex_unlock(&o_ctrl->aw_ois_mutex);
 		return rc;
 	}
 
