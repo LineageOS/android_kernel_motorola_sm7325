@@ -564,7 +564,6 @@ int aw_dsp_set_spin_param(struct aw_device *aw_dev,
 	if (ret)
 		return -EINVAL;
 
-	aw_pr_info("set spin params failed");
 	return 0;
 }
 #endif
