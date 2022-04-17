@@ -89,6 +89,14 @@
 		qcom,pre-scaling = <1 1>;
 	};
 
+        pm8350b_wl_chg_therm {
+                reg = <PM8350B_ADC7_GPIO2_100K_PU>;
+                label = "pm8350b_wl_chg_therm";
+                qcom,ratiometric;
+                qcom,hw-settle-time = <200>;
+                qcom,pre-scaling = <1 1>;
+        };
+
 	pm8350b_chg_temp {
 		reg = <PM8350B_ADC7_AMUX_THM3_100K_PU>;
 		label = "pm8350b_chg_temp";
@@ -155,8 +163,8 @@
 			<&pmk8350_vadc PM8350_ADC7_AMUX_THM5_100K_PU>,
 			<&pmk8350_vadc PM8350B_ADC7_AMUX_THM3_100K_PU>,
 			<&pmk8350_vadc PM8350B_ADC7_AMUX_THM4_100K_PU>,
-//			<&pmk8350_vadc PM8350B_ADC7_GPIO2_100K_PU>,
-			<&pmk8350_vadc PMK8350_ADC7_AMUX_THM1_100K_PU>;
+			<&pmk8350_vadc PM8350B_ADC7_GPIO2_100K_PU>;/*
+			<&pmk8350_vadc PMK8350_ADC7_AMUX_THM1_100K_PU>;*/
 
 	/delete-node/ pm8350_msm_therm;
 	/delete-node/ pm8350_cam_flash_therm;
@@ -210,11 +218,17 @@
 		qcom,hw-settle-time = <200>;
 	};
 
+        pm8350b_wl_chg_therm {
+                reg = <PM8350B_ADC7_GPIO2_100K_PU>;
+                qcom,ratiometric;
+                qcom,hw-settle-time = <200>;
+        };
+/*
 	pmk8350_xo_therm {
 		reg = <PMK8350_ADC7_AMUX_THM1_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
-	};
+	};*/
 };
 
 &thermal_zones {
@@ -266,7 +280,7 @@
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";
-		thermal-sensors = <&pmk8350_adc_tm PM8350_ADC7_AMUX_THM2_100K_PU>;
+		thermal-sensors = <&pmk8350_adc_tm PM8350B_ADC7_AMUX_THM4_100K_PU>;
 		wake-capable-sensor;
 		trips {
 			active-config0 {
@@ -316,11 +330,14 @@
 	conn-therm-usr {
 		status = "disabled";
 	};
+	wlc-therm-usr {
+                status = "disabled";
+        };
 	usb_therm {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";
-		thermal-sensors = <&pmk8350_adc_tm PM8350B_ADC7_AMUX_THM4_100K_PU>;
+		thermal-sensors = <&pmk8350_adc_tm PM8350B_ADC7_GPIO2_100K_PU>;
 		wake-capable-sensor;
 		trips {
 			active-config0 {
