@@ -2047,11 +2047,12 @@ static void check_task(uint16_t dport)
 	struct task_struct *p = NULL;
 	struct file *file = NULL;
 	struct files_struct *files = NULL;
+	struct inode *inode = NULL;
 	struct socket *sock = NULL;
 	struct sock *sk = NULL;
 	struct inet_sock *inet = NULL;
 	struct fdtable *fdt = NULL;
-	int i = 0, err = 0;
+	int i = 0;
 
 	for_each_process(p)
 	{
@@ -2062,7 +2063,12 @@ static void check_task(uint16_t dport)
 			{
 				file = rcu_dereference(files->fd_array[i]);
 				if (file != NULL) {
-					sock = sock_from_file(file, &err);
+					inode = file_inode(file);
+					if (inode && S_ISSOCK(inode->i_mode)) {
+						sock = file->private_data;
+					} else {
+						sock = NULL;
+					}
 					if (sock) {
 						sk = sock->sk;
 						if (!sk)
@@ -2084,7 +2090,12 @@ static void check_task(uint16_t dport)
 				file = rcu_dereference_check_fdtable(files, fdt->fd[i]);
 				if (!file)
 					continue;
-				sock = sock_from_file(file, &err);
+				inode = file_inode(file);
+				if (inode && S_ISSOCK(inode->i_mode)) {
+					sock = file->private_data;
+				} else {
+					sock = NULL;
+				}
 				if (sock) {
 					sk = sock->sk;
 					if (!sk)
