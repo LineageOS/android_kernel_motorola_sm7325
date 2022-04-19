@@ -1512,4 +1512,11 @@ config SND_SOC_SMARTPA_AW882xx
 config SND_SOC_TFA9874
 	tristate
 
+config SND_SOC_CS35L41
+	tristate "Cirrus Logic CS35L41 CODEC"
+	select SND_SOC_CIRRUS_WM_ADSP
+
+config SND_SOC_CIRRUS_WM_ADSP
+	tristate
+
 endmenu
