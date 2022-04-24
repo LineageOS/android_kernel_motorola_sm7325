@@ -229,7 +229,7 @@
 };
 
 &socd_trip {
-	temperature = <95>;
+	temperature = <98>;
 };
 
 &pm8350b_haptics {
