@@ -467,7 +467,7 @@ static int aw86006_soc_flash_write_check(struct cam_ois_ctrl_t *o_ctrl,
 		if (ret == 0)
 			break;
 
-		AW_LOGE("memcmp error!, loop: %d", loop);
+		AW_LOGI("memcmp error, try again, loop: %d", loop);
 	} while ((++loop) < AW_FLASH_WRITE_ERROR_LOOP);
 	if (loop >= AW_FLASH_WRITE_ERROR_LOOP)
 		return OIS_ERROR;
@@ -533,7 +533,7 @@ static int aw86006_soc_flash_erase_check(struct cam_ois_ctrl_t *o_ctrl,
 		if (ret == 0)
 			break;
 
-		AW_LOGE("memcmp error!, loop: %d", loop);
+		AW_LOGI("memcmp error, try again, loop: %d", loop);
 	} while ((++loop) < AW_FLASH_ERASE_ERROR_LOOP);
 	if (loop >= AW_FLASH_ERASE_ERROR_LOOP)
 		return OIS_ERROR;
