@@ -96,6 +96,10 @@
 #define AW_FW_SHIFT_UPDATE_FLAG		(AW_FW_SHIFT_MOVE_LENGTH + 8)
 #define AW_ARRAY_SHIFT_UPDATE_FLAG	(AW_FW_SHIFT_UPDATE_FLAG - AW_FLASH_MOVE_LENGTH)
 
+/* gyro and hall test */
+#define AW_GYROACCEL_DIFT_LIMIT		5000
+#define CHECK_DIFF(x, y) ((x > 0) ? (x - y) : (-x - y))
+
 /* SOC */
 enum soc_status {
 	SOC_OK = 0,

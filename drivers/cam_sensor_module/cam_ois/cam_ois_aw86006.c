@@ -1832,30 +1832,123 @@ err_exit:
 	return ret;
 }
 
+static int aw86006_raw_data_check(uint8_t *pdata, uint8_t size)
+{
+	uint8_t cnt = 0;
+
+	while (cnt < size) {
+		if (pdata != NULL && *pdata != 0xff)
+			break;
+
+		pdata++;
+		cnt++;
+	}
+
+	if (cnt == size)
+		return OIS_ERROR;
+
+	return OIS_SUCCESS;
+}
+
+static int aw86006_accelgyro_dift_raw_data_check(struct cam_ois_ctrl_t *o_ctrl)
+{
+	uint8_t dift_val[12] = { 0 };
+	int ret = 0;
+
+	ois_block_read_addr8_data8(o_ctrl, 0xf84c, CAMERA_SENSOR_I2C_TYPE_WORD,
+								dift_val, 12);
+	ret = aw86006_raw_data_check(dift_val,
+					sizeof(dift_val)/sizeof(dift_val[0]));
+	if (ret < 0) {
+		AW_LOGE("accelgyro_dift raw data is all 0xff\n");
+		return OIS_ERROR;
+	}
+
+	return OIS_SUCCESS;
+}
+
 static int aw86006_get_accelgyro_dift(struct cam_ois_ctrl_t *o_ctrl,
-						struct accelgyro_dift ag_dift)
+						struct accelgyro_dift *ag_dift)
 {
 	uint8_t dift_val[12] = { 0 };
 
 	ois_block_read_addr8_data8(o_ctrl, 0xf84c, CAMERA_SENSOR_I2C_TYPE_WORD,
 								dift_val, 12);
 
-	ag_dift.gyro_dift[AXIS_X] = (dift_val[1] << 8) | dift_val[0];
-	ag_dift.gyro_dift[AXIS_Y] = (dift_val[3] << 8) | dift_val[2];
-	ag_dift.gyro_dift[AXIS_Z] = (dift_val[5] << 8) | dift_val[4];
+	ag_dift->gyro_dift[AXIS_X] = (int16_t)((dift_val[1] << 8) | dift_val[0]);
+	ag_dift->gyro_dift[AXIS_Y] = (int16_t)((dift_val[3] << 8) | dift_val[2]);
+	ag_dift->gyro_dift[AXIS_Z] = (int16_t)((dift_val[5] << 8) | dift_val[4]);
 
-	ag_dift.accel_dift[AXIS_X] = (dift_val[7] << 8) | dift_val[6];
-	ag_dift.accel_dift[AXIS_Y] = (dift_val[9] << 8) | dift_val[8];
-	ag_dift.accel_dift[AXIS_Z] = (dift_val[11] << 8) | dift_val[10];
+	ag_dift->accel_dift[AXIS_X] = (int16_t)((dift_val[7] << 8) | dift_val[6]);
+	ag_dift->accel_dift[AXIS_Y] = (int16_t)((dift_val[9] << 8) | dift_val[8]);
+	ag_dift->accel_dift[AXIS_Z] = (int16_t)((dift_val[11] << 8) | dift_val[10]);
 
-	AW_LOGI("gyro_dift: 0x%04x 0x%04x 0x%04x", ag_dift.gyro_dift[AXIS_X],
-						ag_dift.gyro_dift[AXIS_Y],
-						ag_dift.gyro_dift[AXIS_Z]);
+	AW_LOGI("gyro_dift: 0x%hx(%d) 0x%hx(%d) 0x%hx(%d)",
+			ag_dift->gyro_dift[AXIS_X], ag_dift->gyro_dift[AXIS_X],
+			ag_dift->gyro_dift[AXIS_Y], ag_dift->gyro_dift[AXIS_Y],
+			ag_dift->gyro_dift[AXIS_Z], ag_dift->gyro_dift[AXIS_Z]);
 
-	AW_LOGI("accel_dift: 0x%04x 0x%04x 0x%04x", ag_dift.accel_dift[AXIS_X],
-						ag_dift.accel_dift[AXIS_Y],
-						ag_dift.accel_dift[AXIS_Z]);
-	return 0;
+	AW_LOGI("accel_dift: 0x%hx(%d) 0x%hx(%d) 0x%hx(%d)",
+			ag_dift->accel_dift[AXIS_X], ag_dift->accel_dift[AXIS_X],
+			ag_dift->accel_dift[AXIS_Y], ag_dift->accel_dift[AXIS_Y],
+			ag_dift->accel_dift[AXIS_Z], ag_dift->accel_dift[AXIS_Z]);
+
+	/* check gyro x/y dift */
+	if(CHECK_DIFF(ag_dift->gyro_dift[AXIS_X], AW_GYROACCEL_DIFT_LIMIT) > 0) {
+		AW_LOGE("gyro_dift_x error!!");
+		return OIS_ERROR;
+	}
+	if(CHECK_DIFF(ag_dift->gyro_dift[AXIS_Y], AW_GYROACCEL_DIFT_LIMIT) > 0) {
+		AW_LOGE("gyro_dift_y error!!");
+		return OIS_ERROR;
+	}
+	/* check accel x/y dift */
+	if(CHECK_DIFF(ag_dift->accel_dift[AXIS_X], AW_GYROACCEL_DIFT_LIMIT) > 0) {
+		AW_LOGE("accel_dift_x error!!");
+		return OIS_ERROR;
+	}
+	if(CHECK_DIFF(ag_dift->accel_dift[AXIS_Y], AW_GYROACCEL_DIFT_LIMIT) > 0) {
+		AW_LOGE("accel_dift_y error!!");
+		return OIS_ERROR;
+	}
+
+	return OIS_SUCCESS;
+}
+
+static int aw86006_set_normal_mode(struct cam_ois_ctrl_t *o_ctrl)
+{
+	int i = 0;
+	uint8_t send_cmd[2] = { 0xae, 0x02 };
+	uint8_t check_val = 0;
+
+	/*unlock */
+	do {
+		ois_block_write_addr8_data8(o_ctrl, 0xff1f,
+				CAMERA_SENSOR_I2C_TYPE_WORD, &send_cmd[0], 1);
+		ois_block_read_addr8_data8(o_ctrl, 0xff1f,
+				CAMERA_SENSOR_I2C_TYPE_WORD, &check_val, 1);
+	} while ((check_val != 0x01) && (i++ < AW_ERROR_LOOP));
+
+	if (check_val != 0x01) {
+		AW_LOGE("unlock error:, check_val: 0x%02x", check_val);
+		return OIS_ERROR;
+	}
+
+	/* set normal mode */
+	do {
+		ois_block_write_addr8_data8(o_ctrl, 0xff11,
+				CAMERA_SENSOR_I2C_TYPE_WORD, &send_cmd[1], 1);
+		msleep(2);
+		ois_block_read_addr8_data8(o_ctrl, 0xff10,
+				CAMERA_SENSOR_I2C_TYPE_WORD, &check_val, 1);
+	} while ((check_val != 0) && (i++ < AW_ERROR_LOOP));
+
+	if (check_val != 0) {
+		AW_LOGE("enter normal error:, check_val: 0x%02x", check_val);
+		return OIS_ERROR;
+	}
+
+	return OIS_SUCCESS;
 }
 
 static ssize_t gyro_offset_cali_show(struct class *class,
@@ -1865,18 +1958,19 @@ static ssize_t gyro_offset_cali_show(struct class *class,
 	struct accelgyro_dift ag_dift = {0};
 	ssize_t len = 0;
 
-	aw86006_get_accelgyro_dift(o_ctrl, ag_dift);
+	aw86006_get_accelgyro_dift(o_ctrl, &ag_dift);
 
 	len += snprintf(buf + len, PAGE_SIZE - len,
-					"gyro_dift: 0x%04x 0x%04x 0x%04x\n",
-						ag_dift.gyro_dift[AXIS_X],
-						ag_dift.gyro_dift[AXIS_Y],
-						ag_dift.gyro_dift[AXIS_Z]);
+					"gyro_dift: 0x%hx(%d) 0x%hx(%d) 0x%hx(%d)\n",
+						ag_dift.gyro_dift[AXIS_X], ag_dift.gyro_dift[AXIS_X],
+						ag_dift.gyro_dift[AXIS_Y], ag_dift.gyro_dift[AXIS_Y],
+						ag_dift.gyro_dift[AXIS_Z], ag_dift.gyro_dift[AXIS_Z]);
+
 	len += snprintf(buf + len, PAGE_SIZE - len,
-					"accel_dift: 0x%04x 0x%04x 0x%04x\n",
-						ag_dift.accel_dift[AXIS_X],
-						ag_dift.accel_dift[AXIS_Y],
-						ag_dift.accel_dift[AXIS_Z]);
+					"accel_dift: 0x%hx(%d) 0x%hx(%d) 0x%hx(%d)\n",
+						ag_dift.accel_dift[AXIS_X], ag_dift.accel_dift[AXIS_X],
+						ag_dift.accel_dift[AXIS_Y], ag_dift.accel_dift[AXIS_Y],
+						ag_dift.accel_dift[AXIS_Z], ag_dift.accel_dift[AXIS_Z]);
 
 	return len;
 }
@@ -1886,10 +1980,10 @@ static ssize_t gyro_offset_cali_store(struct class *class,
 						const char *buf, size_t count)
 {
 	struct cam_ois_ctrl_t *o_ctrl = g_o_ctrl;
-	struct accelgyro_dift ag_dift = {0};
+	struct accelgyro_dift ag_dift;
 	int i = 0;
-	int ret = OIS_ERROR;
-	uint32_t flag = 0;
+	int ret = 0;
+	uint8_t data_buf[5] = { 0 };
 	uint8_t ois_mode = 0;
 	uint8_t unlock_val[2] = { 0xa4, 0xac };
 	uint8_t lock_val[2] = { 0xdc, 0xd4 };
@@ -1897,62 +1991,105 @@ static ssize_t gyro_offset_cali_store(struct class *class,
 	uint8_t exit_cmd[4] = { 0x00, 0x00, 0x00, 0x02 };
 	uint8_t check_val = 0;
 
-	AW_LOGI("start!");
-
-	ret = kstrtouint(buf, 0, &flag);
-	if (ret < 0) {
+	if (sscanf(buf, "%d", &data_buf[0]) != 1) {
 		AW_LOGE("input para error!");
+		return OIS_ERROR;
+	}
+
+	AW_LOGI("aw86006 gyro offset cali start!");
+
+	/* check accelgyro_diff */
+	ret = aw86006_accelgyro_dift_raw_data_check(o_ctrl);
+	if (ret < 0) {
+		AW_LOGE("accelgyro_dift raw data error");
 		return OIS_ERROR;
 	}
 
 	/* OIS off */
 	ois_mode = OIS_DISABLE;
-	ois_block_write_addr8_data8(o_ctrl, REG_OIS_ENABLE,
+	do {
+		ois_block_write_addr8_data8(o_ctrl, REG_OIS_ENABLE,
 				CAMERA_SENSOR_I2C_TYPE_WORD, &ois_mode, 1);
-	msleep(20);
+		ois_block_read_addr8_data8(o_ctrl, REG_OIS_ENABLE,
+				CAMERA_SENSOR_I2C_TYPE_WORD, &check_val, 1);
+	} while ((check_val != 0x00) && (i++ < AW_ERROR_LOOP));
+
+	if (check_val != 0x00) {
+		AW_LOGE("reg[0001]:0x%x != 0x00, i: %d", check_val, i);
+		return OIS_ERROR;
+	}
+
+	/* enter normal mode */
+	ret = aw86006_set_normal_mode(o_ctrl);
+	if (ret < 0)
+		return OIS_ERROR;
 
 	/* unlock register */
+	i = 0;
 	do {
 		ois_block_write_addr8_data8(o_ctrl, 0xf20f,
 				CAMERA_SENSOR_I2C_TYPE_WORD, &unlock_val[0], 1);
-		msleep(20);
 		ois_block_read_addr8_data8(o_ctrl, 0xf20f,
 				CAMERA_SENSOR_I2C_TYPE_WORD, &check_val, 1);
-		i++;
-	} while ((check_val != 1) && (i < (50 * AW_ERROR_LOOP)));
-	if (check_val != 1) {
+	} while ((check_val != 0x01) && (i++ < AW_ERROR_LOOP));
+
+	if (check_val != 0x01) {
 		AW_LOGE("reg[f20f]:0x%x != 0x01, i: %d", check_val, i);
 		return OIS_ERROR;
 	}
+
 	/* unlock register */
 	i = 0;
 	do {
 		ois_block_write_addr8_data8(o_ctrl, 0xf8ff,
 				CAMERA_SENSOR_I2C_TYPE_WORD, &unlock_val[1], 1);
-		msleep(20);
 		ois_block_read_addr8_data8(o_ctrl, 0xf8ff,
 				CAMERA_SENSOR_I2C_TYPE_WORD, &check_val, 1);
-		i++;
-	} while ((check_val != 1) && (i <  (50 * AW_ERROR_LOOP)));
-	if (check_val != 1) {
+	} while ((check_val != 0x01) && (i++ < AW_ERROR_LOOP));
+
+	if (check_val != 0x01) {
 		AW_LOGE("reg[f8ff]:0x%x != 0x01, i: %d", check_val, i);
 		return OIS_ERROR;
 	}
-	/* Read the data in the flash into the register */
+
+	/* Read the data in the flash into the register, trigger_cmd[0]: 0x01 */
 	ois_block_write_addr8_data8(o_ctrl, 0xf8e4, CAMERA_SENSOR_I2C_TYPE_WORD,
 							&trigger_cmd[0], 1);
 	msleep(5); /* delay 5ms at least */
 
-	/* Select the gyroscope zero drift calibration function */
+	/* Select the gyroscope zero drift calibration function, trigger_cmd[1]: 0x02 */
 	ois_block_write_addr8_data8(o_ctrl, 0xf200, CAMERA_SENSOR_I2C_TYPE_WORD,
 							&trigger_cmd[1], 1);
-	/* Enter mass production test mode */
-	ois_block_write_addr8_data8(o_ctrl, 0xf203, CAMERA_SENSOR_I2C_TYPE_WORD,
-							&trigger_cmd[2], 1);
-	/* Trigger zero drift calibration of gyroscope */
-	ois_block_write_addr8_data8(o_ctrl, 0xf202, CAMERA_SENSOR_I2C_TYPE_WORD,
-							&trigger_cmd[3], 1);
-	msleep(2000); /* delay 2s at least */
+
+	/* Enter mass production test mode, trigger_cmd[2]: 0x01 */
+	i = 0;
+	do {
+		ois_block_write_addr8_data8(o_ctrl, 0xf203,
+				CAMERA_SENSOR_I2C_TYPE_WORD, &trigger_cmd[2], 1);
+		ois_block_read_addr8_data8(o_ctrl, 0xf203,
+				CAMERA_SENSOR_I2C_TYPE_WORD, &check_val, 1);
+	} while ((check_val != 0x01) && (i++ < AW_ERROR_LOOP));
+
+	if (check_val != 0x01) {
+		AW_LOGE("reg[f203]:0x%x != 0x01, i: %d", check_val, i);
+		return OIS_ERROR;
+	}
+
+	/* Trigger zero drift calibration of gyroscope, trigger_cmd[3]:0x01 */
+	i = 0;
+	do {
+		ois_block_write_addr8_data8(o_ctrl, 0xf202,
+				CAMERA_SENSOR_I2C_TYPE_WORD, &trigger_cmd[3], 1);
+		ois_block_read_addr8_data8(o_ctrl, 0xf201,
+				CAMERA_SENSOR_I2C_TYPE_WORD, &check_val, 1);
+	} while ((check_val != 0x11) && (i++ < AW_ERROR_LOOP));
+
+	if (check_val != 0x11) {
+		AW_LOGE("reg[f201]:0x%x != 0x11, i: %d", check_val, i);
+		return OIS_ERROR;
+	}
+
+	msleep(1000); /* delay 1s at least */
 
 	/* Check if the calibration is complete */
 	i = 0;
@@ -1960,22 +2097,37 @@ static ssize_t gyro_offset_cali_store(struct class *class,
 		ois_block_read_addr8_data8(o_ctrl, 0xf201,
 				CAMERA_SENSOR_I2C_TYPE_WORD, &check_val, 1);
 		msleep(20);
-		i++;
-	} while ((check_val != 0x21) && (i < (50 *  AW_ERROR_LOOP)));
+	} while ((check_val != 0x21) && (i++ < AW_ERROR_LOOP));
+
 	if (check_val != 0x21) {
 		AW_LOGE("reg[f201]:0x%x != 0x21, i: %d", check_val, i);
 		return OIS_ERROR;
 	}
+
 	/* Exit calibration mode */
 	ois_block_write_addr8_data8(o_ctrl, 0xf200, CAMERA_SENSOR_I2C_TYPE_WORD,
 							&exit_cmd[0], 1);
-	ois_block_write_addr8_data8(o_ctrl, 0xf202, CAMERA_SENSOR_I2C_TYPE_WORD,
-							&exit_cmd[1], 1);
-	ois_block_write_addr8_data8(o_ctrl, 0xf203, CAMERA_SENSOR_I2C_TYPE_WORD,
-							&exit_cmd[2], 1);
-	/* Data update to flash */
+
+	i = 0;
+	do {
+		/* exit_cmd[2]:0x00 */
+		ois_block_write_addr8_data8(o_ctrl, 0xf203,
+				CAMERA_SENSOR_I2C_TYPE_WORD, &exit_cmd[2], 1);
+		ois_block_read_addr8_data8(o_ctrl, 0xf203,
+				CAMERA_SENSOR_I2C_TYPE_WORD, &check_val, 1);
+	} while ((check_val != 0x00) && (i++ < AW_ERROR_LOOP));
+
+	if (check_val != 0x00) {
+		AW_LOGE("reg[f203]:0x%x != 0, i: %d", check_val, i);
+		return OIS_ERROR;
+	}
+
+	/* Data update to flash, exit_cmd[3]: 0x02 */
 	ois_block_write_addr8_data8(o_ctrl, 0xf8e4, CAMERA_SENSOR_I2C_TYPE_WORD,
 							&exit_cmd[3], 1);
+
+	msleep(20 * 2); /* 2: two sector */
+
 	/* Lock register */
 	ois_block_write_addr8_data8(o_ctrl, 0xf8ff, CAMERA_SENSOR_I2C_TYPE_WORD,
 							&lock_val[0], 1);
@@ -1983,11 +2135,12 @@ static ssize_t gyro_offset_cali_store(struct class *class,
 							&lock_val[1], 1);
 
 	/* Read the zero drift value of the three-axis angular velocity and
-	 * acceleration of the gyroscope
-	 */
-	aw86006_get_accelgyro_dift(o_ctrl, ag_dift);
-
-	AW_LOGI("aw86006 gyro offset cali success!");
+	 * acceleration of the gyroscope */
+	ret = aw86006_get_accelgyro_dift(o_ctrl, &ag_dift);
+	if (ret < 0)
+		AW_LOGE("aw86006 gyro offset cali error!");
+	else
+		AW_LOGI("aw86006 gyro offset cali ok!");
 
 	return count;
 }
