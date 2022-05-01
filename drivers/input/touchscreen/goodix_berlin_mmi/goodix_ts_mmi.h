@@ -17,7 +17,7 @@
 #include <linux/touchscreen_mmi.h>
 #include <linux/mmi_wake_lock.h>
 
-#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+#if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI)
 int goodix_ts_mmi_dev_register(struct platform_device *ts_device);
 void goodix_ts_mmi_dev_unregister(struct platform_device *ts_device);
 #else
