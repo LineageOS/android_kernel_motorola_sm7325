@@ -2260,7 +2260,7 @@ static int goodix_generic_noti_callback(struct notifier_block *self,
 		hw_ops->irq_enable(cd, 0);
 		break;
 	case NOTIFY_FWUPDATE_SUCCESS:
-#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+#if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI)
 		if (cd->need_update_cfg) {
 			if (goodix_get_config_proc(cd)) {
 				ts_info("no valid ic config found");
@@ -2434,7 +2434,7 @@ static int goodix_later_init_thread(void *data)
 	/* setp 2: get config data from config bin */
 	if (goodix_get_config_proc(cd)) {
 		ts_info("no valid ic config found");
-#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+#if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI)
 		cd->need_update_cfg = 1;
 #endif
 	} else
@@ -2454,7 +2454,7 @@ static int goodix_later_init_thread(void *data)
 	ret = hw_ops->read_version(cd, &cd->fw_version);
 	if (ret) {
 		ts_err("invalid fw version, abort");
-#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+#if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI)
 		goto stage2_init;
 #endif
 		goto uninit_fw;
@@ -2462,7 +2462,7 @@ static int goodix_later_init_thread(void *data)
 	ret = hw_ops->get_ic_info(cd, &cd->ic_info);
 	if (ret) {
 		ts_err("invalid ic info, abort");
-#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+#if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI)
 		goto stage2_init;
 #endif
 		goto uninit_fw;
@@ -2475,7 +2475,7 @@ static int goodix_later_init_thread(void *data)
 	goodix_send_ic_config(cd, CONFIG_TYPE_NORMAL);
 #endif
 
-#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+#if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI)
 stage2_init:
 #endif
 	/* init other resources */
@@ -2665,7 +2665,7 @@ static int goodix_ts_probe(struct platform_device *pdev)
 	core_data->ts_notifier.notifier_call = goodix_generic_noti_callback;
 	goodix_ts_register_notifier(&core_data->ts_notifier);
 
-#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+#if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI)
 	ts_info("%s:goodix_ts_mmi_dev_register",__func__);
 	ret = goodix_ts_mmi_dev_register(pdev);
 	if (ret) {
@@ -2761,7 +2761,7 @@ static int goodix_ts_remove(struct platform_device *pdev)
 #ifdef CONFIG_GTP_ENABLE_PM_QOS
 	cpu_latency_qos_remove_request(&core_data->goodix_pm_qos);
 #endif
-#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+#if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI)
 	ts_info("%s:goodix_ts_mmi_dev_unregister",__func__);
 	goodix_ts_mmi_dev_unregister(pdev);
 #endif
