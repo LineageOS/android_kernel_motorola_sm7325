@@ -37,6 +37,13 @@
 #define QTIMER_SAMPLE_TIME 2
 #define QTIMER_MAX_SAMPLE 20
 
+/* AW86006 EIS */
+#define RING_BUFFER_LEN 42
+#define AW86006_PACKET_ENABLE 0x0003
+#define AW86006_PACKET_ADDR 0x0006
+#define AW86006_MAX_SAMPLE 10
+
+
 enum cam_ois_state {
 	CAM_OIS_INIT,
 	CAM_OIS_ACQUIRE,
@@ -179,6 +186,10 @@ struct cam_ois_ctrl_t {
 	struct work_struct aw_fw_update_work;
 	struct mutex aw_ois_mutex;
 	struct awrw_ctrl *awrw_ctrl;
+	uint8_t *ring_buff;
+	int ring_buff_size;
+	bool is_video_mode;
+	bool is_need_eis_data;
 };
 
 /**

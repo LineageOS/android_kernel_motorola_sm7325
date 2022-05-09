@@ -296,6 +296,105 @@ static int cam_ois_i2c_driver_remove(struct i2c_client *client)
 	return 0;
 }
 
+static irqreturn_t cam_aw86006_ois_vsync_irq_thread(int irq, void *data)
+{
+	struct cam_ois_ctrl_t *o_ctrl = data;
+	int rc = -EINVAL, handled = IRQ_NONE, sample_cnt = 0, delay_time = 0;
+	uint64_t mono_time_ns;
+	struct timespec64 ts;
+	uint8_t *read_buff;
+	uint32_t k, read_len;
+
+	if (!o_ctrl) {
+		CAM_ERR(CAM_OIS, "Invalid Args");
+		return IRQ_NONE;
+	}
+
+	if (o_ctrl->cam_ois_state < CAM_OIS_CONFIG) {
+		CAM_WARN(CAM_OIS, "Not in right state to read Eis data: %d", o_ctrl->cam_ois_state);
+		return IRQ_NONE;
+	}
+
+	if (o_ctrl->is_video_mode == false ||
+		o_ctrl->is_need_eis_data == false) {
+		CAM_DBG(CAM_OIS, "No need to read Eis data: %d %d", o_ctrl->is_video_mode, o_ctrl->is_need_eis_data);
+		return IRQ_NONE;
+	}
+
+	if (!mutex_trylock(&o_ctrl->vsync_mutex)) {
+		CAM_WARN(CAM_OIS, "try to get mutex fail, skip this irq");
+		return IRQ_NONE;
+	}
+
+	ktime_get_boottime_ts64(&ts);
+	mono_time_ns = (uint64_t)((ts.tv_sec * 1000000000) + ts.tv_nsec);
+
+	CAM_DBG(CAM_OIS, "aw86006 ois vsync sof mono timestamp is %lld", mono_time_ns);
+
+	o_ctrl->prev_timestamp = o_ctrl->curr_timestamp;
+	o_ctrl->curr_timestamp = mono_time_ns;
+
+	// when the first vsync arrived, return
+	if (o_ctrl->is_first_vsync) {
+		o_ctrl->is_first_vsync = 0;
+		rc = -EINVAL;
+		goto release_mutex;
+	}
+
+	memset(o_ctrl->ring_buff, 0, o_ctrl->ring_buff_size);
+	read_buff = o_ctrl->ring_buff;
+
+	for (k = 0; k < RING_BUFFER_LEN/READ_BYTE + 1; k++) {
+		if (k == RING_BUFFER_LEN/READ_BYTE)
+			read_len = RING_BUFFER_LEN%READ_BYTE;
+		else
+			read_len = READ_BYTE;
+
+		if (read_len == 0) {
+			CAM_WARN(CAM_OIS, "read length is 0, break loop read");
+			break;
+		}
+
+		rc = camera_io_dev_ois_read_seq(
+			&o_ctrl->io_master_info,
+			AW86006_PACKET_ADDR,
+			read_buff + k*READ_BYTE,
+			CAMERA_SENSOR_I2C_TYPE_WORD,
+			CAMERA_SENSOR_I2C_TYPE_BYTE,
+			read_len);
+
+		if (rc < 0) {
+			CAM_ERR(CAM_OIS, "failed to read ois data: %d", rc);
+			goto release_mutex;
+		}
+	}
+
+	sample_cnt = read_buff[0];
+	delay_time = read_buff[1];
+
+	CAM_DBG(CAM_OIS,"sample_cnt = %d, delay_time = %d (100 us)", sample_cnt, delay_time);
+
+	if (sample_cnt == 0 || sample_cnt > AW86006_MAX_SAMPLE) {
+		CAM_WARN(CAM_OIS,"sample_cnt %d is invalid, skip the data", sample_cnt);
+		rc = -EINVAL;
+		goto release_mutex;
+	}
+
+release_mutex:
+	if (rc < 0) {
+		memset(o_ctrl->ring_buff, 0, o_ctrl->ring_buff_size);
+		handled = IRQ_NONE;
+	} else
+		handled = IRQ_HANDLED;
+
+	mutex_unlock(&(o_ctrl->vsync_mutex));
+
+	if (rc >= 0)
+		complete(&o_ctrl->ois_data_complete);
+
+	return handled;
+}
+
 static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 {
 	struct cam_ois_ctrl_t *o_ctrl = data;
@@ -463,11 +562,16 @@ static int cam_ois_component_bind(struct device *dev,
 	o_ctrl->soc_info.dev_name = pdev->name;
 
 	o_ctrl->ois_device_type = MSM_CAMERA_PLATFORM_DEVICE;
-	o_ctrl->ois_data_size = PACKET_BYTE*MAX_PACKET;
 
+	o_ctrl->ring_buff_size = RING_BUFFER_LEN;
+	o_ctrl->ring_buff = kzalloc(o_ctrl->ring_buff_size, GFP_KERNEL);
+	if (!o_ctrl->ring_buff)
+		goto free_o_ctrl;
+
+	o_ctrl->ois_data_size = PACKET_BYTE*MAX_PACKET;
 	o_ctrl->ois_data = kzalloc(o_ctrl->ois_data_size, GFP_KERNEL);
 	if (!o_ctrl->ois_data)
-		goto free_o_ctrl;
+		goto free_ring_buff;
 
 	o_ctrl->io_master_info.master_type = CCI_MASTER;
 	o_ctrl->io_master_info.cci_client = kzalloc(
@@ -524,13 +628,24 @@ static int cam_ois_component_bind(struct device *dev,
 		if (o_ctrl->vsync_irq > 0) {
 			CAM_DBG(CAM_OIS, "get ois-vsync irq: %d", o_ctrl->vsync_irq);
 
-			rc = devm_request_threaded_irq(dev,
-							o_ctrl->vsync_irq,
-							NULL,
-							cam_ois_vsync_irq_thread,
-							(IRQF_TRIGGER_RISING | IRQF_ONESHOT),
-							"ois-vsync-irq",
-							o_ctrl);
+			if (o_ctrl->ic_name != NULL && strstr(o_ctrl->ic_name, "aw86006")) {
+				rc = devm_request_threaded_irq(dev,
+								o_ctrl->vsync_irq,
+								NULL,
+								cam_aw86006_ois_vsync_irq_thread,
+								(IRQF_TRIGGER_RISING | IRQF_ONESHOT),
+								"aw86006-vsync-irq",
+								o_ctrl);
+			} else {
+				rc = devm_request_threaded_irq(dev,
+								o_ctrl->vsync_irq,
+								NULL,
+								cam_ois_vsync_irq_thread,
+								(IRQF_TRIGGER_RISING | IRQF_ONESHOT),
+								"ois-vsync-irq",
+								o_ctrl);
+			}
+
 			if (rc != 0)
 				CAM_ERR(CAM_OIS, "failed: to request ois-vsync IRQ %d, rc %d", o_ctrl->vsync_irq, rc);
 			else
@@ -549,6 +664,8 @@ free_cci_client:
 	kfree(o_ctrl->io_master_info.cci_client);
 free_ois_data:
 	kfree(o_ctrl->ois_data);
+free_ring_buff:
+	kfree(o_ctrl->ring_buff);
 free_o_ctrl:
 	kfree(o_ctrl);
 	return rc;
@@ -590,6 +707,7 @@ static void cam_ois_component_unbind(struct device *dev,
 	kfree(o_ctrl->soc_info.soc_private);
 	kfree(o_ctrl->io_master_info.cci_client);
 	kfree(o_ctrl->ois_data);
+	kfree(o_ctrl->ring_buff);
 	platform_set_drvdata(pdev, NULL);
 	v4l2_set_subdevdata(&o_ctrl->v4l2_dev_str.sd, NULL);
 	kfree(o_ctrl);
