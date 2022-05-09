@@ -9,6 +9,7 @@ compatible = "mmi,mmi-charger";
 	mmi,dcp-power-max = <10000>;
 	mmi,hvdcp-power-max = <20000>;
 	mmi,pd-power-max = <30000>;
+	mmi,factory-kill-debounce-ms = <3000>;
 };
 
 &qti_glink_charger {
