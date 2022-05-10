@@ -369,6 +369,15 @@
                        };
                 };
         };
+
+	pm8350b-bcl-lvl0 {
+                cooling-maps {
+                        vbat_modem_l3 {
+                                trip = <&b_bcl_lvl0>;
+                                cooling-device = <&modem_tj 3 3>;
+                        };
+		};
+	};
 /*
 	pa_therm1 {
 		polling-delay-passive = <0>;
