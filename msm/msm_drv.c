@@ -1746,6 +1746,38 @@ int msm_ioctl_display_hint_ops(struct drm_device *dev, void *data,
 	return 0;
 }
 
+static int msm_ioctl_set_panel_feature(struct drm_device *dev, void *data,
+		struct drm_file *file_priv)
+{
+	struct msm_drm_private *priv;
+	struct msm_kms *kms;
+	struct panel_param_info *param_info = data;
+	int ret;
+
+	priv = dev->dev_private;
+	kms = priv->kms;
+
+	if (unlikely(!param_info)) {
+		DRM_ERROR("ioctl_set_panel_feature invalid data\n");
+		return -EINVAL;
+	}
+
+	DRM_INFO("ioctl_set_panel_feature idx=%d, value=%d\n",
+		param_info->param_idx, param_info->value);
+
+	if (kms && kms->funcs && kms->funcs->set_panel_feature) {
+		ret = kms->funcs->set_panel_feature(kms, *param_info);
+		if (ret) {
+			DRM_ERROR("kms set_panel_feature failed.\n");
+			goto fail;
+		}
+	}
+
+	return 0;
+fail:
+	return ret;
+}
+
 static const struct drm_ioctl_desc msm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(MSM_GEM_NEW,      msm_ioctl_gem_new,      DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(MSM_GEM_CPU_PREP, msm_ioctl_gem_cpu_prep, DRM_AUTH|DRM_RENDER_ALLOW),
@@ -1760,6 +1792,8 @@ static const struct drm_ioctl_desc msm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(MSM_POWER_CTRL, msm_ioctl_power_ctrl,
 			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(MSM_DISPLAY_HINT, msm_ioctl_display_hint_ops,
+			DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(SET_PANEL_FEATURE, msm_ioctl_set_panel_feature,
 			DRM_UNLOCKED),
 };
 
