@@ -40,6 +40,7 @@
 		goodix,iovdd-name = "pm8350c_l2";
 		goodix,gesture-wait-pm;
 		goodix,interpolation-ctrl;
+		goodix,sample-ctrl;
 		goodix,edge-ctrl;
 		panel = <&mot_csot_nt37701_c_655_1080x2400_dsc_cmd_v0
                          &mot_csot_nt37701_c_655_1080x2400_dsc_cmd_v1
