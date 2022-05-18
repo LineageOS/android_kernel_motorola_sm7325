@@ -42,6 +42,7 @@
 		goodix,interpolation-ctrl;
 		goodix,edge-ctrl;
 		panel = <&mot_csot_nt37701_c_655_1080x2400_dsc_cmd_v0
+                         &mot_csot_nt37701_c_655_1080x2400_dsc_cmd_v1
                          &mot_csot_nt37701_655_1080x2400_dsc_cmd_v1
                          &mot_tm_nt37701_c_655_1080x2400_dsc_cmd_v0
                          &mot_tm_nt37701_655_1080x2400_dsc_cmd_v1
