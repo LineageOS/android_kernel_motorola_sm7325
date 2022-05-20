@@ -824,13 +824,13 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 	if (panel->host_config.ext_bridge_mode)
 		return 0;
 
-	if (dsi_panel_set_hbm_backlight(panel, &bl_lvl))
-		return 0;
-
 	if(panel->lhbm_config.enable) {
 		panel->lhbm_config.dbv_level = bl_lvl;
 		DSI_INFO("backlight type:%d dbv lvl:%d\n", bl->type, bl_lvl);
 	}
+
+	if (dsi_panel_set_hbm_backlight(panel, &bl_lvl))
+		return 0;
 
 	DSI_DEBUG("backlight type:%d lvl:%d\n", bl->type, bl_lvl);
 	switch (bl->type) {
