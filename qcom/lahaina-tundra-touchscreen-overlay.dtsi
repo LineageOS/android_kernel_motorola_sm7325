@@ -46,6 +46,7 @@
                          &mot_csot_nt37701_c_655_1080x2400_dsc_cmd_v1
                          &mot_csot_nt37701_655_1080x2400_dsc_cmd_v1
                          &mot_tm_nt37701_c_655_1080x2400_dsc_cmd_v0
+                         &mot_tm_nt37701_c_655_1080x2400_dsc_cmd_v1
                          &mot_tm_nt37701_655_1080x2400_dsc_cmd_v1
                          &mot_tm_nt37701_655_1080x2400_dsc_cmd_v2>;
 		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend", "pmx_ts_release";
