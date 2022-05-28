@@ -6,6 +6,27 @@
 #include "cam_sensor_io.h"
 #include "cam_sensor_i2c.h"
 
+#ifdef CONFIG_CAM_DISTINGUISH_SENSOR_VERSION
+
+#define SPECIAL_SENSOR_ID 0x5041
+#define SPECIAL_SENSOR_ADDR_ID 0x300B
+#define SPECIAL_SENSOR_ADDR_VERSION 0x900E
+#define SPECIAL_SENSOR_IIC_ADDR 0x10
+
+static uint32_t s_r900e_val = 0;
+
+struct cam_sensor_i2c_reg_array special_on_write_settings =  {0x0100, 0x01, 0x05, 0xFF};
+struct cam_sensor_i2c_reg_array special_off_write_settings = {0x0100, 0x00, 0x00, 0xFF};
+
+struct cam_sensor_i2c_reg_array special_streamon_write_settings[] =
+{
+	{0x7278, 0x00, 0x00, 0xFF},
+	{0x727a, 0x01, 0x00, 0xFF},
+	{0x7280, 0x07, 0x00, 0xFF},
+	{0x0100, 0x01, 0x00, 0xFF}
+};
+#endif
+
 int32_t camera_io_dev_poll(struct camera_io_master *io_master_info,
 	uint32_t addr, uint16_t data, uint32_t data_mask,
 	enum camera_sensor_i2c_type addr_type,
@@ -68,14 +89,25 @@ int32_t camera_io_dev_read(struct camera_io_master *io_master_info,
 	enum camera_sensor_i2c_type addr_type,
 	enum camera_sensor_i2c_type data_type)
 {
+#ifdef CONFIG_CAM_DISTINGUISH_SENSOR_VERSION
+	int32_t retval = 0;
+	uint32_t r900e = 0;
+	struct cam_sensor_i2c_reg_setting write_setting = {0};
+#endif
+
 	if (!io_master_info) {
 		CAM_ERR(CAM_SENSOR, "Invalid Args");
 		return -EINVAL;
 	}
 
 	if (io_master_info->master_type == CCI_MASTER) {
+#ifdef CONFIG_CAM_DISTINGUISH_SENSOR_VERSION
+		retval = cam_cci_i2c_read(io_master_info->cci_client,
+			addr, data, addr_type, data_type);
+#else
 		return cam_cci_i2c_read(io_master_info->cci_client,
 			addr, data, addr_type, data_type);
+#endif
 	} else if (io_master_info->master_type == I2C_MASTER) {
 		return cam_qup_i2c_read(io_master_info->client,
 			addr, data, addr_type, data_type);
@@ -87,7 +119,50 @@ int32_t camera_io_dev_read(struct camera_io_master *io_master_info,
 			io_master_info->master_type);
 		return -EINVAL;
 	}
+
+#ifdef CONFIG_CAM_DISTINGUISH_SENSOR_VERSION
+	if (retval == 0 &&
+		data != NULL &&
+		*data == SPECIAL_SENSOR_ID &&
+		addr == SPECIAL_SENSOR_ADDR_ID &&
+		io_master_info->cci_client != NULL &&
+		io_master_info->cci_client->cci_i2c_master == 0 &&
+		io_master_info->cci_client->sid == SPECIAL_SENSOR_IIC_ADDR)
+	{
+		write_setting.size = 1;
+		write_setting.addr_type = CAMERA_SENSOR_I2C_TYPE_WORD;
+		write_setting.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
+		write_setting.delay = 21;
+		write_setting.read_buff = NULL;
+		write_setting.read_buff_len = 0;
+		write_setting.reg_setting = &special_on_write_settings;
+		retval = cam_cci_i2c_write_table(io_master_info, &write_setting);
+
+		retval = cam_cci_i2c_read(io_master_info->cci_client,
+				SPECIAL_SENSOR_ADDR_VERSION,
+				&r900e,
+				CAMERA_SENSOR_I2C_TYPE_WORD,
+				CAMERA_SENSOR_I2C_TYPE_BYTE);
+
+		CAM_INFO(CAM_SENSOR, "retval = %d, r900e = %d", retval, r900e);
+
+		if(retval == 0)
+			s_r900e_val = r900e;
+
+		write_setting.size = 1;
+		write_setting.addr_type = CAMERA_SENSOR_I2C_TYPE_WORD;
+		write_setting.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
+		write_setting.delay = 0;
+		write_setting.read_buff = NULL;
+		write_setting.read_buff_len = 0;
+		write_setting.reg_setting = &special_off_write_settings;
+		retval = cam_cci_i2c_write_table(io_master_info, &write_setting);
+	}
+
+	return retval;
+#else
 	return 0;
+#endif
 }
 
 int32_t camera_io_dev_read_seq(struct camera_io_master *io_master_info,
@@ -143,6 +218,10 @@ int32_t camera_io_dev_ois_read_seq(struct camera_io_master *io_master_info,
 int32_t camera_io_dev_write(struct camera_io_master *io_master_info,
 	struct cam_sensor_i2c_reg_setting *write_setting)
 {
+#ifdef CONFIG_CAM_DISTINGUISH_SENSOR_VERSION
+	int32_t retval = 0;
+#endif
+
 	if (!write_setting || !io_master_info) {
 		CAM_ERR(CAM_SENSOR,
 			"Input parameters not valid ws: %pK ioinfo: %pK",
@@ -154,6 +233,44 @@ int32_t camera_io_dev_write(struct camera_io_master *io_master_info,
 		CAM_ERR(CAM_SENSOR, "Invalid Register Settings");
 		return -EINVAL;
 	}
+
+#ifdef CONFIG_CAM_DISTINGUISH_SENSOR_VERSION
+	if (io_master_info->cci_client != NULL &&
+		io_master_info->cci_client->sid== SPECIAL_SENSOR_IIC_ADDR &&
+		io_master_info->cci_client->cci_device == 1 &&
+		io_master_info->cci_client->cci_i2c_master == 0 &&
+		write_setting->reg_setting->reg_addr == 0x0100 &&
+		write_setting->reg_setting->reg_data == 0x01)
+	{
+		CAM_INFO(CAM_SENSOR, "Detect stream on setting, r900e = %d", s_r900e_val);
+
+		if (s_r900e_val == 0x02)
+		{
+			write_setting->reg_setting->reg_addr = special_streamon_write_settings[0].reg_addr;
+			write_setting->reg_setting->reg_data = special_streamon_write_settings[0].reg_data;
+			write_setting->reg_setting->delay = special_streamon_write_settings[0].delay;
+			write_setting->reg_setting->data_mask = special_streamon_write_settings[0].data_mask;
+			retval = cam_cci_i2c_write_table(io_master_info, write_setting);
+
+			write_setting->reg_setting->reg_addr = special_streamon_write_settings[1].reg_addr;
+			write_setting->reg_setting->reg_data = special_streamon_write_settings[1].reg_data;
+			write_setting->reg_setting->delay = special_streamon_write_settings[1].delay;
+			write_setting->reg_setting->data_mask = special_streamon_write_settings[1].data_mask;
+			retval = cam_cci_i2c_write_table(io_master_info, write_setting);
+
+			write_setting->reg_setting->reg_addr = special_streamon_write_settings[2].reg_addr;
+			write_setting->reg_setting->reg_data = special_streamon_write_settings[2].reg_data;
+			write_setting->reg_setting->delay = special_streamon_write_settings[2].delay;
+			write_setting->reg_setting->data_mask = special_streamon_write_settings[2].data_mask;
+			retval = cam_cci_i2c_write_table(io_master_info, write_setting);
+
+			write_setting->reg_setting->reg_addr = special_streamon_write_settings[3].reg_addr;
+			write_setting->reg_setting->reg_data = special_streamon_write_settings[3].reg_data;
+			write_setting->reg_setting->delay = special_streamon_write_settings[3].delay;
+			write_setting->reg_setting->data_mask = special_streamon_write_settings[3].data_mask;
+		}
+	}
+#endif
 
 	if (io_master_info->master_type == CCI_MASTER) {
 		return cam_cci_i2c_write_table(io_master_info,
