@@ -133,8 +133,8 @@ enum soc_enum {
 	SOC_ERASE_BLOCK_DELAY	= 8,
 	SOC_WRITE_BLOCK_HEAD	= 13,
 	SOC_WRITE_BLOCK_DELAY	= 1000, /* us */
-	SOC_READ_BLOCK_DELAY	= 2000, /* us */
-	SOC_CONNECT_DELAY	= 2000, /* us */
+	SOC_READ_BLOCK_DELAY	= 200, /* us */
+	SOC_CONNECT_DELAY	= 200, /* us */
 };
 
 enum soc_flash_event {

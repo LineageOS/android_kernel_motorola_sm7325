@@ -47,7 +47,7 @@
 #include "cam_packet_util.h"
 #include "cam_ois_aw86006.h"
 
-#define AW86006_DRIVER_VERSION		"v0.5.0.4"
+#define AW86006_DRIVER_VERSION		"v0.5.0.8"
 #define AW86006_FW_NAME			"mot_aw86006.prog"
 
 const char fw_check_str[] = { 'A', 'W', 'I', 'N', 'I', 'C', 0, 0 };
@@ -1172,6 +1172,7 @@ int aw86006_firmware_update(struct cam_ois_ctrl_t *o_ctrl,
 						const struct firmware *fw)
 {
 	int ret = OIS_ERROR;
+	int i = 0;
 	uint8_t standby_flag = 0;
 
 	AW_LOGI("enter");
@@ -1191,10 +1192,11 @@ int aw86006_firmware_update(struct cam_ois_ctrl_t *o_ctrl,
 	}
 	mdelay(AW_RESET_DELAY); /* run app after reset */
 	/* Get standby flag */
-	ret = aw86006_get_standby_flag(o_ctrl, &standby_flag);
-	if (ret != OIS_SUCCESS) {
-		AW_LOGE("get standby flag failed");
-		goto err_get_standby_flg;
+	for (i = 0; i < AW_ERROR_LOOP; i++) {
+		aw86006_get_standby_flag(o_ctrl, &standby_flag);
+		if (standby_flag == AW_IC_STANDBY)
+			break;
+		mdelay(AW_RESET_DELAY);
 	}
 
 	if (standby_flag == AW_IC_STANDBY) {
@@ -1212,7 +1214,6 @@ int aw86006_firmware_update(struct cam_ois_ctrl_t *o_ctrl,
 			AW_LOGE("fw update failed, ret: %d", ret);
 	}
 
-err_get_standby_flg:
 err_reset:
 err_fw_check:
 	release_firmware(fw);
