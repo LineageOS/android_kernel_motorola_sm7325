@@ -49,6 +49,7 @@ qcom,mdss-dsi-te-using-te-pin;
 qcom,bklt-dcs-2bytes-enabled;
 qcom,mdss-dsi-bl-min-level = <3>;
 qcom,mdss-dsi-bl-max-level = <4095>;
+qcom,mdss-brightness-max-level = <4095>;
 qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
 
 qcom,mdss-dsi-panel-hdr-enabled;
