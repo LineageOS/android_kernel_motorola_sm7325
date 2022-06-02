@@ -32,8 +32,8 @@
 		goodix,irq-gpio = <&tlmm 23 0x2002>;
 		goodix,irq-flags = <0x2002>; /* 1:trigger rising, 2:trigger falling;*/
 		goodix,panel-max-id = <10>;
-		goodix,panel-max-x = <8640>;
-		goodix,panel-max-y = <19200>;
+		goodix,panel-max-x = <17280>;
+		goodix,panel-max-y = <38400>;
 		goodix,panel-max-w = <255>;
 		goodix,panel-max-p = <4096>;
 		goodix,avdd-name = "pm8350c_l3";
