@@ -6580,6 +6580,8 @@ static int panel_class_create(struct platform_device *pdev)
 				if (error)
 					break;
 			}
+			if (!error)
+				break;
 		} else {
 			DSI_ERR("drm_conn->kdev is NULL, retry %d times\n", j);
 		}
