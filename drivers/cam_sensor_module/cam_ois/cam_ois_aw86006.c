@@ -47,7 +47,7 @@
 #include "cam_packet_util.h"
 #include "cam_ois_aw86006.h"
 
-#define AW86006_DRIVER_VERSION		"v0.5.0.8"
+#define AW86006_DRIVER_VERSION		"v0.5.0.9"
 #define AW86006_FW_NAME			"mot_aw86006.prog"
 
 const char fw_check_str[] = { 'A', 'W', 'I', 'N', 'I', 'C', 0, 0 };
