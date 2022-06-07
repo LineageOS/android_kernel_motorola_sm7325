@@ -404,6 +404,8 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 	uint8_t *read_buff;
 	uint32_t k, read_len;
 	uint32_t mode_val = 0xFFFF, enable_val = 0xFFFF;
+	uint32_t data_ready = 0xFFFF;
+	int i = 0;
 
 	if (!o_ctrl) {
 		CAM_ERR(CAM_OIS, "Invalid Args");
@@ -468,6 +470,28 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 	memset(o_ctrl->ois_data, 0, o_ctrl->ois_data_size);
 	read_buff = o_ctrl->ois_data;
 
+	for (i = 0; i < READ_COUNT; i++) {
+		rc = camera_io_dev_read(
+			&o_ctrl->io_master_info,
+			DATA_READY_ADDR,
+			&data_ready,
+			CAMERA_SENSOR_I2C_TYPE_WORD,
+			CAMERA_SENSOR_I2C_TYPE_WORD);
+		if (rc < 0) {
+			CAM_ERR(CAM_OIS, "failed to read OIS 0x70da reg rc: %d", rc);
+			goto release_mutex;
+		}
+		if (data_ready == DATA_READY) {
+			CAM_DBG(CAM_OIS, "data_ready == 0x0001 i = %d", i);
+			break;
+		} else if (data_ready != DATA_READY && i < READ_COUNT - 1) {
+			CAM_ERR(CAM_OIS, "data_ready != 0x0001 i = %d", i);
+			udelay(1000);
+		} else {
+			CAM_ERR(CAM_OIS, "data_ready check fail i = %d", i);
+			goto release_mutex;
+		}
+	}
 	do {
 		if (packet_cnt > 0 && packet_cnt < MAX_PACKET)
 			read_buff += PACKET_BYTE;
