@@ -28,6 +28,9 @@
 #define MODE_ADDR 0x7014
 #define ENABLE_ADDR 0x7015
 #define PACKET_ADDR 0x70B0
+#define DATA_READY_ADDR 0x70DA
+#define DATA_READY 0x0001
+#define READ_COUNT 3
 #define PACKET_BYTE 62
 #define MAX_PACKET 5
 #define MAX_SAMPLE 30
