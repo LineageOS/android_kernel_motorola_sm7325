@@ -2981,7 +2981,7 @@ static int _dsi_ctrl_setup_isr(struct dsi_ctrl *dsi_ctrl)
 			dsi_ctrl->irq_info.irq_num = irq_num;
 			disable_irq_nosync(irq_num);
 
-			DSI_CTRL_INFO(dsi_ctrl, "IRQ %d registered\n", irq_num);
+			DSI_CTRL_DEBUG(dsi_ctrl, "IRQ %d registered\n", irq_num);
 		}
 	}
 	return rc;
