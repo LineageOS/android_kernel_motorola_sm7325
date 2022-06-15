@@ -376,12 +376,22 @@ struct data_rate_settings_t data_rate_delta_table_1_2_3 = {
 				{
 					.lane_identifier = CPHY_LANE_0,
 					.csiphy_data_rate_regs = {
+#ifdef CONFIG_CAM_CTLE_ENABLE
+						{0x144, 0xB2, 0x00,
+							CSIPHY_DEFAULT_PARAMS},
+#else
 						{0x144, 0xA2, 0x00,
 							CSIPHY_DEFAULT_PARAMS},
+#endif
 						{0x988, 0x05, 0x00,
 							CSIPHY_DEFAULT_PARAMS},
+#ifdef CONFIG_CAM_CTLE_ENABLE
+						{0x980, 0x60, 0x00,
+							CSIPHY_DEFAULT_PARAMS},
+#else
 						{0x980, 0x61, 0x00,
 							CSIPHY_DEFAULT_PARAMS},
+#endif
 						{0x9B4, 0x08, 0x0A,
 							CSIPHY_DEFAULT_PARAMS},
 					},
@@ -389,12 +399,22 @@ struct data_rate_settings_t data_rate_delta_table_1_2_3 = {
 				{
 					.lane_identifier = CPHY_LANE_1,
 					.csiphy_data_rate_regs = {
+#ifdef CONFIG_CAM_CTLE_ENABLE
+						{0x344, 0xB2, 0x00,
+							CSIPHY_DEFAULT_PARAMS},
+#else
 						{0x344, 0xA2, 0x00,
 							CSIPHY_DEFAULT_PARAMS},
+#endif
 						{0xA88, 0x05, 0x00,
 							CSIPHY_DEFAULT_PARAMS},
+#ifdef CONFIG_CAM_CTLE_ENABLE
+						{0xA80, 0x60, 0x00,
+							CSIPHY_DEFAULT_PARAMS},
+#else
 						{0xA80, 0x61, 0x00,
 							CSIPHY_DEFAULT_PARAMS},
+#endif
 						{0xAB4, 0x08, 0x0A,
 							CSIPHY_DEFAULT_PARAMS},
 					},
@@ -402,12 +422,22 @@ struct data_rate_settings_t data_rate_delta_table_1_2_3 = {
 				{
 					.lane_identifier = CPHY_LANE_2,
 					.csiphy_data_rate_regs = {
+#ifdef CONFIG_CAM_CTLE_ENABLE
+						{0x544, 0xB2, 0x00,
+							CSIPHY_DEFAULT_PARAMS},
+#else
 						{0x544, 0xA2, 0x00,
 							CSIPHY_DEFAULT_PARAMS},
+#endif
 						{0xB88, 0x05, 0x00,
 							CSIPHY_DEFAULT_PARAMS},
+#ifdef CONFIG_CAM_CTLE_ENABLE
+						{0xB80, 0x60, 0x00,
+							CSIPHY_DEFAULT_PARAMS},
+#else
 						{0xB80, 0x61, 0x00,
 							CSIPHY_DEFAULT_PARAMS},
+#endif
 						{0xBB4, 0x08, 0x0A,
 							CSIPHY_DEFAULT_PARAMS},
 					},
