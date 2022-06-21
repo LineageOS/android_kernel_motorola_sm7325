@@ -528,6 +528,9 @@ struct ts_mmi_dev {
 	int			update_baseline;
 	struct attribute_group	*extern_group;
 	struct list_head	node;
+
+	bool			double_tap_pressed;
+
 	/*
 	 * vendor provided
 	 */
