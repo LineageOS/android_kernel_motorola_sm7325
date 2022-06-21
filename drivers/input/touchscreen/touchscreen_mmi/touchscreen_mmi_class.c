@@ -437,6 +437,35 @@ static ssize_t double_tap_pressed_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%u\n", touch_cdev->double_tap_pressed);
 }
 static DEVICE_ATTR_RO(double_tap_pressed);
+
+static ssize_t udfps_enabled_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct ts_mmi_dev *touch_cdev = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n",
+			!!(touch_cdev->gesture_mode_type & TS_MMI_GESTURE_ZERO));
+}
+static ssize_t udfps_enabled_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct ts_mmi_dev *touch_cdev = dev_get_drvdata(dev);
+
+	gesture_set(touch_cdev, TS_MMI_GESTURE_ZERO, buf[0] != '0');
+
+	return count;
+}
+static DEVICE_ATTR_RW(udfps_enabled);
+
+static ssize_t udfps_pressed_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct ts_mmi_dev *touch_cdev = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", touch_cdev->udfps_pressed);
+}
+static DEVICE_ATTR_RO(udfps_pressed);
 #endif
 
 static struct attribute *sysfs_class_attrs[] = {
@@ -472,6 +501,8 @@ static struct attribute *sysfs_class_attrs[] = {
 	&dev_attr_gesture.attr,
 	&dev_attr_double_tap_enabled.attr,
 	&dev_attr_double_tap_pressed.attr,
+	&dev_attr_udfps_enabled.attr,
+	&dev_attr_udfps_pressed.attr,
 #endif
 	NULL,
 };

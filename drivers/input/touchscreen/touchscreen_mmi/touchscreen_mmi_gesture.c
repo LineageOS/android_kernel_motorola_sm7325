@@ -226,6 +226,9 @@ static int ts_mmi_gesture_handler(struct gesture_event_data *gev)
 		if (!(mode_type & TS_MMI_GESTURE_ZERO))
 			return 1;
 
+		touch_cdev->udfps_pressed = true;
+		sysfs_notify(&DEV_MMI->kobj, NULL, "udfps_pressed");
+
 		key_code = KEY_F2;
 		if(gev->evdata.x == 0)
 			gev->evdata.x = touch_cdev->pdata.fod_x ;

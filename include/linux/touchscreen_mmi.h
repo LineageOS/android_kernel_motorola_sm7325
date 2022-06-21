@@ -530,6 +530,7 @@ struct ts_mmi_dev {
 	struct list_head	node;
 
 	bool			double_tap_pressed;
+	bool			udfps_pressed;
 
 	/*
 	 * vendor provided
