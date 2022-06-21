@@ -565,6 +565,11 @@ struct ts_mmi_dev {
 	struct attribute_group	*extern_group;
 	struct list_head	node;
 	struct touch_clip_area clip;
+
+	ktime_t			single_tap_pressed_time;
+	bool			single_tap_pressed;
+	bool			double_tap_pressed;
+
 	/*
 	 * vendor provided
 	 */
