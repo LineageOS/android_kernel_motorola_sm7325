@@ -532,6 +532,7 @@ struct ts_mmi_dev {
 	ktime_t			single_tap_pressed_time;
 	bool			single_tap_pressed;
 	bool			double_tap_pressed;
+	bool			udfps_pressed;
 
 	/*
 	 * vendor provided
