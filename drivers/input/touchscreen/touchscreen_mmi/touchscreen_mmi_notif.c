@@ -78,12 +78,16 @@ static int ts_mmi_panel_off(struct ts_mmi_dev *touch_cdev) {
 #endif
 	TRY_TO_CALL(post_suspend);
 
+	touch_cdev->double_tap_enabled_prev = false;
+
 	dev_info(DEV_MMI, "%s: done\n", __func__);
 
 	return 0;
 }
 
 static int inline ts_mmi_panel_on(struct ts_mmi_dev *touch_cdev) {
+	touch_cdev->double_tap_pressed = false;
+
 	atomic_set(&touch_cdev->resume_should_stop, 0);
 	kfifo_put(&touch_cdev->cmd_pipe, TS_MMI_DO_RESUME);
 	/* schedule_delayed_work returns true if work has been scheduled */

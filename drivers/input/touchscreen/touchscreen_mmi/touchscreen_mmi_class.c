@@ -327,6 +327,38 @@ static ssize_t pwr_store(struct device *dev,
 }
 static DEVICE_ATTR(pwr, (S_IWUSR | S_IWGRP), NULL, pwr_store);
 
+static ssize_t double_tap_enabled_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct ts_mmi_dev *touch_cdev = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", touch_cdev->double_tap_enabled);
+}
+static ssize_t double_tap_enabled_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct ts_mmi_dev *touch_cdev = dev_get_drvdata(dev);
+
+	touch_cdev->double_tap_enabled = buf[0] != '0';
+
+	if (touch_cdev->double_tap_enabled)
+		touch_cdev->double_tap_enabled_prev = true;
+
+	return count;
+}
+static DEVICE_ATTR_RW(double_tap_enabled);
+
+static ssize_t double_tap_pressed_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct ts_mmi_dev *touch_cdev = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", touch_cdev->double_tap_pressed);
+}
+static DEVICE_ATTR_RO(double_tap_pressed);
+
 static struct attribute *sysfs_class_attrs[] = {
 	&dev_attr_path.attr,
 	&dev_attr_vendor.attr,
@@ -356,6 +388,8 @@ static struct attribute *sysfs_class_attrs[] = {
 	&dev_attr_poison_distance.attr,
 	&dev_attr_poison_trigger_distance.attr,
 #endif
+	&dev_attr_double_tap_enabled.attr,
+	&dev_attr_double_tap_pressed.attr,
 	NULL,
 };
 
