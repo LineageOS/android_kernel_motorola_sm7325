@@ -170,15 +170,17 @@ static void ts_mmi_panel_cb(enum panel_event_notifier_tag tag,
 
 	dev_dbg(DEV_MMI, "%s: %s Notify_type=%d, early=%d\n", __func__,
 		EVENT_PRE_DISPLAY_OFF ? "EVENT_PRE_DISPLAY_OFF" :
+		(EVENT_DISPLAY_LP ? "EVENT_DISPLAY_LP" :
 		(EVENT_DISPLAY_OFF ?     "EVENT_DISPLAY_OFF" :
 		(EVENT_PRE_DISPLAY_ON ?   "EVENT_PRE_DISPLAY_ON" :
-		(EVENT_DISPLAY_ON ?       "EVENT_DISPLAY_ON" : "Unknown"))),
+		(EVENT_DISPLAY_ON ?       "EVENT_DISPLAY_ON" : "Unknown")))),
 		event, (evdata.early_trigger ? 1 : 0));
 
 	panel_event = EVENT_PRE_DISPLAY_OFF ? TS_MMI_EVENT_PRE_DISPLAY_OFF :
+		(EVENT_DISPLAY_LP ? TS_MMI_EVENT_PRE_DISPLAY_OFF :
 		(EVENT_DISPLAY_OFF ? TS_MMI_EVENT_DISPLAY_OFF :
 		(EVENT_PRE_DISPLAY_ON ? TS_MMI_EVENT_PRE_DISPLAY_ON :
-		(EVENT_DISPLAY_ON ? TS_MMI_EVENT_DISPLAY_ON : TS_MMI_EVENT_UNKNOWN)));
+		(EVENT_DISPLAY_ON ? TS_MMI_EVENT_DISPLAY_ON : TS_MMI_EVENT_UNKNOWN))));
 
 	ts_mmi_panel_event_handle(touch_cdev, panel_event);
 
@@ -201,18 +203,20 @@ static int ts_mmi_panel_cb(struct notifier_block *nb,
 
 	dev_dbg(DEV_MMI,"%s: %s event(%lu), ctrl_dsi=%d, idx=%d\n", __func__,
 		EVENT_PRE_DISPLAY_OFF ? "EVENT_PRE_DISPLAY_OFF" :
+		(EVENT_DISPLAY_LP ? "EVENT_DISPLAY_LP" :
 		(EVENT_DISPLAY_OFF ?     "EVENT_DISPLAY_OFF" :
 		(EVENT_PRE_DISPLAY_ON ?   "EVENT_PRE_DISPLAY_ON" :
-		(EVENT_DISPLAY_ON ?       "EVENT_DISPLAY_ON" : "Unknown"))),
+		(EVENT_DISPLAY_ON ?       "EVENT_DISPLAY_ON" : "Unknown")))),
 		event, touch_cdev->pdata.ctrl_dsi, idx);
 
 	if (touch_cdev->pdata.ctrl_dsi != idx)
 		return 0;
 
 	panel_event = EVENT_PRE_DISPLAY_OFF ? TS_MMI_EVENT_PRE_DISPLAY_OFF :
+		(EVENT_DISPLAY_LP ? TS_MMI_EVENT_PRE_DISPLAY_OFF :
 		(EVENT_DISPLAY_OFF ? TS_MMI_EVENT_DISPLAY_OFF :
 		(EVENT_PRE_DISPLAY_ON ? TS_MMI_EVENT_PRE_DISPLAY_ON :
-		(EVENT_DISPLAY_ON ? TS_MMI_EVENT_DISPLAY_ON : TS_MMI_EVENT_UNKNOWN)));
+		(EVENT_DISPLAY_ON ? TS_MMI_EVENT_DISPLAY_ON : TS_MMI_EVENT_UNKNOWN))));
 
 	ret = ts_mmi_panel_event_handle(touch_cdev, panel_event);
 
