@@ -131,6 +131,9 @@ struct drm_panel_notifier *evdata = evd; \
 	((event == DRM_PANEL_EVENT_BLANK) && \
 	 (*blank == DRM_PANEL_BLANK_UNBLANK))
 
+#define EVENT_DISPLAY_LP \
+	(*blank == DRM_PANEL_BLANK_LP)
+
 #else /* CONFIG_DRM_PANEL_NOTIFICATIONS */
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(4,14,0)
 #if defined(CONFIG_DRM_MSM)
