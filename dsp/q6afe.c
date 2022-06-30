@@ -30,7 +30,10 @@
 #define AFE_PARAM_ID_AWDSP_RX_SET_ENABLE	(0x10013D11)
 #define AFE_PARAM_ID_AWDSP_TX_SET_ENABLE	(0x10013D13)
 #define AFE_PARAM_ID_AWDSP_RX_PARAMS            (0x10013D12)
+
+void aw_cal_unmap_memory(void);
 #endif /* #ifdef CONFIG_SND_SOC_AWINIC_AW882XX */
+
 #define WAKELOCK_TIMEOUT	5000
 #define AFE_CLK_TOKEN	1024
 #define AFE_NOWAIT_TOKEN	2048
@@ -1053,6 +1056,10 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 		return -EINVAL;
 	}
 	if (data->opcode == RESET_EVENTS) {
+		#ifdef CONFIG_SND_SOC_AWINIC_AW882XX
+			aw_cal_unmap_memory();
+		#endif /*CONFIG_SND_SOC_AWINIC_AW882XX*/
+
 		pr_debug("%s: reset event = %d %d apr[%pK]\n",
 			__func__,
 			data->reset_event, data->reset_proc, this_afe.apr);
