@@ -26,6 +26,7 @@
 #include "aw882xx.h"
 
 #define AW_DEV_SYSST_CHECK_MAX   (10)
+#define AW882XX_MOTO_MAX_GAIN	 (127)
 #define AW_ALGO_PARAMS_PATH "/vendor/firmware/aw_skt.bin"
 
 enum {
@@ -1135,9 +1136,20 @@ static void aw_dev_fade_in(struct aw_device *aw_dev)
 	struct aw882xx *aw882xx = (struct aw882xx *)aw_dev->private_data;
 	int fade_flag = aw882xx->fade_flag;
 	struct aw_volume_desc *desc = &aw_dev->volume_desc;
+	int aw882xx_volume = 0;
+	int useful_range = 0;
 
 	if (fade_step == 0 || g_fade_in_time == 0 || fade_flag == 0) {
 		aw_dev->ops.aw_set_volume(aw_dev, desc->init_volume);
+		return;
+	} else if (aw_dev->ramp_in_process == 1) {
+		aw_dev_dbg(aw882xx->dev, "ramp_in_process, re-cal the volume");
+		/* Note: The larger the volume value is, the smaller the actual volume */
+		useful_range = desc->mute_volume - desc->init_volume;
+		aw882xx_volume = ((AW882XX_MOTO_MAX_GAIN - aw_dev->cur_gain) * useful_range) / AW882XX_MOTO_MAX_GAIN
+				+ desc->init_volume;
+
+		aw_dev->ops.aw_set_volume(aw_dev, aw882xx_volume);
 		return;
 	}
 	/*volume up*/
@@ -1158,7 +1170,8 @@ static void aw_dev_fade_out(struct aw_device *aw_dev)
 	int fade_step = aw_dev->vol_step;
 	struct aw_volume_desc *desc = &aw_dev->volume_desc;
 
-	if (fade_step == 0 || g_fade_out_time == 0 || fade_flag == 0) {
+	if (fade_step == 0 || g_fade_out_time == 0 || fade_flag == 0 || aw_dev->ramp_in_process == 1) {
+		aw_dev_dbg(aw882xx->dev, "aw_dev_fade_out: set mute_volume");
 		aw_dev->ops.aw_set_volume(aw_dev, desc->mute_volume);
 		return;
 	}

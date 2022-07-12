@@ -815,12 +815,24 @@ static int aw882xx_dev_gain_ctl_set(struct snd_kcontrol *kcontrol,
 
 	aw_dev->cur_gain = ucontrol->value.integer.value[0];
 
+	if (ucontrol->value.integer.value[0] <= 90) {
+		aw_dev_dbg(aw882xx->dev, "ramp started");
+		aw_dev->ramp_in_process = 1;
+	}
+
 	/* hal gain map to aw882xx valume value */
 	value = ucontrol->value.integer.value[0];
 	aw882xx_volume = ((AW882XX_MOTO_MAX_GAIN - value) * useful_range) / AW882XX_MOTO_MAX_GAIN
 					+ desc->init_volume;
 
 	aw_dev->ops.aw_set_volume(aw_dev, aw882xx_volume);
+
+	if (ucontrol->value.integer.value[0] >= 127) {
+                aw_dev_dbg(aw882xx->dev, "ramp ended");
+                aw_dev->ramp_in_process = 0;
+        }
+
+
 	mutex_unlock(&aw882xx->lock);
 	aw_dev_info(aw882xx->dev,"set value = %d, set aw882xx volume = %d", value, aw882xx_volume);
 
