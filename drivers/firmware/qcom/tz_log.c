@@ -1723,7 +1723,7 @@ static int _print_qsee_log_v2_stats(struct tzdbg_log_v2_t *log,
 	splitline_printk(tzdbg.stat[TZDBG_QSEE_LOG].data,len);
 	return len;
 }
-static _print_encrpted_qsee_log_stats(struct encrypted_log_info *enc_log_info)
+static int _print_encrpted_qsee_log_stats(struct encrypted_log_info *enc_log_info)
 {
 	int ret = 0, len = 0;
 	struct tzbsp_encr_log_t *encr_log_head;
