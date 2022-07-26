@@ -11,6 +11,7 @@
 #include <linux/soc/qcom/altmode-glink.h>
 #include <linux/usb/dwc3-msm.h>
 #include <linux/usb/pd_vdo.h>
+#include <linux/usb/ucsi_glink.h>
 
 #include "dp_altmode.h"
 #include "dp_debug.h"
@@ -27,7 +28,9 @@ struct dp_altmode_private {
 	struct dp_hpd_cb *dp_cb;
 	struct dp_altmode dp_altmode;
 	struct altmode_client *amclient;
+	struct notifier_block ucsi_nb;
 	bool connected;
+	bool dp_mode;
 };
 
 enum dp_altmode_pin_assignment {
@@ -156,6 +159,13 @@ static int dp_altmode_notify(void *priv, void *data, size_t len)
 		goto ack;
 	}
 
+	if(altmode->connected && altmode->dp_altmode.base.hpd_high) {
+		if(!altmode->dp_mode){
+			DP_ERR("skip dp connect without ucsi notify dp enable: %d\n", altmode->dp_mode);
+			goto ack;
+		}
+	}
+
 	/* Configure */
 	if (!altmode->connected) {
 		altmode->connected = true;
@@ -184,6 +194,11 @@ static int dp_altmode_notify(void *priv, void *data, size_t len)
 		if (rc)
 			goto ack;
 
+		if(altmode->dp_altmode.base.multi_func==false) {
+			altmode->dp_mode = true;
+			DP_INFO("dp 4lane mode, dp_mode enable: %d\n", altmode->dp_mode);
+		}
+
 		if (altmode->dp_cb && altmode->dp_cb->configure)
 			altmode->dp_cb->configure(altmode->dev);
 		goto ack;
@@ -198,6 +213,31 @@ static int dp_altmode_notify(void *priv, void *data, size_t len)
 ack:
 	dp_altmode_send_pan_ack(altmode->amclient, port_index);
 	return rc;
+}
+
+static int dp_ucsi_notifier(struct notifier_block *nb,
+			unsigned long action, void *data)
+{
+	struct dp_altmode_private *altmode =
+		container_of(nb, struct dp_altmode_private, ucsi_nb);
+	struct ucsi_glink_constat_info *info = data;
+
+	if (info->connect && !info->partner_change)
+		return NOTIFY_DONE;
+
+	if (!info->connect) {
+		if (info->partner_usb || info->partner_alternate_mode)
+			DP_ERR("set partner when no connection\n");
+		altmode->dp_mode = false;
+	} else if (info->partner_alternate_mode) {
+		altmode->dp_mode = true;
+	} else {
+		altmode->dp_mode = false;
+	}
+
+	DP_INFO("%s: dp_mode: %s\n", __func__, altmode->dp_mode?"enable":"disable");
+
+	return NOTIFY_OK;
 }
 
 static void dp_altmode_register(void *priv)
@@ -290,6 +330,12 @@ struct dp_hpd *dp_altmode_get(struct device *dev, struct dp_hpd_cb *cb)
 		goto error;
 	}
 
+	altmode->dp_mode = false;
+	altmode->ucsi_nb.notifier_call = dp_ucsi_notifier;
+	rc = register_ucsi_glink_notifier(&altmode->ucsi_nb);
+	if (rc < 0) {
+		DP_ERR("ucsi notifier registration failed: %d\n", rc);
+	}
 	DP_DEBUG("success\n");
 
 	return &dp_altmode->base;
