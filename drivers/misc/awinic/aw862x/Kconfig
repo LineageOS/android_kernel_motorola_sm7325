@@ -1,0 +1,2 @@
+config AW862X_HAPTIC
+	tristate "Awinic Haptics"

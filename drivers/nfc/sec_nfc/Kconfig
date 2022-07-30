@@ -1,0 +1,5 @@
+config SEC_NFC_PRODUCT_N5
+	tristate "sec nfc product n5"
+
+config SEC_NFC_IF_I2C
+	tristate "sec nfc i2c"
