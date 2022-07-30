@@ -292,12 +292,25 @@ snd-soc-simple-amplifier-objs := simple-amplifier.o
 snd-soc-tpa6130a2-objs := tpa6130a2.o
 snd-soc-tas2552-objs := tas2552.o
 
-ifdef CONFIG_SND_SOC_CS35L41
+ifneq ($(CONFIG_SND_SOC_CS35L41)$(CONFIG_SND_SOC_CS35L45)$(CONFIG_SND_SOC_CS42L42),)
 ccflags-y += -I$(srctree)/techpack/audio/include
 ccflags-y += -I$(srctree)/techpack/audio/include/uapi
 endif
-cirrus_cs35l41-objs := cs35l41.o cs35l41-tables.o
-#snd-soc-cirrus-wm-adsp-objs := cirrus_wm_adsp.o
+ifdef CONFIG_SND_SOC_CS35L41_I2C
+cirrus_cs35l41-objs := cs35l41.o cs35l41-tables.o cs35l41-i2c.o
+else
+cirrus_cs35l41-objs := cs35l41.o cs35l41-tables.o cs35l41-spi.o
+endif
+
+ifdef CONFIG_SND_SOC_CS35L45_I2C
+cirrus_cs35l45-objs := cs35l45.o cs35l45-tables.o cs35l45-i2c.o
+else
+cirrus_cs35l45-objs := cs35l45.o cs35l45-tables.o cs35l45-spi.o
+endif
+
+cirrus_cs42l42-objs = cs42l42.o
+
+cirrus_wm_adsp-objs = wm_adsp.o
 
 obj-$(CONFIG_SND_SOC_88PM860X)	+= snd-soc-88pm860x.o
 obj-$(CONFIG_SND_SOC_AB8500_CODEC)	+= snd-soc-ab8500-codec.o
@@ -589,4 +602,7 @@ obj-$(CONFIG_SND_SOC_SIMPLE_AMPLIFIER)	+= snd-soc-simple-amplifier.o
 obj-$(CONFIG_SND_SOC_TPA6130A2)	+= snd-soc-tpa6130a2.o
 
 obj-$(CONFIG_SND_SOC_CS35L41)	+= cirrus_cs35l41.o
+obj-$(CONFIG_SND_SOC_CS35L45)   += cirrus_cs35l45.o
+obj-$(CONFIG_SND_SOC_CS42L42)   += cirrus_cs42l42.o
 obj-$(CONFIG_SND_SOC_CIRRUS_WM_ADSP)	+= cirrus_wm_adsp.o
+
