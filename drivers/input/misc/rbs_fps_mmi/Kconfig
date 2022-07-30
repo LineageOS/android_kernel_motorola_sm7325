@@ -1,0 +1,25 @@
+config RBS_FPS_MMI
+	tristate "RBS FPS MMI"
+	default n
+	help
+	 Say Y here if you wish to include support
+	 If unsure, say N.
+
+config EGIS_PANEL_NOTIFICATIONS
+	bool "EGIS PANEL MODIFICATIONS support"
+	default n
+	depends on RBS_FPS_MMI
+	help
+	 Say Y here if you wish to include support
+         sysfs.
+	 If unsure, say N.
+
+config ET721_FOD
+        bool "ET721 fod  support"
+        default n
+        depends on RBS_FPS_MMI
+        help
+         Say Y here if you wish to include support
+         sysfs.
+         If unsure, say N.
+

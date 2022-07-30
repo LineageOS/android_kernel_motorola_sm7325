@@ -1,0 +1,2 @@
+config NFC_I2C
+        tristate "Sn1xx NFC"
