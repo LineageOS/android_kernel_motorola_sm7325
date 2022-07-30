@@ -1,7 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+
 /*
  * cs35l41.h -- CS35L41 ALSA SoC audio driver
  *
- * Copyright 2018 Cirrus Logic, Inc.
+ * Copyright 2017-2020 Cirrus Logic, Inc.
  *
  * Author: Brian Austin <brian.austin@cirrus.com>
  *         David Rhodes <david.rhodes@cirrus.com>
@@ -542,7 +544,7 @@
 #define CS35L41_MAX_CACHE_REG		0x0000006B
 #define CS35L41_OTP_SIZE_WORDS		32
 #define CS35L41_NUM_OTP_ELEM		100
-#define CS35L41_NUM_OTP_MAPS		4
+#define CS35L41_NUM_OTP_MAPS		5
 
 #define CS35L41_VALID_PDATA		0x80000000
 
@@ -595,19 +597,19 @@
 #define CS35L41_CH_WKFET_THLD_MASK	0x0F00
 #define CS35L41_CH_WKFET_THLD_SHIFT	8
 
-#define CS35L41_VPBR_THLD_SHIFT		0
-#define CS35L41_VPBR_MAX_ATT_SHIFT	8
-#define CS35L41_VPBR_ATK_VOL_SHIFT	12
-#define CS35L41_VPBR_ATK_RATE_SHIFT	16
-#define CS35L41_VPBR_WAIT_SHIFT		19
-#define CS35L41_REL_RATE_SHIFT		21
+#define CS35L41_HW_NG_SEL_MASK		0x3F00
+#define CS35L41_HW_NG_SEL_SHIFT		8
+#define CS35L41_HW_NG_DLY_MASK		0x0070
+#define CS35L41_HW_NG_DLY_SHIFT		4
+#define CS35L41_HW_NG_THLD_MASK		0x0007
+#define CS35L41_HW_NG_THLD_SHIFT	0
 
-#define CS35L41_NG_ENABLE_MASK		0x00010000
-#define CS35L41_NG_ENABLE_SHIFT		16
-#define CS35L41_NG_THLD_MASK		0x7
-#define CS35L41_NG_THLD_SHIFT		0
-#define CS35L41_NG_DELAY_MASK		0x0F00
-#define CS35L41_NG_DELAY_SHIFT		8
+#define CS35L41_DSP_NG_ENABLE_MASK	0x00010000
+#define CS35L41_DSP_NG_ENABLE_SHIFT	16
+#define CS35L41_DSP_NG_THLD_MASK	0x7
+#define CS35L41_DSP_NG_THLD_SHIFT	0
+#define CS35L41_DSP_NG_DELAY_MASK	0x0F00
+#define CS35L41_DSP_NG_DELAY_SHIFT	8
 
 #define CS35L41_ASP_FMT_MASK		0x0700
 #define CS35L41_ASP_FMT_SHIFT		8
@@ -667,9 +669,6 @@
 #define CS35L41_BST_EN_MASK		0x0030
 #define CS35L41_BST_EN_SHIFT		4
 #define CS35L41_BST_EN_DEFAULT		0x2
-#define CS35L41_BST_EN_BYPASS		1
-
-#define CS35L41_AMP_MUTE_MASK		0x10
 
 #define CS35L41_PDN_DONE_MASK		0x00800000
 #define CS35L41_PDN_DONE_SHIFT		23
@@ -683,7 +682,6 @@
 #define CS35L41_BST_SHORT_ERR		0x0100
 #define CS35L41_TEMP_WARN		0x8000
 #define CS35L41_TEMP_ERR		0x00020000
-#define CS35L41_VPBR_FLAG		0x1000
 #define CS35L41_BST_OVP_ERR		0x40
 #define CS35L41_BST_DCM_UVP_ERR		0x80
 #define CS35L41_OTP_BOOT_DONE		0x02
@@ -697,7 +695,7 @@
 #define CS35L41_TEMP_WARN_ERR_RLS	0x20
 #define CS35L41_TEMP_ERR_RLS		0x40
 
-#define CS35L41_INT1_MASK_DEFAULT	0x7FFCEE3F
+#define CS35L41_INT1_MASK_DEFAULT	0x7FFCFE3F
 #define CS35L41_INT1_UNMASK_PUP		0xFEFFFFFF
 #define CS35L41_INT1_UNMASK_PDN		0xFF7FFFFF
 #define CS35L41_INT1_MASK_FORCE		0xFFFFFFFE
@@ -712,6 +710,14 @@
 #define CS35L41_GPIO_POL_MASK		0x1000
 #define CS35L41_GPIO_POL_SHIFT		12
 
+#define CS35L41_AMP_INV_PCM_SHIFT	14
+#define CS35L41_AMP_INV_PCM_MASK	(1 << CS35L41_AMP_INV_PCM_SHIFT)
+#define CS35L41_AMP_PCM_VOL_SHIFT	3
+#define CS35L41_AMP_PCM_VOL_MASK	(0x7FF << 3)
+#define CS35L41_AMP_PCM_VOL_MUTE	0x4CF
+
+#define CS35L41_FILT_GLOBAL_OVR_MASK	0x4
+
 #define CS35L41_CHIP_ID			0x35a40
 #define CS35L41R_CHIP_ID		0x35b40
 #define CS35L41_MTLREVID_MASK		0x0F
@@ -719,8 +725,6 @@
 #define CS35L41_REVID_B0		0xB0
 #define CS35L41_REVID_B2		0xB2
 
-#define CS35L41_DSP_N_RX_RATES		8
-#define CS35L41_DSP_N_TX_RATES		8
 #define CS35L41_HALO_CORE_RESET		0x00000200
 
 #define CS35L41_FS1_WINDOW_MASK		0x000007FF
@@ -732,6 +736,13 @@
 #define CS35L41_RX_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 #define CS35L41_TX_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE \
 				| SNDRV_PCM_FMTBIT_S32_LE)
+
+#define CS35L41_MAX_AUTO_RAMP_TIMEOUT	65535
+#define CS35L41_MAX_PCM_VOL		913
+#define CS35L41_MAX_VOL_ATT		120
+#define CS35L41_ZERO_PCM_VOL		817
+#define CS35L41_OUTPUT_DEV_SPK		0
+#define CS35L41_OUTPUT_DEV_RCV		1
 
 bool cs35l41_readable_reg(struct device *dev, unsigned int reg);
 bool cs35l41_precious_reg(struct device *dev, unsigned int reg);
@@ -749,6 +760,11 @@ struct cs35l41_otp_map_element_t {
 	const struct cs35l41_otp_packed_element_t *map;
 	u32 bit_offset;
 	u32 word_offset;
+};
+
+struct cs35l41_otp_trim_region_t {
+	u32 reg;
+	u8 size;
 };
 
 extern const struct reg_default cs35l41_reg[CS35L41_MAX_CACHE_REG];
@@ -769,9 +785,12 @@ extern const struct cs35l41_otp_map_element_t
 #define CS35L41_CSPL_MBOX_CMD_DRV_SHIFT		CS35L41_DSP_VIRT1_MBOX_SHIFT
 
 #define CS35L41_CTRL_CACHE_SIZE 14
+#define CS35L41_TRIM_CACHE_REGIONS 18
+#define CS35L41_TRIM_CACHE_SIZE 38
 
-extern const unsigned int
-			cs35l41_ctl_cache_regs[CS35L41_CTRL_CACHE_SIZE];
+extern const unsigned int cs35l41_ctl_cache_regs[CS35L41_CTRL_CACHE_SIZE];
+extern const struct cs35l41_otp_trim_region_t
+			cs35l41_trim_cache_regs[CS35L41_TRIM_CACHE_REGIONS];
 
 enum cs35l41_cspl_mboxstate {
 	CSPL_MBOX_STS_RUNNING = 0,

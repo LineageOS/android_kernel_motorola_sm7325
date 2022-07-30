@@ -56,7 +56,7 @@ struct wmfw_adsp2_sizes {
 } __packed;
 
 struct wmfw_vpu_sizes {
-        __le32 dm;
+	__le32 dm;
 } __packed;
 
 struct wmfw_region {
@@ -107,6 +107,13 @@ struct wmfw_halo_id_hdr {
 	__be32 n_algs;
 } __packed;
 
+struct wmfw_vpu_id_hdr {
+	struct wmfw_v3_id_hdr fw;
+	__be32 dm_base;
+	__be32 dm_size;
+	__be32 n_algs;
+} __packed;
+
 struct wmfw_alg_hdr {
 	__be32 id;
 	__be32 ver;
@@ -123,6 +130,12 @@ struct wmfw_adsp2_alg_hdr {
 	__be32 zm;
 	__be32 xm;
 	__be32 ym;
+} __packed;
+
+struct wmfw_vpu_alg_hdr {
+	struct wmfw_alg_hdr alg;
+	__be32 dm_base;
+	__be32 dm_size;
 } __packed;
 
 struct wmfw_halo_alg_hdr {
