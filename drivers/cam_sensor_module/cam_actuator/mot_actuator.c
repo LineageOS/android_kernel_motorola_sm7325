@@ -65,6 +65,7 @@ typedef enum {
 	MOT_DEVICE_CORFUR,
 	MOT_DEVICE_RHODEC,
 	MOT_DEVICE_RHODEI,
+	MOT_DEVICE_PENANG,
 	MOT_DEVICE_NUM,
 } mot_dev_type;
 
@@ -486,6 +487,32 @@ static const mot_dev_info mot_dev_list[MOT_DEVICE_NUM] = {
 				.cci_dev = 0x00,
 				.cci_master = 0x1,
 				.regulator_list = {"pm6125_l9", "cam_rear_af"},
+				.regulator_volt_uv = {1800000, 2800000},
+				.launch_lens = {
+						.launch_lens_needed = true,
+						.launch_lens_step = {
+									{200, 100},
+									{100, 60},
+									{50, 30},
+						},
+				},
+			},
+		},
+	},
+
+	{
+		.dev_type = MOT_DEVICE_PENANG,
+		.actuator_num = 1,
+		.dev_name = "penang",
+		.actuator_info = {
+			[0] = {
+				.actuator_type = MOT_ACTUATOR_DW9800V,
+				.dac_pos = 0,
+				.init_pos = 512,
+				.cci_addr = 0x0c,
+				.cci_dev = 0x00,
+				.cci_master = 0x1,
+				.regulator_list = {"camera_ldo_dovdd", "pm6125_l21"},
 				.regulator_volt_uv = {1800000, 2800000},
 				.launch_lens = {
 						.launch_lens_needed = true,
