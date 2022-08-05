@@ -16,6 +16,8 @@
 
 / {
 	qcom,board-id = <0 0>;
+	platinfo = "";
+	channel-id-map = "";
 /*
  * Some nodes need labels assigned to appear in __symbols__
  */
@@ -25,4 +27,8 @@
 	mot_batterydata: qcom,battery-data { };
 	utags: utags { };
 	hw: hw { };
+};
+
+&sde_dp {
+	/delete-property/ qcom,mst-enable;
 };

@@ -49,7 +49,7 @@
 
 		mss_mem: mss_region@0x88000000 {
 			no-map;
-			reg = <0x88000000 0x6e00000>;
+			reg = <0x88000000 0x6600000>;
 			label = "mss_mem";
 		};
 
@@ -187,20 +187,22 @@
 		qcom,firmware-name = "modem";
 		qcom,pil-self-auth;
 		qcom,sysmon-id = <0>;
-		qcom,ssctl-instance-id = <0x12>;
+		qcom,ssctl-instance-id = <0x22>;
 		qcom,override-acc;
 		qcom,qdsp6v61-1-1;
 		memory-region = <&mss_mem>;
 		qcom,reset-clk;
 		qcom,sequential-fw-load;
 
-		interrupts-extended = <&modem_smp2p_in 0 0>,
+		interrupts-extended = <&intc GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>,
+				<&modem_smp2p_in 0 0>,
 				<&modem_smp2p_in 2 0>,
 				<&modem_smp2p_in 1 0>,
 				<&modem_smp2p_in 3 0>,
 				<&modem_smp2p_in 7 0>;
 
-		interrupt-names = "qcom,err-fatal",
+		interrupt-names = "qcom,wdog",
+				"qcom,err-fatal",
 				"qcom,proxy-unvote",
 				"qcom,err-ready",
 				"qcom,stop-ack",

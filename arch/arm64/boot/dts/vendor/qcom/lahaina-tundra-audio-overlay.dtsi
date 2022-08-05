@@ -1,0 +1,190 @@
+/* Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "lahaina-audio-overlay.dtsi"
+
+&tlmm {
+
+
+	aw882xx_irq_default: aw882xx_irq_default {
+		mux {
+			pins = "gpio80";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio80";
+			drive-strength = <2>; /* 2 MA */
+			bias-pull-up;
+		};
+	};
+
+	aw882xx_recv_irq_default: aw882xx_recv_irq_default {
+                mux {
+                        pins = "gpio99";
+                        function = "gpio";
+                };
+                config {
+                        pins = "gpio99";
+                        drive-strength = <2>; /* 2 MA */
+                        bias-pull-up;
+                };
+        };
+};
+
+&dai_mi2s0_rx {
+	status = "ok";
+	qcom,msm-mi2s-lines = <1>;
+};
+
+&dai_mi2s0_tx {
+        status = "ok";
+        qcom,msm-mi2s-lines = <2>;
+};
+
+&q6core {
+        cdc_pri_mi2s_gpios: cdc_pri_mi2s_gpios {
+                compatible = "qcom,msm-cdc-pinctrl";
+                pinctrl-names = "aud_active", "aud_sleep";
+                pinctrl-0 = <&pri_mi2s_sck_active &pri_mi2s_ws_active
+                                &pri_mi2s_sd0_active &pri_mi2s_sd1_active>;
+                pinctrl-1 = <&pri_mi2s_sck_sleep &pri_mi2s_ws_sleep
+                                &pri_mi2s_sd0_sleep &pri_mi2s_sd1_sleep>;
+                #gpio-cells = <0>;
+        };
+};
+
+&qupv3_se17_i2c {
+	status = "ok";
+	aw882xx: aw882xx_smartpa@34 {
+		status = "okay";
+		compatible = "awinic,aw882xx_smartpa";
+		reg = <0x34>;
+		irq-gpio = <&tlmm 80 0x2008>;
+		dc-flag = <0>;
+		sync-flag = <0>;
+		sound-channel = <0>;
+		aw-tx-topo-id = <0x1000ff00>;
+		aw-rx-topo-id = <0x1000ff01>;
+		aw-tx-port-id = <0x1001>;
+		aw-rx-port-id = <0x1000>;
+		aw-re-min = <4000>;
+		aw-re-max= <30000>;
+		aw-cali-mode = "aw_attr";
+	};
+
+	aw882xx_recv: aw882xx_recv_smartpa@35 {
+                status = "okay";
+                compatible = "awinic,aw882xx_smartpa";
+                reg = <0x35>;
+                irq-gpio = <&tlmm 99 0x2008>;
+                dc-flag = <0>;
+                sync-flag = <0>;
+                sound-channel = <1>;
+                aw-tx-topo-id = <0x1000ff00>;
+                aw-rx-topo-id = <0x1000ff01>;
+                aw-tx-port-id = <0x1001>;
+                aw-rx-port-id = <0x1000>;
+                aw-re-min = <4000>;
+                aw-re-max= <30000>;
+                aw-cali-mode = "aw_attr";
+        };
+};
+
+&bolero {
+	status = "ok";
+        qcom,num-macros = <3>;
+};
+
+&wsa_spkr_en1 {
+        status = "disabled";
+};
+
+&wsa_spkr_en2 {
+        status = "disabled";
+};
+
+&wsa_macro {
+        status = "disabled";
+};
+
+&swr_dmic_01 {
+        status = "enabled";
+};
+
+&swr_dmic_02 {
+        status = "enabled";
+};
+
+&swr_dmic_03 {
+        status = "enabled";
+};
+
+&swr_dmic_04 {
+        status = "enabled";
+};
+
+&pcie1 {
+        status = "disabled";
+};
+
+/* Modify headset's BIAS voltage to 2.8V */
+&wcd938x_codec {
+	status = "disabled";
+};
+
+&lahaina_snd {
+	qcom,model = "lahaina-xpeng-snd-card";
+	awinic,aw882xx-max-devs = <2>;
+	qcom,ext-disp-audio-rx = <1>;
+	qcom,wsa-max-devs = <0x0>;
+        qcom,wcn-bt = <0x1>;
+	qcom,pri-mi2s-gpios = <&cdc_pri_mi2s_gpios>;
+        qcom,msm-mbhc-usbc-audio-supported = <0>;
+	qcom,wcd-disabled = <1>;
+
+	cdc-vdd-dmic1-supply = <&L6C>;
+	qcom,cdc-vdd-dmic1-voltage = <1800000 1800000>;
+	qcom,cdc-vdd-dmic1-current = <30000>;
+	qcom,cdc-static-supplies = "cdc-vdd-dmic1";
+
+	qcom,cdc-dmic01-gpios = <&cdc_dmic01_gpios>;
+	qcom,cdc-dmic23-gpios = <&cdc_dmic23_gpios>;
+
+	qcom,audio-routing =
+		"TX DMIC0", "Digital Mic0",
+                "TX DMIC1", "Digital Mic1",
+		"TX DMIC2", "Digital Mic2",
+                "TX DMIC3", "Digital Mic3",
+                "TX DMIC4", "Digital Mic4",
+                "TX DMIC5", "Digital Mic5",
+		"RX_TX DEC0_INP", "TX DEC0 MUX",
+		"RX_TX DEC1_INP", "TX DEC1 MUX",
+		"RX_TX DEC2_INP", "TX DEC2 MUX",
+		"RX_TX DEC3_INP", "TX DEC3 MUX",
+		"VA DMIC0", "Digital Mic0",
+                "VA DMIC1", "Digital Mic1",
+		"VA DMIC2", "Digital Mic2",
+                "VA DMIC3", "Digital Mic3",
+                "VA DMIC4", "Digital Mic4",
+                "VA DMIC5", "Digital Mic5",
+		"VA SWR_INPUT", "VA_SWR_CLK",
+		"VA_AIF1 CAP", "VA_SWR_CLK",
+		"VA_AIF2 CAP", "VA_SWR_CLK",
+		"VA_AIF3 CAP", "VA_SWR_CLK";
+	asoc-codec  = <&stub_codec>, <&bolero>,
+		<&aw882xx>, <&aw882xx_recv>, <&ext_disp_audio_codec>, <&swr_haptics>,
+		<&swr_dmic_04>, <&swr_dmic_03>,<&swr_dmic_02>, <&swr_dmic_01>;
+	asoc-codec-names = "msm-stub-codec.1", "bolero_codec",
+		"aw882xxacf_smartpa.3-0034", "aw882xxacf_smartpa.3-0035", "msm-ext-disp-audio-codec-rx", "swr-haptics",
+		"swr-dmic.04", "swr-dmic.03","swr-dmic.02", "swr-dmic.01";
+
+};

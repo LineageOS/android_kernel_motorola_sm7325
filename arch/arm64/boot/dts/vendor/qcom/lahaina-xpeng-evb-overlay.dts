@@ -17,6 +17,7 @@
 
 / {
 	model = "Xpeng";
+	platinfo = "Qualcomm Technologies, Inc SM8350";
 	compatible = "qcom,lahaina-Xpeng", "qcom,lahaina-moto", "qcom,lahaina";
 	qcom,msm-id = <415 0x20001>;
 	qcom,board-id = <0x41 0x9100>;

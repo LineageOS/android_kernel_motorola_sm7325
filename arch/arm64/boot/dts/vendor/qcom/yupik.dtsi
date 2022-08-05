@@ -416,22 +416,22 @@
 
 	pil_trustedvm_mem: pil_trustedvm_region@d0800000 {
 		no-map;
-		reg = <0x0 0xd0800000 0x0 0x76f7000>;
+		//reg = <0x0 0xd0800000 0x0 0x76f7000>;
 	};
 
 	qrtr_shbuf: qrtr-shmem {
 		no-map;
-		reg = <0x0 0xd7ef7000 0x0 0x9000>;
+		//reg = <0x0 0xd7ef7000 0x0 0x9000>;
 	};
 
 	chan0_shbuf: neuron_block@0 {
 		no-map;
-		reg = <0x0 0xd7f00000 0x0 0x80000>;
+		//reg = <0x0 0xd7f00000 0x0 0x80000>;
 	};
 
 	chan1_shbuf: neuron_block@1 {
 		no-map;
-		reg = <0x0 0xd7f80000 0x0 0x80000>;
+		//reg = <0x0 0xd7f80000 0x0 0x80000>;
 	};
 
 	user_contig_mem: user_contig_region {
@@ -447,7 +447,7 @@
 		alloc-ranges = <0x0 0x00000000 0x0 0xffffffff>;
 		reusable;
 		alignment = <0x0 0x400000>;
-		size = <0x0 0x1400000>;
+		size = <0x0 0x2000000>;
 	};
 
 	non_secure_display_memory: non_secure_display_region {
@@ -2886,7 +2886,6 @@
 			"iface_clk",
 			"core_clk_unipro",
 			"core_clk_ice",
-			"core_clk_ice_hw_ctl",
 			"ref_clk",
 			"tx_lane0_sync_clk",
 			"rx_lane0_sync_clk",
@@ -2897,7 +2896,6 @@
 			<&gcc GCC_UFS_PHY_AHB_CLK>,
 			<&gcc GCC_UFS_PHY_UNIPRO_CORE_CLK>,
 			<&gcc GCC_UFS_PHY_ICE_CORE_CLK>,
-			<&gcc GCC_UFS_PHY_ICE_CORE_HW_CTL_CLK>,
 			<&rpmhcc RPMH_CXO_CLK>,
 			<&gcc GCC_UFS_PHY_TX_SYMBOL_0_CLK>,
 			<&gcc GCC_UFS_PHY_RX_SYMBOL_0_CLK>,
@@ -2906,7 +2904,6 @@
 			<75000000 300000000>,
 			<0 0>,
 			<0 0>,
-			<75000000 300000000>,
 			<75000000 300000000>,
 			<75000000 300000000>,
 			<0 0>,
@@ -4242,6 +4239,7 @@
 		qcom,smem-id = <626>;
 		qcom,signal-aop;
 		qcom,complete-ramdump;
+		qcom,ignore-ssr-failure;
 
 		/* Inputs from wpss */
 		interrupts-extended = <&intc GIC_SPI 587 IRQ_TYPE_LEVEL_HIGH>,
@@ -4455,7 +4453,7 @@
 		status = "ok";
 		qcom,pas-id = <28>;
 		qcom,firmware-name = "trustedvm";
-		memory-region = <&pil_trustedvm_mem>;
+		//memory-region = <&pil_trustedvm_mem>;
 	};
 
 	qcom,guestvm_loader {
@@ -4482,7 +4480,7 @@
 			class = "message-queue";
 			direction = "receive";
 			max-size = <0 65536>;
-			shared-buffer = <&chan0_shbuf>;
+			//shared-buffer = <&chan0_shbuf>;
 			qcom,primary;
 			haven-label = <1>;
 			peer-name = <2>;
@@ -4494,7 +4492,7 @@
 			class = "message-queue";
 			direction = "send";
 			max-size = <0 65536>;
-			shared-buffer = <&chan1_shbuf>;
+			//shared-buffer = <&chan1_shbuf>;
 			qcom,primary;
 			haven-label = <2>;
 			peer-name = <2>;
@@ -4506,7 +4504,7 @@
 		qcom,master;
 		haven-label = <3>;
 		peer-name = <2>;
-		shared-buffer = <&qrtr_shbuf>;
+		//shared-buffer = <&qrtr_shbuf>;
 	};
 
 	pil_modem: qcom,mss@4080000 {
@@ -5038,6 +5036,11 @@
 		gpu_gaming_bin: gpu_gaming_bin@1f5 {
 			reg = <0x1f5 0x1>;
 			bits = <5 1>;
+		};
+
+		gpu_model_bin: gpu_model_bin@1e9 {
+			reg = <0x1e9 0x2>;
+			bits = <5 8>;
 		};
 
 		feat_conf_m7: feat_conf_m7@6020 {

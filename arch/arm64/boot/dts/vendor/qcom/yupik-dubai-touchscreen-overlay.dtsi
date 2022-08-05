@@ -1,0 +1,57 @@
+
+
+
+&pm8350c_l3 {
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3304000>;
+	qcom,init-voltage = <3300000>;
+};
+
+&pm8350c_l2 {
+	qcom,init-voltage = <1800000>;
+};
+
+&qupv3_se13_i2c {
+	status = "disabled";
+};
+
+&qupv3_se13_spi {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	status = "ok";
+
+	goodix-berlin@0 {
+		status = "ok";
+		compatible = "goodix,gt9916S";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+		mmi,status = "/chosen","mmi,panel_name","contains","nt37701";
+
+		goodix,reset-gpio = <&tlmm 105 0x0>;
+		goodix,irq-gpio = <&tlmm 81 0x2002>;
+		goodix,irq-flags = <0x2002>; /* 1:trigger rising, 2:trigger falling;*/
+		goodix,panel-max-id = <10>;
+		goodix,panel-max-x = <1080>;
+		goodix,panel-max-y = <2400>;
+		goodix,panel-max-w = <255>;
+		goodix,panel-max-p = <4096>;
+		goodix,avdd-name = "pm8350c_l3";
+		goodix,iovdd-name = "pm8350c_l2";
+		goodix,gesture-wait-pm;
+		goodix,edge-ctrl;
+		panel = <&mot_csot_nt37701_655_1080x2400_dsc_cmd_v0
+                         &mot_csot_nt37701_655_1080x2400_dsc_cmd_v1
+                         &mot_tm_nt37701_655_1080x2400_dsc_cmd_v0
+                         &mot_tm_nt37701_655_1080x2400_dsc_cmd_v1
+                         &mot_tm_nt37701_655_1080x2400_dsc_cmd_v2>;
+		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend", "pmx_ts_release";
+		pinctrl-0 = <&ts_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+		pinctrl-2 = <&ts_release>;
+		mmi,enable-gestures;
+		mmi,power-off-suspend;
+		mmi,usb-charger-detection;
+	};
+};
+

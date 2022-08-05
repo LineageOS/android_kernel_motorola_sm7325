@@ -114,9 +114,9 @@
 &L3C {
 	//regulator-boot-on;
 	//regulator-always-on;
-	qcom,init-voltage = <3300000>;
+	qcom,init-voltage = <3008000>;
+	regulator-min-microvolt = <3008000>;
 	regulator-max-microvolt = <3300000>;
-	regulator-min-microvolt = <3300000>;
 	status = "ok";
 };
 
@@ -151,11 +151,12 @@
 		pinctrl-1 = <&int_suspend &rst_suspend>;
 	};
 	et528: et528 {
-		status = "disabled";
+		status = "ok";
 		compatible = "fp-egistec";
-		//fp-ctrl-power;
-		egistec,gpio_reset = <&tlmm 39 0x00>;
+		fp-ctrl-power;
+
 		egistec,gpio_irq = <&tlmm 38 0x00>;
+		egistec,gpio_reset = <&tlmm 39 0x00>;
 		vcc_fp-supply=<&L3C>;
 		egis-fp,vcc-voltage = <3008000 3008000>;
 		egis-fp,vcc-current = <100000>;

@@ -103,26 +103,17 @@
 		status = "disabled";
 	};
 
-	tps65132@3e {
-		compatible = "ti,tps65132";
+	aw37501@3e {
+		status = "okay";
+		compatible = "awinic,aw37501";
+
+		bool_regulator_fixed; /* use gpio regulator-fixed  */
 		reg = <0x3e>;
-
-		regulators {
-			tps65132_outp: outp {
-				regulator-name = "outp";
-				regulator-boot-on;
-				regulator-always-on;
-				enable-gpios = <&tlmm 2 0>;
-			};
-
-			tps65132_outn: outn {
-				regulator-name = "outn";
-				regulator-boot-on;
-				regulator-always-on;
-				regulator-active-discharge = <0>;
-				enable-gpios = <&tlmm 3 0>;
-			};
-		};
+		outp = <0x0F>;
+		outn = <0x0F>;
+		power_mode = <0xC0>;
+		limit = <370>;
+		offset = <50>;
 	};
 
 	cam_pmic: wl2866d@28{
@@ -159,27 +150,53 @@
 		};
 	};
 
-        aw99703@36 {
+        lcd_backlight@36 {
                 compatible = "awinic,aw99703-bl";
                 reg = <0x36>;
 
+		/* Awinic, aw99703 */
                 aw99703,hwen-gpio = <&tlmm 13 0>;
                 aw99703,bl-map = <3>; /* brightness map level 1:256,2:1024,3:2048 */
                 aw99703,using-lsb;
-                aw99703,ovp-level = <2>; /* 31V */
-                aw99703,ocp-level = <1>; /* 1.8A */
+                aw99703,ovp-level = <2>; /* 0:17.5V, 1:24V, 2:31V, 3:38V, 4:41.5V */
+                aw99703,ocp-level = <1>; /* 0:0.9A, 1:1.8A, 2:2.7A, 3:3.4A */
                 aw99703,switch-freq = <1>; /* 1000kHz(default) */
                 aw99703,auto-freq-high = <0x10>;
                 aw99703,auto-freq-low = <0x05>;
                 aw99703,bl-fscal-led = <0x19>; /* 24.8mA */
                 aw99703,bl-channel = <3>;
-                aw99703,turn-on-ramp = <0x09>; /* 256ms */
+                aw99703,turn-on-ramp = <0x00>; /* 512us */
                 aw99703,turn-off-ramp = <0x04>; /* 8ms */
                 aw99703,pwm-trans-dim = <0>; /* 2ms */
-                aw99703,i2c-trans-dim = <0x07>; /* 512ms */
+                aw99703,i2c-trans-dim = <1>; /* 128ms */
                 aw99703,pwm-mode = <1>; /* 1 pwm enable,0 PWM disable */
-                aw99703,map-type = <1>; /* linear */
+                aw99703,map-type = <4>; /* 0 exponential, 4 linear */
                 aw99703,work-mode = <1>; /* backlight */
+		aw99703,default-brightness = <1024>;
+
+	};
+
+
+        lm3697@35 {
+                compatible = "ti,lm3697";
+                reg = <0x35>;
+
+		/* TI, lm3697*/
+		enable-gpios = <&tlmm 13 0>;
+		backlight {
+			compatible = "ti,lm3697-backlight";
+			lcd {
+				led-sources = <0 1 2>;
+				ramp-up-msec = <200>;
+				ramp-down-msec = <200>;
+				pwm-period = <0>;
+				current-mode = <2>;	/*2: 25mA*/
+				boost-ovp = <2>;	/*0:16v 1:24v 2:32v 3:40v*/
+				boost-freq = <1>;	/*0:500Khz 1:1Mhz*/
+				map-type = <1>;         /* 0 exponential, 1 linear */
+				default-brightness-level = <1024>;
+			};
+		};
 	};
 
 	redriver:redriver@30{
@@ -201,7 +218,7 @@
 		        0x50 0x20 0
 		        0x54 0x11 0
 		        0x5d 0x66 0
-		        0x52 0x20 0
+		        0x52 0x50 0
 		        0x55 0x00 0
 		        0x56 0x00 0
 		        0x57 0x00 0
@@ -209,7 +226,7 @@
 		        0x59 0x00 0
 		        0x5a 0x00 0
 		        0x5b 0x00 0
-		        0x5e 0x06 0
+		        0x5e 0x07 0
 		        0x5f 0x00 0
 		        0x60 0x00 0
 		        0x61 0x03 0
@@ -301,45 +318,106 @@
 	};
 };
 
+&socd_trip {
+	temperature = <95>;
+};
+
 &pm8350b_haptics {
-	qcom,vmax-mv = <3600>;
-	qcom,lra-period-us = <5880>;
+	qcom,vmax-mv = <2800>;
+	qcom,lra-period-us = <4255>;
+	haptic-gpio = <&tlmm 43 0x00>;
+	long-gain-reduced = <128>;
 	status = "ok";
 
 	effect_0 {
 		/* CLICK */
-		qcom,wf-vmax-mv = <3600>;
-		qcom,wf-pattern-period-us = <5880>;
+		qcom,effect-id = <0>;
+		qcom,wf-vmax-mv = <10000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA_DIV_2 0>;
+		qcom,wf-pattern-period-us = <4255>;
+		qcom,wf-brake-mode = <BRAKE_OPEN_LOOP>;
+		qcom,wf-brake-pattern = /bits/ 8 <0xff 0xff 0x9f 0x6f 0x3f 0x1f>;
+		qcom,wf-auto-res-disable;
 	};
 
 	effect_1 {
 		/* DOUBLE_CLICK */
-		qcom,wf-vmax-mv = <3600>;
-		qcom,wf-pattern-period-us = <5880>;
+		qcom,effect-id = <1>;
+		qcom,wf-vmax-mv = <9000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA_DIV_2 0>;
+		qcom,wf-pattern-period-us = <4255>;
+		qcom,wf-brake-mode = <BRAKE_OPEN_LOOP>;
+		qcom,wf-brake-pattern = /bits/ 8 <0xff 0xff 0x9f 0x6f 0x3f 0x1f>;
+		qcom,wf-auto-res-disable;
 	};
 
 	effect_2 {
 		/* TICK */
-		qcom,wf-vmax-mv = <3600>;
-		qcom,wf-pattern-period-us = <5880>;
+		qcom,effect-id = <2>;
+		qcom,wf-vmax-mv = <7000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA_DIV_2 0>;
+		qcom,wf-pattern-period-us = <4255>;
+		qcom,wf-brake-mode = <BRAKE_OPEN_LOOP>;
+		qcom,wf-brake-pattern = /bits/ 8 <0xff 0xff 0x9f 0x6f 0x3f 0x1f>;
+		qcom,wf-auto-res-disable;
 	};
 
 	effect_3 {
 		/* THUD */
-		qcom,wf-vmax-mv = <3600>;
-		qcom,wf-pattern-period-us = <5880>;
+		qcom,effect-id = <3>;
+		qcom,wf-vmax-mv = <9000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA_DIV_2 0>;
+		qcom,wf-pattern-period-us = <4255>;
+		qcom,wf-brake-mode = <BRAKE_OPEN_LOOP>;
+		qcom,wf-brake-pattern = /bits/ 8 <0xff 0xff 0x9f 0x6f 0x3f 0x1f>;
+		qcom,wf-auto-res-disable;
 	};
 
 	effect_4 {
 		/* POP */
-		qcom,wf-vmax-mv = <3600>;
-		qcom,wf-pattern-period-us = <5880>;
+		qcom,effect-id = <4>;
+		qcom,wf-vmax-mv = <8000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA_DIV_2 0>;
+		qcom,wf-pattern-period-us = <4255>;
+		qcom,wf-brake-mode = <BRAKE_OPEN_LOOP>;
+		qcom,wf-brake-pattern = /bits/ 8 <0xff 0xff 0x9f 0x6f 0x3f 0x1f>;
+		qcom,wf-auto-res-disable;
 	};
 
 	effect_5 {
 		/* HEAVY CLICK */
-		qcom,wf-vmax-mv = <3600>;
-		qcom,wf-pattern-period-us = <5880>;
+		qcom,effect-id = <5>;
+		qcom,wf-vmax-mv = <10000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA_DIV_2 0>;
+		qcom,wf-pattern-period-us = <4255>;
+		qcom,wf-brake-mode = <BRAKE_OPEN_LOOP>;
+		qcom,wf-brake-pattern = /bits/ 8 <0xff 0xff 0x9f 0x6f 0x3f 0x1f>;
+		qcom,wf-auto-res-disable;
+	};
+
+	effect_21 {
+		/* TEXTURE_TICK */
+		qcom,effect-id = <21>;
+		qcom,wf-vmax-mv = <6000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA_DIV_2 0>;
+		qcom,wf-pattern-period-us = <4255>;
+		qcom,wf-brake-mode = <BRAKE_OPEN_LOOP>;
+		qcom,wf-brake-pattern = /bits/ 8 <0xff 0xff 0x9f 0x6f 0x3f 0x1f>;
+		qcom,wf-auto-res-disable;
 	};
 };
 
@@ -349,4 +427,8 @@
 
 &usb0 {
 	ssusb_redriver = <&redriver>;
+};
+
+&kryo_erp {
+	qcom,disable-panic-on-ce;
 };

@@ -39,12 +39,15 @@
 	};
 };
 
-&dai_mi2s0 {
+&dai_mi2s0_rx {
 	status = "ok";
-	qcom,msm-mi2s-rx-lines = <1>;
-	qcom,msm-mi2s-tx-lines = <2>;
+	qcom,msm-mi2s-lines = <1>;
 };
 
+&dai_mi2s0_tx {
+        status = "ok";
+        qcom,msm-mi2s-lines = <2>;
+};
 
 &q6core {
         cdc_pri_mi2s_gpios: cdc_pri_mi2s_gpios {
@@ -64,20 +67,18 @@
 		status = "okay";
 		compatible = "awinic,aw882xx_smartpa";
 		reg = <0x34>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&aw882xx_irq_default>, <&aw882xx_reset_default>;
 		reset-gpio = <&tlmm 15 0>;
 		irq-gpio = <&tlmm 14 0x2008>;
-		monitor-flag = <1>;
-		afe-profile = <0>;
-		fade-flag = <1>;
-		monitor-timer-val = <3000>;
-		afe-rx-portid = <0x1000>;
-		afe-tx-portid = <0x1001>;
-		low-vol-table-down = <3500 9 3 3600 9 2 3700 9 1>;
-		low-vol-table-up = <3750 9 0 3650 9 1 3550 9 2>;
-		low-temp-table-down = <0xFFFFFFFB 0x4 0x10 0xFFBEAE7E 0x0 0x5 0x9 0xFFD80505 0x5 0x6 0x6 0xFFED714D>;
-		low-temp-table-up = <0x7 0x9 0x0 0x00000000 0x2 0x6 0x06 0xFFED714D 0xFFFFFFE 0x05 0x09 0xFFD80505>;
+		dc-flag = <0>;
+		sync-flag = <0>;
+		sound-channel = <0>;
+		aw-tx-topo-id = <0x1000ff00>;
+		aw-rx-topo-id = <0x1000ff01>;
+		aw-tx-port-id = <0x1001>;
+		aw-rx-port-id = <0x1000>;
+		aw-re-min = <4000>;
+		aw-re-max= <30000>;
+		aw-cali-mode = "aw_attr";
 	};
 };
 
@@ -98,10 +99,34 @@
         status = "disabled";
 };
 
+&swr_dmic_01 {
+        status = "disabled";
+};
+
+&swr_dmic_02 {
+        status = "disabled";
+};
+
+&swr_dmic_03 {
+        status = "disabled";
+};
+
+&swr_dmic_04 {
+        status = "disabled";
+};
+
+/* Modify headset's BIAS voltage to 2.8V */
+&wcd938x_codec {
+	qcom,cdc-micbias1-mv = <2800>;
+	qcom,cdc-micbias2-mv = <2800>;
+	qcom,cdc-micbias3-mv = <2800>;
+	qcom,cdc-micbias4-mv = <2800>;
+};
+
 &lahaina_snd {
 	qcom,model = "lahaina-xpeng-snd-card";
 	awinic,aw882xx-max-devs = <1>;
-	qcom,ext-disp-audio-rx = <0x0>;
+	qcom,ext-disp-audio-rx = <1>;
 	qcom,wsa-max-devs = <0x0>;
         qcom,wcn-bt = <0x1>;
         qcom,swr-dmic-max-devs = <0>;
@@ -140,8 +165,8 @@
 		"VA_AIF2 CAP", "VA_SWR_CLK",
 		"VA_AIF3 CAP", "VA_SWR_CLK";
 	asoc-codec  = <&stub_codec>, <&bolero>,
-		<&wcd938x_codec>, <&aw882xx>;
+		<&wcd938x_codec>, <&aw882xx>, <&ext_disp_audio_codec>, <&swr_haptics>;
 	asoc-codec-names = "msm-stub-codec.1", "bolero_codec",
-		"wcd938x_codec", "aw882xx_codec";
+		"wcd938x_codec", "aw882xx_codec", "msm-ext-disp-audio-codec-rx", "swr-haptics";
 
 };

@@ -1,0 +1,364 @@
+/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "lahaina-moto-common-overlay.dtsi"
+#include "lahaina-moto-tundra-display.dtsi"
+#include "lahaina-tundra-touchscreen-overlay.dtsi"
+#include <dt-bindings/clock/qcom,rpmh.h>
+#include "lahaina-moto-common-charger.dtsi"
+#include "lahaina-tundra-charger-therm-overlay.dtsi"
+#include "lahaina-tundra-sensor-overlay.dtsi"
+#include "lahaina-tundra-audio-overlay.dtsi"
+#include "camera/lahaina-camera-sensor-mot-tundra-overlay.dtsi"
+#include "lahaina-moto-tundra-fps-overlay.dtsi"
+
+&pm8008i_8 {
+	status = "disabled";
+};
+
+&pm8008i_9 {
+	status = "disabled";
+};
+
+&pm8008j_c {
+	status = "disabled";
+};
+
+&pm8008j_d {
+	status = "disabled";
+};
+
+&pm8350c_rgb {
+	red {
+		label = "charging";
+	};
+	green {
+		status = "disabled";
+	};
+	blue {
+		status = "disabled";
+	};
+};
+
+&qupv3_se15_i2c {
+	status = "ok";
+	qcom,clk-freq-out = <1000000>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	nq@28 {
+		compatible = "qcom,sn-nci";
+		reg = <0x28>;
+		qcom,sn-irq = <&tlmm 87 0x00>;
+		qcom,sn-ven = <&tlmm 67 0x00>;
+		qcom,sn-firm = <&tlmm 86 0x00>;
+		qcom,sn-clkreq = <&tlmm 63 0x00>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <87 0>;
+		interrupt-names = "nfc_irq";
+		pinctrl-names = "nfc_active", "nfc_suspend";
+		pinctrl-0 = <&nfc_int_active &nfc_enable_active
+				&nfc_clk_req_active &nfc_fwdl_active>;
+		pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend
+				&nfc_clk_req_suspend &nfc_fwdl_suspend>;
+	};
+};
+
+&qupv3_se13_i2c {
+	status = "ok";
+	nq@64 {
+		status = "disabled";
+	};
+
+
+	cam_pmic: wl2864c@29{
+		compatible = "semi,wl2864c";
+		reg = <0x29>;
+
+		vin1-supply = <&S12B>;
+		vin2-supply = <&BOB>;
+
+		regulators {
+			cam_ldo1: ldo1 {
+				regulator-name = "ldo1";
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			cam_ldo2: ldo2 {
+				regulator-name = "ldo2";
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			cam_ldo3: ldo3 {
+				regulator-name = "ldo3";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <4300000>;
+			};
+
+			cam_ldo4: ldo4 {
+				regulator-name = "ldo4";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <4300000>;
+			};
+
+			cam_ldo5: ldo5 {
+				regulator-name = "ldo5";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <4300000>;
+			};
+
+			cam_ldo6: ldo6 {
+				regulator-name = "ldo6";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <4300000>;
+			};
+
+			cam_ldo7: ldo7 {
+				regulator-name = "ldo7";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <4300000>;
+			};
+		};
+	};
+
+
+	redriver:redriver@30{
+		compatible = "parade,ps5169-redriver";
+		reg = <0x30>;
+		pinctrl-names = "enable_gpio", "disable_gpio";
+		pinctrl-0 = <&usb3phy_portselect_gpio &redriver_enable>;
+		pinctrl-1 = <&usb3phy_portselect_gpio &redriver_disable>;
+		gpios = <&tlmm 81 0>;
+		config-seq =
+		        /* <reg_offset, value, delay_us> */
+		        <0x9d 0x80 10000
+		        0x9d 0x00 0
+		        0x40 0x80 0
+		        0x9f 0x00 0
+		        0x8d 0x01 0
+		        0x90 0x01 0
+		        0x51 0x87 0
+		        0x50 0x20 0
+		        0x54 0x11 0
+		        0x5d 0x66 0
+		        0x52 0x50 0
+		        0x55 0x00 0
+		        0x56 0x00 0
+		        0x57 0x00 0
+		        0x58 0x00 0
+		        0x59 0x00 0
+		        0x5a 0x00 0
+		        0x5b 0x00 0
+		        0x5e 0x07 0
+		        0x5f 0x00 0
+		        0x60 0x00 0
+		        0x61 0x03 0
+		        0x65 0x40 0
+		        0x66 0x00 0
+		        0x67 0x03 0
+		        0x75 0x0c 0
+		        0x77 0x00 0
+		        0x78 0x7c 0
+		        >;
+	};
+
+};
+
+&sde_dp {
+	mmi,aux-switch-enable-gpio = <&tlmm 42 0x00>;
+	mmi,aux-switch-flip-gpio = <&tlmm 44 0x00>;
+};
+
+&tlmm {
+	redriver_enable: redriver_enable {
+		mux {
+			pins = "gpio3";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio3";
+			drive-strength = <2>;
+			bias-disable; /* NO PULL */
+			output-high;
+		};
+	};
+	redriver_disable: redriver_disable {
+		mux {
+			pins = "gpio3";
+				function = "gpio";
+			};
+
+		config {
+			pins = "gpio3";
+			drive-strength = <2>;
+			output-low;
+		};
+	};
+
+};
+
+&qupv3_se1_i2c {
+	status = "disabled";
+};
+
+&qupv3_se1_spi {
+	status = "disabled";
+};
+
+&qupv3_se5_spi {
+	status = "disabled";
+};
+
+&qupv3_se5_i2c {
+	status = "disabled";
+};
+
+&qupv3_se15_i2c {
+	status = "ok";
+};
+
+&socd_trip {
+	temperature = <95>;
+};
+
+&pm8350b_haptics {
+	qcom,vmax-mv = <2800>;
+	qcom,lra-period-us = <4255>;
+	haptic-gpio = <&tlmm 43 0x00>;
+	long-gain-reduced = <128>;
+	status = "ok";
+
+	effect_0 {
+		/* CLICK */
+		qcom,effect-id = <0>;
+		qcom,wf-vmax-mv = <10000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA_DIV_2 0>;
+		qcom,wf-pattern-period-us = <4255>;
+		qcom,wf-brake-mode = <BRAKE_OPEN_LOOP>;
+		qcom,wf-brake-pattern = /bits/ 8 <0xff 0xff 0x9f 0x6f 0x3f 0x1f>;
+		qcom,wf-auto-res-disable;
+	};
+
+	effect_1 {
+		/* DOUBLE_CLICK */
+		qcom,effect-id = <1>;
+		qcom,wf-vmax-mv = <9000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA_DIV_2 0>;
+		qcom,wf-pattern-period-us = <4255>;
+		qcom,wf-brake-mode = <BRAKE_OPEN_LOOP>;
+		qcom,wf-brake-pattern = /bits/ 8 <0xff 0xff 0x9f 0x6f 0x3f 0x1f>;
+		qcom,wf-auto-res-disable;
+	};
+
+	effect_2 {
+		/* TICK */
+		qcom,effect-id = <2>;
+		qcom,wf-vmax-mv = <7000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA_DIV_2 0>;
+		qcom,wf-pattern-period-us = <4255>;
+		qcom,wf-brake-mode = <BRAKE_OPEN_LOOP>;
+		qcom,wf-brake-pattern = /bits/ 8 <0xff 0xff 0x9f 0x6f 0x3f 0x1f>;
+		qcom,wf-auto-res-disable;
+	};
+
+	effect_3 {
+		/* THUD */
+		qcom,effect-id = <3>;
+		qcom,wf-vmax-mv = <9000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA_DIV_2 0>;
+		qcom,wf-pattern-period-us = <4255>;
+		qcom,wf-brake-mode = <BRAKE_OPEN_LOOP>;
+		qcom,wf-brake-pattern = /bits/ 8 <0xff 0xff 0x9f 0x6f 0x3f 0x1f>;
+		qcom,wf-auto-res-disable;
+	};
+
+	effect_4 {
+		/* POP */
+		qcom,effect-id = <4>;
+		qcom,wf-vmax-mv = <8000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA_DIV_2 0>;
+		qcom,wf-pattern-period-us = <4255>;
+		qcom,wf-brake-mode = <BRAKE_OPEN_LOOP>;
+		qcom,wf-brake-pattern = /bits/ 8 <0xff 0xff 0x9f 0x6f 0x3f 0x1f>;
+		qcom,wf-auto-res-disable;
+	};
+
+	effect_5 {
+		/* HEAVY CLICK */
+		qcom,effect-id = <5>;
+		qcom,wf-vmax-mv = <10000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA_DIV_2 0>;
+		qcom,wf-pattern-period-us = <4255>;
+		qcom,wf-brake-mode = <BRAKE_OPEN_LOOP>;
+		qcom,wf-brake-pattern = /bits/ 8 <0xff 0xff 0x9f 0x6f 0x3f 0x1f>;
+		qcom,wf-auto-res-disable;
+	};
+
+	effect_21 {
+		/* TEXTURE_TICK */
+		qcom,effect-id = <21>;
+		qcom,wf-vmax-mv = <6000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA_DIV_2 0>;
+		qcom,wf-pattern-period-us = <4255>;
+		qcom,wf-brake-mode = <BRAKE_OPEN_LOOP>;
+		qcom,wf-brake-pattern = /bits/ 8 <0xff 0xff 0x9f 0x6f 0x3f 0x1f>;
+		qcom,wf-auto-res-disable;
+	};
+};
+
+&qupv3_se8_spi {
+	status = "disabled";
+};
+
+&usb0 {
+	ssusb_redriver = <&redriver>;
+};
+
+&kryo_erp {
+	qcom,disable-panic-on-ce;
+};
+
+&sdhc_2 {
+	status = "disabled";
+};
+&reserved_memory{
+	wdog_cpuctx_mem: wdog_cpuctx_region{
+		no-map;
+		reg = <0x0 0xadf90000 0x0 (0x5c00*8)>;
+	};
+};
+&soc {
+	tzlog_dump {
+		compatible = "mmi,tzlog-dump";
+		memory-region = <&tzlog_dump_mem>;
+	};
+	wdog_cpuctx{
+		compatible = "mmi,watchdog_cpu_ctx";
+		memory-region = <&wdog_cpuctx_mem>;
+	};
+};
