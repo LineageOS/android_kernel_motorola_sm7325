@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020, 2021 The Linux Foundation. All rights reserved.
  */
 
 #ifndef _DSI_PANEL_H_
@@ -42,8 +42,8 @@
 
 #define BRIGHTNESS_HBM_ON	0xFFFFFFFE
 #define BRIGHTNESS_HBM_OFF	(BRIGHTNESS_HBM_ON - 1)
-#define HBM_BRIGHTNESS(value) ((value) == HBM_ON_STATE ?\
-			BRIGHTNESS_HBM_ON : BRIGHTNESS_HBM_OFF)
+#define HBM_BRIGHTNESS(value) ((value) == HBM_OFF_STATE ?\
+			BRIGHTNESS_HBM_OFF : BRIGHTNESS_HBM_ON)
 
 /* HBM implementation is different, depending on display and backlight hardware
  * design, which is classified into the following types:
@@ -341,6 +341,7 @@ struct dsi_panel {
 	bool reset_gpio_always_on;
 	atomic_t esd_recovery_pending;
 
+	bool is_twm_en;
 	bool panel_initialized;
 	bool te_using_watchdog_timer;
 	struct dsi_qsync_capabilities qsync_caps;

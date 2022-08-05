@@ -631,9 +631,6 @@ static bool dsi_display_validate_reg_read(struct dsi_panel *panel)
 	for (i = 0; i < count; i++)
 		len += lenp[i];
 
-	for (i = 0; i < len; i++)
-		j += len;
-
 	for (j = 0; j < config->groups; ++j) {
 		for (i = 0; i < len; ++i) {
 			if (config->return_buf[i] !=
@@ -1277,6 +1274,7 @@ int dsi_display_cmd_transfer(struct drm_connector *connector,
 		return -EINVAL;
 	}
 
+	SDE_EVT32(dsi_display->tx_cmd_buf_ndx, cmd_buf_len);
 	DSI_DEBUG("[DSI] Display command transfer\n");
 
 	if ((cmd_buf[1]) || (cmd_buf[3] & MIPI_DSI_MSG_LASTCOMMAND))
@@ -1526,42 +1524,89 @@ static void _dsi_display_continuous_clk_ctrl(struct dsi_display *display,
 }
 
 int dsi_display_cmd_receive(void *display, const char *cmd_buf,
-                u32 cmd_buf_len,  u8 *recv_buf, u32 recv_buf_len)
+		u32 cmd_buf_len,  u8 *recv_buf, u32 recv_buf_len)
+{
+	struct dsi_display *dsi_display = display;
+	struct dsi_cmd_desc cmd = {};
+	u8 cmd_payload[MAX_CMD_PAYLOAD_SIZE] = {0};
+	bool state = false;
+	int rc = -1;
+
+	if (!dsi_display || !cmd_buf || !recv_buf) {
+		DSI_ERR("[DSI] invalid params\n");
+		return -EINVAL;
+	}
+
+	SDE_EVT32(cmd_buf_len, recv_buf_len);
+
+	rc = dsi_display_cmd_prepare(cmd_buf, cmd_buf_len,
+			&cmd, cmd_payload, MAX_CMD_PAYLOAD_SIZE);
+	if (rc) {
+		DSI_ERR("[DSI] command prepare failed, rc = %d\n", rc);
+		return rc;
+	}
+
+	cmd.msg.rx_buf = recv_buf;
+	cmd.msg.rx_len = recv_buf_len;
+
+	mutex_lock(&dsi_display->display_lock);
+	rc = dsi_display_ctrl_get_host_init_state(dsi_display, &state);
+	if (rc || !state) {
+		DSI_ERR("[DSI] Invalid host state = %d rc = %d\n",
+			state, rc);
+		rc = -EPERM;
+		goto end;
+	}
+
+	rc = dsi_display_cmd_rx(dsi_display, &cmd);
+	if (rc <= 0)
+		DSI_ERR("[DSI] Display command receive failed, rc=%d\n", rc);
+
+end:
+        mutex_unlock(&dsi_display->display_lock);
+        return rc;
+}
+
+int dsi_display_motUtil_transfer(void *display, const char *cmd_buf,
+                u32 cmd_buf_len, struct motUtil *motUtil_data)
 {
         struct dsi_display *dsi_display = display;
-        struct dsi_cmd_desc cmd = {};
-        u8 cmd_payload[MAX_CMD_PAYLOAD_SIZE] = {0};
+        struct dsi_cmd_desc cmd;
+        u8 cmd_payload[MAX_CMD_PAYLOAD_SIZE];
+        int rc = 0;
         bool state = false;
-        int rc = -1;
 
-        if (!dsi_display || !cmd_buf || !recv_buf) {
+        if (!dsi_display || !cmd_buf) {
                 DSI_ERR("[DSI] invalid params\n");
                 return -EINVAL;
         }
 
-        rc = dsi_display_cmd_prepare(cmd_buf, cmd_buf_len,
-                        &cmd, cmd_payload, MAX_CMD_PAYLOAD_SIZE);
+        DSI_INFO("[DSI] Display dispUtil transfer\n");
+
+        rc = dsi_display_dispUtil_prepare(cmd_buf, cmd_buf_len,
+                                &cmd, cmd_payload, MAX_CMD_PAYLOAD_SIZE,
+                                motUtil_data);
         if (rc) {
-                DSI_ERR("[DSI] command prepare failed, rc = %d\n", rc);
+                DSI_ERR("[DSI] command prepare failed. rc %d\n", rc);
                 return rc;
         }
-
-        cmd.msg.rx_buf = recv_buf;
-        cmd.msg.rx_len = recv_buf_len;
 
         mutex_lock(&dsi_display->display_lock);
         rc = dsi_display_ctrl_get_host_init_state(dsi_display, &state);
         if (rc || !state) {
-                DSI_ERR("[DSI] Invalid host state = %d rc = %d\n",
-                        state, rc);
+                DSI_ERR("[DSI] Invalid host state %d rc %d\n",
+                                                state, rc);
                 rc = -EPERM;
                 goto end;
         }
 
-        rc = dsi_display_cmd_rx(dsi_display, &cmd);
-        if (rc <= 0)
-                DSI_ERR("[DSI] Display command receive failed, rc=%d\n", rc);
-
+        /*
+         * rc will be returned from ops->transfer, which will be 0 or 1 for
+         * DSI write command. rc will be returned for number of read bytes
+         * for DSI read commad
+         */
+        rc = dsi_display->host.ops->transfer(&dsi_display->host,
+                                                &cmd.msg);
 end:
         mutex_unlock(&dsi_display->display_lock);
         return rc;
@@ -1679,12 +1724,22 @@ int dsi_display_set_power(struct drm_connector *connector,
 
 	switch (power_mode) {
 	case SDE_MODE_DPMS_LP1:
+		if (display->panel->power_mode == SDE_MODE_DPMS_LP2) {
+			if (dsi_display_set_ulp_load(display, false) < 0)
+				DSI_WARN("failed to set load for lp1 state\n");
+		}
 		rc = dsi_panel_set_lp1(display->panel);
 		break;
 	case SDE_MODE_DPMS_LP2:
 		rc = dsi_panel_set_lp2(display->panel);
+		if (dsi_display_set_ulp_load(display, true) < 0)
+			DSI_WARN("failed to set load for lp2 state\n");
 		break;
 	case SDE_MODE_DPMS_ON:
+		if (display->panel->power_mode == SDE_MODE_DPMS_LP2) {
+			if (dsi_display_set_ulp_load(display, false) < 0)
+				DSI_WARN("failed to set load for on state\n");
+		}
 		if ((display->panel->power_mode == SDE_MODE_DPMS_LP1) ||
 			(display->panel->power_mode == SDE_MODE_DPMS_LP2))
 			rc = dsi_panel_set_nolp(display->panel);
@@ -1995,7 +2050,7 @@ static ssize_t debugfs_esd_trigger_check(struct file *file,
 						display->trusted_vm_env);
 		if (rc) {
 			DSI_ERR("Failed to trigger ESD attack\n");
-			goto error;
+			goto unlock;
 		}
 	}
 
@@ -4343,6 +4398,35 @@ int dsi_pre_clkon_cb(void *priv,
 	return rc;
 }
 
+int dsi_display_set_ulp_load(struct dsi_display *display, bool enable)
+{
+	int i, rc = 0;
+	struct dsi_display_ctrl *display_ctrl;
+	struct dsi_ctrl *ctrl;
+	struct dsi_panel *panel;
+
+	display_for_each_ctrl(i, display) {
+		display_ctrl = &display->ctrl[i];
+		if (!display_ctrl->ctrl)
+			continue;
+		ctrl = display_ctrl->ctrl;
+
+		rc = dsi_pwr_config_vreg_opt_mode(&ctrl->pwr_info.host_pwr, enable);
+		if (rc) {
+			DSI_ERR("failed to set ctrl load\n");
+			return rc;
+		}
+	}
+
+	panel = display->panel;
+	rc = dsi_pwr_config_vreg_opt_mode(&panel->power_info, enable);
+	if (rc) {
+		DSI_ERR("failed to set panel load\n");
+		return rc;
+	}
+	return rc;
+}
+
 static void __set_lane_map_v2(u8 *lane_map_v2,
 	enum dsi_phy_data_lanes lane0,
 	enum dsi_phy_data_lanes lane1,
@@ -6411,7 +6495,7 @@ static int panel_class_create(struct platform_device *pdev)
 	display_panel = platform_get_drvdata(pdev);
 
 	for (j = 0; j < DRM_RETRY_TIMES; j++) {
-		if (display_panel->drm_conn->kdev) {
+		if (display_panel->drm_conn && display_panel->drm_conn->kdev) {
 			for (i = 0; attrs[i].attr.name != NULL; ++i) {
 				error = device_create_file(display_panel->drm_conn->kdev, &attrs[i]);
 				if (error)
@@ -6692,6 +6776,12 @@ int dsi_display_drm_bridge_init(struct dsi_display *display,
 
 	display->bridge = bridge;
 	priv->bridges[priv->num_bridges++] = &bridge->base;
+
+	if (display->tx_cmd_buf == NULL) {
+		rc = dsi_host_alloc_cmd_tx_buffer(display);
+		if (rc)
+			DSI_ERR("failed to allocate cmd tx buffer memory\n");
+	}
 
 error:
 	mutex_unlock(&display->display_lock);

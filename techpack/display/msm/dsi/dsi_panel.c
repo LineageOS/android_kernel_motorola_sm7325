@@ -504,6 +504,10 @@ static int dsi_panel_power_off(struct dsi_panel *panel)
 {
 	int rc = 0;
 
+	if (panel->is_twm_en) {
+		DSI_DEBUG("TWM Enabled, skip panel power off\n");
+		return rc;
+	}
 	DSI_INFO("(%s)+\n", panel->name);
 
 	if (panel->tp_state_check_enable) {
@@ -1411,6 +1415,9 @@ static int dsi_panel_parse_pixel_format(struct dsi_host_common_cfg *host,
 	case 18:
 		fmt = DSI_PIXEL_FORMAT_RGB666;
 		break;
+	case 30:
+		fmt = DSI_PIXEL_FORMAT_RGB101010;
+		break;
 	case 24:
 	default:
 		fmt = DSI_PIXEL_FORMAT_RGB888;
@@ -2123,6 +2130,21 @@ static int dsi_panel_parse_cmd_host_config(struct dsi_cmd_engine_cfg *cfg,
 		goto error;
 	}
 
+	cfg->mdp_idle_ctrl_en =
+		utils->read_bool(utils->data, "qcom,mdss-dsi-mdp-idle-ctrl-en");
+
+	if (cfg->mdp_idle_ctrl_en) {
+		val = 0;
+		rc = utils->read_u32(utils->data, "qcom,mdss-dsi-mdp-idle-ctrl-len", &val);
+		if (rc) {
+			DSI_DEBUG("[%s] mdp idle ctrl len is not defined\n", name);
+			cfg->mdp_idle_ctrl_len = 0;
+			cfg->mdp_idle_ctrl_en = false;
+			rc = 0;
+		} else {
+			cfg->mdp_idle_ctrl_len = val;
+		}
+	}
 error:
 	return rc;
 }
@@ -5134,6 +5156,10 @@ int dsi_panel_set_nolp(struct dsi_panel *panel)
 		return -EINVAL;
 	}
 
+	if (panel->is_twm_en) {
+		DSI_DEBUG("TWM Enabled, skip idle off\n");
+		return rc;
+	}
 	mutex_lock(&panel->panel_lock);
 	if (!panel->panel_initialized)
 		goto exit;
@@ -5798,6 +5824,10 @@ int dsi_panel_disable(struct dsi_panel *panel)
 		return -EINVAL;
 	}
 
+	if (panel->is_twm_en) {
+		DSI_DEBUG("TWM Enabled, skip panel disable\n");
+		return rc;
+	}
 	DSI_INFO("(%s)+\n", panel->name);
 	mutex_lock(&panel->panel_lock);
 

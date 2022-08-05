@@ -795,6 +795,25 @@ static int dp_aux_configure_aux_switch(struct dp_aux *dp_aux,
 	DP_DEBUG("enable=%d, orientation=%d, event=%d\n",
 			enable, orientation, event);
 
+	if (gpio_is_valid(dp_aux->dp_aux_switch_flip_gpio)) {
+		bool switch_enable = false;
+		bool switch_flip = false;
+		if (orientation == ORIENTATION_CC1 && enable) {
+			switch_enable = true;
+			switch_flip = false;
+		} else if (orientation == ORIENTATION_CC2 && enable) {
+			switch_enable = true;
+			switch_flip = true;
+		}
+		if (gpio_is_valid(dp_aux->dp_aux_switch_enable_gpio))
+			gpio_set_value(dp_aux->dp_aux_switch_enable_gpio,
+						switch_enable ? 0 : 1);
+		gpio_set_value(dp_aux->dp_aux_switch_flip_gpio,
+					switch_flip ? 1 : 0);
+		DP_INFO("dp_aux_switch: en=%d, cc=%d, sw_en=%d, sw_flip=%d\n",
+				enable, orientation, switch_enable, switch_flip);
+	}
+
 	rc = fsa4480_switch_event(aux->aux_switch_node, event);
 	if (rc)
 		DP_ERR("failed to configure fsa4480 i2c device (%d)\n", rc);
