@@ -57,6 +57,12 @@ int32_t camera_io_dev_read_seq(struct camera_io_master *io_master_info,
 	enum camera_sensor_i2c_type data_type,
 	int32_t num_bytes);
 
+int32_t camera_io_dev_ois_read_seq(struct camera_io_master *io_master_info,
+	uint32_t addr, uint8_t *data,
+	enum camera_sensor_i2c_type addr_type,
+	enum camera_sensor_i2c_type data_type,
+	int32_t num_bytes);
+
 /**
  * @io_master_info: I2C/SPI master information
  *

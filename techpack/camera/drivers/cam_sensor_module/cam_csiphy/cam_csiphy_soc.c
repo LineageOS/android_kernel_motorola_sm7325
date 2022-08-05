@@ -205,7 +205,7 @@ int32_t cam_csiphy_enable_hw(struct csiphy_device *csiphy_dev, int32_t index)
 	rc = cam_soc_util_set_src_clk_rate(soc_info,
 		soc_info->clk_rate[0][soc_info->src_clk_idx]);
 	clk_rate = cam_soc_util_get_clk_rate_applied(soc_info,
-		soc_info->src_clk_idx, true, vote_level);
+		csiphy_dev->rx_clk_src_idx, true, vote_level);
 	cam_subdev_notify_message(CAM_TFE_DEVICE_TYPE,
 		CAM_SUBDEV_MESSAGE_CLOCK_UPDATE,
 		clk_rate);
@@ -481,7 +481,7 @@ int32_t cam_csiphy_parse_dt_info(struct platform_device *pdev,
 		csiphy_dev->is_csiphy_3phase_hw = CSI_3PHASE_HW;
 		csiphy_dev->is_divisor_32_comp = false;
 		csiphy_dev->clk_lane = 0;
-		csiphy_dev->ctrl_reg->data_rates_settings_table = NULL;
+		csiphy_dev->ctrl_reg->data_rates_settings_table = &data_rate_delta_table_2_0;
 	} else if (of_device_is_compatible(soc_info->dev->of_node,
 		"qcom,csiphy-v2.1.0")) {
 		csiphy_dev->ctrl_reg->csiphy_2ph_reg = csiphy_2ph_v2_1_0_reg;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2014-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -133,6 +133,7 @@ struct cam_context_bank_info {
 	bool is_fw_allocated;
 	bool is_secheap_allocated;
 	bool is_qdss_allocated;
+	bool stall_disable;
 
 	struct scratch_mapping scratch_map;
 	struct gen_pool *shared_mem_pool;
@@ -211,6 +212,8 @@ struct cam_dma_buff_info {
 
 struct cam_sec_buff_info {
 	struct dma_buf *buf;
+	struct dma_buf_attachment *attach;
+	struct sg_table *table;
 	enum dma_data_direction dir;
 	int ref_count;
 	dma_addr_t paddr;
@@ -2875,6 +2878,8 @@ static int cam_smmu_map_stage2_buffer_and_add_to_list(int idx, int ion_fd,
 	mapping_info->dir = dma_dir;
 	mapping_info->ref_count = 1;
 	mapping_info->buf = dmabuf;
+	mapping_info->attach = attach;
+	mapping_info->table = table;
 
 	CAM_DBG(CAM_SMMU, "idx=%d, ion_fd=%d, dev=%pK, paddr=%pK, len=%u",
 			idx, ion_fd,
@@ -2975,11 +2980,27 @@ static int cam_smmu_secure_unmap_buf_and_remove_from_list(
 		struct cam_sec_buff_info *mapping_info,
 		int idx)
 {
-	if (!mapping_info) {
-		CAM_ERR(CAM_SMMU, "Error: List doesn't exist");
+	if ((!mapping_info->buf) || (!mapping_info->table) ||
+		(!mapping_info->attach)) {
+		CAM_ERR(CAM_SMMU, "Error: Invalid params dev = %pK, table = %pK",
+			(void *)iommu_cb_set.cb_info[idx].dev,
+			(void *)mapping_info->table);
+		CAM_ERR(CAM_SMMU, "Error:dma_buf = %pK, attach = %pK\n",
+			(void *)mapping_info->buf,
+			(void *)mapping_info->attach);
 		return -EINVAL;
 	}
+
+	/* skip cache operations */
+	mapping_info->attach->dma_map_attrs |= DMA_ATTR_SKIP_CPU_SYNC;
+
+	/* iommu buffer clean up */
+	dma_buf_unmap_attachment(mapping_info->attach,
+		mapping_info->table, mapping_info->dir);
+	dma_buf_detach(mapping_info->buf, mapping_info->attach);
 	dma_buf_put(mapping_info->buf);
+	mapping_info->buf = NULL;
+
 	list_del_init(&mapping_info->list);
 
 	CAM_DBG(CAM_SMMU, "unmap fd: %d, idx : %d", mapping_info->ion_fd, idx);
@@ -3641,6 +3662,8 @@ static int cam_smmu_setup_cb(struct cam_context_bank_info *cb,
 	struct device *dev)
 {
 	int rc = 0;
+	int32_t stall_disable = 1;
+	int32_t hupcf = 1;
 
 	if (!cb || !dev) {
 		CAM_ERR(CAM_SMMU, "Error: invalid input params");
@@ -3708,6 +3731,24 @@ static int cam_smmu_setup_cb(struct cam_context_bank_info *cb,
 				cb->discard_iova_len);
 
 		cb->state = CAM_SMMU_ATTACH;
+
+		if (cb->stall_disable) {
+			if (iommu_domain_set_attr(cb->domain,
+				DOMAIN_ATTR_FAULT_MODEL_NO_STALL,
+				&stall_disable) < 0) {
+				CAM_ERR(CAM_SMMU,
+					"Error: failed to set cb stall disable for node: %s",
+					cb->name[0]);
+			}
+
+			if (iommu_domain_set_attr(cb->domain,
+				DOMAIN_ATTR_FAULT_MODEL_HUPCF,
+				&hupcf) < 0) {
+				CAM_ERR(CAM_SMMU,
+					"Error: failed to set attribute HUPCF for node: %s",
+					cb->name[0]);
+			}
+		}
 	} else {
 		CAM_ERR(CAM_SMMU, "Context bank does not have IO region");
 		rc = -ENODEV;
@@ -4045,6 +4086,9 @@ static int cam_populate_smmu_context_banks(struct device *dev,
 
 	cb->num_shared_hdl = of_property_count_strings(dev->of_node,
 		"cam-smmu-label");
+
+	cb->stall_disable =
+		of_property_read_bool(dev->of_node, "stall-disable");
 
 	if (cb->num_shared_hdl >
 		CAM_SMMU_SHARED_HDL_MAX) {

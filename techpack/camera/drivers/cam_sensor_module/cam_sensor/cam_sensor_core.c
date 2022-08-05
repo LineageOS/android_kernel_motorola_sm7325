@@ -444,6 +444,17 @@ int32_t cam_sensor_update_slave_info(struct cam_cmd_probe *probe_info,
 
 	s_ctrl->sensor_probe_addr_type =  probe_info->addr_type;
 	s_ctrl->sensor_probe_data_type =  probe_info->data_type;
+
+	s_ctrl->probe_sub_device          =  probe_info->probe_sub_device;
+	s_ctrl->sub_device_addr           =  probe_info->sub_device_addr;
+	s_ctrl->sub_device_data_type      =  probe_info->sub_device_data_type;
+	s_ctrl->sub_device_addr_type      =  probe_info->sub_device_addr_type;
+	s_ctrl->sub_device_id_addr        =  probe_info->sub_device_id_addr;
+	s_ctrl->expected_sub_device_id    =  probe_info->expected_sub_device_id;
+	s_ctrl->sub_device_cci_master     =  probe_info->sub_device_cci_master;
+	s_ctrl->sub_device_cci_device     =  probe_info->sub_device_cci_device;
+	s_ctrl->sub_device_i2c_freq_mode  =  probe_info->sub_device_i2c_freq_mode;
+
 	CAM_DBG(CAM_SENSOR,
 		"Sensor Addr: 0x%x sensor_id: 0x%x sensor_mask: 0x%x sensor_pipeline_delay:0x%x",
 		s_ctrl->sensordata->slave_info.sensor_id_reg_addr,
@@ -674,6 +685,10 @@ void cam_sensor_shutdown(struct cam_sensor_ctrl_t *s_ctrl)
 int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 {
 	int rc = 0;
+#ifdef CONFIG_CAM_SENSOR_PROBE_RETRY
+	int retries = 5;
+	bool matched = false;
+#endif
 	uint32_t chipid = 0;
 	struct cam_camera_slave_info *slave_info;
 
@@ -685,6 +700,28 @@ int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_CAM_SENSOR_PROBE_RETRY
+	while (retries-- && !matched) {
+		rc = camera_io_dev_read(
+			&(s_ctrl->io_master_info),
+			slave_info->sensor_id_reg_addr,
+			&chipid,
+			s_ctrl->sensor_probe_addr_type,
+			s_ctrl->sensor_probe_data_type);
+
+		CAM_INFO(CAM_SENSOR, "read id: 0x%x expected id 0x%x:",
+			chipid, slave_info->sensor_id);
+
+		if (cam_sensor_id_by_mask(s_ctrl, chipid) == slave_info->sensor_id)
+			matched = true;
+
+		if (!matched && !retries) {
+			CAM_ERR(CAM_SENSOR, "Failed read id: 0x%x expected id 0x%x:",
+			chipid, slave_info->sensor_id);
+
+		}
+	}
+#else
 	rc = camera_io_dev_read(
 		&(s_ctrl->io_master_info),
 		slave_info->sensor_id_reg_addr,
@@ -700,6 +737,114 @@ int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 				chipid, slave_info->sensor_id);
 		return -ENODEV;
 	}
+#endif
+	return rc;
+}
+
+int cam_sensor_match_sub_device_id(struct cam_sensor_ctrl_t *s_ctrl)
+{
+	int rc = 0;
+	int ret = 0;
+	uint32_t sub_device_id = 0;
+	uint16_t sensor_address = 0;
+	uint16_t sensor_freq_mode = 0;
+	uint8_t sensor_cci_master = 0;
+	uint8_t sensor_cci_device = 0;
+
+	/* if hal doesn't config ProbeSubDevice parameter in sensor xml, return success immediately */
+	if (!s_ctrl->probe_sub_device) {
+		return 0;
+	}
+
+	/* save sensor i2c address */
+	sensor_address = s_ctrl->io_master_info.cci_client->sid;
+
+	/* set sub-device i2c address */
+	if (s_ctrl->sub_device_addr) {
+		s_ctrl->io_master_info.cci_client->sid = s_ctrl->sub_device_addr >> 1;
+	}
+
+	/*if need change cci master*/
+	if (s_ctrl->need_change_cci_master) {
+		sensor_cci_master = s_ctrl->io_master_info.cci_client->cci_i2c_master;
+		sensor_freq_mode = s_ctrl->io_master_info.cci_client->i2c_freq_mode;
+		sensor_cci_device = s_ctrl->io_master_info.cci_client->cci_device;
+
+		ret = camera_io_release(&(s_ctrl->io_master_info));
+		if (ret != 0) {
+			CAM_ERR(CAM_SENSOR, "release sensor cci failed!");
+		}
+
+		s_ctrl->io_master_info.cci_client->cci_i2c_master = s_ctrl->sub_device_cci_master;
+		s_ctrl->io_master_info.cci_client->i2c_freq_mode = s_ctrl->sub_device_i2c_freq_mode;
+
+		if(s_ctrl->io_master_info.cci_client->cci_device != s_ctrl->sub_device_cci_device)
+		{
+			s_ctrl->io_master_info.cci_client->cci_device = s_ctrl->sub_device_cci_device;
+		}
+		rc = camera_io_init(&(s_ctrl->io_master_info));
+		if(rc != 0) {
+			ret = camera_io_release(&(s_ctrl->io_master_info));
+			CAM_ERR(CAM_SENSOR, "init sensor cci failed! rc=%d, release ret=%d, try again!", rc, ret);
+			usleep_range(100000, 100000);
+			rc = camera_io_init(&(s_ctrl->io_master_info));
+				if (rc != 0) {
+					ret = camera_io_release(&(s_ctrl->io_master_info));
+				CAM_ERR(CAM_SENSOR, "try again init sensor cci failed again! rc=%d, release ret=%d", rc, ret);
+			}
+		}
+	}
+
+	rc = camera_io_dev_read(
+		&(s_ctrl->io_master_info),
+		s_ctrl->sub_device_id_addr,
+		&sub_device_id,
+		s_ctrl->sub_device_addr_type,
+		s_ctrl->sub_device_data_type);
+
+	CAM_INFO(CAM_SENSOR, "Read sub device id: 0x%x expected sub device id 0x%x:",
+		sub_device_id, s_ctrl->expected_sub_device_id);
+
+	/* restore sensor i2c address */
+	s_ctrl->io_master_info.cci_client->sid = sensor_address;
+
+	/* reset cci master */
+	if (s_ctrl->need_change_cci_master) {
+		ret = camera_io_release(&(s_ctrl->io_master_info));
+		if (ret != 0) {
+			CAM_ERR(CAM_SENSOR, "release flash cci failed! ");
+		}
+
+		s_ctrl->io_master_info.cci_client->cci_i2c_master = sensor_cci_master;
+		s_ctrl->io_master_info.cci_client->i2c_freq_mode = sensor_freq_mode;
+		s_ctrl->io_master_info.cci_client->cci_device = sensor_cci_device;
+
+		rc = camera_io_init(&(s_ctrl->io_master_info));
+		if(rc != 0) {
+			ret = camera_io_release(&(s_ctrl->io_master_info));
+			CAM_ERR(CAM_SENSOR, "init sensor cci failed! rc=%d, release ret=%d, try again!", rc, ret);
+			usleep_range(100000, 100000);
+			rc = camera_io_init(&(s_ctrl->io_master_info));
+			if (rc != 0) {
+				ret = camera_io_release(&(s_ctrl->io_master_info));
+				CAM_ERR(CAM_SENSOR, "try again init sensor cci failed again! rc=%d, release ret=%d", rc, ret);
+			}
+		}
+	}
+
+	if (sub_device_id == s_ctrl->expected_sub_device_id) {
+		CAM_INFO(CAM_SENSOR,
+			"Probe sub device success,slot:%d,sub_device_addr:0x%x,sub_device_id:0x%x",
+			s_ctrl->soc_info.index,
+			s_ctrl->sub_device_addr,
+			s_ctrl->expected_sub_device_id);
+		rc = 0;
+	}
+	else {
+		CAM_ERR(CAM_SENSOR, "Probe sub device fail");
+		rc = -EINVAL;
+	}
+
 	return rc;
 }
 
@@ -782,6 +927,14 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 		if (rc < 0) {
 			cam_sensor_power_down(s_ctrl);
 			msleep(20);
+			goto free_power_settings;
+		}
+
+		/* Match sub-device ID */
+		rc = cam_sensor_match_sub_device_id(s_ctrl);
+		if (rc < 0) {
+			cam_sensor_power_down(s_ctrl);
+			usleep_range(20000,20000);
 			goto free_power_settings;
 		}
 

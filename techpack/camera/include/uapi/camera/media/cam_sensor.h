@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
- * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  */
 
 #ifndef __UAPI_CAM_SENSOR_H__
@@ -143,6 +143,7 @@ struct cam_cmd_ois_info {
 	__u8                  ois_fw_txn_data_sz;
 	__u8                  ois_fw_inc_addr;
 	__u8                  ois_fw_addr_type;
+	__u8                  ois_fw_data_type;
 	char                  ois_name[MAX_OIS_NAME_SIZE];
 	struct cam_ois_opcode opcode;
 } __attribute__((packed));
@@ -171,6 +172,15 @@ struct cam_cmd_probe {
 	__u32    data_mask;
 	__u16    camera_id;
 	__u16    reserved;
+	__u8   probe_sub_device;
+	__u32  sub_device_addr;
+	__u8   sub_device_data_type;
+	__u8   sub_device_addr_type;
+	__u32  sub_device_id_addr;
+	__u32  expected_sub_device_id;
+	__u8   sub_device_cci_master;
+	__u8   sub_device_cci_device;
+	__u8   sub_device_i2c_freq_mode;
 } __attribute__((packed));
 
 /**
@@ -482,6 +492,7 @@ struct cam_flash_query_curr {
  * @max_current_flash   :  max supported current for flash
  * @max_duration_flash  :  max flash turn on duration
  * @max_current_torch   :  max supported current for torch
+ * @flash_type          :  Indicates about the flash type -I2C,GPIO,PMIC
  *
  */
 struct cam_flash_query_cap_info {
@@ -489,6 +500,7 @@ struct cam_flash_query_cap_info {
 	__u32    max_current_flash[CAM_FLASH_MAX_LED_TRIGGERS];
 	__u32    max_duration_flash[CAM_FLASH_MAX_LED_TRIGGERS];
 	__u32    max_current_torch[CAM_FLASH_MAX_LED_TRIGGERS];
+	__u32    flash_type;
 } __attribute__ ((packed));
 
 #endif

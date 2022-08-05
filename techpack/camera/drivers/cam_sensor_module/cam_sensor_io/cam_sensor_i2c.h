@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  */
 
 #ifndef _CAM_SENSOR_I2C_H_
@@ -18,7 +18,7 @@
 #define I2C_COMPARE_MATCH 0
 #define I2C_COMPARE_MISMATCH 1
 
-#define I2C_REG_DATA_MAX (10*1024)
+#define I2C_REG_DATA_MAX (20*1024)
 
 /**
  * @client: CCI client structure
@@ -44,6 +44,12 @@ int32_t cam_cci_i2c_read(struct cam_sensor_cci_client *client,
  * This API handles CCI sequential read
  */
 int32_t cam_camera_cci_i2c_read_seq(struct cam_sensor_cci_client *client,
+	uint32_t addr, uint8_t *data,
+	enum camera_sensor_i2c_type addr_type,
+	enum camera_sensor_i2c_type data_type,
+	uint32_t num_byte);
+
+int32_t cam_camera_cci_i2c_ois_read_seq(struct cam_sensor_cci_client *client,
 	uint32_t addr, uint8_t *data,
 	enum camera_sensor_i2c_type addr_type,
 	enum camera_sensor_i2c_type data_type,

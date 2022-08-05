@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  */
 
 #ifndef _CAM_SENSOR_CMN_HEADER_
@@ -175,7 +175,9 @@ enum cam_ois_packet_opcodes {
 	CAM_OIS_PACKET_OPCODE_OIS_CONTROL,
 	CAM_OIS_PACKET_OPCODE_READ,
 	CAM_OIS_PACKET_OPCODE_WRITE_TIME,
-	CAM_OIS_PACKET_OPCODE_ACTIVE_EIS
+	CAM_OIS_PACKET_OPCODE_ACTIVE_OIS_ROHM,
+	CAM_OIS_PACKET_OPCODE_ACTIVE_OIS_DONGWOON,
+	CAM_OIS_PACKET_OPCODE_ACTIVE_OIS_DONGWOON_QTIMER
 };
 
 enum msm_bus_perf_setting {
@@ -346,6 +348,12 @@ enum msm_sensor_camera_id_t {
 	CAMERA_7,
 	CAMERA_8,
 	CAMERA_9,
+	CAMERA_10,
+	CAMERA_11,
+	CAMERA_12,
+	CAMERA_13,
+	CAMERA_14,
+	CAMERA_15,
 	MAX_CAMERAS,
 };
 

@@ -74,6 +74,18 @@ int cam_res_mgr_gpio_request(struct device *dev, unsigned int gpio,
 		unsigned long flags, const char *label);
 
 /**
+ *  @brief: Free a GPIO
+ *
+ *  Free the GPIO and release corresponding gpio_res.
+ *
+ * @dev   : Pointer to the device
+ * @gpio  : A GPIO number
+ *
+ * @return Status of operation. Negative in case of error. Zero otherwise.
+ */
+void cam_res_mgr_gpio_free(struct device *dev, uint gpio);
+
+/**
  * @brief: Free a array GPIO
  *
  *  Free the GPIOs and release corresponding gpio_res.

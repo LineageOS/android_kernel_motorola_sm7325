@@ -187,6 +187,13 @@ static int32_t cam_sensor_driver_get_dt_data(struct cam_sensor_ctrl_t *s_ctrl)
 		CAM_DBG(CAM_SENSOR, "cci-index %d", s_ctrl->cci_num);
 	}
 
+	if (of_property_read_bool(of_node, "need-change-cci-master")) {
+		CAM_DBG(CAM_SENSOR, "need-change-cci-master found in this imgsensor");
+		s_ctrl->need_change_cci_master = true;
+	} else {
+		s_ctrl->need_change_cci_master = false;
+	}
+
 	if (of_property_read_u32(of_node, "sensor-position-pitch",
 		&sensordata->pos_pitch) < 0) {
 		CAM_DBG(CAM_SENSOR, "Invalid sensor position");

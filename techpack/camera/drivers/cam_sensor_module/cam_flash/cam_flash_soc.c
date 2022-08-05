@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include "cam_flash_soc.h"
 #include "cam_res_mgr_api.h"
+#include <dt-bindings/msm/msm-camera.h>
 
 void cam_flash_put_source_node_data(struct cam_flash_ctrl *fctrl)
 {
@@ -69,9 +70,42 @@ static int32_t cam_get_source_node_info(
 	struct device_node *flash_src_node = NULL;
 	struct device_node *torch_src_node = NULL;
 	struct device_node *switch_src_node = NULL;
+#ifdef CONFIG_CAMERA_FLASH_PWM
+	int16_t gpio_array_size = 0;
+	uint16_t *gpio_array = NULL;
+#endif
 
 	soc_private->is_wled_flash =
 		of_property_read_bool(of_node, "wled-flash-support");
+
+	rc = of_property_read_u32(of_node, "flash-type", &soc_private->flash_type);
+	if (rc) {
+		CAM_ERR(CAM_FLASH,
+			"flash-type read failed rc=%d", rc);
+		soc_private->flash_type = CAM_FLASH_TYPE_PMIC; // default to PMIC flash
+#ifdef CONFIG_CAMERA_FLASH_PWM
+	} else if(soc_private->flash_type == CAM_FLASH_TYPE_GPIO) {
+		gpio_array_size = of_gpio_count(of_node);
+		if (gpio_array_size == 1){
+			gpio_array = kcalloc(gpio_array_size, sizeof(uint16_t), GFP_KERNEL);
+			if (!gpio_array) {
+				CAM_ERR(CAM_FLASH, "flash gpio array alloc fail");
+			} else {
+				for (i = 0; i < gpio_array_size; i++) {
+					gpio_array[i] = of_get_gpio(of_node, i);
+					CAM_DBG(CAM_FLASH, "flash dts gpio_array[%d] = %d name is %s %s", i, gpio_array[i], of_node->name, of_node->full_name);
+				}
+				soc_private->flash_gpio_enable = gpio_array[0];
+				CAM_DBG(CAM_FLASH, "flash gpio enable %d",soc_private->flash_gpio_enable);
+				kfree(gpio_array);
+			}
+		} else {
+			CAM_ERR(CAM_FLASH, "flash should have two gpio, first is enable in flash dts, second control by flash pm6125");
+		}
+	}
+#else
+	}
+#endif
 
 	switch_src_node = of_parse_phandle(of_node, "switch-source", 0);
 	if (!switch_src_node) {
@@ -285,7 +319,14 @@ int cam_flash_get_dt_data(struct cam_flash_ctrl *fctrl,
 		rc = -ENOMEM;
 		goto release_soc_res;
 	}
-	of_node = fctrl->pdev->dev.of_node;
+
+	if (fctrl->of_node == NULL) {
+		CAM_ERR(CAM_FLASH, "device node is NULL");
+		rc = -EINVAL;
+		goto free_soc_private;
+	}
+
+	of_node = fctrl->of_node;
 
 	rc = cam_soc_util_get_dt_properties(soc_info);
 	if (rc) {

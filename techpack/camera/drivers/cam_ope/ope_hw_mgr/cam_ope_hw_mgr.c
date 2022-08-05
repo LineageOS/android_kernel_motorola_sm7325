@@ -624,8 +624,8 @@ static bool cam_ope_check_req_delay(struct cam_ope_ctx *ctx_data,
 		ts.tv_nsec);
 
 	if (ts_ns - req_time <
-		((OPE_REQUEST_TIMEOUT -
-			OPE_REQUEST_TIMEOUT / 10) * 1000000)) {
+		((ctx_data->req_timer_timeout -
+			ctx_data->req_timer_timeout / 10) * 1000000)) {
 		CAM_INFO(CAM_OPE, "ctx: %d, ts_ns : %llu",
 		ctx_data->ctx_id, ts_ns);
 		cam_ope_req_timer_reset(ctx_data);
@@ -848,7 +848,7 @@ static int cam_ope_start_req_timer(struct cam_ope_ctx *ctx_data)
 	int rc = 0;
 
 	rc = crm_timer_init(&ctx_data->req_watch_dog,
-		OPE_REQUEST_TIMEOUT, ctx_data, &cam_ope_req_timer_cb);
+		ctx_data->req_timer_timeout, ctx_data, &cam_ope_req_timer_cb);
 	if (rc)
 		CAM_ERR(CAM_OPE, "Failed to start timer");
 
@@ -2626,11 +2626,15 @@ static int cam_ope_mgr_acquire_hw(void *hw_priv, void *hw_acquire_args)
 		goto end;
 	}
 	strlcpy(cdm_acquire->identifier, "ope", sizeof("ope"));
-	if (ctx->ope_acquire.dev_type == OPE_DEV_TYPE_OPE_RT)
+	if (ctx->ope_acquire.dev_type == OPE_DEV_TYPE_OPE_RT) {
 		cdm_acquire->priority = CAM_CDM_BL_FIFO_3;
+		ctx->req_timer_timeout = OPE_REQUEST_RT_TIMEOUT;
+	}
 	else if (ctx->ope_acquire.dev_type ==
-		OPE_DEV_TYPE_OPE_NRT)
+		OPE_DEV_TYPE_OPE_NRT) {
 		cdm_acquire->priority = CAM_CDM_BL_FIFO_0;
+		ctx->req_timer_timeout = OPE_REQUEST_NRT_TIMEOUT;
+	}
 	else
 		goto free_cdm_acquire;
 
@@ -3292,7 +3296,7 @@ static int cam_ope_mgr_prepare_hw_update(void *hw_priv,
 	prepare_args->priv = ctx_data->req_list[request_idx];
 	prepare_args->pf_data->packet = packet;
 	prepare_args->pf_data->req    = ope_req;
-	CAM_INFO(CAM_REQ, "OPE req %x num_batch %d", ope_req, ope_req->num_batch);
+	CAM_DBG(CAM_REQ, "OPE req %x num_batch %d", ope_req, ope_req->num_batch);
 	ope_req->hang_data.packet = packet;
 	ktime_get_boottime_ts64(&ts);
 	ctx_data->last_req_time = (uint64_t)((ts.tv_sec * 1000000000) +
@@ -3300,7 +3304,7 @@ static int cam_ope_mgr_prepare_hw_update(void *hw_priv,
 	CAM_DBG(CAM_REQ, "req_id= %llu ctx_id= %d lrt=%llu",
 		packet->header.request_id, ctx_data->ctx_id,
 		ctx_data->last_req_time);
-	cam_ope_req_timer_modify(ctx_data, OPE_REQUEST_TIMEOUT);
+	cam_ope_req_timer_modify(ctx_data, ctx_data->req_timer_timeout);
 	set_bit(request_idx, ctx_data->bitmap);
 	mutex_unlock(&ctx_data->ctx_mutex);
 
@@ -3620,7 +3624,7 @@ static int cam_ope_mgr_hw_dump(void *hw_priv, void *hw_dump_args)
 	cur_ts = ktime_to_timespec64(cur_time);
 	req_ts = ktime_to_timespec64(ctx_data->req_list[idx]->submit_timestamp);
 
-	if (diff < (OPE_REQUEST_TIMEOUT * 1000)) {
+	if (diff < (ctx_data->req_timer_timeout * 1000)) {
 		CAM_INFO(CAM_OPE, "No Error req %llu %ld:%06ld %ld:%06ld",
 			dump_args->request_id,
 			req_ts.tv_sec,
@@ -4112,13 +4116,13 @@ static void cam_ope_mgr_dump_pf_data(
 	packet      = hw_cmd_args->u.pf_args.pf_data.packet;
 	ope_request = hw_cmd_args->u.pf_args.pf_data.req;
 
-	if (ctx_data->pf_mid_found)
-		goto stripedump;
-
 	ope_pid_mid_args.fault_mid = hw_cmd_args->u.pf_args.mid;
 	ope_pid_mid_args.fault_pid = hw_cmd_args->u.pf_args.pid;
 	ctx_found = hw_cmd_args->u.pf_args.ctx_found;
 	resource_type = hw_cmd_args->u.pf_args.resource_type;
+
+	if (ctx_data->pf_mid_found)
+		goto stripedump;
 
 	if (*ctx_found && *resource_type) {
 		hw_pid_support = false;
@@ -4162,13 +4166,13 @@ static void cam_ope_mgr_dump_pf_data(
 			return;
 	}
 
-	io_cfg = (struct cam_buf_io_cfg *)((uint32_t *)&packet->payload +
-			packet->io_configs_offset / 4);
-
 	*resource_type = ope_pid_mid_args.match_res;
 	CAM_INFO(CAM_OPE, "Fault port %d", *resource_type);
 
 stripedump:
+	io_cfg = (struct cam_buf_io_cfg *)((uint32_t *)&packet->payload +
+			packet->io_configs_offset / 4);
+
 	if (!ope_request)
 		goto iodump;
 
@@ -4232,6 +4236,11 @@ iodump:
 				io_cfg[i].mem_handle[j]);
 
 			if (io_buf_found) {
+				if (j >= OPE_MAX_PLANES) {
+					CAM_ERR(CAM_OPE, "Invalid plane idx: %d", j);
+					break;
+				}
+
 				for (stripe_num = 0; stripe_num < io_buf->num_stripes[j];
 						stripe_num++) {
 					CAM_INFO(CAM_OPE,

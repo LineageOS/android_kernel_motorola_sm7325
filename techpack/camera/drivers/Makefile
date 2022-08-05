@@ -162,6 +162,7 @@ camera-$(CONFIG_SPECTRA_SENSOR) += \
 	cam_sensor_module/cam_ois/cam_ois_dev.o \
 	cam_sensor_module/cam_ois/cam_ois_core.o \
 	cam_sensor_module/cam_ois/cam_ois_soc.o \
+	cam_sensor_module/cam_ois/cam_ois_dw9781.o \
 	cam_sensor_module/cam_sensor/cam_sensor_dev.o \
 	cam_sensor_module/cam_sensor/cam_sensor_core.o \
 	cam_sensor_module/cam_sensor/cam_sensor_soc.o \
@@ -170,6 +171,7 @@ camera-$(CONFIG_SPECTRA_SENSOR) += \
 	cam_sensor_module/cam_sensor_io/cam_sensor_qup_i2c.o \
 	cam_sensor_module/cam_sensor_io/cam_sensor_spi.o \
 	cam_sensor_module/cam_sensor_utils/cam_sensor_util.o \
+	cam_sensor_module/cam_flash_pm6125_gpio/pm6125_flash_gpio.o \
 	cam_sensor_module/cam_res_mgr/cam_res_mgr.o
 
 ifneq (,$(filter $(CONFIG_AF_NOISE_ELIMINATION), y m))
