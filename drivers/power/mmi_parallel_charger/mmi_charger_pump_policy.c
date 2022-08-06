@@ -1128,7 +1128,7 @@ static void mmi_chrg_sm_work_func(struct work_struct *work)
 			&& !chip->batt_therm_cooling)  {
 
 			chrg_cv_taper_tunning_cnt = 0;
-			if (vbatt_volt > chrg_step->chrg_step_cv_volt + 10000) {
+			if (vbatt_volt > chrg_step->chrg_step_cv_volt + 10000 + chip->afvc_volt_comp) {
 				if (chrg_cv_delta_volt > 20000)
 					chip->pd_request_volt -= chrg_cv_delta_volt;
 				else
@@ -1153,7 +1153,7 @@ static void mmi_chrg_sm_work_func(struct work_struct *work)
 		}else {
 		/*In this case, sys_therm_cooling or batt_therm_cooling is ture*/
 
-			if (vbatt_volt > chrg_step->chrg_step_cv_volt + 10000) {
+			if (vbatt_volt > chrg_step->chrg_step_cv_volt + 10000 + chip->afvc_volt_comp) {
 				if (chrg_cv_delta_volt > 20000)
 					chip->pd_request_volt -= chrg_cv_delta_volt;
 				else
@@ -1364,7 +1364,14 @@ schedule:
 		mmi_chrg_info(chip, "Thermal is the highest, level %d, "
 						"Force enter into single pmic charging !\n",
 						chip->system_thermal_level);
-
+		if(chip->pd_sys_therm_volt == 0)
+			chip->pd_sys_therm_volt = SWITCH_CHARGER_PPS_VOLT;
+		if(chip->pd_sys_therm_curr == 0)
+			chip->pd_sys_therm_curr = TYPEC_HIGH_CURRENT_UA;
+		if(chip->pd_batt_therm_volt == 0)
+			chip->pd_batt_therm_volt = SWITCH_CHARGER_PPS_VOLT;
+		if(chip->pd_batt_therm_curr == 0)
+			chip->pd_batt_therm_curr = TYPEC_HIGH_CURRENT_UA;
 	} else if (chip->system_thermal_level > 0 &&
 		(sm_state == PM_STATE_CP_CC_LOOP ||
 		sm_state == PM_STATE_CP_CV_LOOP)) {

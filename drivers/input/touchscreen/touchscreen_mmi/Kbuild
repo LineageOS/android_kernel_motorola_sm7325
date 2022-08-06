@@ -16,6 +16,9 @@ endif
 ifneq ($(filter m y, $(CONFIG_DRM_PANEL_NOTIFICATIONS)),)
 	ccflags-y += -DCONFIG_DRM_PANEL_NOTIFICATIONS
 endif
+ifneq ($(filter m y, $(CONFIG_DRM_PANEL_EVENT_NOTIFICATIONS)),)
+	ccflags-y += -DCONFIG_DRM_PANEL_EVENT_NOTIFICATIONS
+endif
 ifneq ($(filter m y, $(CONFIG_TOUCH_PANEL_NOTIFICATIONS)),)
 	ccflags-y += -DCONFIG_PANEL_NOTIFICATIONS
 endif

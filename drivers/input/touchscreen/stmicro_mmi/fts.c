@@ -2034,7 +2034,6 @@ static DEVICE_ATTR(double_click, (S_IRUSR | S_IRGRP | S_IWUSR | S_IWGRP),
 		   fts_double_click_show, fts_double_click_store);
 static DEVICE_ATTR(single_click, (S_IRUSR | S_IRGRP | S_IWUSR | S_IWGRP),
 		   fts_single_click_show, fts_single_click_store);
-
 #endif
 
 /*  /sys/devices/soc.0/f9928000.i2c/i2c-6/6-0049 */
@@ -2844,8 +2843,6 @@ static irqreturn_t fts_event_handler(int irq, void *ptr)
 
 	event_dispatch_handler_t event_handler;
 
-	PM_WAKEUP_EVENT(info->wakesrc, jiffies_to_msecs(HZ));
-
 	/* read the FIFO and parsing events */
 	regAdd = FIFO_CMD_READONE;
 
@@ -2904,6 +2901,7 @@ int fts_fw_update(struct fts_ts_info *info)
 	int error = 0;
 	int init_type = NO_INIT;
 	const char *firmware_name;
+	const struct fts_hw_platform_data *bdata = info->board;
 
 #if defined(PRE_SAVED_METHOD) || defined (COMPUTE_INIT_METHOD)
 	int keep_cx = 1;
@@ -3033,16 +3031,23 @@ int fts_fw_update(struct fts_ts_info *info)
 			init_type = NO_INIT;
 	}
 
-
-	if (init_type != NO_INIT) {	/* initialization status not correct or
-					 * after FW complete update, do
-					 * initialization. */
-		error = fts_chip_initialization(info, init_type);
-		if (error < OK)
-			logError(1,
-				"%s %s Cannot initialize the chip ERROR %08X\n",
-				 tag,
-				 __func__, error);
+/**
+  * Note: The fts_chip_initialization function contains the touchscreen calibration
+  *       operation. We close the operation by default, plese be very careful to
+  *       open it if necessary.
+*/
+	if (bdata->need_tp_cal) {
+		if (init_type != NO_INIT) {	/* initialization status not correct or
+						 * after FW complete update, do
+						 * initialization. */
+			logError(1, "%s Note: Do touch calibration...!\n", tag);
+			error = fts_chip_initialization(info, init_type);
+			if (error < OK)
+				logError(1,
+					"%s %s Cannot initialize the chip ERROR %08X\n",
+					tag,
+					__func__, error);
+		}
 	}
 
 	error = fts_init_sensing(info);
@@ -4018,6 +4023,11 @@ static int parse_dt(struct device *dev, struct fts_hw_platform_data *bdata)
 		logError(0, "%s flip X\n", tag);
 	}
 
+	if (of_property_read_bool(np, "st,need_tp_cal")) {
+		bdata->need_tp_cal = true;
+		logError(0, "%s Need to do calibraion after fw upgrade");
+	}
+
 	if (of_property_read_u8_array(np, "st,interpolation_cmd",
 			bdata->interpolation_cmd, 10) == 0) {
 		bdata->interpolation_ctrl = true;
@@ -4037,7 +4047,7 @@ static int parse_dt(struct device *dev, struct fts_hw_platform_data *bdata)
 	}
 
 	if (of_property_read_u8_array(np, "st,first_filter_cmd",
-			bdata->first_filter_cmd, 4) == 0) {
+			bdata->first_filter_cmd, 4*2) == 0) {
 		bdata->first_filter_ctrl = true;
 		logError(1, "%s Support set first_filter.\n", tag);
 	}
@@ -4546,6 +4556,7 @@ static int fts_remove(struct spi_device *client)
 #ifdef GESTURE_MODE
 	clear_gestures(info);
 #endif
+
 	/* free all */
 	kfree(info);
 
@@ -4596,7 +4607,11 @@ static struct spi_driver fts_spi_driver = {
 static int __init fts_driver_init(void)
 {
 #ifdef I2C_INTERFACE
-	return i2c_add_driver(&fts_i2c_driver);
+	struct device_node *node;
+	node = mmi_check_dynamic_device_node("st_fts");
+	if (!node || mmi_device_is_available(node))
+		return i2c_add_driver(&fts_i2c_driver);
+	return -ENODEV;
 #else
 	return spi_register_driver(&fts_spi_driver);
 #endif

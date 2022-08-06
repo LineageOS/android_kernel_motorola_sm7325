@@ -1,1 +1,2 @@
 obj-$(CONFIG_USE_MMI_CHARGER) += mmi_charger.o
+

@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include "goodix_ts_core.h"
 #include "goodix_cfg_bin.h"
+#include <linux/mmi_device.h>
 
 #define TS_DRIVER_NAME			"gtx8"
 #define I2C_MAX_TRANSFER_SIZE		60
@@ -232,6 +233,11 @@ static int goodix_parse_dt(struct device_node *node,
 	ts_debug("[DT]x:%d, y:%d, w:%d, p:%d", board_data->panel_max_x,
 		 board_data->panel_max_y, board_data->panel_max_w,
 		 board_data->panel_max_p);
+
+	board_data->esd_default_on= of_property_read_bool(node,
+					"goodix,esd-default-on");
+	if (board_data->esd_default_on)
+		ts_info("goodix esd-default-on enabled");
 	return 0;
 }
 #endif
@@ -617,7 +623,7 @@ int goodix_i2c_write_trans_once(struct goodix_ts_device *dev, unsigned int reg,
 	return 0;
 }
 
-static void goodix_cmd_init(struct goodix_ts_device *dev,
+void goodix_cmd_init(struct goodix_ts_device *dev,
 			    struct goodix_ts_cmd *ts_cmd,
 			    u8 cmds, u16 cmd_data, u32 reg_addr)
 {
@@ -1883,6 +1889,11 @@ static int goodix_i2c_probe(struct i2c_client *client,
 
 	ts_info("goodix_i2c_probe IN");
 
+	if (client->dev.of_node && !mmi_device_is_available(client->dev.of_node)) {
+		ts_err("mmi: device not supported\n");
+		return -ENODEV;
+	}
+
 	r = i2c_check_functionality(client->adapter,
 		I2C_FUNC_I2C);
 	if (!r)
@@ -1916,6 +1927,8 @@ static int goodix_i2c_probe(struct i2c_client *client,
 	if (!goodix_pdev)
 		return -ENOMEM;
 
+	i2c_set_clientdata(client, goodix_pdev);
+
 	goodix_pdev->name = GOODIX_CORE_DRIVER_NAME;
 	goodix_pdev->id = 0;
 	goodix_pdev->num_resources = 0;
@@ -1941,6 +1954,7 @@ static int goodix_i2c_probe(struct i2c_client *client,
 err_pdev:
 	kfree(goodix_pdev);
 	goodix_pdev = NULL;
+	i2c_set_clientdata(client, NULL);
 	ts_info("i2c probe out, %d", r);
 	return r;
 }

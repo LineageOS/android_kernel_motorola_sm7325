@@ -29,6 +29,7 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/pm_wakeup.h>
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0))
 	|| (LINUX_VERSION_CODE > KERNEL_VERISON(4, 10, 0))
 #include <uapi/linux/sched/types.h>
@@ -52,6 +53,124 @@ struct gcore_exp_fn_data fn_data = {
 struct gcore_exp_fn *p_fwu_fn = &fw_update_fn;
 struct gcore_exp_fn *p_intf_fn = &fs_interf_fn;
 struct gcore_exp_fn *p_mp_fn = &mp_test_fn;
+
+#ifdef GCORE_SENSOR_EN
+static struct sensors_classdev __maybe_unused sensors_touch_cdev = {
+
+	.name = "dt-gesture",
+	.vendor = "gcore",
+	.version = 1,
+	.type = SENSOR_TYPE_MOTO_DOUBLE_TAP,
+	.max_range = "5.0",
+	.resolution = "5.0",
+	.sensor_power = "1",
+	.min_delay = 0,
+	.max_delay = 0,
+	/* WAKE_UP & SPECIAL_REPORT */
+	.flags = 1 | 6,
+	.fifo_reserved_event_count = 0,
+	.fifo_max_event_count = 0,
+	.enabled = 0,
+	.delay_msec = 200,
+	.sensors_enable = NULL,
+	.sensors_poll_delay = NULL,
+};
+#define REPORT_MAX_COUNT 10000
+#endif
+
+#ifdef GCORE_SENSOR_EN
+static int gcore_sensor_set_enable(struct sensors_classdev *sensors_cdev,
+		unsigned int enable)
+{
+	GTP_DEBUG("Gesture set enable %d!", enable);
+	mutex_lock(&fn_data.gdev->state_mutex);
+	if (enable == 1) {
+		fn_data.gdev->should_enable_gesture = true;
+	} else if (enable == 0) {
+		fn_data.gdev->should_enable_gesture = false;
+	} else {
+		GTP_DEBUG("unknown enable symbol\n");
+	}
+	mutex_unlock(&fn_data.gdev->state_mutex);
+	return 0;
+}
+
+static int gcore_sensor_init(struct gcore_dev *data)
+{
+	struct gcore_sensor_platform_data *sensor_pdata;
+	struct input_dev *sensor_input_dev;
+	int err;
+
+	sensor_input_dev = input_allocate_device();
+	if (!sensor_input_dev) {
+		GTP_ERROR("Failed to allocate device");
+		goto exit;
+	}
+
+	sensor_pdata = devm_kzalloc(&sensor_input_dev->dev,
+			sizeof(struct gcore_sensor_platform_data),
+			GFP_KERNEL);
+	if (!sensor_pdata) {
+		GTP_ERROR("Failed to allocate memory");
+		goto free_sensor_pdata;
+	}
+	data->sensor_pdata = sensor_pdata;
+
+	if (data->report_gesture_key) {
+		__set_bit(EV_KEY, sensor_input_dev->evbit);
+		__set_bit(KEY_F1, sensor_input_dev->keybit);
+	} else {
+		__set_bit(EV_ABS, sensor_input_dev->evbit);
+		input_set_abs_params(sensor_input_dev, ABS_DISTANCE,
+				0, REPORT_MAX_COUNT, 0, 0);
+	}
+	__set_bit(EV_SYN, sensor_input_dev->evbit);
+
+	sensor_input_dev->name = "double-tap";
+	data->sensor_pdata->input_sensor_dev = sensor_input_dev;
+
+	err = input_register_device(sensor_input_dev);
+	if (err) {
+		GTP_ERROR("Unable to register device, err=%d", err);
+		goto free_sensor_input_dev;
+	}
+
+	sensor_pdata->ps_cdev = sensors_touch_cdev;
+	sensor_pdata->ps_cdev.sensors_enable = gcore_sensor_set_enable;
+	sensor_pdata->data = data;
+
+	err = sensors_classdev_register(&sensor_input_dev->dev,
+				&sensor_pdata->ps_cdev);
+	if (err)
+		goto unregister_sensor_input_device;
+
+	return 0;
+
+unregister_sensor_input_device:
+	input_unregister_device(data->sensor_pdata->input_sensor_dev);
+free_sensor_input_dev:
+	input_free_device(data->sensor_pdata->input_sensor_dev);
+free_sensor_pdata:
+	devm_kfree(&sensor_input_dev->dev, sensor_pdata);
+	data->sensor_pdata = NULL;
+exit:
+	return 1;
+}
+
+int gcore_sensor_remove(struct gcore_dev *data)
+{
+	sensors_classdev_unregister(&data->sensor_pdata->ps_cdev);
+	input_unregister_device(data->sensor_pdata->input_sensor_dev);
+	devm_kfree(&data->sensor_pdata->input_sensor_dev->dev,
+		data->sensor_pdata);
+
+	data->sensor_pdata = NULL;
+	data->wakeable = false;
+	data->should_enable_gesture = false;
+
+	return 0;
+}
+#endif
 
 #if 0
 
@@ -177,6 +296,15 @@ int gcore_get_gpio_info(struct gcore_dev *gdev, struct device_node *node)
 			return -1;
 		} else {
 			gpio_set_debounce(gdev->ges_irq_gpio, 2);
+		}
+#endif
+
+#ifdef GCORE_SENSOR_EN
+		if (of_property_read_bool(node, "gcore,report_gesture_key")) {
+				GTP_DEBUG("gcore,report_gesture_key set");
+			gdev->report_gesture_key = 1;
+		} else {
+			gdev->report_gesture_key = 0;
 		}
 #endif
 
@@ -378,8 +506,12 @@ void gcore_touch_release_all_point(struct input_dev *dev)
 
 
 #ifdef CONFIG_ENABLE_GESTURE_WAKEUP
-void gcore_gesture_event_handler(struct input_dev *dev, int id)
+void gcore_gesture_event_handler(struct gcore_dev *gdev, int id)
 {
+
+#ifdef GCORE_SENSOR_EN
+	static int report_cnt = 0;
+#endif
 
 	if ((!id) || (id >= GESTURE_MAX)) {
 		return;
@@ -389,11 +521,13 @@ void gcore_gesture_event_handler(struct input_dev *dev, int id)
 
 	switch (id) {
 	case GESTURE_DOUBLE_CLICK:
+#if 0
 		GTP_DEBUG("double click gesture event");
-		input_report_key(dev, GESTURE_KEY, 1);
-		input_sync(dev);
-		input_report_key(dev, GESTURE_KEY, 0);
-		input_sync(dev);
+		input_report_key(gdev->input_device, GESTURE_KEY, 1);
+		input_sync(gdev->input_device);
+		input_report_key(gdev->input_device, GESTURE_KEY, 0);
+		input_sync(gdev->input_device);
+#endif
 		break;
 
 	case GESTURE_UP:
@@ -410,10 +544,10 @@ void gcore_gesture_event_handler(struct input_dev *dev, int id)
 
 	case GESTURE_C:
 		GTP_DEBUG("double click gesture event");
-		input_report_key(dev, KEY_F24, 1);
-		input_sync(dev);
-		input_report_key(dev, KEY_F24, 0);
-		input_sync(dev);
+		input_report_key(gdev->input_device, KEY_F24, 1);
+		input_sync(gdev->input_device);
+		input_report_key(gdev->input_device, KEY_F24, 0);
+		input_sync(gdev->input_device);
 		break;
 
 	case GESTURE_E:
@@ -442,6 +576,47 @@ void gcore_gesture_event_handler(struct input_dev *dev, int id)
 
 	default:
 		break;
+	}
+
+	if (id > 0) {
+#ifdef GCORE_SENSOR_EN
+			gdev->wakeable = fn_data.gdev->wakeable;
+			gdev->should_enable_gesture = fn_data.gdev->should_enable_gesture;
+			gdev->gesture_wakelock = fn_data.gdev->gesture_wakelock;
+			if (!(gdev->wakeable && gdev->should_enable_gesture)) {
+				GTP_DEBUG("Gesture got but wakeable not set. Skip this gesture.");
+				return;
+			}
+			if (gdev->report_gesture_key) {
+				input_report_key(gdev->sensor_pdata->input_sensor_dev, KEY_F1, 1);
+				input_sync(gdev->sensor_pdata->input_sensor_dev);
+				input_report_key(gdev->sensor_pdata->input_sensor_dev, KEY_F1, 0);
+				input_sync(gdev->sensor_pdata->input_sensor_dev);
+				++report_cnt;
+			} else {
+				input_report_abs(gdev->sensor_pdata->input_sensor_dev,
+						ABS_DISTANCE,
+						++report_cnt);
+				input_sync(gdev->sensor_pdata->input_sensor_dev);
+			}
+			GTP_DEBUG("input report: %d", report_cnt);
+			if (report_cnt >= REPORT_MAX_COUNT) {
+				report_cnt = 0;
+			}
+#ifdef CONFIG_HAS_WAKELOCK
+			//wake_lock_timeout(&gesture_wakelock, msecs_to_jiffies(5000));
+			wake_lock_timeout(&(gdev->gesture_wakelock), msecs_to_jiffies(5000));
+#else
+			//__pm_wakeup_event(gesture_wakelock, 5000);
+			PM_WAKEUP_EVENT(gdev->gesture_wakelock, 5000);
+#endif
+#else
+			GTP_DEBUG("tap click gesture event");
+			input_report_key(gdev->input_device, GESTURE_KEY, 1);
+			input_sync(gdev->input_device);
+			input_report_key(gdev->input_device, GESTURE_KEY, 0);
+			input_sync(gdev->input_device);
+#endif
 	}
 
 }
@@ -576,7 +751,7 @@ s32 gcore_touch_event_handler(struct gcore_dev *gdev)
 
 
 #ifdef CONFIG_ENABLE_GESTURE_WAKEUP
-	gcore_gesture_event_handler(gdev->input_device, (coor_data[61] >> 3));
+	gcore_gesture_event_handler(gdev, (coor_data[61] >> 3));
 #endif
 
 	for (i = 1; i <= GTP_MAX_TOUCH; i++) {
@@ -596,7 +771,7 @@ s32 gcore_touch_event_handler(struct gcore_dev *gdev)
 
 		set_bit(id, &curr_touch);
 
-		gcore_touch_down(gdev->input_device, input_x, input_y, id);
+		gcore_touch_down(gdev->input_device, input_x, input_y, id - 1);
 
 		coor_data += 6;
 
@@ -605,7 +780,7 @@ s32 gcore_touch_event_handler(struct gcore_dev *gdev)
 #ifdef CONFIG_ENABLE_TYPE_B_PROCOTOL
 	for (i = 1; i <= GTP_MAX_TOUCH; i++) {
 		if (!test_bit(i, &curr_touch) && test_bit(i, &prev_touch)) {
-			gcore_touch_up(gdev->input_device, i);
+			gcore_touch_up(gdev->input_device, i - 1);
 		}
 
 		if (test_bit(i, &curr_touch)) {
@@ -629,41 +804,30 @@ s32 gcore_touch_event_handler(struct gcore_dev *gdev)
 	return 0;
 }
 
-static int tpd_event_handler(void *p)
+static irqreturn_t tpd_event_handler(int irq, void *dev_id)
 {
-	struct gcore_dev *gdev = (struct gcore_dev *)p;
-	struct sched_param param = {.sched_priority = 4};
+	struct gcore_dev *gdev = (struct gcore_dev *)dev_id;
 
-	sched_setscheduler(current, SCHED_RR, &param);
-	do {
-		set_current_state(TASK_INTERRUPTIBLE);
+	if (mutex_is_locked(&gdev->transfer_lock)) {
+		GTP_DEBUG("touch is locked, ignore");
+		return IRQ_HANDLED;
+	}
 
-		wait_event_interruptible(gdev->wait, gdev->tpd_flag != 0);
-		gdev->tpd_flag = 0;
+	mutex_lock(&gdev->transfer_lock);
+	/* don't reset before "if (tpd_halt..."  */
 
-		set_current_state(TASK_RUNNING);
+	if (gcore_touch_event_handler(gdev)) {
+		GTP_ERROR("touch event handler error.");
+	}
 
-		mutex_lock(&gdev->transfer_lock);
-		/* don't reset before "if (tpd_halt..."  */
+	mutex_unlock(&gdev->transfer_lock);
 
-		if (gcore_touch_event_handler(gdev)) {
-			GTP_ERROR("touch event handler error.");
-		}
-
-		gcore_irq_enable(gdev);
-
-		mutex_unlock(&gdev->transfer_lock);
-
-	} while (!kthread_should_stop());
-
-	return 0;
+	return IRQ_HANDLED;
 }
 
-
-static irqreturn_t tpd_eint_interrupt_handler(unsigned irq, void *p)
+static irqreturn_t tpd_eint_interrupt_handler(int irq, void *dev_id)
 {
-	struct gcore_dev *gdev = (struct gcore_dev *)p;
-	unsigned long flags;
+	struct gcore_dev *gdev = (struct gcore_dev *)dev_id;
 	struct gcore_exp_fn *exp_fn = NULL;
 	struct gcore_exp_fn *exp_fn_temp = NULL;
 	u8 found = 0;
@@ -680,22 +844,12 @@ static irqreturn_t tpd_eint_interrupt_handler(unsigned irq, void *p)
 
 	if (!found) {
 		gdev->tpd_flag = 1;
-	}
-
-	spin_lock_irqsave(&gdev->irq_flag_lock, flags);
-	if (gdev->irq_flag == 0) {
-		spin_unlock_irqrestore(&gdev->irq_flag_lock, flags);
+		return IRQ_WAKE_THREAD;
+	} else {
+		wake_up_interruptible(&gdev->wait);
 		return IRQ_HANDLED;
 	}
-	/* enter EINT handler disable INT, make sure INT is disable when handle touch event including top/bottom half */
-	/* use _nosync to avoid deadlock */
-	gdev->irq_flag = 0;
-	spin_unlock_irqrestore(&gdev->irq_flag_lock, flags);
-	disable_irq_nosync(gdev->touch_irq);
 
-	/*GTP_DEBUG("disable irq_flag=%d",g_touch.irq_flag);*/
-	wake_up_interruptible(&gdev->wait);
-	return IRQ_HANDLED;
 }
 
 static int tpd_irq_registration(struct gcore_dev *gdev)
@@ -741,8 +895,10 @@ static int tpd_irq_registration(struct gcore_dev *gdev)
 
 #endif
 
-	ret = request_irq(gdev->touch_irq, (irq_handler_t) tpd_eint_interrupt_handler,
-			IRQF_TRIGGER_RISING, "TOUCH_PANEL-eint", gdev);
+	ret = devm_request_threaded_irq(&gdev->bus_device->dev, gdev->touch_irq,
+					tpd_eint_interrupt_handler,
+					tpd_event_handler,
+					IRQF_TRIGGER_RISING | IRQF_ONESHOT, "TOUCH_PANEL-eint", gdev);
 	if (ret > 0) {
 		ret = -1;
 		GTP_ERROR("tpd request_irq IRQ LINE NOT AVAILABLE!.");
@@ -873,12 +1029,6 @@ void gcore_deinit(struct gcore_dev *gdev)
 		}
 	}
 
-	if (gdev->touch_irq) {
-		free_irq(gdev->touch_irq, gdev);
-	}
-
-	kthread_stop(gdev->thread);
-
 	destroy_workqueue(gdev->fwu_workqueue);
 
 	if (gdev->touch_data) {
@@ -898,7 +1048,6 @@ void gcore_deinit(struct gcore_dev *gdev)
 
 int gcore_touch_probe(struct gcore_dev *gdev)
 {
-	s32 err = 0;
 #if 0
 	struct gcore_exp_fn *exp_fn = NULL;
 	struct gcore_exp_fn *exp_fn_temp = NULL;
@@ -914,11 +1063,6 @@ int gcore_touch_probe(struct gcore_dev *gdev)
 		GTP_ERROR("gcore init fail!");
 	}
 
-	gdev->thread = kthread_run(tpd_event_handler, gdev, GTP_DRIVER_NAME);
-	if (IS_ERR(gdev->thread)) {
-		err = PTR_ERR(gdev->thread);
-		GTP_DEBUG(GTP_DRIVER_NAME " failed to create kernel thread: %d\n", err);
-	}
 
 #ifdef CONFIG_TOUCH_DRIVER_RUN_ON_MTK_PLATFORM
 	tpd_gpio_as_int(GTP_INT_PORT);
@@ -970,6 +1114,15 @@ int gcore_touch_probe(struct gcore_dev *gdev)
 			GTP_ERROR("register notifier failed!");
 	}
 #endif
+
+#if RESUME_USES_WORKQ
+	gcore_resume_wq_init();
+#endif
+
+#if CHARGER_NOTIFIER
+	gcore_charger_notifier_init();
+#endif
+
 #endif
 
 	return 0;
@@ -1283,6 +1436,10 @@ static s32 gcore_spi_probe(struct spi_device *slave)
 {
 	struct gcore_dev *touch_dev = NULL;
 
+#ifdef GCORE_SENSOR_EN
+	static bool initialized_sensor;
+#endif
+
 	GTP_DEBUG("tpd_spi_probe start.");
 
 #ifdef CONFIG_DRM
@@ -1317,6 +1474,31 @@ static s32 gcore_spi_probe(struct spi_device *slave)
 		GTP_ERROR("touch registration fail!");
 		return -1;
 	}
+
+#ifdef GCORE_SENSOR_EN
+		mutex_init(&touch_dev->state_mutex);
+		//unknown screen state
+		touch_dev->screen_state = SCREEN_UNKNOWN;
+		fn_data.gdev->screen_state = touch_dev->screen_state;
+#endif
+
+#ifdef GCORE_SENSOR_EN
+		if (!initialized_sensor) {
+#ifdef CONFIG_HAS_WAKELOCK
+			//wake_lock_init(&gesture_wakelock, WAKE_LOCK_SUSPEND, "dt-wake-lock");
+			wake_lock_init(&(fn_data.gdev->gesture_wakelock), WAKE_LOCK_SUSPEND, "dt-wake-lock");
+#else
+			//gesture_wakelock = wakeup_source_register(&slave->dev, "dt-wake-lock");
+			PM_WAKEUP_REGISTER(&slave->dev, fn_data.gdev->gesture_wakelock, "dt-wake-lock");
+			if (!fn_data.gdev->gesture_wakelock) {
+				GTP_ERROR("failed to allocate wakeup source\n");
+				return -1;
+			}
+#endif
+			if (!gcore_sensor_init(fn_data.gdev))
+				initialized_sensor = true;
+		}
+#endif
 
 	return 0;
 }

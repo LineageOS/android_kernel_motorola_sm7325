@@ -54,7 +54,7 @@
 #define GOODIX_CORE_DRIVER_NAME		"goodix_ts"
 #define GOODIX_PEN_DRIVER_NAME		"goodix_ts,pen"
 #define GOODIX_DRIVER_VERSION		"v1.5.1.0"
-#define GOODIX_BUS_RETRY_TIMES		3
+#define GOODIX_BUS_RETRY_TIMES		20
 #define GOODIX_MAX_TOUCH			10
 #define GOODIX_CFG_MAX_SIZE			4096
 #define GOODIX_ESD_TICK_WRITE_DATA	0xAA
@@ -62,6 +62,7 @@
 #define GOODIX_VID_MAX_LEN			8
 
 #define GOODIX_DEFAULT_CFG_NAME		"goodix_config.cfg"
+#define GOODIX_TP_IC_TYPE		"GTx8"
 
 #define IC_TYPE_NONE				0
 #define IC_TYPE_NORMANDY			1
@@ -468,6 +469,8 @@ struct goodix_ts_core {
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 	struct early_suspend early_suspend;
 #endif
+	/* touchscreen_mmi */
+	struct ts_mmi_class_methods *imports;
 };
 
 /* external module structures */

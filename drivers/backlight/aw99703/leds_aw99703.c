@@ -271,13 +271,13 @@ static int aw99703_backlight_init(struct aw99703_data *drvdata)
 	aw99703_i2c_write_bit(drvdata->client,
 				AW99703_REG_MODE,
 				AW99703_MODE_MAP_MASK,
-				AW99703_MODE_MAP_LINEAR);
+				drvdata->map_type);
 
 	/*default OVPSEL 38V*/
 	aw99703_i2c_write_bit(drvdata->client,
 				AW99703_REG_BSTCTR1,
 				AW99703_BSTCTR1_OVPSEL_MASK,
-				AW99703_BSTCTR1_OVPSEL_38V);
+				drvdata->ovp_level);
 
 	/*switch frequency 1000kHz*/
 	aw99703_i2c_write_bit(drvdata->client,
@@ -289,7 +289,7 @@ static int aw99703_backlight_init(struct aw99703_data *drvdata)
 	aw99703_i2c_write_bit(drvdata->client,
 				AW99703_REG_BSTCTR1,
 				AW99703_BSTCTR1_OCPSEL_MASK,
-				AW99703_BSTCTR1_OCPSEL_3P3A);
+				drvdata->ocp_level);
 
 	/*BSTCRT2 IDCTSEL*/
 	if (drvdata->bl_reconfig_enable && (AW99703_REG_BSTCTR2 == drvdata->bl_slow_reg)) {
@@ -338,8 +338,9 @@ int  aw99703_set_brightness(struct aw99703_data *drvdata, int brt_val)
 	pr_info("%s brt_val is %d\n", __func__, brt_val);
 
 	if (drvdata->enable == false) {
+		if(brt_val == 0)
+			return 0;
 		aw99703_backlight_init(drvdata);
-		aw99703_backlight_enable(drvdata);
 	}
 
 	brt_val = aw99703_brightness_map(brt_val);
@@ -359,6 +360,7 @@ int  aw99703_set_brightness(struct aw99703_data *drvdata, int brt_val)
 					AW99703_REG_MODE,
 					AW99703_MODE_WORKMODE_MASK,
 					AW99703_MODE_WORKMODE_BACKLIGHT);
+		drvdata->enable = true;
 	} else {
 		/* standby mode*/
 		aw99703_i2c_write_bit(drvdata->client,
@@ -507,16 +509,30 @@ aw99703_get_dt_data(struct device *dev, struct aw99703_data *drvdata)
 	else
 		pr_info("%s pwm_mode=%d\n", __func__, drvdata->pwm_mode);
 
+	rc = of_property_read_u32(np, "aw99703,map-type", &drvdata->map_type);
+	if (rc != 0) {
+		drvdata->map_type = AW99703_MODE_MAP_LINEAR;
+		pr_err("%s map-type not found\n", __func__);
+	}
+	else
+		pr_info("%s map-type=%d\n", __func__, drvdata->map_type);
+
 	drvdata->using_lsb = of_property_read_bool(np, "aw99703,using-lsb");
 	pr_info("%s using_lsb --<%d>\n", __func__, drvdata->using_lsb);
 
 	if (drvdata->using_lsb) {
-		drvdata->default_brightness = 0x7ff;
 		drvdata->max_brightness = 2047;
 	} else {
-		drvdata->default_brightness = 0xff;
 		drvdata->max_brightness = 255;
 	}
+
+	rc = of_property_read_u32(np, "aw99703,default-brightness", &drvdata->default_brightness);
+	if (rc != 0) {
+		drvdata->default_brightness = drvdata->max_brightness;
+		pr_err("%s default-brightness not found, set to max %d\n", __func__, drvdata->default_brightness);
+	}
+	else
+		pr_info("%s default-brightness=%d\n", __func__, drvdata->default_brightness);
 
 	rc = of_property_read_u32(np, "aw99703,bl-fscal-led", &temp);
 	if (rc) {
@@ -576,6 +592,24 @@ aw99703_get_dt_data(struct device *dev, struct aw99703_data *drvdata)
 		pr_err("%s bl_map not found\n", __func__);
 	else
 		pr_info("%s bl_map=%d\n", __func__, drvdata->bl_map);
+
+	rc = of_property_read_u32(np, "aw99703,ovp-level", &temp);
+	if (rc) {
+		drvdata->ovp_level = AW99703_BSTCTR1_OVPSEL_38V;
+		pr_err("ovp-level not found, set default %x!\n", drvdata->ovp_level);
+	} else {
+		drvdata->ovp_level = temp<<2;
+		pr_info("%s ovp_level %x\n", __func__, drvdata->ovp_level);
+	}
+
+	rc = of_property_read_u32(np, "aw99703,ocp-level", &temp);
+	if (rc) {
+		drvdata->ocp_level = AW99703_BSTCTR1_OCPSEL_2P7A;
+		pr_err("ocp-level not found, set default %x!\n", drvdata->ocp_level);
+	} else {
+		drvdata->ocp_level = temp;
+		pr_info("%s ocp_level %x\n", __func__, drvdata->ocp_level);
+	}
 
 	rc = of_property_read_u32(np, "aw99703,bl-slow-reg", &drvdata->bl_slow_reg);
 	if (!rc) {
@@ -721,7 +755,7 @@ static int aw99703_probe(struct i2c_client *client,
 	aw99703_backlight_init(drvdata);
 	aw99703_backlight_enable(drvdata);
 
-	aw99703_set_brightness(drvdata, MAX_BRIGHTNESS);
+	aw99703_set_brightness(drvdata, drvdata->default_brightness);
 	err = sysfs_create_group(&client->dev.kobj, &aw99703_attribute_group);
 	if (err < 0) {
 		dev_info(&client->dev, "%s error creating sysfs attr files\n",

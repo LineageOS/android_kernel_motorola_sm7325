@@ -26,6 +26,7 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/mmi_wake_lock.h>
+#include <soc/qcom/mmi_boot_info.h>
 
 #include "mmi_charger.h"
 
@@ -33,6 +34,9 @@
 #define DEMO_MODE_HYS_SOC 5
 #define WARM_TEMP 45
 #define COOL_TEMP 0
+
+#define BATT_PAIR_ID_BITS 16
+#define BATT_PAIR_ID_MASK ((1 << BATT_PAIR_ID_BITS) - 1)
 
 #define HEARTBEAT_DELAY_MS 60000
 #define HEARTBEAT_FACTORY_MS 1000
@@ -51,12 +55,18 @@ module_param(suspend_wakeups, int, 0644);
 static struct mmi_charger_chip *this_chip = NULL;
 
 enum {
-	POWER_SUPPLY_CHARGE_RATE_NONE = 0,
-	POWER_SUPPLY_CHARGE_RATE_NORMAL,
-	POWER_SUPPLY_CHARGE_RATE_WEAK,
-	POWER_SUPPLY_CHARGE_RATE_TURBO,
-	POWER_SUPPLY_CHARGE_RATE_TURBO_30W,
-	POWER_SUPPLY_CHARGE_RATE_HYPER,
+	MMI_POWER_SUPPLY_CHARGE_RATE_NONE = 0,
+	MMI_POWER_SUPPLY_CHARGE_RATE_NORMAL,
+	MMI_POWER_SUPPLY_CHARGE_RATE_WEAK,
+	MMI_POWER_SUPPLY_CHARGE_RATE_TURBO,
+	MMI_POWER_SUPPLY_CHARGE_RATE_TURBO_30W,
+	MMI_POWER_SUPPLY_CHARGE_RATE_HYPER,
+};
+
+enum {
+	NOTIFY_EVENT_TYPE_CHG_RATE = 0,
+	NOTIFY_EVENT_TYPE_LPD_PRESENT,
+	NOTIFY_EVENT_TYPE_VBUS_PRESENT,
 };
 
 static char *charge_rate[] = {
@@ -122,6 +132,8 @@ struct mmi_battery_pack {
 	int reference;
 	int charger_rate;
 	int soc_cycles_start;
+	int paired_id;
+	struct mmi_battery_pack *paired_batt;
 	struct mmi_battery_info *info;
 	char sn[MMI_BATT_SN_LEN];
 	struct list_head list;
@@ -194,6 +206,8 @@ struct mmi_charger_chip {
 	int			charge_full_design;
 	int			init_cycles;
 	int			max_charger_rate;
+	bool			vbus_present;
+	bool			lpd_present;
 
 	int			suspended;
 	int			demo_mode;
@@ -297,7 +311,7 @@ static int mmi_get_effective_voter(struct mmi_vote *vote)
 	return win_voter;
 }
 
-static void mmi_notify_charger_rate(struct mmi_charger_chip *chip, int rate);
+static void mmi_notify_charger_event(struct mmi_charger_chip *chip, int type);
 static ssize_t state_sync_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
@@ -318,7 +332,12 @@ static ssize_t state_sync_store(struct device *dev,
 
 	if (mode) {
 		mutex_lock(&this_chip->charger_lock);
-		mmi_notify_charger_rate(this_chip, this_chip->max_charger_rate);
+		mmi_notify_charger_event(this_chip,
+					NOTIFY_EVENT_TYPE_CHG_RATE);
+		mmi_notify_charger_event(this_chip,
+					NOTIFY_EVENT_TYPE_LPD_PRESENT);
+		mmi_notify_charger_event(this_chip,
+					NOTIFY_EVENT_TYPE_VBUS_PRESENT);
 		mutex_unlock(&this_chip->charger_lock);
 		cancel_delayed_work(&this_chip->heartbeat_work);
 		schedule_delayed_work(&this_chip->heartbeat_work,
@@ -798,6 +817,36 @@ static DEVICE_ATTR(force_charging_enable, 0644,
 		force_charging_enable_show,
 		force_charging_enable_store);
 
+static ssize_t force_charging_disable_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	unsigned long r;
+	unsigned long mode;
+
+	if (!this_chip) {
+		pr_err("mmi_charger: chip not valid\n");
+		return -ENODEV;
+	}
+
+	r = kstrtoul(buf, 0, &mode);
+	if (r) {
+		pr_err("mmi_charger: Invalid charger disable value = %lu\n", mode);
+		return -EINVAL;
+	}
+
+	mmi_vote_charging_disable("MMI_USER", !!mode);
+	cancel_delayed_work(&this_chip->heartbeat_work);
+	schedule_delayed_work(&this_chip->heartbeat_work, msecs_to_jiffies(0));
+	mmi_info(this_chip, "%s force_charging_disable\n", (mode)? "set" : "clear");
+
+	return count;
+}
+
+static DEVICE_ATTR(force_charging_disable, 0200,
+		NULL,
+		force_charging_disable_store);
+
 static struct attribute * mmi_g[] = {
 	&dev_attr_charge_rate.attr,
 	&dev_attr_age.attr,
@@ -858,6 +907,11 @@ static void mmi_battery_supply_init(struct mmi_charger_chip *chip)
 				&dev_attr_force_charging_enable);
 	if (rc)
 		mmi_err(chip, "couldn't create force_charging_enable\n");
+
+	rc = device_create_file(chip->batt_psy->dev.parent,
+				&dev_attr_force_charging_disable);
+	if (rc)
+		mmi_err(chip, "couldn't create force_charging_disable\n");
 
 	mmi_info(chip, "battery supply is initialized\n");
 }
@@ -1264,6 +1318,39 @@ exit:
 	}
 }
 
+static void mmi_update_paired_battery(
+				struct mmi_charger_chip *chip,
+				struct mmi_battery_pack *battery)
+{
+	struct mmi_battery_pack *batt = NULL;
+
+	if (!battery->paired_id) {
+		battery->paired_batt = NULL;
+		return;
+	}
+
+	list_for_each_entry(batt, &chip->battery_list, list) {
+		if ((batt->paired_id >> BATT_PAIR_ID_BITS) ==
+			(battery->paired_id & BATT_PAIR_ID_MASK)) {
+			battery->paired_batt = batt;
+		}
+		if ((battery->paired_id >> BATT_PAIR_ID_BITS) ==
+			(batt->paired_id & BATT_PAIR_ID_MASK)) {
+			batt->paired_batt = battery;
+		}
+	}
+}
+
+static void mmi_notify_paired_battery(struct mmi_charger *charger)
+{
+	if (!charger->battery->paired_batt ||
+	    !charger->driver->notify_paired_battery)
+		return;
+
+	charger->driver->notify_paired_battery(charger->driver->data,
+			charger->battery->paired_batt->info);
+}
+
 static void mmi_get_charger_info(struct mmi_charger_chip *chip,
 				struct mmi_charger *charger)
 {
@@ -1512,6 +1599,7 @@ static void mmi_configure_charger(struct mmi_charger_chip *chip,
 		cfg->charging_disable = false;
 	}
 
+	mmi_notify_paired_battery(charger);
 	charger->driver->set_constraint(charger->driver->data, &charger->constraint);
 	charger->driver->config_charge(charger->driver->data, cfg);
 
@@ -1526,15 +1614,9 @@ static void mmi_configure_charger(struct mmi_charger_chip *chip,
 		cfg->full_charged);
 }
 
-static void mmi_notify_charger_rate(struct mmi_charger_chip *chip, int rate)
+static void mmi_notify_charger_event(struct mmi_charger_chip *chip, int type)
 {
-	char *chrg_rate_string = NULL;
-
-	if (rate < POWER_SUPPLY_CHARGE_RATE_NONE ||
-	    rate > POWER_SUPPLY_CHARGE_RATE_HYPER) {
-		mmi_err(chip, "Invalid charger rate %d\n", rate);
-		return;
-	}
+	char *event_string = NULL;
 
 	if (!chip->batt_psy) {
 		mmi_battery_supply_init(chip);
@@ -1542,20 +1624,38 @@ static void mmi_notify_charger_rate(struct mmi_charger_chip *chip, int rate)
 			return;
 	}
 
-	chrg_rate_string = kmalloc(CHG_SHOW_MAX_SIZE, GFP_KERNEL);
-	if (chrg_rate_string) {
-		scnprintf(chrg_rate_string, CHG_SHOW_MAX_SIZE,
-			  "POWER_SUPPLY_CHARGE_RATE=%s",
-			  charge_rate[rate]);
-		if (chip->batt_uenvp[0]) {
-			kfree(chip->batt_uenvp[0]);
-			chip->batt_uenvp[0] = NULL;
+	event_string = kmalloc(CHG_SHOW_MAX_SIZE, GFP_KERNEL);
+	if (event_string) {
+		switch (type) {
+		case NOTIFY_EVENT_TYPE_CHG_RATE:
+			scnprintf(event_string, CHG_SHOW_MAX_SIZE,
+				"POWER_SUPPLY_CHARGE_RATE=%s",
+				charge_rate[chip->max_charger_rate]);
+			break;
+		case NOTIFY_EVENT_TYPE_LPD_PRESENT:
+			scnprintf(event_string, CHG_SHOW_MAX_SIZE,
+				"POWER_SUPPLY_LPD_PRESENT=%s",
+				chip->lpd_present? "true" : "false");
+			break;
+		case NOTIFY_EVENT_TYPE_VBUS_PRESENT:
+			scnprintf(event_string, CHG_SHOW_MAX_SIZE,
+				"POWER_SUPPLY_VBUS_PRESENT=%s",
+				chip->vbus_present? "true" : "false");
+			break;
+		default:
+			mmi_err(chip, "Invalid notify event type %d\n", type);
+			kfree(event_string);
+			return;
 		}
-		chip->batt_uenvp[0] = chrg_rate_string;
+
+		if (chip->batt_uenvp[0])
+			kfree(chip->batt_uenvp[0]);
+		chip->batt_uenvp[0] = event_string;
 		chip->batt_uenvp[1] = NULL;
-	}
-	kobject_uevent_env(&chip->batt_psy->dev.kobj, KOBJ_CHANGE,
+		kobject_uevent_env(&chip->batt_psy->dev.kobj,
+					KOBJ_CHANGE,
 					chip->batt_uenvp);
+	}
 }
 
 #define WEAK_CHRG_THRSH_MW 2500
@@ -1569,17 +1669,17 @@ int mmi_get_battery_charger_rate(struct mmi_charger *charger)
 
 	info = &charger->chg_info;
 	if (!info->chrg_present)
-		rate = POWER_SUPPLY_CHARGE_RATE_NONE;
+		rate = MMI_POWER_SUPPLY_CHARGE_RATE_NONE;
 	else if (info->chrg_pmax_mw < WEAK_CHRG_THRSH_MW)
-		rate = POWER_SUPPLY_CHARGE_RATE_WEAK;
+		rate = MMI_POWER_SUPPLY_CHARGE_RATE_WEAK;
 	else if (info->chrg_pmax_mw < TURBO_CHRG_THRSH_MW)
-		rate = POWER_SUPPLY_CHARGE_RATE_NORMAL;
+		rate = MMI_POWER_SUPPLY_CHARGE_RATE_NORMAL;
 	else if (info->chrg_pmax_mw < TURBO_CHRG_30W_THRSH_MW)
-		rate = POWER_SUPPLY_CHARGE_RATE_TURBO;
+		rate = MMI_POWER_SUPPLY_CHARGE_RATE_TURBO;
 	else if (info->chrg_pmax_mw < HYPER_CHRG_THRSH_MW)
-		rate = POWER_SUPPLY_CHARGE_RATE_TURBO_30W;
+		rate = MMI_POWER_SUPPLY_CHARGE_RATE_TURBO_30W;
 	else
-		rate = POWER_SUPPLY_CHARGE_RATE_HYPER;
+		rate = MMI_POWER_SUPPLY_CHARGE_RATE_HYPER;
 
 	return rate;
 }
@@ -1621,7 +1721,7 @@ static int mmi_combine_battery_soc(struct mmi_charger_chip *chip)
 		full += battery->info->batt_full_uah;
 	}
 
-	if (full > 0 && remain > 0) {
+	if (full > 0 && remain >= 0) {
 		soc = remain / full;
 		if (soc > 100)
 			soc = 100;
@@ -1740,11 +1840,13 @@ static void mmi_update_battery_status(struct mmi_charger_chip *chip)
 	bool mmi_changed = false;
 	int batt_temp;
 	int batt_health = POWER_SUPPLY_HEALTH_UNKNOWN;
-	int charger_rate = POWER_SUPPLY_CHARGE_RATE_NONE;
-	int max_charger_rate = POWER_SUPPLY_CHARGE_RATE_NONE;
+	int charger_rate = MMI_POWER_SUPPLY_CHARGE_RATE_NONE;
+	int max_charger_rate = MMI_POWER_SUPPLY_CHARGE_RATE_NONE;
 	struct mmi_charger *charger = NULL;
 	struct mmi_battery_pack *battery = NULL;
 	struct mmi_battery_info *batt_info = NULL;
+	bool vbus_present = false;
+	bool lpd_present = false;
 
 	mutex_lock(&chip->battery_lock);
 	list_for_each_entry(charger, &chip->charger_list, list) {
@@ -1755,7 +1857,7 @@ static void mmi_update_battery_status(struct mmi_charger_chip *chip)
 		if (battery->pending == battery->reference) {
 			/* init for going through all chargers */
 			battery->status = POWER_SUPPLY_STATUS_DISCHARGING;
-			battery->charger_rate = POWER_SUPPLY_CHARGE_RATE_NONE;
+			battery->charger_rate = MMI_POWER_SUPPLY_CHARGE_RATE_NONE;
 
 			/* update only at the first charger */
 			battery->health = mmi_get_battery_health(charger);
@@ -1803,6 +1905,11 @@ static void mmi_update_battery_status(struct mmi_charger_chip *chip)
 			battery->cycles,
 			charge_rate[battery->charger_rate]);
 		}
+		/* update vbus and liquid present detection status */
+		if (!vbus_present && charger->chg_info.vbus_present)
+			vbus_present = true;
+		if (!lpd_present && charger->chg_info.lpd_present)
+			lpd_present = true;
 	}
 
 	soc = mmi_combine_battery_soc(chip);
@@ -1837,10 +1944,25 @@ static void mmi_update_battery_status(struct mmi_charger_chip *chip)
 	if (chip->max_charger_rate != max_charger_rate) {
 		mmi_changed = true;
 		chip->max_charger_rate = max_charger_rate;
-		mmi_notify_charger_rate(chip, max_charger_rate);
-
+		mmi_notify_charger_event(chip, NOTIFY_EVENT_TYPE_CHG_RATE);
 		mmi_info(chip, "%s charger is detected\n",
 			charge_rate[chip->max_charger_rate]);
+	}
+
+	if (chip->lpd_present != lpd_present) {
+		mmi_changed = true;
+		chip->lpd_present = lpd_present;
+		mmi_notify_charger_event(chip, NOTIFY_EVENT_TYPE_LPD_PRESENT);
+		mmi_info(chip, "lpd is %s\n",
+			lpd_present? "present" : "absent");
+	}
+
+	if (chip->vbus_present != vbus_present) {
+		mmi_changed = true;
+		chip->vbus_present = vbus_present;
+		mmi_notify_charger_event(chip, NOTIFY_EVENT_TYPE_VBUS_PRESENT);
+		mmi_info(chip, "vbus is %s\n",
+			vbus_present? "present" : "absent");
 	}
 
 	list_for_each_entry(battery, &chip->battery_list, list) {
@@ -1864,7 +1986,8 @@ static void mmi_update_battery_status(struct mmi_charger_chip *chip)
 	if (mmi_changed) {
 		power_supply_changed(chip->mmi_psy);
 		mmi_info(chip, "Combo status: soc:%d, status:%d, temp:%d,"
-			" health:%d, age:%d, voltage:%d, current:%d, cycles:%d, rate:%s\n",
+			" health:%d, age:%d, cycles:%d, voltage:%d, current:%d,"
+			" rate:%s, lpd:%d, vbus:%d\n",
 			chip->combo_soc,
 			chip->combo_status,
 			chip->combo_temp,
@@ -1873,7 +1996,9 @@ static void mmi_update_battery_status(struct mmi_charger_chip *chip)
 			chip->combo_cycles,
 			chip->combo_voltage_mv,
 			chip->combo_current_ma,
-			charge_rate[chip->max_charger_rate]);
+			charge_rate[chip->max_charger_rate],
+			chip->lpd_present,
+			chip->vbus_present);
 	}
 
 	mutex_unlock(&chip->battery_lock);
@@ -1906,6 +2031,8 @@ static void mmi_charger_heartbeat_work(struct work_struct *work)
 		mmi_update_charger_profile(chip, charger);
 		mmi_reset_charger_configure(chip, charger);
 		mmi_update_charger_status(chip, charger);
+	}
+	list_for_each_entry(charger, &chip->charger_list, list) {
 		mmi_configure_charger(chip, charger);
 	}
 	mmi_update_battery_status(chip);
@@ -1923,12 +2050,16 @@ static void mmi_charger_heartbeat_work(struct work_struct *work)
 
 	if (chip->factory_mode ||
 	    (chip->factory_version && chip->enable_factory_poweroff)) {
-		if (chip->max_charger_rate > POWER_SUPPLY_CHARGE_RATE_NONE) {
+		if (chip->max_charger_rate > MMI_POWER_SUPPLY_CHARGE_RATE_NONE) {
 			mmi_dbg(chip, "Factory Kill Armed\n");
 			chip->factory_kill_armed = true;
 		} else if (chip->factory_kill_armed && !factory_kill_disable) {
 			mmi_warn(chip, "Factory kill power off\n");
+#if (KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE) || defined(MMI_GKI_API_ALLOWANCE)
+			orderly_poweroff(true);
+#else
 			kernel_power_off();
+#endif
 		} else {
 			chip->factory_kill_armed = false;
 		}
@@ -1938,18 +2069,18 @@ static void mmi_charger_heartbeat_work(struct work_struct *work)
 
 	if (chip->factory_mode)
 		hb_resch_time = HEARTBEAT_FACTORY_MS;
-	else if (chip->max_charger_rate != POWER_SUPPLY_CHARGE_RATE_NONE)
+	else if (chip->max_charger_rate != MMI_POWER_SUPPLY_CHARGE_RATE_NONE)
 		hb_resch_time = chip->heartbeat_interval;
 	else
 		hb_resch_time = HEARTBEAT_DISCHARGE_MS;
 	schedule_delayed_work(&chip->heartbeat_work,
 			      msecs_to_jiffies(hb_resch_time));
 	if (suspend_wakeups ||
-	    chip->max_charger_rate != POWER_SUPPLY_CHARGE_RATE_NONE)
+	    chip->max_charger_rate != MMI_POWER_SUPPLY_CHARGE_RATE_NONE)
 		alarm_start_relative(&chip->heartbeat_alarm,
 				     ns_to_ktime(HEARTBEAT_WAKEUP_INTRVAL_NS));
 
-	if (chip->max_charger_rate == POWER_SUPPLY_CHARGE_RATE_NONE)
+	if (chip->max_charger_rate == MMI_POWER_SUPPLY_CHARGE_RATE_NONE)
 		pm_relax(chip->dev);
 
 	PM_RELAX(chip->mmi_hb_wake_source);
@@ -1990,6 +2121,10 @@ bool mmi_is_factory_mode(void)
 	const char *bootargs = NULL;
 	char *bootmode = NULL;
 	char *end = NULL;
+
+	if ((this_chip && this_chip->factory_mode) ||
+	    !strncmp(bi_bootmode(), "mot-factory", 11))
+		return true;
 
 	if (!np)
 		return factory_mode;
@@ -2163,6 +2298,9 @@ int mmi_register_charger_driver(struct mmi_charger_driver *driver)
 		battery->cycles = 0;
 		battery->soc_cycles_start = 100;
 		memcpy(battery->sn, batt_info.batt_sn, MMI_BATT_SN_LEN);
+		of_property_read_u32(driver->dev->of_node, "mmi,paired-id",
+					&battery->paired_id);
+		mmi_update_paired_battery(chip, battery);
 
 		mutex_lock(&chip->battery_lock);
 		list_add_tail(&battery->list, &chip->battery_list);
@@ -2302,7 +2440,7 @@ static int mmi_charger_reboot(struct notifier_block *nb,
 		factory_kill_disable = true;
 		chip->force_charger_disabled = true;
 		schedule_delayed_work(&chip->heartbeat_work, msecs_to_jiffies(0));
-		while (chip->max_charger_rate != POWER_SUPPLY_CHARGE_RATE_NONE) {
+		while (chip->max_charger_rate != MMI_POWER_SUPPLY_CHARGE_RATE_NONE) {
 			mmi_info(chip, "Wait for charger removal\n");
 			msleep(100);
 		}
@@ -2656,6 +2794,8 @@ static int mmi_charger_remove(struct platform_device *pdev)
 					&dev_attr_force_charger_suspend);
 		device_remove_file(chip->batt_psy->dev.parent,
 					&dev_attr_force_charging_enable);
+		device_remove_file(chip->batt_psy->dev.parent,
+					&dev_attr_force_charging_disable);
 		sysfs_remove_group(&chip->batt_psy->dev.kobj,
 					&power_supply_mmi_attr_group);
 		power_supply_put(chip->batt_psy);

@@ -137,6 +137,41 @@ TOUCH_MMI_GET_ATTR_WO(refresh_rate);
 TOUCH_MMI_GET_ATTR_WO(charger_mode);
 TOUCH_MMI_GET_ATTR_WO(update_baseline);
 
+static char *ts_mmi_kobject_get_path(struct kobject *kobj, gfp_t gfp_mask)
+{
+	char *path;
+	int len = 1;
+	struct kobject *parent = kobj;
+
+	do {
+		if (parent->name == NULL) {
+			len = 0;
+			break;
+		}
+		len += strlen(parent->name) + 1;
+		parent = parent->parent;
+	} while (parent);
+
+	if (len == 0)
+		return NULL;
+
+	path = kzalloc(len, gfp_mask);
+	if (!path)
+		return NULL;
+
+	--len;
+	for (parent = kobj; parent; parent = parent->parent) {
+		int cur = strlen(parent->name);
+		len -= cur;
+		memcpy(path + len, parent->name, cur);
+		*(path + --len) = '/';
+	}
+	pr_debug("kobject: '%s' (%p): %s: path = '%s'\n", kobj->name,
+		kobj, __func__, path);
+
+	return path;
+}
+
 static ssize_t path_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -148,7 +183,9 @@ static ssize_t path_show(struct device *dev,
 		dev_err(dev, "touchscreen device pointer is NULL\n");
 		return (ssize_t)0;
 	}
-	path = kobject_get_path(&DEV_MMI->kobj, GFP_KERNEL);
+
+	path = ts_mmi_kobject_get_path(&DEV_MMI->kobj, GFP_KERNEL);
+
 	blen = scnprintf(buf, PAGE_SIZE, "%s", path ? path : "na");
 	kfree(path);
 	return blen;
@@ -552,40 +589,6 @@ static int ts_mmi_default_pinctrl(struct device *parent, int on)
 	return 0;
 }
 
-#define BOOTMODE_MAX_LEN 64
-const char *mmi_bl_bootmode(void)
-{
-	const char *bootargs = NULL;
-	char *end = NULL;
-	char *idx = NULL;
-	struct device_node *np;
-	static char bootmode[BOOTMODE_MAX_LEN] = {'\0'};
-
-	if (bootmode[0] != '\0')
-		return bootmode;
-
-	np = of_find_node_by_path("/chosen");
-	if (np == NULL)
-		return NULL;
-
-	if (of_property_read_string(np, "bootargs", &bootargs) != 0)
-		goto putnode;
-
-	idx = strstr(bootargs, "androidboot.mode=");
-	if (idx) {
-		end = strpbrk(idx, " ");
-		idx = strpbrk(idx, "=");
-		if (idx && end > idx)
-			strlcpy(bootmode, idx + 1, end - idx);
-	}
-
-putnode:
-	of_node_put(np);
-	return bootmode;
-}
-
-EXPORT_SYMBOL(mmi_bl_bootmode);
-
 /**
  * ts_mmi_dev_register - register a new object of ts_mmi_dev class.
  * @parent: The device to register.
@@ -611,14 +614,6 @@ int ts_mmi_dev_register(struct device *parent,
 	touch_cdev->mdata = mdata;
 	mutex_init(&touch_cdev->extif_mutex);
 	mutex_init(&touch_cdev->method_mutex);
-
-#ifdef CONFIG_DRM_PANEL_NOTIFICATIONS
-	ret = ts_mmi_check_drm_panel(DEV_TS->of_node);
-	if (ret < 0) {
-		dev_err(DEV_TS, "%s: check drm panel failed. %d\n", __func__, ret);
-		touch_cdev->panel_status = -1;
-	}
-#endif
 
 	ret = ts_mmi_parse_dt(touch_cdev, DEV_TS->of_node);
 	if (ret < 0) {

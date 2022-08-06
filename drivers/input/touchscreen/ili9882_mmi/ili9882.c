@@ -40,8 +40,20 @@ static void ilitek_resume_by_ddi_work(struct work_struct *work)
 {
 	mutex_lock(&ilits->touch_mutex);
 
+#ifdef ILI_SENSOR_EN
+	if (ilits->wakeable) {
+		disable_irq_wake(ilits->irq_num);
+		ilits->gesture_enabled = false;
+		ilits->wakeable = false;
+	}
+#else
 	if (ilits->gesture)
 		disable_irq_wake(ilits->irq_num);
+#endif
+
+#ifdef ILI_SUSPEND_PWROFF
+	ili_pinctrl_select_normal(ilits);
+#endif
 
 	/* Set tp as demo mode and reload code if it's iram. */
 	ilits->actual_tp_mode = P5_X_FW_AP_MODE;
@@ -50,7 +62,9 @@ static void ilitek_resume_by_ddi_work(struct work_struct *work)
 	else
 		ili_reset_ctrl(ilits->reset);
 
+#ifndef ILI_SUSPEND_PWROFF
 	ili_pinctrl_select_normal(ilits);
+#endif
 
 	ili_irq_enable();
 	ILI_INFO("TP resume end by wq\n");
@@ -491,6 +505,18 @@ int ili_sleep_handler(int mode)
 				ILI_ERR("Check busy timeout during suspend\n");
 		}
 
+#ifdef  ILI_SENSOR_EN
+		if (ilits->should_enable_gesture) {
+			ili_switch_tp_mode(P5_X_FW_GESTURE_MODE);
+			enable_irq_wake(ilits->irq_num);
+			ili_irq_enable();
+			ilits->wakeable = true;
+		} else {
+			if (ili_ic_func_ctrl("sleep", DEEP_SLEEP_IN) < 0)
+				ILI_ERR("Write sleep in cmd failed\n");
+			ilits->wakeable = false;
+		}
+#else
 		if (ilits->gesture) {
 			ili_switch_tp_mode(P5_X_FW_GESTURE_MODE);
 			enable_irq_wake(ilits->irq_num);
@@ -500,6 +526,7 @@ int ili_sleep_handler(int mode)
 			if (ili_ic_func_ctrl("sleep", SLEEP_IN) < 0)
 				ILI_ERR("Write sleep in cmd failed\n");
 		}
+#endif
 		ILI_INFO("TP suspend end\n");
 		ilits->tp_suspend = true;
 		break;
@@ -512,15 +539,26 @@ int ili_sleep_handler(int mode)
 			if (ili_ic_check_busy(50, 20) < 0)
 				ILI_ERR("Check busy timeout during deep suspend\n");
 		}
-
+#ifndef ILI_SENSOR_EN
 		if (ilits->gesture) {
 			ili_switch_tp_mode(P5_X_FW_GESTURE_MODE);
 			enable_irq_wake(ilits->irq_num);
 			ili_irq_enable();
-		} else {
+		} else
+#endif
+		{
 			ili_pinctrl_select_suspend(ilits);
+
+#ifdef ILI_SUSPEND_PWROFF
+			gpio_direction_output(ilits->tp_rst, 1);
+			mdelay(1);
+			gpio_set_value(ilits->tp_rst, 0);
+			mdelay(5);
+#else
 			if (ili_ic_func_ctrl("sleep", DEEP_SLEEP_IN) < 0)
 				ILI_ERR("Write deep sleep in cmd failed\n");
+#endif
+
 		}
 		ILI_INFO("TP deep suspend end\n");
 		ilits->tp_suspend = true;
@@ -547,6 +585,13 @@ int ili_sleep_handler(int mode)
 		ili_wq_ctrl(WQ_ESD, ENABLE);
 		ili_wq_ctrl(WQ_BAT, ENABLE);
 
+#ifdef ILI_SENSOR_EN
+	if (ilits->wakeable) {
+		disable_irq_wake(ilits->irq_num);
+		ilits->gesture_enabled = false;
+		ilits->wakeable = false;
+	}
+#endif
 		ILI_INFO("TP resume end\n");
 #else
 		ili_resume_by_ddi();
@@ -929,6 +974,24 @@ static void ili_update_tp_module_info(void)
 		ilits->md_ini_rq_path = CSOT_INI_REQUEST_PATH;
 		ilits->md_fw_ili = CTPM_FW_CSOT;
 		ilits->md_fw_ili_size = sizeof(CTPM_FW_CSOT);
+		break;
+	case MODEL_CSOT_7807S:
+		ilits->md_name = "CSOT_7807S";
+		ilits->md_fw_filp_path = CSOT_7807S_FW_FILP_PATH;
+		ilits->md_fw_rq_path = CSOT_7807S_FW_REQUEST_PATH;
+		ilits->md_ini_path = CSOT_7807S_INI_NAME_PATH;
+		ilits->md_ini_rq_path = CSOT_7807S_INI_REQUEST_PATH;
+		ilits->md_fw_ili = CTPM_FW_CSOT_7807S;
+		ilits->md_fw_ili_size = sizeof(CTPM_FW_CSOT_7807S);
+		break;
+	case MODEL_TXD_7807S:
+		ilits->md_name = "TXD_7807S";
+		ilits->md_fw_filp_path = TXD_7807S_FW_FILP_PATH;
+		ilits->md_fw_rq_path = TXD_7807S_FW_REQUEST_PATH;
+		ilits->md_ini_path = TXD_7807S_INI_NAME_PATH;
+		ilits->md_ini_rq_path = TXD_7807S_INI_REQUEST_PATH;
+		ilits->md_fw_ili = CTPM_FW_TXD_7807S;
+		ilits->md_fw_ili_size = sizeof(CTPM_FW_TXD_7807S);
 		break;
 	case MODEL_AUO:
 		ilits->md_name = "AUO";

@@ -122,6 +122,65 @@ extern void nvt_mp_proc_deinit(void);
 struct nvt_ts_data *ts;
 
 #ifndef CONFIG_INPUT_TOUCHSCREEN_MMI
+
+#define MAX_ATTRS_ENTRIES 10
+#define UI_FEATURE_ENABLE   1
+#define UI_FEATURE_DISABLE   0
+#define CMD_ON 0x71
+#define CMD_OFF 0x72
+#define ROTATE_0   0
+#define ROTATE_90   1
+#define ROTATE_180   2
+#define ROTATE_270  3
+#define DEFAULT_MODE   0
+#define BIG_MODE   1
+#define SMALL_MODE   2
+#define CLOSE_MODE   3
+#define DEFAULT_EDGE   0
+#define BIG_EDGE   1
+#define SMALL_EDGE   2
+#define CLOSE_EDGE   3
+
+static ssize_t nvt_mmi_interpolation_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size);
+static ssize_t nvt_mmi_interpolation_show(struct device *dev,
+		struct device_attribute *attr, char *buf);
+static ssize_t nvt_mmi_first_filter_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size);
+static ssize_t nvt_mmi_first_filter_show(struct device *dev,
+		struct device_attribute *attr, char *buf);
+static ssize_t nvt_mmi_jitter_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size);
+static ssize_t nvt_mmi_jitter_show(struct device *dev,
+		struct device_attribute *attr, char *buf);
+static ssize_t nvt_mmi_edge_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size);
+static ssize_t nvt_mmi_edge_show(struct device *dev,
+		struct device_attribute *attr, char *buf);
+
+static DEVICE_ATTR(interpolation, (S_IRUGO | S_IWUSR | S_IWGRP),
+	nvt_mmi_interpolation_show, nvt_mmi_interpolation_store);
+static DEVICE_ATTR(first_filter, (S_IRUGO | S_IWUSR | S_IWGRP),
+	nvt_mmi_first_filter_show, nvt_mmi_first_filter_store);
+static DEVICE_ATTR(jitter, (S_IRUGO | S_IWUSR | S_IWGRP),
+	nvt_mmi_jitter_show, nvt_mmi_jitter_store);
+static DEVICE_ATTR(edge, (S_IRUGO | S_IWUSR | S_IWGRP),
+	nvt_mmi_edge_show, nvt_mmi_edge_store);
+
+#define ADD_ATTR(name) { \
+	if (idx < MAX_ATTRS_ENTRIES)  { \
+		dev_info(dev, "%s: [%d] adding %p\n", __func__, idx, &dev_attr_##name.attr); \
+		ext_attributes[idx] = &dev_attr_##name.attr; \
+		idx++; \
+	} else { \
+		dev_err(dev, "%s: cannot add attribute '%s'\n", __func__, #name); \
+	} \
+}
+
+static struct attribute *ext_attributes[MAX_ATTRS_ENTRIES];
+static struct attribute_group ext_attr_group = {
+	.attrs = ext_attributes,
+};
 #if ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) || defined(NVT_CONFIG_DRM_PANEL))
 #if defined(CONFIG_DRM)
 static struct drm_panel *active_panel;
@@ -1350,11 +1409,43 @@ static int32_t nvt_parse_dt(struct device *dev)
 		ts->charger_detection_enable = 0;
 	}
 
+	if (of_property_read_bool(np, "novatek,gesture-wait-pm")) {
+		NVT_LOG("novatek,gesture-wait-pm set");
+		ts->gesture_wait_pm = true;
+	} else {
+		ts->gesture_wait_pm = false;
+	}
+
 	if (of_property_read_bool(np, "novatek,report_gesture_key")) {
 		NVT_LOG("novatek,report_gesture_key set");
 		ts->report_gesture_key = 1;
 	} else {
 		ts->report_gesture_key = 0;
+	}
+
+	if (of_property_read_u8_array(np, "novatek,interpolation_cmd",
+			ts->interpolation_cmd, 2) == 0) {
+		ts->interpolation_ctrl = true;
+		NVT_LOG("Support report rate interpolation.\n");
+	}
+
+	if (of_property_read_u8_array(np, "novatek,jitter_cmd",
+			ts->jitter_cmd, 2) == 0) {
+		ts->jitter_ctrl = true;
+		NVT_LOG("Support set jitter.\n");
+	}
+
+	if (of_property_read_u8_array(np, "novatek,first_filter_cmd",
+			ts->first_filter_cmd, 2) == 0) {
+		ts->first_filter_ctrl = true;
+		NVT_LOG("Support set first_filter.\n");
+	}
+
+	if (of_property_read_u8_array(np, "novatek,edge_cmd",
+			ts->edge_cmd, 3) == 0) {
+		ts->rotate_cmd = EDGE_REJECT_VERTICLE_CMD;
+		ts->edge_ctrl = true;
+		NVT_LOG("Support edge switching.\n");
 	}
 
 	return ret;
@@ -1579,6 +1670,7 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 	uint8_t input_id = 0;
 #if MT_PROTOCOL_B
 	uint8_t press_id[TOUCH_MAX_FINGER_NUM] = {0};
+	static uint8_t touchdown[TOUCH_MAX_FINGER_NUM];
 #endif /* MT_PROTOCOL_B */
 	int32_t i = 0;
 	int32_t finger_cnt = 0;
@@ -1586,6 +1678,15 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 #if WAKEUP_GESTURE
 	if (ts->bTouchIsAwake == 0) {
 		pm_wakeup_event(&ts->input_dev->dev, 5000);
+
+		if ((ts->gesture_wait_pm) && (ts->gesture_enabled)) {
+			/* Waiting for pm resume completed */
+			ret = wait_event_interruptible_timeout(ts->pm_wq, atomic_read(&ts->pm_resume), msecs_to_jiffies(700));
+			if (!ret) {
+				NVT_ERR("system(spi) can't finished resuming procedure.");
+				return IRQ_HANDLED;
+			}
+		}
 	}
 #endif
 
@@ -1726,14 +1827,21 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 			if (input_p == 0)
 				input_p = 1;
 
-#if MT_PROTOCOL_B
 			press_id[input_id - 1] = 1;
-			input_mt_slot(ts->input_dev, input_id - 1);
-			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
+			/* log touch down event once */
+			if (touchdown[input_id - 1] == 0) {
+#if MT_PROTOCOL_B
+				ts->last_event_time = ktime_get();
+				pr_debug("TOUCH: [%d] logged timestamp\n", input_id - 1);
+				touchdown[input_id - 1] = 1;
+				pr_debug("TOUCH: [%d] pressed (event %d)\n", input_id - 1, point_data[position] & 0x07);
+				input_mt_slot(ts->input_dev, input_id - 1);
+				input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
 #else /* MT_PROTOCOL_B */
-			input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, input_id - 1);
-			input_report_key(ts->input_dev, BTN_TOUCH, 1);
+				input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, input_id - 1);
+				input_report_key(ts->input_dev, BTN_TOUCH, 1);
 #endif /* MT_PROTOCOL_B */
+			}
 
 #ifdef PALM_GESTURE
 			if((point_data[position] & 0x07) == PALM_TOUCH) { //palm
@@ -1768,7 +1876,7 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 
 #if MT_PROTOCOL_B
 	for (i = 0; i < ts->max_touch_num; i++) {
-		if (press_id[i] != 1) {
+		if (!press_id[i] && touchdown[i]) {
 			input_mt_slot(ts->input_dev, i);
 #ifdef PALM_GESTURE_RANGE
 			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MINOR, 0);
@@ -1777,6 +1885,8 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
 			input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 0);
 			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
+			touchdown[i] = 0;
+			pr_debug("TOUCH: [%d] release\n", i);
 		}
 	}
 
@@ -1990,6 +2100,7 @@ int nvt_sensor_remove(struct nvt_ts_data *data)
 #include <linux/major.h>
 #include <linux/kdev_t.h>
 
+#ifndef CONFIG_INPUT_TOUCHSCREEN_MMI
 /* Attribute: path (RO) */
 static ssize_t path_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -2103,6 +2214,237 @@ static ssize_t nvt_edge_reject_show(struct device *dev,
 }
 #endif
 
+static int32_t nvt_cmd_write(uint8_t u8Cmd, uint8_t u8subCmd, uint8_t u8subCmd2, uint16_t len)
+{
+	int i, retry = 5;
+	uint8_t buf[8] = {0};
+	int32_t ret = 0;
+
+	if (mutex_lock_interruptible(&ts->lock)) {
+		return -ERESTARTSYS;
+	}
+
+	//---set xdata index to EVENT BUF ADDR---
+	ret = nvt_set_page(ts->mmap->EVENT_BUF_ADDR | EVENT_MAP_HOST_CMD);
+	if (ret < 0) {
+		NVT_ERR("Set event buffer index fail!\n");
+		mutex_unlock(&ts->lock);
+		return ret;
+	}
+
+	for (i = 0; i < retry; i++) {
+		//---set cmd status---
+		buf[0] = EVENT_MAP_HOST_CMD;
+		buf[1] = u8Cmd;
+		buf[2] = u8subCmd;
+		buf[3] = u8subCmd2;
+		CTP_SPI_WRITE(ts->client, buf, len+1);
+		msleep(20);
+
+		//---read cmd status---
+		buf[0] = EVENT_MAP_HOST_CMD;
+		buf[1] = 0xFF;
+		CTP_SPI_READ(ts->client, buf, 2);
+		if (buf[1] == 0x00)
+			break;
+	}
+
+	if (unlikely(i == retry)) {
+		NVT_LOG("send Cmd 0x%02X 0x%02X 0x%02X failed, buf[1]=0x%02X\n", u8Cmd, u8subCmd, u8subCmd2, buf[1]);
+		ret = -1;
+	} else {
+		NVT_LOG("send Cmd 0x%02X 0x%02X 0x%02X success, tried %d times\n", u8Cmd, u8subCmd, u8subCmd2, i);
+	}
+
+	mutex_unlock(&ts->lock);
+
+	return ret;
+}
+
+static ssize_t nvt_mmi_interpolation_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	int ret = 0;
+	uint8_t mode = 0;
+	uint8_t cmd = 0;
+
+	ret = kstrtou8(buf, 0, &mode);
+	if (ret < 0) {
+		NVT_ERR("Failed to convert value.\n");
+		return -EINVAL;
+	}
+	NVT_LOG("mode=%d\n", mode);
+
+	if (UI_FEATURE_ENABLE == mode)
+		cmd = CMD_ON;
+	else
+		cmd = CMD_OFF;
+
+	if (ts->interpolation_cmd[0] != cmd) {
+		ts->interpolation_cmd[0] = cmd;
+		nvt_cmd_write(ts->interpolation_cmd[0], ts->interpolation_cmd[1], 0, 2);
+	}
+
+	return size;
+}
+
+static ssize_t nvt_mmi_interpolation_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "0x%02x\n", ts->interpolation_cmd[0]);
+}
+
+static ssize_t nvt_mmi_jitter_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	int ret = 0;
+	uint8_t mode = 0;
+	uint8_t cmd = 0;
+
+	ret = kstrtou8(buf, 0, &mode);
+	if (ret < 0) {
+		NVT_ERR("Failed to convert value.\n");
+		return -EINVAL;
+	}
+	NVT_LOG("mode=%d\n", mode);
+
+	if (UI_FEATURE_ENABLE == mode)
+		cmd = CMD_ON;
+	else
+		cmd = CMD_OFF;
+
+	if (ts->jitter_cmd[0] != cmd) {
+		ts->jitter_cmd[0] = cmd;
+		nvt_cmd_write(ts->jitter_cmd[0], ts->jitter_cmd[1], 0, 2);
+	}
+
+	return size;
+}
+
+static ssize_t nvt_mmi_jitter_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "0x%02x\n", ts->jitter_cmd[0]);
+}
+
+static ssize_t nvt_mmi_first_filter_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	int ret = 0;
+	uint8_t mode = 0;
+	uint8_t cmd = 0;
+
+	ret = kstrtou8(buf, 0, &mode);
+	if (ret < 0) {
+		NVT_ERR("Failed to convert value.\n");
+		return -EINVAL;
+	}
+	NVT_LOG("mode=%d\n", mode);
+
+	if (UI_FEATURE_ENABLE == mode)
+		cmd = CMD_ON;
+	else
+		cmd = CMD_OFF;
+
+	if (ts->first_filter_cmd[0] != cmd) {
+		ts->first_filter_cmd[0] = cmd;
+		nvt_cmd_write(ts->first_filter_cmd[0], ts->first_filter_cmd[1], 0, 2);
+	}
+
+	return size;
+}
+
+static ssize_t nvt_mmi_first_filter_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "0x%02x\n", ts->first_filter_cmd[0]);
+}
+
+static ssize_t nvt_mmi_edge_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	int ret = 0;
+	unsigned int args[2] = { 0 };
+	uint8_t mode = 0;
+	uint8_t rotate = 0;
+
+	ret = sscanf(buf, "%d %d", &args[0], &args[1]);
+	if (ret < 2)
+		return -EINVAL;
+	NVT_LOG("mode=%d, rotate=%d\n", args[0], args[1]);
+
+	if (DEFAULT_MODE == args[0]) {
+		ts->edge_cmd[0] = CMD_OFF;
+		ts->edge_cmd[2] = DEFAULT_EDGE;
+		nvt_cmd_write(ts->edge_cmd[0], ts->edge_cmd[1], 0, 2);
+		return size;
+	} else if (BIG_MODE == args[0])
+		mode = BIG_EDGE;
+	else if (SMALL_MODE == args[0])
+		mode = SMALL_EDGE;
+	else if (CLOSE_MODE == args[0])
+		mode = CLOSE_EDGE;
+	else {
+		NVT_ERR("Invalid mode %d!\n", args[0]);
+		return size;
+	}
+
+	if (ts->edge_cmd[2] != mode) {
+		ts->edge_cmd[0] = CMD_ON;
+		ts->edge_cmd[2] = mode;
+		nvt_cmd_write(ts->edge_cmd[0], ts->edge_cmd[1], ts->edge_cmd[2], 3);
+	}
+
+	if (ROTATE_0 == args[1])
+		rotate = EDGE_REJECT_VERTICLE_CMD;
+	else if (ROTATE_90 == args[1])
+		rotate = EDGE_REJECT_LEFT_UP;
+	else if (ROTATE_270 == args[1])
+		rotate = EDGE_REJECT_RIGHT_UP;
+	else {
+		NVT_ERR("Invalid rotate %d!\n", args[1]);
+		return size;
+	}
+
+	if (ts->rotate_cmd!= rotate) {
+		ts->rotate_cmd = rotate;
+		nvt_cmd_write(ts->rotate_cmd, 0, 0, 1);
+	}
+
+	return size;
+}
+
+static ssize_t nvt_mmi_edge_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "0x%02x 0x%02x\n", ts->edge_cmd[2], ts->rotate_cmd);
+}
+
+static int nvt_extend_attribute_group(struct device *dev, struct attribute_group **group)
+{
+	int idx = 0;
+
+	if (ts->interpolation_ctrl)
+		ADD_ATTR(interpolation);
+
+	if (ts->jitter_ctrl)
+		ADD_ATTR(jitter);
+
+	if (ts->first_filter_ctrl)
+		ADD_ATTR(first_filter);
+
+	if (ts->edge_ctrl)
+		ADD_ATTR(edge);
+
+	if (idx) {
+		ext_attributes[idx] = NULL;
+		*group = &ext_attr_group;
+	} else
+		*group = NULL;
+
+	return 0;
+}
+
 static struct device_attribute touchscreen_attributes[] = {
 	__ATTR_RO(path),
 	__ATTR_RO(vendor),
@@ -2130,6 +2472,7 @@ return:
 int32_t nvt_fw_class_init(bool create)
 {
 	struct device_attribute *attrs = touchscreen_attributes;
+	static struct attribute_group	*extern_group;
 	int i, error = 0;
 	s32 ret = 0;
 	static struct class *touchscreen_class;
@@ -2183,6 +2526,14 @@ int32_t nvt_fw_class_init(bool create)
 #else
 			NVT_LOG("create /sys/class/touchscreen/%s Succeeded!\n", NVT_SPI_NAME);
 #endif
+		nvt_extend_attribute_group(ts_class_dev, &extern_group);
+		if (extern_group) {
+			error = sysfs_create_group(&ts_class_dev->kobj,extern_group);
+			if (error)
+				goto ext_attr_destroy;
+			else
+				NVT_LOG("Create extend attribute group Succeeded!\n");
+		}
 	} else {
 		if (!touchscreen_class || !ts_class_dev)
 			return -ENODEV;
@@ -2190,12 +2541,24 @@ int32_t nvt_fw_class_init(bool create)
 		for (i = 0; attrs[i].attr.name != NULL; ++i)
 			device_remove_file(ts_class_dev, &attrs[i]);
 
+		if (extern_group) {
+			sysfs_remove_group(&ts_class_dev->kobj, extern_group);
+		} else {
+			NVT_LOG("%s: extern_group is NULL!\n", __func__);
+		}
+
 		device_unregister(ts_class_dev);
 		class_unregister(touchscreen_class);
 	}
 
 	return ret;
 
+ext_attr_destroy:
+	if (extern_group) {
+		sysfs_remove_group(&ts_class_dev->kobj, extern_group);
+	} else {
+		NVT_LOG("ext_attr_destroy: extern_group is NULL!\n");
+	}
 device_destroy:
 	for (--i; i >= 0; --i)
 		device_remove_file(ts_class_dev, &attrs[i]);
@@ -2206,6 +2569,7 @@ device_destroy:
 
 	return -ENODEV;
 }
+#endif //#ifndef CONFIG_INPUT_TOUCHSCREEN_MMI
 
 #ifdef NOVATECH_PEN_NOTIFIER
 static int pen_notifier_callback(struct notifier_block *self,
@@ -2455,6 +2819,10 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 			NVT_LOG("request irq %d succeed\n", client->irq);
 		}
 	}
+
+	if (ts->gesture_wait_pm)
+		init_waitqueue_head(&ts->pm_wq);
+	atomic_set(&ts->pm_resume, 1);
 
 #if WAKEUP_GESTURE
 	device_init_wakeup(&ts->input_dev->dev, 1);
@@ -3137,6 +3505,30 @@ int32_t nvt_ts_resume(struct device *dev)
 
 	mutex_unlock(&ts->lock);
 
+#ifndef CONFIG_INPUT_TOUCHSCREEN_MMI
+	/* restore data */
+	if (ts->interpolation_ctrl) {
+		nvt_cmd_write(ts->interpolation_cmd[0], ts->interpolation_cmd[1], 0, 2);
+	}
+
+	if (ts->jitter_ctrl) {
+		nvt_cmd_write(ts->jitter_cmd[0], ts->jitter_cmd[1], 0, 2);
+	}
+
+	if (ts->first_filter_ctrl) {
+		nvt_cmd_write(ts->first_filter_cmd[0], ts->first_filter_cmd[1], 0, 2);
+	}
+
+	if (ts->edge_ctrl) {
+		if (ts->edge_cmd[0] == CMD_ON)
+			nvt_cmd_write(ts->edge_cmd[0], ts->edge_cmd[1], ts->edge_cmd[2], 3);
+		else
+			nvt_cmd_write(ts->edge_cmd[0], ts->edge_cmd[1], 0, 2);
+
+		nvt_cmd_write(ts->rotate_cmd, 0, 0, 1);
+	}
+#endif
+
 	NVT_LOG("end\n");
 
 #ifdef NVT_SENSOR_EN
@@ -3454,6 +3846,36 @@ static struct of_device_id nvt_match_table[] = {
 };
 #endif
 
+static int nvt_pm_suspend(struct device *dev)
+{
+	struct nvt_ts_data *ts = dev_get_drvdata(dev);
+
+	NVT_LOG("CALL BACK TP PM SUSPEND");
+
+	atomic_set(&ts->pm_resume, 0);
+
+	return 0;
+}
+
+static int nvt_pm_resume(struct device *dev)
+{
+	struct nvt_ts_data *ts = dev_get_drvdata(dev);
+
+	NVT_LOG("CALL BACK TP PM RESUME");
+
+	atomic_set(&ts->pm_resume, 1);
+
+	if ((ts->gesture_wait_pm) && (ts->gesture_enabled))
+		wake_up_interruptible(&ts->pm_wq);
+
+	return 0;
+}
+
+static const struct dev_pm_ops nvt_dev_pm_ops = {
+	.suspend = nvt_pm_suspend,
+	.resume = nvt_pm_resume,
+};
+
 static struct spi_driver nvt_spi_driver = {
 	.probe		= nvt_ts_probe,
 	.remove		= nvt_ts_remove,
@@ -3464,6 +3886,9 @@ static struct spi_driver nvt_spi_driver = {
 		.owner	= THIS_MODULE,
 #ifdef CONFIG_OF
 		.of_match_table = nvt_match_table,
+#endif
+#ifdef CONFIG_PM
+		.pm = &nvt_dev_pm_ops,
 #endif
 	},
 };

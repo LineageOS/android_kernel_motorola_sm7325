@@ -32,7 +32,29 @@
 #include <linux/fs.h>
 #include <asm/uaccess.h>
 #include <linux/version.h>
+#include <linux/mmi_wake_lock.h>
+#include <linux/power_supply.h>
 
+//#define GCORE_SENSOR_EN 1
+#define CHARGER_NOTIFIER 0
+
+/* display state */
+#ifdef GCORE_SENSOR_EN
+#include <linux/sensors.h>
+
+enum display_state {
+	SCREEN_UNKNOWN,
+	SCREEN_OFF,
+	SCREEN_ON,
+};
+struct gcore_sensor_platform_data {
+	struct input_dev *input_sensor_dev;
+	struct sensors_classdev ps_cdev;
+	int sensor_opened;
+	char sensor_data; /* 0 near, 1 far */
+	struct gcore_dev *data;
+};
+#endif
 
 /*----------------------------------------------------------*/
 /* GALAXYCORE TOUCH DEVICE DRIVER RELEASE VERSION           */
@@ -250,7 +272,6 @@ static const struct of_device_id tpd_of_match[] = {
 #define GESTURE_KEY   KEY_POWER
 #endif
 
-
 #ifdef CONFIG_ENABLE_FW_RAWDATA
 enum FW_MODE {
 	DEMO,
@@ -262,8 +283,24 @@ enum FW_MODE {
 enum fw_event_type {
 	FW_UPDATE = 0,
 	FW_READ_REG,
+	FW_WRITE_REG,
 	FW_READ_OPEN,
 	FW_READ_SHORT,
+	FW_EDGE_0,
+	FW_EDGE_90,
+	FW_CHARGER_PLUG,
+	FW_CHARGER_UNPLUG,
+	FW_HEADSET_PLUG,
+	FW_HEADSET_UNPLUG,
+	FW_READ_RAWDATA,
+	FW_READ_DIFFDATA,
+	FW_GESTURE_ENABLE,
+	FW_GESTURE_DISABLE,
+};
+
+enum GCORE_TS_STAT {
+	TS_NORMAL = 0,
+	TS_SUSPEND,
 };
 
 struct gcore_dev {
@@ -277,7 +314,7 @@ struct gcore_dev {
 	struct spi_device *bus_device;
 #endif
 
-	unsigned int touch_irq;
+	int touch_irq;
 	spinlock_t irq_flag_lock;
 	int irq_flag;
 	int tpd_flag;
@@ -307,6 +344,21 @@ struct gcore_dev {
 	struct delayed_work fwu_work;
 
 	bool tp_suspend;
+
+#ifdef GCORE_SENSOR_EN
+	bool wakeable;
+	bool should_enable_gesture;
+	bool gesture_enabled;
+	uint32_t report_gesture_key;
+	enum display_state screen_state;
+	struct mutex state_mutex;
+	struct gcore_sensor_platform_data *sensor_pdata;
+#ifdef CONFIG_HAS_WAKELOCK
+	struct wake_lock gesture_wakelock;
+#else
+	struct wakeup_source *gesture_wakelock;
+#endif
+#endif
 
 #ifdef CONFIG_ENABLE_GESTURE_WAKEUP
 	bool gesture_wakeup_en;
@@ -346,9 +398,26 @@ struct gcore_exp_fn_data {
 	struct gcore_dev *gdev;
 };
 
+#ifdef GCORE_SET_TOUCH_STATE
+#define MAX_PANEL_IDX 2
+enum touch_panel_id {
+	TOUCH_PANEL_IDX_PRIMARY = 0,
+	TOUCH_PANEL_MAX_IDX,
+};
+
+enum touch_state {
+	TOUCH_DEEP_SLEEP_STATE = 0,
+	TOUCH_LOW_POWER_STATE,
+};
+#endif
+
 /*
  * Declaration
  */
+
+#ifdef GCORE_SET_TOUCH_STATE
+int touch_set_state(int state, int panel_idx);
+#endif
 
 extern s32 gcore_bus_read(u8 *buffer, s32 len);
 extern s32 gcore_bus_write(const u8 *buffer, s32 len);
@@ -374,7 +443,7 @@ extern s32 gcore_idm_write_reg(u32 addr, u8 *buffer, s32 len);
 extern void gcore_irq_disable(struct gcore_dev *gdev);
 extern void gcore_irq_enable(struct gcore_dev *gdev);
 
-
+extern int gcore_fw_event_notify(enum fw_event_type event);
 
 extern struct gcore_exp_fn fw_update_fn;
 extern struct gcore_exp_fn fs_interf_fn;
@@ -395,6 +464,26 @@ extern int gcore_sysfs_add_device(struct device *dev);
 extern int gcore_ts_drm_notifier_callback(struct notifier_block *self,
 	unsigned long event, void *data);
 #endif
+
+extern int gcore_start_mp_test(void);
+
+#define RESUME_USES_WORKQ   1
+#if RESUME_USES_WORKQ
+extern void gcore_resume_wq_init(void);
+#endif
+
+#if CHARGER_NOTIFIER
+struct usb_charger_detection {
+	struct notifier_block charger_notif;
+	u8 usb_connected;
+	struct workqueue_struct *gcore_charger_notify_wq;
+	struct work_struct charger_notify_work;
+};
+
+extern int gcore_charger_notifier_init(void);
+#endif
+
+extern int gcore_idm_tddi_reset(void);
 
 #endif    /* GCORE_TPD_COMMON_H_  */
 

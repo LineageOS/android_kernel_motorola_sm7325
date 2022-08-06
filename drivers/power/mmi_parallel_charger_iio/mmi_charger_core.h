@@ -95,15 +95,6 @@ static inline void wakeup_source_init_internal(struct wakeup_source *ws,
 
 	wakeup_source_add(ws);
 }
-/*
-static inline void wakeup_source_trash_internal(struct wakeup_source *ws)
-{
-
-	wakeup_source_remove(ws);
-        if(!ws)
-		return;
-	__pm_relex(ws);
-}*/
 
 #define MAX_NUM_STEPS 10
 enum mmi_chrg_temp_zones {
@@ -181,6 +172,7 @@ struct mmi_cp_policy_dev {
 #define STEP_FIREST_CURR_COMP 		300000
 #define TYPEC_HIGH_CURRENT_UA		3000000
 #define TYPEC_MIDDLE_CURRENT_UA		2000000
+#define PD_ALLOW_MIN_CURRENT_UA		1500000
 #define SWITCH_CHARGER_PPS_VOLT		5000000
 #define PUMP_CHARGER_PPS_MIN_VOLT	8000000
 #define COOLING_HYSTERISIS_DEGC 2
@@ -189,7 +181,6 @@ struct mmi_charger_manager {
 	struct device	*dev;
 	struct power_supply	*batt_psy;
 	struct power_supply	*qcom_psy;
-	struct power_supply	*extrn_psy;
 	struct power_supply	*usb_psy;
 	struct power_supply	*mmi_chrg_mgr_psy;
 	struct usbpd	*pd_handle;
@@ -217,6 +208,7 @@ struct mmi_charger_manager {
 	int pl_chrg_vbatt_min;	/*the minimum battery voltage to enable parallel charging*/
 
 	int typec_middle_current;
+	int pd_allow_min_current;
 	int step_first_curr_comp;
 	int pps_volt_comp;
 	int pd_request_volt;
@@ -241,7 +233,6 @@ struct mmi_charger_manager {
 	int pps_result_history_idx;
 	/*save the result of the return from PD request*/
 
-	int 	charger_rate;
 	bool vbus_present;
 	bool pd_pps_support;
 	bool pd_pps_balance;
@@ -256,14 +247,6 @@ struct mmi_charger_manager {
 	bool sys_therm_force_pmic_chrg;
 	bool batt_therm_cooling;
 	int batt_therm_cooling_cnt;
-
-	bool use_batt_age;
-	int cycles;
-	int batt_cap_delta;
-	int batt_soc_delta;
-	int soc_cycles_start;
-	int pres_batt_status;
-	int prev_batt_status;
 
 	struct delayed_work	mmi_chrg_sm_work;	/*mmi charger state machine work*/
 	struct delayed_work	heartbeat_work;	/*cycle trig heartbeat work*/
@@ -325,6 +308,7 @@ extern void mmi_update_all_charger_status(struct mmi_charger_manager *chip);
 extern void mmi_update_all_charger_error(struct mmi_charger_manager *chip);
 extern void mmi_dump_charger_error(struct mmi_charger_manager *chip,
 									struct mmi_charger_device *chrg_dev);
+extern bool mmi_is_cable_plugout(struct mmi_charger_manager *chip);
 extern ssize_t mmi_get_factory_image_mode(void);
 extern ssize_t mmi_set_factory_image_mode(int mode);
 extern ssize_t mmi_get_factory_charge_upper(void);

@@ -70,6 +70,7 @@
 static char bootreason[BOOTREASON_MAX_LEN];
 static char bootmode[BOOTMODE_MAX_LEN];
 
+
 static void mmi_bootarg_setup(void)
 {
 	char *s;
@@ -137,7 +138,7 @@ EXPORT_SYMBOL(bi_boot_seq);
  * as passed along from bootloader via ATAG_BL_BUILD_SIG(s)
  */
 
-#define MAX_BL_BUILD_SIG  16
+#define MAX_BL_BUILD_SIG  20
 #define MAX_BLD_SIG_ITEM  20
 #define MAX_BLD_SIG_VALUE 80
 

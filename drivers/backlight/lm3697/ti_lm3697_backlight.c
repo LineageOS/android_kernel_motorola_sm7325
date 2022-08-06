@@ -246,7 +246,7 @@ static int ti_lmu_backlight_update_brightness_register(struct ti_lmu_bl *lmu_bl,
 	int ret;
 	// int i = 0;
 
-	regmap_write(regmap, 0x13, 0x22);
+	regmap_write(regmap, 0x13, 0x11);
 
 	if (lmu_bl->mode == BL_PWM_BASED) {
 		switch (cfg->pwm_action) {
@@ -287,13 +287,21 @@ static int ti_lmu_backlight_update_brightness_register(struct ti_lmu_bl *lmu_bl,
 		if (!reginfo->brightness_lsb)
 			return -EINVAL;
 
+		if(lmu_bl->map_type == EXPONENTIAL_TYPE && lmu_bl->led_current_align) {
+			if(brightness) {
+				pr_info("[bkl] %s brightness = %d, align = %d\n", __func__,
+					brightness, lmu_bl->led_current_align);
+				brightness = brightness*8383/10000+324;
+			}
+		}
+
 		reg = reginfo->brightness_lsb[lmu_bl->bank_id];
 		ret = regmap_update_bits(regmap, reg,
 					 LMU_BACKLIGHT_11BIT_LSB_MASK,
 					 brightness);
 		if (ret)
 			return ret;
-		pr_debug("[bkl][after]11bit %s brightness = %d\n", __func__, brightness);
+		pr_info("[bkl][after]11bit %s brightness = %d\n", __func__, brightness);
 		val = (brightness >> LMU_BACKLIGHT_11BIT_MSB_SHIFT) & 0xFF;
 	} else {
 		val = brightness & 0xFF;
@@ -405,6 +413,37 @@ static void ti_lmu_backlight_of_get_light_properties(struct device_node *np,
 
 	of_property_read_u32(np, "ramp-up-msec",  &lmu_bl->ramp_up_msec);
 	of_property_read_u32(np, "ramp-down-msec", &lmu_bl->ramp_down_msec);
+
+	if(of_property_read_u32(np, "current-mode", &lmu_bl->led_current_mode)) {
+		lmu_bl->led_current_mode = HBM_MODE_DEFAULT;
+		pr_info("[bkl] %s led_current_mode default %d\n", __func__,
+			lmu_bl->led_current_mode);
+	}
+
+	if(of_property_read_u32(np, "boost-ovp", &lmu_bl->led_boost_ovp)) {
+		lmu_bl->led_boost_ovp = BOOST_OVP_32V;
+		pr_info("[bkl] %s led_boost_ovp default %d\n", __func__,
+			lmu_bl->led_boost_ovp);
+	}
+
+	if(of_property_read_u32(np, "boost-freq", &lmu_bl->led_boost_freq)) {
+		lmu_bl->led_boost_freq = BOOST_FREQ_500K;
+		pr_info("[bkl] %s led_boost_freq default %d\n", __func__,
+			lmu_bl->led_boost_freq);
+	}
+
+
+	if(of_property_read_u32(np, "map-type", &lmu_bl->map_type)) {
+		lmu_bl->map_type = LINEAR_TYPE;
+		pr_info("[bkl] %s map_type default %d\n", __func__,
+			lmu_bl->map_type);
+	}
+
+	if(of_property_read_u32(np, "current-align-type", &lmu_bl->led_current_align)) {
+		lmu_bl->led_current_align = ALIGN_NONE;
+		pr_info("[bkl] %s led_current_align default %d, no align, keep as lm3697 exp mode\n", __func__,
+			lmu_bl->led_current_align);
+	}
 }
 
 static void ti_lmu_backlight_of_get_brightness_mode(struct device_node *np,
@@ -575,6 +614,8 @@ static int ti_lmu_backlight_configure(struct ti_lmu_bl *lmu_bl)
 static int ti_lmu_backlight_init(struct ti_lmu_bl_chip *chip)
 {
 	struct regmap *regmap = chip->lmu->regmap;
+	unsigned char boost_ctl;
+	unsigned char brightness_cfg;
 	pr_err("[bkl] %s enter\n", __func__);
 	/*
 	 * 'init' register data consists of address, mask, value.
@@ -582,17 +623,20 @@ static int ti_lmu_backlight_init(struct ti_lmu_bl_chip *chip)
 	 * LMU_BL_GET_MASK(), LMU_BL_GET_VAL().
 	 */
 
+	boost_ctl = (chip->lmu_bl->led_boost_ovp<<1) | chip->lmu_bl->led_boost_freq;
+	brightness_cfg = chip->lmu_bl->map_type;
+
 	regmap_write(regmap, 0x10, 0x07);
 	regmap_write(regmap, 0x12, 0x11);
-	regmap_write(regmap, 0x16, 0x01);
+	regmap_write(regmap, 0x16, brightness_cfg);
 	regmap_write(regmap, 0x19, 0x07);
 	regmap_write(regmap, 0x18, 0x15);//21.8mA default
-	regmap_write(regmap, 0x1A, 0x04);
+	regmap_write(regmap, 0x1A, boost_ctl);
 	regmap_write(regmap, 0x1C, 0x0E);
-	regmap_write(regmap, 0x22, 0x07);
-	regmap_write(regmap, 0x23, 0xFF);
+	//regmap_write(regmap, 0x22, 0x07);
+	//regmap_write(regmap, 0x23, 0xFF);
 	regmap_write(regmap, 0x24, 0x02);
-    regmap_write(regmap, 0xB4, 0x03);
+	regmap_write(regmap, 0xB4, 0x03);
 
 
 	pr_err("[bkl] %s finish\n", __func__);
@@ -759,7 +803,7 @@ ti_lmu_backlight_register(struct device *dev, struct ti_lmu *lmu,
 	if (ret < 0)
 	{
 		pr_err("%s : ID idenfy failed\n", __func__);
-		goto err_id;
+		goto err_init;
 	}
 
 	for (i = 0; i < chip->num_backlights; i++) {
@@ -767,12 +811,12 @@ ti_lmu_backlight_register(struct device *dev, struct ti_lmu *lmu,
 		ret = ti_lmu_backlight_configure(each);
 		if (ret) {
 			dev_err(dev, "[bkl] Backlight config err: %d\n", ret);
-			goto err_each;
+			goto err_init;
 		}
 		ret = ti_lmu_backlight_add_device(dev, each);
 		if (ret) {
 			dev_err(dev, "[bkl] Backlight device err: %d\n", ret);
-			goto err_add;
+			goto err_init;
 		}
 	}
 
@@ -782,9 +826,11 @@ ti_lmu_backlight_register(struct device *dev, struct ti_lmu *lmu,
 		goto err_init;
 	}
 
-	dump_i2c_reg(chip);
-
 	bl_chip = chip;
+
+	ti_hbm_set(chip->lmu_bl->led_current_mode);
+
+	dump_i2c_reg(chip);
 
 	ret = device_create_file(dev, &dev_attr_i2c_reg_dump);
 	if (ret < 0) {
@@ -795,19 +841,16 @@ ti_lmu_backlight_register(struct device *dev, struct ti_lmu *lmu,
 
 	return chip;
 
-err_id:
-	gpio_free(chip->lmu->en_gpio);
-	kfree(chip);
 err_init:
-	kfree(chip);
-err_add:
-	kfree(dev);
-	kfree(each);
-err_each:
-	kfree(each);
+	if(chip->lmu_bl)
+		devm_kfree(dev, chip->lmu_bl);
+	if(chip)
+		devm_kfree(dev, chip);
 err_ein:
+	gpio_free(lmu->en_gpio);
 	return ERR_PTR(-EINVAL);
 err_eno:
+	gpio_free(lmu->en_gpio);
 	return ERR_PTR(-ENOMEM);
 }
 
@@ -851,8 +894,10 @@ static int ti_lmu_backlight_probe(struct platform_device *pdev)
 
 
 	chip = ti_lmu_backlight_register(dev, lmu, &lmu_bl_cfg[pdev->id]);
-	if (IS_ERR(chip))
-		return PTR_ERR(chip);
+	if (IS_ERR(chip)) {
+		pr_err("[bkl] %s error bkl register\n", __func__);
+		return -ENODEV;
+	}
 	/*
 	 * Notifier callback is required because backlight device needs
 	 * reconfiguration after fault detection procedure is done by

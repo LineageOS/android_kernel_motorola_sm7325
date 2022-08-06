@@ -35,6 +35,9 @@
 #include <linux/mmi_wake_lock.h>
 #include <linux/iio/consumer.h>
 #include <linux/qti_power_supply.h>
+#include <linux/usb/usbpd.h>
+#include <linux/iio/iio.h>
+#include <dt-bindings/iio/qti_power_supply_iio.h>
 
 #define MODULE_LOG "SMBMMI"
 
@@ -95,6 +98,29 @@
 static bool debug_enabled;
 module_param(debug_enabled, bool, 0600);
 MODULE_PARM_DESC(debug_enabled, "Enable debug for SMBMMI driver");
+
+struct mmi_smbcharger_iio_channels {
+	const char *datasheet_name;
+	int channel_num;
+	enum iio_chan_type type;
+	long info_mask;
+};
+
+#define MMI_SMBCHARGER_IIO_CHAN(_name, _num, _type, _mask)		\
+	{						\
+		.datasheet_name = _name,		\
+		.channel_num = _num,			\
+		.type = _type,				\
+		.info_mask = _mask,			\
+	},
+
+#define MMI_SMBCHARGER_CHAN_INDEX(_name, _num)			\
+	MMI_SMBCHARGER_IIO_CHAN(_name, _num, IIO_INDEX,		\
+		BIT(IIO_CHAN_INFO_PROCESSED))
+
+static const struct mmi_smbcharger_iio_channels mmi_smbcharger_iio_psy_channels[] = {
+	MMI_SMBCHARGER_CHAN_INDEX("mmi_cp_enabled_status", PSY_IIO_CP_ENABLE)
+};
 
 static struct smb_mmi_charger *this_chip = NULL;
 
@@ -204,7 +230,7 @@ enum {
 #define HEARTBEAT_DUAL_DELAY_OCP_MS 1000
 #define HEARTBEAT_OCP_SETTLE_CNT 7
 #define HEARTBEAT_FACTORY_MS 1000
-#define HEARTBEAT_DISCHARGE_MS 60000
+#define HEARTBEAT_DISCHARGE_MS 100000
 
 #define EMPTY_CYCLES 101
 
@@ -320,16 +346,31 @@ struct smb_mmi_chg_param {
 				    u8 *val_raw);
 };
 
+struct smb_mmi_chg_freq {
+	unsigned int		freq_5V;
+	unsigned int		freq_6V_8V;
+	unsigned int		freq_9V;
+	unsigned int		freq_12V;
+};
+
 struct smb_mmi_params {
 	struct smb_mmi_chg_param	fcc;
 	struct smb_mmi_chg_param	fv;
 	struct smb_mmi_chg_param	usb_icl;
 	struct smb_mmi_chg_param	dc_icl;
 	struct smb_mmi_chg_param	aicl_cont_threshold;
+	struct smb_mmi_chg_param	freq_switcher;
+};
+
+struct mmi_ffc_zone  {
+       int             ffc_max_mv;
+       int             ffc_chg_iterm;
+       int             ffc_qg_iterm;
 };
 
 struct mmi_sm_params {
 	int			num_temp_zones;
+	struct mmi_ffc_zone     *ffc_zones;
 	struct mmi_temp_zone	*temp_zones;
 	enum mmi_temp_zones	pres_temp_zone;
 	enum mmi_chrg_step	pres_chrg_step;
@@ -355,11 +396,17 @@ struct smb_mmi_charger {
 	struct device		*dev;
 	struct regmap 		*regmap;
 	struct smb_mmi_params	param;
+	struct smb_mmi_chg_freq	chg_freq;
 	char			*name;
 	int			smb_version;
 
 	struct iio_channel	**ext_iio_chans;
+	struct iio_dev		*indio_dev;
+	struct iio_chan_spec	*iio_chan;
+	struct iio_channel	*int_iio_chans;
+	bool			cp_active;
 
+	bool			enable_factory_mode_aicl;
 	bool			factory_mode;
 	int			demo_mode;
 	struct notifier_block	smb_reboot;
@@ -417,6 +464,10 @@ struct smb_mmi_charger {
 	bool			*debug_enabled;
 	void			*ipc_log;
 
+	struct usbpd	*pd_handle;
+	struct usbpd_pdo_info	mmi_pdo_info[PD_MAX_PDO_NUM];
+	int			pd_power_max;
+
 	int			hvdcp_power_max;
 	int			inc_hvdcp_cnt;
 	int			hb_startup_cnt;
@@ -428,6 +479,7 @@ struct smb_mmi_charger {
 #define USBIN_CURRENT_LIMIT_CFG_REG		(USBIN_BASE + 0x70)
 #define DCIN_CURRENT_LIMIT_CFG_REG		(DCIN_BASE + 0x70)
 #define USBIN_CONT_AICL_THRESHOLD_REG		(USBIN_BASE + 0x84)
+#define DCDC_FSW_SEL_REG			(DCDC_BASE + 0x50)
 
 #define AICL_RANGE2_MIN_MV		5600
 #define AICL_RANGE2_STEP_DELTA_MV	200
@@ -471,6 +523,56 @@ int smblib_set_aicl_cont_threshold(struct smb_mmi_chg_param *param,
 	return 0;
 }
 
+/********************
+ * REGISTER SETTERS *
+ ********************/
+ struct smb_buck_boost_freq {
+	int freq_khz;
+	u8 val;
+};
+static const struct smb_buck_boost_freq chg_freq_list[] = {
+	[0] = {
+		.freq_khz	= 2400,
+		.val		= 7,
+	},
+	[1] = {
+		.freq_khz	= 2100,
+		.val		= 8,
+	},
+	[2] = {
+		.freq_khz	= 1600,
+		.val		= 11,
+	},
+	[3] = {
+		.freq_khz	= 1200,
+		.val		= 15,
+	},
+};
+
+int smblib_set_chg_freq(struct smb_mmi_chg_param *param,
+				int val_u, u8 *val_raw)
+{
+	u8 i;
+
+	if (val_u > param->max_u || val_u < param->min_u)
+		return -EINVAL;
+
+	/* Charger FSW is the configured freqency / 2 */
+	val_u *= 2;
+	for (i = 0; i < ARRAY_SIZE(chg_freq_list); i++) {
+		if (chg_freq_list[i].freq_khz == val_u)
+			break;
+	}
+	if (i == ARRAY_SIZE(chg_freq_list)) {
+		pr_err("Invalid frequency %d Hz\n", val_u / 2);
+		return -EINVAL;
+	}
+
+	*val_raw = chg_freq_list[i].val;
+
+	return 0;
+}
+
 static struct smb_mmi_params smb5_pm8150b_params = {
 	.fcc			= {
 		.name   = "fast charge current",
@@ -509,6 +611,14 @@ static struct smb_mmi_params smb5_pm8150b_params = {
 		.get_proc = smblib_get_aicl_cont_threshold,
 		.set_proc = smblib_set_aicl_cont_threshold,
 	},
+	.freq_switcher		= {
+		.name	= "switching frequency",
+		.reg	= DCDC_FSW_SEL_REG,
+		.min_u	= 600,
+		.max_u	= 1200,
+		.step_u	= 400,
+		.set_proc = smblib_set_chg_freq,
+	},
 };
 
 static struct smb_mmi_params smb5_pmi632_params = {
@@ -541,6 +651,14 @@ static struct smb_mmi_params smb5_pmi632_params = {
 		.max_u  = 3000000,
 		.step_u = 50000,
 	},
+	.freq_switcher	= {
+		.name	= "switching frequency",
+		.reg	= DCDC_FSW_SEL_REG,
+		.min_u	= 600,
+		.max_u	= 1200,
+		.step_u	= 400,
+		.set_proc = smblib_set_chg_freq,
+	},
 };
 
 enum smb_mmi_ext_iio_channels {
@@ -555,6 +673,7 @@ enum smb_mmi_ext_iio_channels {
 	SMB5_USB_INPUT_CURRENT_SETTLED,
 	SMB5_RERUN_AICL,
 	SMB5_SW_JEITA_ENABLED,
+	SMB5_PD_CURRENT_MAX,
 	//bms
 	SMB5_QG_VOLTAGE_NOW,
 	SMB5_QG_CURRENT_NOW,
@@ -562,6 +681,7 @@ enum smb_mmi_ext_iio_channels {
 	SMB5_QG_CAPACITY,
 	SMB5_QG_CHARGE_FULL,
 	SMB5_QG_CHARGE_FULL_DESIGN,
+	SMB5_QG_BATT_FULL_CURRENT,
 };
 
 static const char * const smb_mmi_ext_iio_chan_name[] = {
@@ -576,6 +696,7 @@ static const char * const smb_mmi_ext_iio_chan_name[] = {
 	[SMB5_USB_INPUT_CURRENT_SETTLED] = "usb_input_current_settled",
 	[SMB5_RERUN_AICL] = "battery_rerun_aicl",
 	[SMB5_SW_JEITA_ENABLED] = "battery_sw_jeita_enabled",
+	[SMB5_PD_CURRENT_MAX] = "usb_pd_current_max",
 	//bms
 	[SMB5_QG_VOLTAGE_NOW] = "voltage_now",
 	[SMB5_QG_CURRENT_NOW] = "current_now",
@@ -583,7 +704,7 @@ static const char * const smb_mmi_ext_iio_chan_name[] = {
 	[SMB5_QG_CAPACITY] = "capacity",
 	[SMB5_QG_CHARGE_FULL] = "charge_full",
 	[SMB5_QG_CHARGE_FULL_DESIGN] = "charge_full_design",
-
+	[SMB5_QG_BATT_FULL_CURRENT] = "batt_full_current",
 };
 
 bool is_chan_valid(struct smb_mmi_charger *chip,
@@ -1542,6 +1663,20 @@ static void mmi_charger_power_support(struct smb_mmi_charger *chg)
 	const char *charger_ability = NULL;
 	int retval;
 
+	retval = of_property_read_u32(np, "qcom,pd-power-max",
+				  &chg->pd_power_max);
+	if (retval) {
+		chg->pd_power_max = CHARGER_POWER_18W;
+	}
+
+	chg->pd_handle =
+			devm_usbpd_get_by_phandle(chg->dev, "qcom,usbpd-phandle");
+	if (IS_ERR_OR_NULL(chg->pd_handle)) {
+		dev_err(chg->dev, "Error getting the pd phandle %ld\n",
+							PTR_ERR(chg->pd_handle));
+		chg->pd_handle = NULL;
+	}
+
 	if (of_property_read_bool(np, "qcom,force-hvdcp-5v")) {
 		chg->hvdcp_power_max = CHARGER_POWER_15W;
 		return;
@@ -2110,6 +2245,233 @@ static DEVICE_ATTR(force_hvdcp_power_max, 0644,
 		force_hvdcp_power_max_show,
 		force_hvdcp_power_max_store);
 
+static ssize_t force_pd_power_max_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	unsigned long r;
+	unsigned long power;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct smb_mmi_charger *mmi_chip = platform_get_drvdata(pdev);
+
+	r = kstrtoul(buf, 0, &power);
+	if (r) {
+		pr_err("SMBMMI: Invalid pd_power_max value = %lu\n", power);
+		return -EINVAL;
+	}
+
+	if (!mmi_chip) {
+		pr_err("SMBMMI: chip not valid\n");
+		return -ENODEV;
+	}
+
+	if ((power >= CHARGER_POWER_15W) &&
+	    (power <= CHARGER_POWER_20W) &&
+	    (mmi_chip->pd_power_max != power)) {
+		mmi_chip->pd_power_max = power;
+
+		cancel_delayed_work(&mmi_chip->heartbeat_work);
+		schedule_delayed_work(&mmi_chip->heartbeat_work,
+					      msecs_to_jiffies(100));
+		mmi_info(mmi_chip, "Reset pd power max as %d, "
+					"Reschedule heartbeat\n",
+					mmi_chip->pd_power_max);
+	}
+
+	return r ? r : count;
+}
+
+static ssize_t force_pd_power_max_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	int power;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct smb_mmi_charger *mmi_chip = platform_get_drvdata(pdev);
+
+	if (!mmi_chip) {
+		pr_err("SMBMMI: chip not valid\n");
+		return -ENODEV;
+	}
+
+	power = mmi_chip->pd_power_max;
+
+	return scnprintf(buf, CHG_SHOW_MAX_SIZE, "%d\n", power);
+}
+
+static DEVICE_ATTR(force_pd_power_max, 0644,
+		force_pd_power_max_show,
+		force_pd_power_max_store);
+
+static int smblib_set_opt_switcher_freq(struct smb_mmi_charger *chg, int fsw_khz)
+{
+	int rc = 0;
+
+	rc = smblib_set_charge_param(chg, &chg->param.freq_switcher, fsw_khz);
+	if (rc < 0)
+		mmi_err(chg, "Error in setting freq_buck rc=%d\n", rc);
+
+	return rc;
+}
+
+#define MICRO_1V	1000000
+#define MICRO_5V	5000000
+#define MICRO_9V	9000000
+#define MICRO_12V	12000000
+static int smblib_set_usb_pd_fsw(struct smb_mmi_charger *chg, int voltage)
+{
+	int rc = 0;
+
+	if (voltage == MICRO_5V)
+		rc = smblib_set_opt_switcher_freq(chg, chg->chg_freq.freq_5V);
+	else if (voltage > MICRO_5V && voltage < MICRO_9V)
+		rc = smblib_set_opt_switcher_freq(chg,
+				chg->chg_freq.freq_6V_8V);
+	else if (voltage >= MICRO_9V && voltage < MICRO_12V)
+		rc = smblib_set_opt_switcher_freq(chg, chg->chg_freq.freq_9V);
+	else if (voltage == MICRO_12V)
+		rc = smblib_set_opt_switcher_freq(chg, chg->chg_freq.freq_12V);
+	else {
+		mmi_err(chg, "Couldn't set Fsw: invalid voltage %d\n",
+				voltage);
+		return -EINVAL;
+	}
+
+	return rc;
+}
+
+#define PD_SRC_PDO_TYPE_FIXED		0
+#define PD_SRC_PDO_TYPE_BATTERY		1
+#define PD_SRC_PDO_TYPE_VARIABLE	2
+#define PD_SRC_PDO_TYPE_AUGMENTED	3
+#define PPS_VOLT_MIN		5000000
+#define PPS_CURR_MIN		2000000
+#define PPS_CURR_MAX		3000000
+static void mmi_chrg_usb_vin_pd_config(struct smb_mmi_charger *chg, int vbus_mv)
+{
+	int rc = -EINVAL, i =0, req_pdo = -1, req_pd_volt = 0, req_pd_curr = 0;
+	int fixed_pd_volt = 0;
+	union power_supply_propval val = {0, };
+	bool pd_active = false, vbus_present = false, pps_active = false, fixed_active = false;
+	static bool fsw_setted = false, fixed_power_done = false;
+
+	if (!chg->usb_psy || !chg->pd_handle || chg->cp_active)
+		return;
+
+	rc = get_prop_usb_present(chg, &val);
+	if (rc) {
+		mmi_err(chg, "Unable to read USB PRESENT: %d\n", rc);
+		return;
+	}
+	vbus_present = val.intval;
+
+	rc  = smb_mmi_read_iio_chan(chg, SMB5_PD_ACTIVE, &val.intval);
+	if (rc) {
+		mmi_err(chg, "Unable to read PD ACTIVE: %d\n", rc);
+		return;
+	}
+	pd_active = val.intval;
+
+	if (!pd_active || !vbus_present) {
+		fsw_setted = false;
+		fixed_power_done = false;
+		return;
+	}
+
+	memset(chg->mmi_pdo_info, 0,
+			sizeof(struct usbpd_pdo_info) * PD_MAX_PDO_NUM);
+
+	rc = usbpd_get_pdo_info(chg->pd_handle, chg->mmi_pdo_info, PD_MAX_PDO_NUM);
+	if (rc ) {
+		mmi_err(chg, "PD not ready, %d\n", rc);
+		return;
+	}
+
+	for (i = 0; i < PD_MAX_PDO_NUM; i++) {
+		if ((chg->mmi_pdo_info[i].type == PD_SRC_PDO_TYPE_AUGMENTED)
+			&& chg->mmi_pdo_info[i].uv_max >= PPS_VOLT_MIN
+			&& chg->mmi_pdo_info[i].ua >= PPS_CURR_MIN
+			&& (chg->mmi_pdo_info[i].uv_max / 1000) * (chg->mmi_pdo_info[i].ua / 1000) / 1000
+				>= chg->pd_power_max) {
+			req_pdo = chg->mmi_pdo_info[i].pdo_pos;
+			req_pd_curr = chg->mmi_pdo_info[i].ua;
+
+			if (req_pd_curr > PPS_CURR_MAX)
+				req_pd_curr = PPS_CURR_MAX;
+
+			req_pd_volt = (chg->pd_power_max * 1000 / (req_pd_curr / 1000)) * 1000 % 20000;
+			req_pd_volt = (chg->pd_power_max * 1000 / (req_pd_curr / 1000)) * 1000 - req_pd_volt;
+			req_pd_volt = max(req_pd_volt, PPS_VOLT_MIN);
+			req_pd_volt = min(req_pd_volt, chg->mmi_pdo_info[i].uv_max);
+			pps_active = true;
+			break;
+		}
+	}
+
+	if (!pps_active) {
+
+		if (chg->pd_power_max < CHARGER_POWER_18W)
+			fixed_pd_volt = MICRO_5V;
+		else
+			fixed_pd_volt = MICRO_9V;
+
+		for (i = 0; i < PD_MAX_PDO_NUM; i++) {
+			if ((chg->mmi_pdo_info[i].type ==
+					PD_SRC_PDO_TYPE_FIXED)
+				&& chg->mmi_pdo_info[i].uv_max <= fixed_pd_volt
+				&& chg->mmi_pdo_info[i].uv_max >= MICRO_5V) {
+				req_pdo = chg->mmi_pdo_info[i].pdo_pos;
+				req_pd_volt = chg->mmi_pdo_info[i].uv_max;
+				req_pd_curr =  (chg->pd_power_max / (req_pd_volt / 1000)) * 1000;
+				fixed_active = true;
+			}
+		}
+
+		if (fixed_active == true && vbus_mv * 1000 < req_pd_volt - MICRO_1V)
+			fixed_power_done = false;
+	}
+
+	if (!pps_active && !fixed_active)
+		return;
+	else if (!fsw_setted){
+		smblib_set_usb_pd_fsw(chg, req_pd_volt);
+		fsw_setted = true;
+	}
+
+	if (!fixed_power_done && fixed_active) {
+		rc = usbpd_select_pdo(chg->pd_handle, req_pdo, req_pd_volt, req_pd_curr);
+		if (rc < 0) {
+			mmi_err(chg, "select pdo failed\n");
+			return;
+		}
+		val.intval = req_pd_curr * 1000; /* mA->uA */
+		rc = smb_mmi_write_iio_chan(chg, SMB5_PD_CURRENT_MAX, val.intval);
+		if (rc) {
+			mmi_err(chg, "set PD current MAX failed\n");
+			return;
+		}
+		fixed_power_done =  true;
+		mmi_err(chg, "Request fixed power , re-vote USB_ICL %duA\n", val.intval);
+	} else if (pps_active){
+		rc = usbpd_select_pdo(chg->pd_handle, req_pdo, req_pd_volt, req_pd_curr);
+		if (rc < 0) {
+			mmi_err(chg, "select pdo failed\n");
+			return;
+		}
+	}
+
+	mmi_err(chg,
+			"Request PD power, fixed %d, pps %d, pdo %d, "
+			"req volt %dmV, req curr %dmA, vbus %dmV\n",
+			fixed_active,
+			pps_active,
+			req_pdo,
+			req_pd_volt,
+			req_pd_curr,
+			vbus_mv);
+	return;
+}
+
 static void mmi_chrg_usb_vin_config(struct smb_mmi_charger *chg, int cur_mv)
 {
 	int rc = -EINVAL;
@@ -2171,6 +2533,9 @@ static void mmi_chrg_input_config(struct smb_mmi_charger *chg,
 {
 	if (chg->hvdcp_power_max)
 		mmi_chrg_usb_vin_config(chg, stat->usb_mv);
+
+	if (chg->pd_power_max)
+		mmi_chrg_usb_vin_pd_config(chg, stat->usb_mv);
 }
 
 static void mmi_weakcharger_work(struct work_struct *work)
@@ -2861,6 +3226,30 @@ vote_now:
 	return sched_time;
 }
 
+static int mmi_get_ffc_fv(struct smb_mmi_charger *chip, int zone)
+{
+       int rc;
+       int ffc_max_fv;
+	struct mmi_sm_params *prm = &chip->sm_param[BASE_BATT];
+
+       if (prm->ffc_zones == NULL || zone >= prm->num_temp_zones)
+               return 0;
+
+	rc = smb_mmi_write_iio_chan(chip,
+			SMB5_QG_BATT_FULL_CURRENT, prm->ffc_zones[zone].ffc_qg_iterm);
+	if (rc < 0) {
+		mmi_err(chip, "Couldn't set batt full current, rc=%d\n", rc);
+	}
+
+       prm->chrg_iterm = prm->ffc_zones[zone].ffc_chg_iterm;
+       ffc_max_fv = prm->ffc_zones[zone].ffc_max_mv;
+       mmi_info(chip,
+               "FFC temp zone %d, fv %d mV, chg iterm %d mA, qg iterm %d mA\n",
+                 zone, ffc_max_fv, prm->chrg_iterm, prm->ffc_zones[zone].ffc_qg_iterm);
+
+       return ffc_max_fv;
+}
+
 static void mmi_basic_charge_sm(struct smb_mmi_charger *chip,
 				struct smb_mmi_chg_status *stat)
 {
@@ -2896,7 +3285,9 @@ static void mmi_basic_charge_sm(struct smb_mmi_charger *chip,
 		vote(chip->fv_votable,
 		     BATT_PROFILE_VOTER, false, 0);
 	}
-	max_fv_mv = chip->base_fv_mv;
+	max_fv_mv = mmi_get_ffc_fv(chip, prm->pres_temp_zone);
+       if (max_fv_mv == 0)
+               max_fv_mv = chip->base_fv_mv;
 
 	mmi_find_temp_zone(chip, prm, stat->batt_temp);
 	if (prm->pres_temp_zone >=  prm->num_temp_zones)
@@ -3853,6 +4244,37 @@ static int parse_mmi_dt(struct smb_mmi_charger *chg)
 		chip->pres_chrg_step = STEP_NONE;
 	}
 
+	if (of_find_property(node, "qcom,mmi-ffc-zones", &byte_len)) {
+               if ((byte_len / sizeof(struct mmi_ffc_zone) != chip->num_temp_zones)
+                      || ((byte_len / sizeof(u32)) % 3)) {
+                       mmi_err(chg, "DT error wrong mmi ffc zones\n");
+                       return -ENODEV;
+               }
+
+               chip->ffc_zones = (struct mmi_ffc_zone *)
+                       devm_kzalloc(chg->dev, byte_len, GFP_KERNEL);
+
+              if (chip->ffc_zones == NULL)
+                       return -ENOMEM;
+
+               rc = of_property_read_u32_array(node,
+                               "qcom,mmi-ffc-zones",
+                               (u32 *)chip->ffc_zones,
+                               byte_len / sizeof(u32));
+               if (rc < 0) {
+                       mmi_err(chg, "Couldn't read mmi ffc zones rc = %d\n", rc);
+                       return rc;
+              }
+
+               for (i = 0; i < chip->num_temp_zones; i++) {
+                       mmi_info(chg, "FFC:Zone %d,Volt %d,Ich %d,Iqg %d", i,
+                                chip->ffc_zones[i].ffc_max_mv,
+                                chip->ffc_zones[i].ffc_chg_iterm,
+                                chip->ffc_zones[i].ffc_qg_iterm);
+               }
+       } else
+               chip->ffc_zones = NULL;
+
 	rc = of_property_read_u32(node, "qcom,iterm-ma",
 				  &chip->chrg_iterm);
 	if (rc)
@@ -3884,6 +4306,9 @@ static int parse_mmi_dt(struct smb_mmi_charger *chg)
 				  &chg->dc_cl_ma);
 	if (rc)
 		chg->dc_cl_ma = -EINVAL;
+
+	chg->enable_factory_mode_aicl =
+		of_property_read_bool(node, "mmi,enable-factory-mode-aicl");
 
 	mmi_charger_power_support(chg);
 
@@ -4023,6 +4448,11 @@ static int smb_mmi_chg_config_init(struct smb_mmi_charger *chip)
 		return -EINVAL;
 	}
 
+	chip->chg_freq.freq_5V			= 600;
+	chip->chg_freq.freq_6V_8V		= 800;
+	chip->chg_freq.freq_9V			= 1050;
+	chip->chg_freq.freq_12V         = 1200;
+
 	pr_err("SMBMMI: PMIC %d is %s\n", chip->smb_version, chip->name);
 
 	return 0;
@@ -4122,10 +4552,128 @@ static void smb_mmi_create_debugfs(struct smb_mmi_charger *chip)
 {}
 #endif
 
+static int mmi_smbcharger_iio_write_raw(struct iio_dev *indio_dev,
+		struct iio_chan_spec const *chan, int val1,
+		int val2, long mask)
+{
+	struct smb_mmi_charger *chip = iio_priv(indio_dev);
+	int rc = 0;
+
+	switch (chan->channel) {
+	case PSY_IIO_CP_ENABLE:
+		chip->cp_active = !!val1;
+		break;
+	default:
+		pr_err("Unsupported mmi_charger IIO chan %d\n", chan->channel);
+		rc = -EINVAL;
+		break;
+	}
+
+	if (rc < 0)
+		pr_err("Couldn't write IIO channel %d, rc = %d\n",
+			chan->channel, rc);
+
+	return rc;
+}
+
+static int mmi_smbcharger_iio_read_raw(struct iio_dev *indio_dev,
+		struct iio_chan_spec const *chan, int *val1,
+		int *val2, long mask)
+{
+	struct smb_mmi_charger *chip = iio_priv(indio_dev);
+	int rc = 0;
+
+	*val1 = 0;
+
+	switch (chan->channel) {
+	case PSY_IIO_CP_ENABLE:
+		*val1 = chip->cp_active;
+		break;
+	default:
+		pr_err("Unsupported mmi_charger IIO chan %d\n", chan->channel);
+		rc = -EINVAL;
+		break;
+	}
+
+	if (rc < 0) {
+		pr_err("Couldn't read IIO channel %d, rc = %d\n",
+			chan->channel, rc);
+		return rc;
+	}
+
+	return IIO_VAL_INT;
+}
+
+static int mmi_smbcharger_iio_of_xlate(struct iio_dev *indio_dev,
+				const struct of_phandle_args *iiospec)
+{
+	struct smb_mmi_charger *chip = iio_priv(indio_dev);
+	struct iio_chan_spec *iio_chan = chip->iio_chan;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(mmi_smbcharger_iio_psy_channels);
+					i++, iio_chan++)
+		if (iio_chan->channel == iiospec->args[0])
+			return i;
+
+	return -EINVAL;
+}
+
+static const struct iio_info mmi_smbcharger_iio_info = {
+	.read_raw	= mmi_smbcharger_iio_read_raw,
+	.write_raw	= mmi_smbcharger_iio_write_raw,
+	.of_xlate	= mmi_smbcharger_iio_of_xlate,
+};
+
 static int smb_mmi_init_iio_psy(struct smb_mmi_charger *chip,
 				struct platform_device *pdev)
 {
-	int rc = 0;
+	struct iio_dev *indio_dev = chip->indio_dev;
+	struct iio_chan_spec *chan;
+	int mmi_smbcharger_num_iio_channels = ARRAY_SIZE(mmi_smbcharger_iio_psy_channels);
+	int rc, i;
+
+	chip->iio_chan = devm_kcalloc(chip->dev, mmi_smbcharger_num_iio_channels,
+				sizeof(*chip->iio_chan), GFP_KERNEL);
+	if (!chip->iio_chan)
+		return -ENOMEM;
+
+	chip->int_iio_chans = devm_kcalloc(chip->dev,
+				mmi_smbcharger_num_iio_channels,
+				sizeof(*chip->int_iio_chans),
+				GFP_KERNEL);
+	if (!chip->int_iio_chans)
+		return -ENOMEM;
+
+	indio_dev->info = &mmi_smbcharger_iio_info;
+	indio_dev->dev.parent = chip->dev;
+	indio_dev->dev.of_node = chip->dev->of_node;
+	indio_dev->name = "mmi-smbcharger-iio";
+	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->channels = chip->iio_chan;
+	indio_dev->num_channels = mmi_smbcharger_num_iio_channels;
+
+	for (i = 0; i < mmi_smbcharger_num_iio_channels; i++) {
+		chip->int_iio_chans[i].indio_dev = indio_dev;
+		chan = &chip->iio_chan[i];
+		chip->int_iio_chans[i].channel = chan;
+		chan->address = i;
+		chan->channel = mmi_smbcharger_iio_psy_channels[i].channel_num;
+		chan->type = mmi_smbcharger_iio_psy_channels[i].type;
+		chan->datasheet_name =
+			mmi_smbcharger_iio_psy_channels[i].datasheet_name;
+		chan->extend_name =
+			mmi_smbcharger_iio_psy_channels[i].datasheet_name;
+		chan->info_mask_separate =
+			mmi_smbcharger_iio_psy_channels[i].info_mask;
+	}
+
+	rc = devm_iio_device_register(chip->dev, indio_dev);
+	if (rc) {
+		pr_err("Failed to register mmi-smbcharger-iio IIO device, rc=%d\n", rc);
+		return rc;
+	}
+
 	chip->ext_iio_chans = devm_kcalloc(chip->dev,
 				ARRAY_SIZE(smb_mmi_ext_iio_chan_name),
 				sizeof(*chip->ext_iio_chans),
@@ -4139,15 +4687,24 @@ static int smb_mmi_init_iio_psy(struct smb_mmi_charger *chip,
 static int smb_mmi_probe(struct platform_device *pdev)
 {
 	struct smb_mmi_charger *chip;
+	struct iio_dev *indio_dev;
 	int rc = 0;
 	union power_supply_propval val;
 	struct power_supply_config psy_cfg = {};
 	const char *max_main_name, *max_flip_name;
 	union power_supply_propval pval;
 
-	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
-	if (!chip)
+	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*chip));
+	if (!indio_dev)
 		return -ENOMEM;
+
+	chip = iio_priv(indio_dev);
+	if (!chip) {
+		dev_err(&pdev->dev,
+			"Unable to alloc memory for mmi_smbcharger_iio\n");
+		return -ENOMEM;
+	}
+	chip->indio_dev = indio_dev;
 
 	chip->dev = &pdev->dev;
 	psy_cfg.drv_data = chip;
@@ -4352,6 +4909,11 @@ static int smb_mmi_probe(struct platform_device *pdev)
 	if (rc)
 		mmi_err(chip, "Couldn't create force_hvdcp_power_max\n");
 
+	rc = device_create_file(chip->dev,
+				&dev_attr_force_pd_power_max);
+	if (rc)
+		mmi_err(chip, "Couldn't create force_pd_power_max\n");
+
 	/* Register the notifier for the psy updates*/
 	chip->mmi_psy_notifier.notifier_call = mmi_psy_notifier_call;
 	rc = power_supply_reg_notifier(&chip->mmi_psy_notifier);
@@ -4374,12 +4936,13 @@ static int smb_mmi_probe(struct platform_device *pdev)
 			mmi_err(chip,
 				"Couldn't set USBIN_LOAD_CFG rc=%d\n", rc);
 
-		rc = smblib_masked_write_mmi(chip, USBIN_AICL_OPTIONS_CFG_REG,
+		if (!chip->enable_factory_mode_aicl) {
+			rc = smblib_masked_write_mmi(chip, USBIN_AICL_OPTIONS_CFG_REG,
 					     0xFF, 0x00);
-		if (rc < 0)
-			mmi_err(chip,
-				"Couldn't set USBIN_AICL_OPTIONS rc=%d\n", rc);
-
+			if (rc < 0)
+				mmi_err(chip,
+					"Couldn't set USBIN_AICL_OPTIONS rc=%d\n", rc);
+		}
 		chip->smb_reboot.notifier_call = smbchg_reboot;
 		chip->smb_reboot.next = NULL;
 		chip->smb_reboot.priority = 1;

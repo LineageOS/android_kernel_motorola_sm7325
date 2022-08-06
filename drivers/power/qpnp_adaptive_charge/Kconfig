@@ -7,3 +7,9 @@ config QPNP_ADAPTIVE_CHARGE
 
          This driver can also be built as a module.  If so, the module
          will be called qpnp_adaptive_charge.
+
+config ADAPTIVE_TOLERANCE_OPTIMIZATION
+        bool "Allow for adaptive tolerance optimization"
+        depends on QPNP_ADAPTIVE_CHARGE
+        default n
+        

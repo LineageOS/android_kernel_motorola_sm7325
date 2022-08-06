@@ -93,7 +93,36 @@ bool mmi_device_is_available(struct device_node *np)
 }
 EXPORT_SYMBOL(mmi_device_is_available);
 
-int mmi_get_bootarg(char *key, char **value)
+struct device_node *mmi_check_dynamic_device_node(char *dev_name)
+{
+	struct property *prop;
+	struct device_node *node, *dst_node;
+	int len;
+	char *val = NULL;
+
+	node = of_find_node_by_path("/chosen");
+	if (node == NULL)
+		return NULL;
+
+	prop = of_find_property(node, "mmi,dynamic_devices", &len);
+	if (prop == NULL || len < 0) {
+		pr_err("%s: cannot find mmi,dynamic_devices property\n", __func__);
+		return NULL;
+	}
+
+	while ((val = (char *)of_prop_next_string(prop, val))) {
+		if (strstr(val, dev_name)) {
+			pr_info("%s: find matched dev name string %s\n", __func__, val);
+			dst_node = of_find_node_by_path(val);
+			return dst_node;
+		}
+	}
+	pr_err("%s: cannot find any node with dev_name %s\n", __func__, dev_name);
+	return NULL;
+}
+EXPORT_SYMBOL(mmi_check_dynamic_device_node);
+
+static int mmi_get_bootarg_dt(char *key, char **value, char *prop, char *spl_flag)
 {
 	const char *bootargs_tmp = NULL;
 	char *idx = NULL;
@@ -105,7 +134,7 @@ int mmi_get_bootarg(char *key, char **value)
 	if (n == NULL)
 		goto err;
 
-	if (of_property_read_string(n, "bootargs", &bootargs_tmp) != 0)
+	if (of_property_read_string(n, prop, &bootargs_tmp) != 0)
 		goto putnode;
 
 	bootargs_tmp_len = strlen(bootargs_tmp);
@@ -124,7 +153,7 @@ int mmi_get_bootarg(char *key, char **value)
 		kvpair = strsep(&idx, " ");
 		if (kvpair)
 			if (strsep(&kvpair, "=")) {
-				*value = strsep(&kvpair, " ");
+				*value = strsep(&kvpair, spl_flag);
 				if (*value)
 					err = 0;
 			}
@@ -134,6 +163,15 @@ putnode:
 	of_node_put(n);
 err:
 	return err;
+}
+
+int mmi_get_bootarg(char *key, char **value)
+{
+#ifdef CONFIG_BOOT_CONFIG
+	return mmi_get_bootarg_dt(key, value, "mmi,bootconfig", "\n");
+#else
+	return mmi_get_bootarg_dt(key, value, "bootargs", " ");
+#endif
 }
 
 static void mmi_of_populate_setup(void)

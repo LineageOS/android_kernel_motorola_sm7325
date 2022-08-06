@@ -276,6 +276,7 @@ void mmi_chrg_policy_clear(struct mmi_charger_manager *chip) {
 		mmi_enable_charging(chrg_list->chrg_dev[CP_MASTER], false);
 	mmi_set_charing_current(chrg_list->chrg_dev[PMIC_SW],
 							DISABLE_CHRG_LIMIT);
+	chrg_list->chrg_dev[PMIC_SW]->charger_limited = false;
 	sm_state = PM_STATE_DISCONNECT;
 	chip->pps_volt_comp = PPS_INIT_VOLT_COMP;
 	quit_slave_chrg_cnt = 0;
@@ -326,11 +327,6 @@ void mmi_chrg_sm_work_func(struct work_struct *work)
 		pmic_sys_therm_level = prop.intval;
 
 	rc = power_supply_get_property(chip->batt_psy,
-				POWER_SUPPLY_PROP_VOLTAGE_NOW, &prop);
-	if (!rc)
-		vbatt_volt = prop.intval;
-
-	rc = power_supply_get_property(chip->batt_psy,
 				POWER_SUPPLY_PROP_CURRENT_NOW, &prop);
 	if (!rc)
 		ibatt_curr = prop.intval;
@@ -358,9 +354,9 @@ void mmi_chrg_sm_work_func(struct work_struct *work)
 		ibatt_curr *= 1000;
 		if (ibatt_curr < 0)
 			ibatt_curr *= -1;
-		vbatt_volt = chrg_list->chrg_dev[CP_MASTER]->charger_data.vbatt_volt;
-		vbatt_volt *= 1000;
 	}
+	vbatt_volt = chrg_list->chrg_dev[CP_MASTER]->charger_data.vbatt_volt;
+	vbatt_volt *= 1000;
 
 	vbus_pres = chrg_list->chrg_dev[PMIC_SW]->charger_data.vbus_pres;
 	if (!vbus_pres) {
@@ -380,6 +376,9 @@ void mmi_chrg_sm_work_func(struct work_struct *work)
 	mmi_chrg_info(chip, "battery voltage %d\n", vbatt_volt);
 	mmi_chrg_info(chip, "battery temp %d\n", batt_temp);
 	mmi_chrg_info(chip, "battery capacity %d\n", batt_soc);
+
+	if (vbus_pres && mmi_is_cable_plugout(chip))
+		vbus_pres = 0;
 
 	if (vbus_pres &&
 		(sm_state == PM_STATE_PPS_TUNNING_CURR
@@ -884,7 +883,7 @@ void mmi_chrg_sm_work_func(struct work_struct *work)
 					CC_POWER_COUNT) {
 				if (chip->pd_pps_balance
 					&& (chip->pd_request_curr - chip->pps_curr_steps)
-						> chip->typec_middle_current) {
+						> chip->pd_allow_min_current) {
 					chip->pd_request_curr -=
 						chip->pps_curr_steps;
 					chip->pd_request_volt +=
@@ -1211,7 +1210,7 @@ void mmi_chrg_sm_work_func(struct work_struct *work)
 
 		} else if (batt_temp > chrg_step->temp_c) {
 				cooling_curr =
-					min(chip->pd_curr_max, chip->typec_middle_current);
+					min(chip->pd_curr_max, chip->pd_allow_min_current);
 				if (chip->pd_request_curr > cooling_curr) {
 					chip->pd_request_curr -= COOLING_DELTA_POWER;
 				} else {
@@ -1297,7 +1296,7 @@ schedule:
 			chip->thermal_mitigation[chip->system_thermal_level]
 			+ CC_CURR_DEBOUNCE) {
 			if (chip->pd_sys_therm_curr - THERMAL_TUNNING_CURR >=
-				chip->typec_middle_current) {
+				chip->pd_allow_min_current) {
 				chip->pd_sys_therm_curr -= THERMAL_TUNNING_CURR;
 				mmi_chrg_dbg(chip, PR_MOTO, "For thermal, decrease pps curr %d\n",
 								chip->pd_sys_therm_curr);
@@ -1307,7 +1306,7 @@ schedule:
 								"pd_sys_therm_curr %dmA was less than %dmA, "
 								"Give up thermal mitigation!",
 								chip->pd_sys_therm_curr - THERMAL_TUNNING_CURR,
-								chip->typec_middle_current);
+								chip->pd_allow_min_current);
 			}
 		} else if (ibatt_curr <
 			chip->thermal_mitigation[chip->system_thermal_level]
@@ -1350,7 +1349,7 @@ schedule:
 
 		} else if (batt_temp > chrg_step->temp_c) {
 				cooling_curr =
-					min(chip->pd_curr_max, chip->typec_middle_current);
+					min(chip->pd_curr_max, chip->pd_allow_min_current);
 				cooling_volt = (2 * vbatt_volt) % 20000;
 				cooling_volt = 2 * vbatt_volt - cooling_volt
 						+ chip->pps_volt_comp;
@@ -1358,7 +1357,7 @@ schedule:
 					&& chip->pd_batt_therm_curr > cooling_curr) {
 
 					if (chip->pd_batt_therm_curr - COOLING_DELTA_POWER >=
-						chip->typec_middle_current)
+						chip->pd_allow_min_current)
 						chip->pd_batt_therm_curr -= COOLING_DELTA_POWER;
 					mmi_chrg_info(chip, "Do chrg power cooling"
 						"pd_batt_therm_curr %dmA, "
@@ -1461,7 +1460,7 @@ schedule:
 								chip->pd_batt_therm_curr);
 
 	if (chip->pd_target_volt < SWITCH_CHARGER_PPS_VOLT
-		|| chip->pd_target_curr < chip->typec_middle_current) {
+		|| chip->pd_target_curr < chip->pd_allow_min_current) {
 
 		if (sm_state == PM_STATE_PPS_TUNNING_CURR
 			|| sm_state == PM_STATE_PPS_TUNNING_VOLT

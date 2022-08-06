@@ -28,6 +28,7 @@ struct gcore_dev *gdev_fwu;
 struct task_struct *fwu_thread;
 
 DECLARE_COMPLETION(fw_update_complete);
+u8 g_update_running;
 
 static int gcore_fw_update_fn_init(struct gcore_dev *gdev);
 static void gcore_fw_update_fn_remove(struct gcore_dev *gdev);
@@ -427,6 +428,70 @@ int gcore_fw_read_reg_reply(u8 *buf, int len)
 
 }
 
+int gcore_fw_event_notify(enum fw_event_type event)
+{
+	u8 cmd[] = { 0x80, 0xB0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	u8 cmd_len = sizeof(cmd);
+	int ret = 0;
+
+	switch (event) {
+	case FW_EDGE_0:
+		cmd[cmd_len - 1] = 0x02;
+		GTP_DEBUG("gcore fw event:edge 0");
+		break;
+
+	case FW_EDGE_90:
+		cmd[cmd_len - 1] = 0x03;
+		GTP_DEBUG("gcore fw event:edge 90");
+		break;
+
+	case FW_CHARGER_PLUG:
+		cmd[cmd_len - 1] = 0x04;
+		GTP_DEBUG("gcore fw event:charger plug");
+		break;
+
+	case FW_CHARGER_UNPLUG:
+		cmd[cmd_len - 1] = 0x05;
+		GTP_DEBUG("gcore fw event:charger unplug");
+		break;
+
+	case FW_HEADSET_PLUG:
+		cmd[cmd_len - 1] = 0x06;
+		GTP_DEBUG("gcore fw event:headset plug");
+		break;
+
+	case FW_HEADSET_UNPLUG:
+		cmd[cmd_len - 1] = 0x07;
+		GTP_DEBUG("gcore fw event:headset unplug");
+		break;
+
+	case FW_GESTURE_ENABLE:
+		cmd[cmd_len - 1] = 0x0A;
+		GTP_DEBUG("gcore fw event:gesture enable");
+		break;
+
+	case FW_GESTURE_DISABLE:
+		cmd[cmd_len - 1] = 0x0B;
+		GTP_DEBUG("gcore fw event:gesture disable");
+		break;
+
+	default:
+		GTP_DEBUG("unknown fw event type.");
+		break;
+	}
+
+	mutex_lock(&gdev_fwu->transfer_lock);
+
+	ret = gcore_bus_write(cmd, cmd_len);
+	if (ret) {
+		GTP_ERROR("gcore write fw event fail.");
+	}
+
+	mutex_unlock(&gdev_fwu->transfer_lock);
+
+	return ret;
+}
+
 int gcore_reg_enable_write_on(void)
 {
 	u32 addr = 0xC0000020;
@@ -457,6 +522,11 @@ int gcore_read_fw_version(u8 *version, int length)
 #endif
 #endif
 
+	if (g_update_running) {
+		GTP_ERROR("fw update is running, do not read version!");
+		return 0;
+	}
+	mutex_lock(&gdev_fwu->transfer_lock);
 	gcore_enter_idm_mode();
 
 	msleep(1);
@@ -481,6 +551,7 @@ int gcore_read_fw_version(u8 *version, int length)
 #endif
 
 	gcore_exit_idm_mode();
+	mutex_unlock(&gdev_fwu->transfer_lock);
 
 	return 0;
 
@@ -1587,6 +1658,7 @@ void gcore_request_firmware_update_work(struct work_struct *work)
 #endif
 
 	g_ret_update = 0;
+	g_update_running = 1;
 
 #ifdef CONFIG_GCORE_AUTO_UPDATE_FW_FLASHDOWNLOAD
 	if (gcore_auto_update_flashdownload_proc(fw_buf)) {
@@ -1599,6 +1671,7 @@ void gcore_request_firmware_update_work(struct work_struct *work)
 #endif
 
 	g_ret_update = 1;
+	g_update_running = 0;
 
 	return;
 }
@@ -1905,6 +1978,13 @@ static int fwu_event_handler(void *p)
 		wait_event_interruptible(gdev->wait, fw_update_fn.event_flag == true);
 		fw_update_fn.event_flag = false;
 
+		if (mutex_is_locked(&gdev->transfer_lock)) {
+			GTP_DEBUG("fw event is locked, ignore");
+			continue;
+		}
+
+		mutex_lock(&gdev->transfer_lock);
+
 		switch (gdev->fw_event) {
 		case FW_UPDATE:
 #ifdef CONFIG_GCORE_AUTO_UPDATE_FW_HOSTDOWNLOAD
@@ -1922,7 +2002,7 @@ static int fwu_event_handler(void *p)
 			break;
 		}
 
-		gdev_fwu->irq_enable(gdev_fwu);
+		mutex_unlock(&gdev->transfer_lock);
 
 	} while (!kthread_should_stop());
 

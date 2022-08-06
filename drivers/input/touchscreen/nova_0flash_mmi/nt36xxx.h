@@ -24,6 +24,7 @@
 #include <linux/spi/spi.h>
 #include <linux/uaccess.h>
 #include <linux/version.h>
+#include <linux/ktime.h>
 #include <linux/mmi_kernel_common.h>
 
 #ifdef NVT_SENSOR_EN
@@ -206,6 +207,9 @@ struct nvt_ts_data {
 	uint8_t *xbuf;
 	struct mutex xbuf_lock;
 	bool irq_enabled;
+	atomic_t pm_resume;
+	wait_queue_head_t pm_wq;
+	bool gesture_wait_pm;
 	const char *panel_supplier;
 #ifdef CONFIG_MTK_SPI
 	struct mt_chip_conf spi_ctrl;
@@ -267,6 +271,16 @@ struct nvt_ts_data {
 #ifdef TS_MMI_TOUCH_MULTIWAY_UPDATE_FW
 	int flash_mode;
 #endif
+	uint8_t jitter_cmd[2];	/* /< support report rate switching */
+	bool jitter_ctrl;	/* /< support report rate switching */
+	uint8_t first_filter_cmd[2];	/* /< support report rate switching */
+	bool first_filter_ctrl;	/* /< support report rate switching */
+	uint8_t interpolation_cmd[2];	/* /< report rate interpolation command */
+	bool interpolation_ctrl;	/* /< support report rate interpolation */
+	uint8_t edge_cmd[3];	/* /< edge switching command */
+	uint8_t rotate_cmd;	/* /< rotate switching command */
+	bool edge_ctrl;	/* /< edge rate switching */
+	ktime_t last_event_time;
 };
 
 #if NVT_TOUCH_PROC

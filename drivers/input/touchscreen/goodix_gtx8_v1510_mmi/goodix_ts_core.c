@@ -47,6 +47,12 @@ int goodix_start_later_init(struct goodix_ts_core *ts_core);
 void goodix_ts_dev_release(void);
 int goodix_fw_update_init(struct goodix_ts_core *core_data);
 void goodix_fw_update_uninit(void);
+extern int goodix_ts_mmi_dev_register(struct platform_device *ts_device);
+extern void goodix_ts_mmi_dev_unregister(struct platform_device *ts_device);
+extern int __init goodix_gsx_gesture_init(void);
+extern void __exit goodix_gsx_gesture_exit(void);
+extern int __init goodix_tools_init(void);
+extern void __exit goodix_tools_exit(void);
 
 struct goodix_module goodix_modules;
 
@@ -55,6 +61,9 @@ struct goodix_module goodix_modules;
 #define CORE_MODULE_PROB_FAILED -1
 #define CORE_MODULE_REMOVED     -2
 int core_module_prob_sate = CORE_MODULE_UNPROBED;
+
+#define GTP_VTG_MIN_UV                      2800000
+#define GTP_VTG_MAX_UV                      3300000
 
 /**
  * __do_register_ext_module - register external module
@@ -1360,7 +1369,7 @@ static int goodix_ts_power_init(struct goodix_ts_core *core_data)
 			ts_err("set avdd load fail");
 			return r;
 		}
-		r = regulator_set_voltage(core_data->avdd, 2960000, 2960000);
+		r = regulator_set_voltage(core_data->avdd, GTP_VTG_MIN_UV, GTP_VTG_MAX_UV);
 		if (r) {
 			ts_err("set avdd voltage fail");
 			return r;
@@ -1861,7 +1870,7 @@ static void goodix_ts_release_connects(struct goodix_ts_core *core_data)
 					false);
 		}
 		input_report_key(input_dev, BTN_TOUCH, 0);
-		/* input_mt_sync_frame(input_dev); */
+		input_mt_sync_frame(input_dev);
 		input_sync(input_dev);
 	}
 }
@@ -2013,7 +2022,6 @@ static int goodix_ts_resume(struct goodix_ts_core *core_data)
 	mutex_unlock(&goodix_modules.mutex);
 
 	goodix_ts_irq_enable(core_data, true);
-	disable_irq_wake(core_data->irq);
 
 	/*
 	 * notify resume event, inform the esd protector
@@ -2215,7 +2223,8 @@ int goodix_ts_stage2_init(struct goodix_ts_core *core_data)
 	goodix_ts_procfs_init(core_data);
 
 	/* esd protector */
-	goodix_ts_esd_init(core_data);
+	if (core_data->ts_dev->board_data.esd_default_on)
+		goodix_ts_esd_init(core_data);
 	return 0;
 exit:
 	goodix_ts_pen_dev_remove(core_data);
@@ -2243,7 +2252,8 @@ static int goodix_ts_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	core_data = kzalloc(sizeof(struct goodix_ts_core), GFP_KERNEL);
+	core_data = devm_kzalloc(&pdev->dev, sizeof(struct goodix_ts_core),
+				 GFP_KERNEL);
 	if (!core_data) {
 		ts_err("Failed to allocate memory for core data");
 		core_module_prob_sate = CORE_MODULE_PROB_FAILED;
@@ -2301,17 +2311,42 @@ static int goodix_ts_probe(struct platform_device *pdev)
 		ts_err("failed init fwupdate module, %d", r);
 		goto gpio_err;
 	}
+
+#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+	ts_info("%s:goodix_ts_mmi_dev_register",__func__);
+	r = goodix_ts_mmi_dev_register(pdev);
+	if (r) {
+		ts_err("Failed register touchscreen mmi.");
+		goto fw_update_init_err;
+	}
+#endif
+
+	r = goodix_gsx_gesture_init();
+	if (r) {
+		ts_err("Failed goodix_gsx_gesture_init.");
+		goto ts_mmi_dev_err;
+	}
+
 	/* Try start a thread to get config-bin info */
 	r = goodix_start_later_init(core_data);
 	if (r) {
 		ts_err("Failed start cfg_bin_proc, %d", r);
 		goto later_thread_err;
 	}
+
+	/* debug node init */
+	goodix_tools_init();
+
 	complete_all(&goodix_modules.core_comp);
 	ts_info("goodix_ts_core probe success");
 	return 0;
-
 later_thread_err:
+	goodix_gsx_gesture_exit();
+ts_mmi_dev_err:
+#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+	goodix_ts_mmi_dev_unregister(pdev);
+fw_update_init_err:
+#endif
 	goodix_fw_update_uninit();
 gpio_err:
 	goodix_ts_power_off(core_data);

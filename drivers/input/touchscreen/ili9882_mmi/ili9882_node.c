@@ -109,6 +109,8 @@ struct record_state {
 static unsigned char g_user_buf[USER_STR_BUFF] = {0};
 #define ILI_SPI_NAME "ilitek"
 #define ILI_SPI_NAME_TM "ilitek_tm"
+#define ILI_SPI_NAME_CSOT "ilitek_csot"
+#define ILI_SPI_NAME_TXD "ilitek_txd"
 static struct class *touchscreen_class;
 static struct device *touchscreen_class_dev;
 
@@ -2562,8 +2564,13 @@ int ilitek_sys_init(void)
 			ILI_ERR("Failed to create touchscreen class!\n");
 			return ret;
 		}
+
 		if((ilits->tp_module >= MODEL_TM) && (ilits->tp_module < MODEL_TM_END))
 			touchscreen_class_dev = device_create(touchscreen_class, NULL, devno, NULL, ILI_SPI_NAME_TM);
+		else if((ilits->tp_module >= MODEL_CSOT) && (ilits->tp_module < MODEL_CSOT_END))
+			touchscreen_class_dev = device_create(touchscreen_class, NULL, devno, NULL, ILI_SPI_NAME_CSOT);
+		else if((ilits->tp_module >= MODEL_TXD) && (ilits->tp_module < MODEL_TXD_END))
+			touchscreen_class_dev = device_create(touchscreen_class, NULL, devno, NULL, ILI_SPI_NAME_TXD);
 		else
 			touchscreen_class_dev = device_create(touchscreen_class, NULL, devno, NULL, ILI_SPI_NAME);
 
