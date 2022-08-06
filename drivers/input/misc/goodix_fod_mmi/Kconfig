@@ -4,3 +4,4 @@ config FINGERPRINT_GOODIX_FOD_MMI
 config INPUT_MISC_GOODIX_FOD_SOFTDEP
 	bool "Goodix FOD softdependency on GPIO_PCAL6408"
 	depends on FINGERPRINT_GOODIX_FOD_MMI
+
