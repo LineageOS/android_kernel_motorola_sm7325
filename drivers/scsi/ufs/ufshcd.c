@@ -9047,11 +9047,6 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
         ufsf_suspend(hba->ufsf);
 #endif
 
-#if defined(CONFIG_UFSFEATURE)
-    if (is_support_hpb_200_device(storage_mfrid))
-        ufsf_suspend(&hba->ufsf);
-#endif
-
 	ret = ufshcd_crypto_suspend(hba, pm_op);
 	if (ret)
 		goto out;
