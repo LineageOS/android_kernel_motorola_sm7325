@@ -457,6 +457,10 @@ static int q6afe_load_avcs_modules(int num_modules, u16 port_id,
 				if (format_id == ASM_MEDIA_FMT_LC3) {
 					pm[i]->payload->load_unload_info[0].id1 =
 					AVS_MODULE_ID_DEPACKETIZER_COP_V2;
+					goto load_unload;
+				}
+				if (format_id == ASM_MEDIA_FMT_APTX_ADAPTIVE) {
+					goto load_unload;
 				}
 
 				pm[i]->payload->load_unload_info[1].module_type =
@@ -3490,6 +3494,11 @@ int afe_send_port_vad_cfg_params(u16 port_id)
 		return 0;
 	}
 
+	ret = afe_validate_port(port_id);
+	if (ret < 0) {
+		pr_err("%s: Not a valid port id = 0x%x ret %d\n", __func__,
+		       port_id, ret);
+	}
 	port_index = afe_get_port_index(port_id);
 
 	if (this_afe.vad_cfg[port_index].is_enable) {
@@ -4926,9 +4935,16 @@ EXPORT_SYMBOL(afe_tdm_port_start);
 void afe_set_cal_mode(u16 port_id, enum afe_cal_mode afe_cal_mode)
 {
 	uint16_t port_index;
+	int ret = 0;
 
-	port_index = afe_get_port_index(port_id);
-	this_afe.afe_cal_mode[port_index] = afe_cal_mode;
+	ret = afe_validate_port(port_id);
+	if (ret < 0) {
+		pr_err("%s: Not a valid port id = 0x%x ret %d\n", __func__,
+		       port_id, ret);
+	} else {
+		port_index = afe_get_port_index(port_id);
+		this_afe.afe_cal_mode[port_index] = afe_cal_mode;
+	}
 }
 EXPORT_SYMBOL(afe_set_cal_mode);
 
@@ -4963,10 +4979,17 @@ EXPORT_SYMBOL(afe_set_vad_cfg);
 void afe_get_island_mode_cfg(u16 port_id, u32 *enable_flag)
 {
 	uint16_t port_index;
+	int ret = 0;
 
-	if (enable_flag) {
-		port_index = afe_get_port_index(port_id);
-		*enable_flag = this_afe.island_mode[port_index];
+	ret = afe_validate_port(port_id);
+	if (ret < 0) {
+		pr_err("%s: Not a valid port id = 0x%x ret %d\n", __func__,
+		       port_id, ret);
+	} else {
+		if (enable_flag) {
+			port_index = afe_get_port_index(port_id);
+			*enable_flag = this_afe.island_mode[port_index];
+		}
 	}
 }
 EXPORT_SYMBOL(afe_get_island_mode_cfg);
@@ -4982,12 +5005,19 @@ EXPORT_SYMBOL(afe_get_island_mode_cfg);
 void afe_set_island_mode_cfg(u16 port_id, u32 enable_flag)
 {
 	uint16_t port_index;
+	int ret = 0;
 
-	port_index = afe_get_port_index(port_id);
-	this_afe.island_mode[port_index] = enable_flag;
+	ret = afe_validate_port(port_id);
+	if (ret < 0) {
+		pr_err("%s: Not a valid port id = 0x%x ret %d\n", __func__,
+		       port_id, ret);
+	} else {
+		port_index = afe_get_port_index(port_id);
+		this_afe.island_mode[port_index] = enable_flag;
 
-	trace_printk("%s: set island mode cfg 0x%x for port 0x%x\n",
-			__func__, this_afe.island_mode[port_index], port_id);
+		trace_printk("%s: set island mode cfg 0x%x for port 0x%x\n",
+				__func__, this_afe.island_mode[port_index], port_id);
+	}
 }
 EXPORT_SYMBOL(afe_set_island_mode_cfg);
 
@@ -8271,6 +8301,8 @@ int afe_register_get_events(u16 port_id,
 
 	pr_debug("%s: port_id: 0x%x\n", __func__, port_id);
 
+	memset(&rtproxy, 0, sizeof(rtproxy));
+
 	if (this_afe.apr == NULL) {
 		this_afe.apr = apr_register("ADSP", "AFE", afe_callback,
 					0xFFFFFFFF, &this_afe);
@@ -8333,6 +8365,8 @@ int afe_unregister_get_events(u16 port_id)
 	uint16_t i = 0;
 
 	pr_debug("%s:\n", __func__);
+
+	memset(&rtproxy, 0, sizeof(rtproxy));
 
 	if (this_afe.apr == NULL) {
 		this_afe.apr = apr_register("ADSP", "AFE", afe_callback,
@@ -8418,6 +8452,8 @@ int afe_rt_proxy_port_write(phys_addr_t buf_addr_p,
 	int ret = 0;
 	struct afe_port_data_cmd_rt_proxy_port_write_v2 afecmd_wr;
 
+	memset(&afecmd_wr, 0, sizeof(afecmd_wr));
+
 	if (this_afe.apr == NULL) {
 		pr_err("%s: register to AFE is not done\n", __func__);
 		ret = -ENODEV;
@@ -8476,6 +8512,8 @@ int afe_rt_proxy_port_read(phys_addr_t buf_addr_p,
 	int ret = 0;
 	struct afe_port_data_cmd_rt_proxy_port_read_v2 afecmd_rd;
 	int port_id = VIRTUAL_ID_TO_PORTID(id);
+
+	memset(&afecmd_rd, 0, sizeof(afecmd_rd));
 
 	if (this_afe.apr == NULL) {
 		pr_err("%s: register to AFE is not done\n", __func__);
@@ -8716,6 +8754,8 @@ int afe_dtmf_generate_rx(int64_t duration_in_ms,
 	struct afe_dtmf_generation_command cmd_dtmf;
 
 	pr_debug("%s: DTMF AFE Gen\n", __func__);
+
+	memset(&cmd_dtmf, 0, sizeof(cmd_dtmf));
 
 	if (afe_validate_port(this_afe.dtmf_gen_rx_portid) < 0) {
 		pr_err("%s: Failed : Invalid Port id = 0x%x\n",
@@ -9463,6 +9503,8 @@ int afe_port_stop_nowait(int port_id)
 	struct afe_port_cmd_device_stop stop;
 	int ret = 0;
 
+	memset(&stop, 0, sizeof(stop));
+
 	if (this_afe.apr == NULL) {
 		pr_err("%s: AFE is already closed\n", __func__);
 		ret = -EINVAL;
@@ -9505,6 +9547,8 @@ int afe_close(int port_id)
 	u16 i;
 	int index = 0;
 	uint16_t port_index;
+
+	memset(&stop, 0, sizeof(stop));
 
 	if (this_afe.apr == NULL) {
 		pr_err("%s: AFE is already closed\n", __func__);
@@ -11782,9 +11826,12 @@ static int afe_unmap_cal_data(int32_t cal_type,
 	atomic_set(&this_afe.mem_map_cal_handles[cal_index],
 		cal_block->map_data.q6map_handle);
 	atomic_set(&this_afe.mem_map_cal_index, cal_index);
-	ret = afe_cmd_memory_unmap_nowait(
+	ret = afe_cmd_memory_unmap(
 		cal_block->map_data.q6map_handle);
 	atomic_set(&this_afe.mem_map_cal_index, -1);
+#ifdef CONFIG_AW882XX_PARAMS_STORED_IN_BIN
+	atomic_set(&this_afe.mem_map_cal_handles[cal_index],0);
+#endif
 	if (ret < 0) {
 		pr_err("%s: unmap did not work! cal_type %i ret %d\n",
 			__func__, cal_index, ret);
