@@ -19,10 +19,10 @@
 
 #include "timekeeping.h"
 
-#ifdef CONFIG_SUSPEND_DEBUG
+#ifdef CONFIG_QTI_RPM_STATS_LOG
 extern ssize_t show_msm_rpmh_master_stats(void);
-extern qrtr_first_msg;
 #endif
+extern qrtr_first_msg;
 
 /**
  * struct clock_read_data - data required to read from sched_clock()
@@ -314,10 +314,11 @@ void sched_clock_resume(void)
 	resume_cycles = rd->epoch_cyc;
 	pr_info("resume cycles:%17llu\n", rd->epoch_cyc);
 #endif
-#ifdef CONFIG_SUSPEND_DEBUG
+#ifdef CONFIG_QTI_RPM_STATS_LOG
 	show_msm_rpmh_master_stats();
-	qrtr_first_msg = 1;
 #endif
+	qrtr_first_msg = 1;
+
 	rd->read_sched_clock = cd.actual_read_sched_clock;
 }
 

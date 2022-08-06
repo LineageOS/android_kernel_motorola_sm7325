@@ -76,14 +76,6 @@ static const struct msm_rpmh_master_data rpmh_masters[] = {
 	{"DISPLAY", DISPLAY, PID_DISPLAY},
 };
 
-struct msm_rpmh_master_stats {
-	uint32_t version_id;
-	uint32_t counts;
-	uint64_t last_entered;
-	uint64_t last_exited;
-	uint64_t accumulated_duration;
-};
-
 struct msm_rpmh_profile_unit {
 	uint64_t value;
 	uint64_t valid;
@@ -99,13 +91,27 @@ static void __iomem *rpmh_unit_base;
 
 static DEFINE_MUTEX(rpmh_stats_mutex);
 
-#ifdef CONFIG_SUSPEND_DEBUG
+#ifdef CONFIG_RPMH_STATS_DBG
+struct msm_rpmh_master_dbg {
+	char *name;
+	uint32_t counts;
+};
+
+static struct msm_rpmh_master_dbg rpmh_masters_dbg[] = {
+	{"MPSS", 0},
+	{"ADSP", 0}, /* can't to change the sequence*/
+};
+#endif
+
 static ssize_t print_msm_rpmh_master_stats(int i, struct msm_rpmh_master_stats *record,
 				const char *name)
 {
 	static uint64_t prev_duration[ARRAY_SIZE(rpmh_masters)];
 	uint64_t accumulated_duration = record->accumulated_duration;
 	uint64_t delta_duration;
+#ifdef CONFIG_RPMH_STATS_DBG
+	int idx;
+#endif
 
 	if (record->last_entered > record->last_exited)
 		accumulated_duration +=
@@ -114,6 +120,23 @@ static ssize_t print_msm_rpmh_master_stats(int i, struct msm_rpmh_master_stats *
 
 	delta_duration = accumulated_duration - prev_duration[i];
 	prev_duration[i] = accumulated_duration;
+
+#ifdef CONFIG_RPMH_STATS_DBG
+	if (delta_duration == 0) {
+		for (idx = 0; idx < ARRAY_SIZE(rpmh_masters_dbg); idx++) {
+			if (strncmp(name, rpmh_masters_dbg[idx].name, strlen(name)) == 0) {
+				printk("%s: %s subsystem sleep debug\n", __func__, name);
+				rpmh_masters_dbg[idx].counts++;
+				/* Avoid call case will be to trigger ramdump */
+				if (idx == 0)
+					rpmh_masters_dbg[1].counts = 0;
+				break;
+			}
+		}
+		if (rpmh_masters_dbg[1].counts > 20)
+			panic("%s: %s subsystem long time can't goto sleep!!!\n", __func__, name);
+	}
+#endif
 	return printk("%s:\tSleep Accumulated Duration:0x%llx, %lu.%03lu\n\n",
 			name, accumulated_duration, delta_duration / 19200000L, delta_duration % 19200000L * 1000 / 19200000L);
 }
@@ -152,7 +175,6 @@ ssize_t show_msm_rpmh_master_stats(void)
 
 	return length;
 }
-#endif
 
 static ssize_t msm_rpmh_master_stats_print_data(char *prvbuf, ssize_t length,
 				struct msm_rpmh_master_stats *record,
@@ -261,6 +283,12 @@ void msm_rpmh_master_stats_update(void)
 }
 EXPORT_SYMBOL(msm_rpmh_master_stats_update);
 
+struct msm_rpmh_master_stats *msm_rpmh_get_apss_data(void)
+{
+	return &apss_master_stats;
+}
+EXPORT_SYMBOL(msm_rpmh_get_apss_data);
+
 static int msm_rpmh_master_stats_probe(struct platform_device *pdev)
 {
 	struct rpmh_master_stats_prv_data *prvdata = NULL;
@@ -295,9 +323,10 @@ static int msm_rpmh_master_stats_probe(struct platform_device *pdev)
 	if (!rpmh_unit_base) {
 		pr_err("Failed to get rpmh_unit_base or rpm based target\n");
 		rpmh_unit_base = NULL;
+	} else {
+		apss_master_stats.version_id = 0x1;
 	}
 
-	apss_master_stats.version_id = 0x1;
 	platform_set_drvdata(pdev, prvdata);
 	return ret;
 

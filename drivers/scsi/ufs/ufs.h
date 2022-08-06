@@ -152,13 +152,19 @@ enum flag_idn {
 	QUERY_FLAG_IDN_WB_EN                            = 0x0E,
 	QUERY_FLAG_IDN_WB_BUFF_FLUSH_EN                 = 0x0F,
 	QUERY_FLAG_IDN_WB_BUFF_FLUSH_DURING_HIBERN8     = 0x10,
-#if defined(CONFIG_UFSHPB) || defined(CONFIG_SCSI_SKHPB)
+#if defined(CONFIG_UFSHPB) || defined(CONFIG_SCSI_SKHPB)|| defined(CONFIG_UFSHPB_TOSHIBA)
 	QUERY_FLAG_IDN_HPB_RESET                        = 0x11,
 #endif
 #if defined(CONFIG_UFSTW)
 	QUERY_FLAG_IDN_TW_EN                            = 0x0E,
 	QUERY_FLAG_IDN_TW_BUF_FLUSH_EN                  = 0x0F,
 	QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN           = 0x10,
+#endif
+#if defined(CONFIG_UFSHPB_TOSHIBA)
+	QUERY_FLAG_IDN_HPB_ENABLE                  = 0x12,
+#endif
+#if defined(CONFIG_UFSHPB_TOSHIBA)  || defined(CONFIG_UFSHID)
+	QUERY_FLAG_IDN_HID_EN               = 0x13
 #endif
 };
 
@@ -198,8 +204,21 @@ enum attr_idn {
 	QUERY_ATTR_IDN_TW_BUF_LIFETIME_EST      = 0x1E,
 	QUERY_ATTR_IDN_TW_CURR_BUF_SIZE         = 0x1F,
 #endif
+#if defined(CONFIG_UFSHID)
+	QUERY_ATTR_IDN_HID_OPERATION            = 0x20,
+	QUERY_ATTR_IDN_HID_FRAG_LEVEL           = 0x21,
+#endif
+#if defined(CONFIG_SCSI_SKHID)
+	/* use one reserved bit */
+	QUERY_ATTR_IDN_MANUAL_GC_CONT           = 0x12,
+	QUERY_ATTR_IDN_MANUAL_GC_STATUS         = 0x13,
+#endif
 #if defined(CONFIG_UFSFEATURE)
 	QUERY_ATTR_IDN_SUP_VENDOR_OPTIONS       = 0xFF,
+#endif
+#if defined(CONFIG_UFSHID)
+	QUERY_ATTR_IDN_HID_FRAG_STATUS            = 0x31,
+	QUERY_ATTR_IDN_HID_PROGRESS           = 0x32,
 #endif
 };
 
@@ -255,7 +274,7 @@ enum unit_desc_param {
 	UNIT_DESC_PARAM_CTX_CAPABILITIES	= 0x20,
 	UNIT_DESC_PARAM_LARGE_UNIT_SIZE_M1	= 0x22,
 	UNIT_DESC_PARAM_WB_BUF_ALLOC_UNITS	= 0x29,
-#if defined(CONFIG_UFSHPB) || defined(CONFIG_SCSI_SKHPB)
+#if defined(CONFIG_UFSHPB) || defined(CONFIG_SCSI_SKHPB) || defined(CONFIG_UFSHPB_TOSHIBA)
 	UNIT_DESC_HPB_LU_MAX_ACTIVE_REGIONS		= 0x23,
 	UNIT_DESC_HPB_LU_PIN_REGION_START_OFFSET	= 0x25,
 	UNIT_DESC_HPB_LU_NUM_PIN_REGIONS		= 0x27,
@@ -307,7 +326,7 @@ enum device_desc_param {
 	DEVICE_DESC_PARAM_WB_PRESRV_USRSPC_EN	= 0x53,
 	DEVICE_DESC_PARAM_WB_TYPE		= 0x54,
 	DEVICE_DESC_PARAM_WB_SHARED_ALLOC_UNITS = 0x55,
-#if defined(CONFIG_UFSHPB) || defined(CONFIG_SCSI_SKHPB)
+#if defined(CONFIG_UFSHPB) || defined(CONFIG_SCSI_SKHPB) || defined(CONFIG_UFSHPB_TOSHIBA)
 	DEVICE_DESC_PARAM_HPB_VER		= 0x40,
 	DEVICE_DESC_PARAM_HPB_CONTROL		= 0x42,
 #endif
@@ -319,6 +338,9 @@ enum device_desc_param {
 	DEVICE_DESC_PARAM_TW_RETURN_TO_USER	= 0x53,
 	DEVICE_DESC_PARAM_TW_BUF_TYPE		= 0x54,
 	DEVICE_DESC_PARAM_TW_SHARED_BUF_ALLOC_UNITS	= 0x55,
+#endif
+#if defined(CONFIG_UFSHID)
+	DEVICE_DESC_PARAM_HID_VER               = 0x59,
 #endif
 };
 
@@ -369,7 +391,7 @@ enum geometry_desc_param {
 	GEOMETRY_DESC_PARAM_WB_BUFF_CAP_ADJ	= 0x54,
 	GEOMETRY_DESC_PARAM_WB_SUP_RED_TYPE	= 0x55,
 	GEOMETRY_DESC_PARAM_WB_SUP_WB_TYPE	= 0x56,
-#if defined(CONFIG_UFSHPB) || defined(CONFIG_SCSI_SKHPB)
+#if defined(CONFIG_UFSHPB) || defined(CONFIG_SCSI_SKHPB) || defined(CONFIG_UFSHPB_TOSHIBA)
 	GEOMETRY_DESC_HPB_REGION_SIZE			= 0x48,
 	GEOMETRY_DESC_HPB_NUMBER_LU			= 0x49,
 	GEOMETRY_DESC_HPB_SUBREGION_SIZE		= 0x4A,
@@ -384,6 +406,16 @@ enum geometry_desc_param {
 	GEOMETRY_DESC_TW_SUPPORT_BUF_TYPE		= 0x56,
 #endif
 };
+
+#if defined(CONFIG_SCSI_SKHID)
+enum {
+	MANUAL_GC_OFF = 0,
+	MANUAL_GC_ON,
+	MANUAL_GC_DISABLE,
+	MANUAL_GC_ENABLE,
+	MANUAL_GC_MAX,
+};
+#endif
 
 /* Health descriptor parameters offsets in bytes*/
 enum health_desc_param {
@@ -529,6 +561,9 @@ enum {
 	MASK_TM_FUNC			= 0xFF,
 #if defined(CONFIG_SCSI_SKHPB)
 	MASK_RSP_UPIU_HPB_UPDATE_ALERT		= 0x20000,
+#endif
+#if defined(CONFIG_UFSHPB_TOSHIBA)
+	MASK_RSP_HPB_UPDATE_ALERT       = 0x20000,
 #endif
 };
 

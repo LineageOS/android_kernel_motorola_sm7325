@@ -1630,7 +1630,7 @@ static struct config_group *uvcg_uncompressed_make(struct config_group *group,
 						   const char *name)
 {
 	static char guid[] = {
-		'N',  'V',  '1',  '2', 0x00, 0x00, 0x10, 0x00,
+		'Y',  'U',  'Y',  '2', 0x00, 0x00, 0x10, 0x00,
 		0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71
 	};
 	struct uvcg_uncompressed *h;

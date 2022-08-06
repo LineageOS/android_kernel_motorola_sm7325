@@ -37,6 +37,23 @@
 #define MAX_NR_TILES 4
 #define PS_HOLD_OFFSET 0x820
 #define QUP_MASK       GENMASK(5, 0)
+#define SPARE_MASK     GENMASK(15, 8)
+
+/**
+ * extract GPIO pin from bit-field used for gpio_tlmm_config
+ */
+#define GPIO_PIN(gpio_cfg)    (((gpio_cfg) >>  4) & 0x3ff)
+#define GPIO_FUNC(gpio_cfg)   (((gpio_cfg) >>  0) & 0xf)
+#define GPIO_DIR(gpio_cfg)    (((gpio_cfg) >> 14) & 0x1)
+#define GPIO_PULL(gpio_cfg)   (((gpio_cfg) >> 15) & 0x3)
+#define GPIO_DRVSTR(gpio_cfg) (((gpio_cfg) >> 17) & 0xf)
+
+#define GPIO_CFG(gpio, func, dir, pull, drvstr) \
+	((((gpio) & 0x3FF) << 4)        |	  \
+	 ((func) & 0xf)                  |	  \
+	 (((dir) & 0x1) << 14)           |	  \
+	 (((pull) & 0x3) << 15)          |	  \
+	 (((drvstr) & 0xF) << 17))
 
 /**
  * extract GPIO pin from bit-field used for gpio_tlmm_config
@@ -989,6 +1006,11 @@ static void msm_gpio_irq_enable(struct irq_data *d)
 	struct irq_data *dir_conn_data;
 	irq_hw_number_t dir_conn_irq = 0;
 
+	if (test_bit(d->hwirq, pctrl->skip_wake_irqs)) {
+		if (pctrl->mpm_wake_ctl)
+			msm_gpio_mpm_wake_set(d->hwirq, true);
+	}
+
 	/*
 	 * Clear the interrupt that may be pending before we enable
 	 * the line.
@@ -1012,11 +1034,8 @@ static void msm_gpio_irq_enable(struct irq_data *d)
 		irq_chip_enable_parent(d);
 	}
 
-	if (test_bit(d->hwirq, pctrl->skip_wake_irqs)) {
-		if (pctrl->mpm_wake_ctl)
-			msm_gpio_mpm_wake_set(d->hwirq, true);
+	if (test_bit(d->hwirq, pctrl->skip_wake_irqs))
 		return;
-	}
 
 	msm_gpio_irq_clear_unmask(d, true);
 }
@@ -1458,6 +1477,8 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	pctrl->irq_chip.irq_set_wake = msm_gpio_irq_set_wake;
 	pctrl->irq_chip.irq_set_affinity = msm_gpio_irq_set_affinity;
 	pctrl->irq_chip.irq_set_vcpu_affinity = msm_gpio_irq_set_vcpu_affinity;
+	pctrl->irq_chip.flags = IRQCHIP_MASK_ON_SUSPEND
+				| IRQCHIP_SET_TYPE_MASKED;
 
 	dn = of_parse_phandle(pctrl->dev->of_node, "wakeup-parent", 0);
 	if (dn) {
@@ -1622,6 +1643,45 @@ int msm_qup_read(unsigned int mode)
 
 	return -ENOENT;
 }
+
+int msm_spare_write(int spare_reg, u32 val)
+{
+	u32 offset;
+	const struct msm_spare_tlmm *regs = msm_pinctrl_data->soc->spare_regs;
+	int num_regs =  msm_pinctrl_data->soc->nspare_regs;
+
+	if (!regs || spare_reg >= num_regs)
+		return -ENOENT;
+
+	offset = regs[spare_reg].offset;
+	if (offset != 0) {
+		writel_relaxed(val & SPARE_MASK,
+				msm_pinctrl_data->regs[0] + offset);
+		return 0;
+	}
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL(msm_spare_write);
+
+int msm_spare_read(int spare_reg)
+{
+	u32 offset, val;
+	const struct msm_spare_tlmm *regs = msm_pinctrl_data->soc->spare_regs;
+	int num_regs =  msm_pinctrl_data->soc->nspare_regs;
+
+	if (!regs || spare_reg >= num_regs)
+		return -ENOENT;
+
+	offset = regs[spare_reg].offset;
+	if (offset != 0) {
+		val = readl_relaxed(msm_pinctrl_data->regs[0] + offset);
+		return val & SPARE_MASK;
+	}
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL(msm_spare_read);
 
 /*
  * msm_gpio_mpm_wake_set - API to make interrupt wakeup capable

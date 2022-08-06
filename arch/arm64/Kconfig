@@ -510,7 +510,7 @@ config ARM64_ERRATUM_1024718
 	help
 	  This option adds a workaround for ARM Cortex-A55 Erratum 1024718.
 
-	  Affected Cortex-A55 cores (r0p0, r0p1, r1p0) could cause incorrect
+	  Affected Cortex-A55 cores (all revisions) could cause incorrect
 	  update of the hardware dirty bit when the DBM/AP bits are updated
 	  without a break-before-make. The workaround is to disable the usage
 	  of hardware DBM locally on the affected cores. CPUs not affected by
@@ -1793,6 +1793,14 @@ config BUILD_ARM64_DT_OVERLAY
 	  required flags to add DT overlay in the
 	  compilation.
 
+config TLB_CONF_HANDLER
+	bool "enable handler for TLB conflict"
+	help
+	  This option enables graceful handling of TLB
+	  conflict in EL2. Say yes here to enable TLB
+	  conflict handler.
+	  If unsure, Say n.
+
 config SYSVIPC_COMPAT
 	def_bool y
 	depends on COMPAT && SYSVIPC
@@ -1848,8 +1856,56 @@ config MULTI_CAM_FLASH_STATUS
 	help
 	Enable it only for multi camera flash turn to dark issue.
 
+config CAMERA_VOLTAGE_COMPATIBLE
+	bool "For camera voltage compatible"
+	default n
+	help
+	Enable it only for produts that need voltage compatible.
+
+config CAM_SENSOR_PROBE_RETRY
+        bool "For sensor probe fail"
+        default n
+        help
+        Add retries for sensor id matching.
+
 config SND_PRI_MI2S_AW882XX
 	bool "For aw882xx smartpa pri mi2s config"
 	default n
 	help
 	Enable it only aw882xx smartpa is connected on pri mi2s.
+
+config SND_ENABLE_QCOM_PMIC_HAPTIC
+	bool "Enable qcom pmic haptic"
+	default n
+	help
+	Enable it when qcom pmic haptic is used.
+
+config HAPTIC_POWER_ON
+	bool "haptic when power on"
+	default n
+	help
+	Enable it when haptic power on.
+
+config SPI_SUSPEND
+	bool "set spi bus suspend"
+	default n
+	help
+	Enable it when need spi suspend.
+
+config AW882XX_DRIVER_V1
+        bool "Use aw882xx driver version 1.*"
+        default n
+        help
+        Enable it only use aw882xx driver version 1.*.
+
+config AW882XX_DUAL_SMARTPA
+        bool "Use dual smartpa"
+        default n
+        help
+        Enable it only use dual smartpa.
+
+config AW882XX_PARAMS_FROM_BIN
+        bool "params is stored in bin file"
+        default n
+        help
+        Enable it only for params of smartPA is stored in bin file.
