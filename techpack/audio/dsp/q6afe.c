@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/slab.h>
 #include <linux/debugfs.h>
@@ -2166,28 +2167,30 @@ static int afe_send_cal_block(u16 port_id, struct cal_block_data *cal_block)
 		result = -EINVAL;
 		goto done;
 	}
-	if (cal_block->cal_data.size <= 0) {
-		pr_debug("%s: AFE cal has invalid size!\n", __func__);
-		result = -EINVAL;
-		goto done;
-	}
+	if (cal_block->cal_data.size != 0) {
+	       payload_size = cal_block->cal_data.size;
+	       mem_hdr.data_payload_addr_lsw =
+	          lower_32_bits(cal_block->cal_data.paddr);
+	       mem_hdr.data_payload_addr_msw =
+                    msm_audio_populate_upper_32_bits(cal_block->cal_data.paddr);
+	       mem_hdr.mem_map_handle = cal_block->map_data.q6map_handle;
 
-	payload_size = cal_block->cal_data.size;
-	mem_hdr.data_payload_addr_lsw =
-		lower_32_bits(cal_block->cal_data.paddr);
-	mem_hdr.data_payload_addr_msw =
-		msm_audio_populate_upper_32_bits(cal_block->cal_data.paddr);
-	mem_hdr.mem_map_handle = cal_block->map_data.q6map_handle;
+	       pr_debug("%s: AFE cal sent for device port = 0x%x, cal size = %zd, cal addr = 0x%pK\n",
+			       __func__, port_id,
+			       cal_block->cal_data.size, &cal_block->cal_data.paddr);
 
-	pr_debug("%s: AFE cal sent for device port = 0x%x, cal size = %zd, cal addr = 0x%pK\n",
-		__func__, port_id,
-		cal_block->cal_data.size, &cal_block->cal_data.paddr);
-
-	result = q6afe_set_params(port_id, q6audio_get_port_index(port_id),
+	       result = q6afe_set_params(port_id, q6audio_get_port_index(port_id),
 				  &mem_hdr, NULL, payload_size);
-	if (result)
-		pr_err("%s: AFE cal for port 0x%x failed %d\n",
-		       __func__, port_id, result);
+	       if (result)
+                   pr_err("%s: AFE cal for port 0x%x failed %d\n",
+		              __func__, port_id, result);
+	}
+	else {
+                pr_debug("%s: AFE cal has invalid size!\n", __func__);
+                result = -EINVAL;
+                goto done;
+        }
+
 
 done:
 	return result;
@@ -3010,7 +3013,7 @@ int afe_send_cdc_dma_data_align(u16 port_id, u32 cdc_dma_data_align)
 {
 	struct afe_param_id_cdc_dma_data_align data_align;
 	struct param_hdr_v3 param_info;
-	uint16_t port_index = 0;
+	int port_index = 0;
 	int ret = -EINVAL;
 
 	memset(&data_align, 0, sizeof(data_align));
@@ -3202,7 +3205,7 @@ static int afe_port_topology_deregister(u16 port_id)
 	uint32_t build_major_version = 0;
 	uint32_t build_minor_version = 0;
 	uint32_t build_branch_version = 0;
-	uint32_t afe_api_version = 0;
+        int afe_api_version = 0;
 
 	ret = q6core_get_avcs_avs_build_version_info(&build_major_version,
 						     &build_minor_version,
@@ -5029,7 +5032,7 @@ EXPORT_SYMBOL(afe_set_island_mode_cfg);
  */
 int afe_get_power_mode_cfg(u16 port_id, u32 *enable_flag)
 {
-	uint16_t port_index;
+	int port_index;
 	int ret = 0;
 
 	if (enable_flag) {
@@ -5053,7 +5056,7 @@ EXPORT_SYMBOL(afe_get_power_mode_cfg);
  */
 int afe_set_power_mode_cfg(u16 port_id, u32 enable_flag)
 {
-	uint16_t port_index;
+	int port_index;
 	int  ret= 0;
 
 	port_index = afe_get_port_index(port_id);
@@ -5116,6 +5119,31 @@ int afe_port_send_logging_cfg(u16 port_id,
 	return ret;
 }
 EXPORT_SYMBOL(afe_port_send_logging_cfg);
+
+int afe_port_send_afe_limiter_param(u16 port_id,
+	struct afe_param_id_port_afe_limiter_disable_t *disable_limiter)
+{
+	struct param_hdr_v3 param_hdr;
+	int ret = -EINVAL;
+
+	pr_debug("%s: enter, port: 0x%x logging flag: %x\n", __func__, port_id,
+		disable_limiter->disable_afe_limiter);
+	memset(&param_hdr, 0, sizeof(param_hdr));
+
+	param_hdr.module_id = AFE_MODULE_LIMITER;
+	param_hdr.instance_id = INSTANCE_ID_0;
+	param_hdr.param_id = AFE_PARAM_ID_ENABLE;
+	param_hdr.param_size = sizeof(struct afe_param_id_port_afe_limiter_disable_t);
+
+	ret = q6afe_pack_and_set_param_in_band(port_id,
+		q6audio_get_port_index(port_id), param_hdr, (u8*)disable_limiter);
+	if (ret)
+		pr_err("%s: AFE port logging setting for port 0x%x failed %d\n",
+			__func__, port_id, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL(afe_port_send_afe_limiter_param);
 
 int afe_port_send_usb_dev_param(u16 port_id, union afe_port_config *afe_config)
 {
@@ -10034,7 +10062,6 @@ static int afe_set_lpass_clk_cfg_ext_mclk(int index, struct afe_clk_set *cfg,
 	dyn_mclk_cfg.clk_id = cfg->clk_id;
 	dyn_mclk_cfg.clk_attri = cfg->clk_attri;
 	dyn_mclk_cfg.enable = cfg->enable;
-
 	pr_debug("%s: Minor version =0x%x clk id = %d\n", __func__,
 		dyn_mclk_cfg.clk_set_minor_version, dyn_mclk_cfg.clk_id);
 	pr_debug("%s: clk freq (Hz) = %d, clk attri = 0x%x\n", __func__,
@@ -10072,6 +10099,83 @@ stop_mclk:
 
 	return ret;
 }
+
+int afe_set_lpass_clk_cfg_ext_mclk_v2(int index, struct afe_param_id_clock_set_v2_t *dyn_mclk_cfg,
+							uint32_t mclk_freq)
+{
+	struct param_hdr_v3 param_hdr;
+	int ret = 0;
+
+	if (!dyn_mclk_cfg) {
+		pr_err("%s: clock cfg is NULL\n", __func__);
+		ret = -EINVAL;
+		return ret;
+	}
+
+	if (index < 0 || index >= AFE_MAX_PORTS) {
+		pr_err("%s: index[%d] invalid!\n", __func__, index);
+		return -EINVAL;
+	}
+
+	memset(&param_hdr, 0, sizeof(param_hdr));
+	param_hdr.module_id = AFE_MODULE_CLOCK_SET;
+	param_hdr.instance_id = INSTANCE_ID_0;
+	param_hdr.param_id = AFE_PARAM_ID_CLOCK_SET_V2;
+	param_hdr.param_size = sizeof(struct afe_param_id_clock_set_v2_t);
+
+	if (afe_ext_mclk.ext_mclk_cb) {
+		ret =  afe_ext_mclk.ext_mclk_cb(afe_ext_mclk.private_data,
+			dyn_mclk_cfg->enable, mclk_freq, dyn_mclk_cfg);
+		if (ret) {
+			pr_err_ratelimited("%s: get mclk cfg failed %d\n",
+					__func__, ret);
+			return ret;
+		}
+	} else {
+		pr_err_ratelimited("%s: mclk callback not registered\n", __func__);
+		return -EINVAL;
+	}
+
+	dyn_mclk_cfg->clk_set_minor_version = 1;
+
+	pr_debug("%s: Minor version =0x%x clk id = %d\n", __func__,
+		dyn_mclk_cfg->clk_set_minor_version, dyn_mclk_cfg->clk_id);
+	pr_debug("%s: clk freq (Hz) = %d, clk attri = 0x%x\n", __func__,
+		dyn_mclk_cfg->clk_freq_in_hz, dyn_mclk_cfg->clk_attri);
+	pr_debug("%s: clk root = 0x%x clk enable = 0x%x\n", __func__,
+		dyn_mclk_cfg->clk_root, dyn_mclk_cfg->enable);
+	pr_debug("%s: divider_2x =%d m = %d n = %d, d =%d\n", __func__,
+		dyn_mclk_cfg->divider_2x, dyn_mclk_cfg->m, dyn_mclk_cfg->n,
+		dyn_mclk_cfg->d);
+
+	ret = afe_q6_interface_prepare();
+	if (ret != 0) {
+		pr_err_ratelimited("%s: Q6 interface prepare failed %d\n",
+				__func__, ret);
+		goto stop_mclk;
+	}
+
+	mutex_lock(&this_afe.afe_cmd_lock);
+	ret = q6afe_svc_pack_and_set_param_in_band(index, param_hdr,
+						   (u8 *) dyn_mclk_cfg);
+	if (ret < 0)
+		pr_err_ratelimited("%s: ext MCLK clk cfg failed with ret %d\n",
+				__func__, ret);
+
+	mutex_unlock(&this_afe.afe_cmd_lock);
+
+	if (ret >= 0)
+		return ret;
+
+stop_mclk:
+	if (afe_ext_mclk.ext_mclk_cb && dyn_mclk_cfg->enable) {
+		afe_ext_mclk.ext_mclk_cb(afe_ext_mclk.private_data,
+				dyn_mclk_cfg->enable, mclk_freq, dyn_mclk_cfg);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(afe_set_lpass_clk_cfg_ext_mclk_v2);
 
 /**
  * afe_set_lpass_clk_cfg - Set AFE clk config
@@ -10147,7 +10251,7 @@ int afe_set_lpass_clock_v2(u16 port_id, struct afe_clk_set *cfg)
 {
 	int index = 0;
 	int ret = 0;
-	u16 idx = 0;
+	int idx = 0;
 	uint32_t build_major_version = 0;
 	uint32_t build_minor_version = 0;
 	uint32_t build_branch_version = 0;
