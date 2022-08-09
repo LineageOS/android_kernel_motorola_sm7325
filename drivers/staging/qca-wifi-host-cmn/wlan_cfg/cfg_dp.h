@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -63,8 +64,13 @@
 #define WLAN_CFG_TX_RING_SIZE 1024
 #endif
 
+#define WLAN_CFG_IPA_TX_RING_SIZE_MIN 1024
 #define WLAN_CFG_IPA_TX_RING_SIZE 1024
+#define WLAN_CFG_IPA_TX_RING_SIZE_MAX 8096
+
+#define WLAN_CFG_IPA_TX_COMP_RING_SIZE_MIN 1024
 #define WLAN_CFG_IPA_TX_COMP_RING_SIZE 1024
+#define WLAN_CFG_IPA_TX_COMP_RING_SIZE_MAX 8096
 
 #define WLAN_CFG_PER_PDEV_TX_RING 0
 #define WLAN_CFG_IPA_UC_TX_BUF_SIZE 2048
@@ -609,9 +615,34 @@
 	CFG_INI_BOOL("dp_sg_support", false, \
 	"DP SG Enable")
 
+#define WLAN_CFG_GRO_ENABLE_MIN 0
+#define WLAN_CFG_GRO_ENABLE_MAX 3
+#define WLAN_CFG_GRO_ENABLE_DEFAULT 0
+#define DP_GRO_ENABLE_BIT_SET     BIT(0)
+#define DP_FORCE_USE_GRO_BIT_SET  BIT(1)
+/*
+ * <ini>
+ * CFG_DP_GRO - Enable the GRO feature standalonely
+ * @Min: 0
+ * @Max: 3
+ * @Default: 0
+ *
+ * This ini entry is used to enable/disable GRO feature standalonely.
+ * Value 0: Disable GRO feature
+ * Value 1: Enable Dynamic GRO feature, TC rule can control GRO
+ *          behavior of STA mode
+ * Value 3: Enable GRO feature forcibly
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
 #define CFG_DP_GRO \
-	CFG_INI_BOOL("GROEnable", false, \
-	"DP GRO Enable")
+		CFG_INI_UINT("GROEnable", \
+		WLAN_CFG_GRO_ENABLE_MIN, \
+		WLAN_CFG_GRO_ENABLE_MAX, \
+		WLAN_CFG_GRO_ENABLE_DEFAULT, \
+		CFG_VALUE_OR_DEFAULT, "DP GRO Enable")
 
 #define CFG_DP_OL_TX_CSUM \
 	CFG_INI_BOOL("dp_offload_tx_csum_support", false, \
@@ -1048,6 +1079,63 @@
 		CFG_INI_BOOL("gForceRX64BA", \
 		false, "Enable/Disable force 64 blockack in RX side")
 
+#ifdef IPA_OFFLOAD
+/*
+ * <ini>
+ * dp_ipa_tx_ring_size - Set tcl ring size for IPA
+ * @Min: 1024
+ * @Max: 8096
+ * @Default: 1024
+ *
+ * This ini sets the tcl ring size for IPA
+ *
+ * Related: N/A
+ *
+ * Supported Feature: IPA
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_DP_IPA_TX_RING_SIZE \
+		CFG_INI_UINT("dp_ipa_tx_ring_size", \
+		WLAN_CFG_IPA_TX_RING_SIZE_MIN, \
+		WLAN_CFG_IPA_TX_RING_SIZE_MAX, \
+		WLAN_CFG_IPA_TX_RING_SIZE, \
+		CFG_VALUE_OR_DEFAULT, "IPA TCL ring size")
+
+/*
+ * <ini>
+ * dp_ipa_tx_comp_ring_size - Set tx comp ring size for IPA
+ * @Min: 1024
+ * @Max: 8096
+ * @Default: 1024
+ *
+ * This ini sets the tx comp ring size for IPA
+ *
+ * Related: N/A
+ *
+ * Supported Feature: IPA
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_DP_IPA_TX_COMP_RING_SIZE \
+		CFG_INI_UINT("dp_ipa_tx_comp_ring_size", \
+		WLAN_CFG_IPA_TX_COMP_RING_SIZE_MIN, \
+		WLAN_CFG_IPA_TX_COMP_RING_SIZE_MAX, \
+		WLAN_CFG_IPA_TX_COMP_RING_SIZE, \
+		CFG_VALUE_OR_DEFAULT, "IPA tx comp ring size")
+
+#define CFG_DP_IPA_TX_RING_CFG \
+		CFG(CFG_DP_IPA_TX_RING_SIZE) \
+		CFG(CFG_DP_IPA_TX_COMP_RING_SIZE)
+#else
+#define CFG_DP_IPA_TX_RING_CFG
+#endif
+
+
 #define CFG_DP \
 		CFG(CFG_DP_HTT_PACKET_TYPE) \
 		CFG(CFG_DP_INT_BATCH_THRESHOLD_OTHER) \
@@ -1137,5 +1225,6 @@
 		CFG(CFG_DP_TX_PER_PKT_VDEV_ID_CHECK) \
 		CFG(CFG_DP_RX_FST_IN_CMEM) \
 		CFG(CFG_DP_WOW_CHECK_RX_PENDING) \
-		CFG(CFG_FORCE_RX_64_BA)
+		CFG(CFG_FORCE_RX_64_BA) \
+		CFG_DP_IPA_TX_RING_CFG
 #endif /* _CFG_DP_H_ */

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -146,6 +147,17 @@ QDF_STATUS wlan_scan_cfg_set_passive_6g_dwelltime(struct wlan_objmgr_psoc *psoc,
 	scan_obj->scan_def.passive_dwell_6g = dwell_time;
 
 	return QDF_STATUS_SUCCESS;
+}
+
+void wlan_scan_cfg_get_min_dwelltime_6g(struct wlan_objmgr_psoc *psoc,
+					uint32_t *min_dwell_time_6ghz)
+{
+	struct wlan_scan_obj *scan_obj;
+
+	scan_obj = wlan_psoc_get_scan_obj(psoc);
+	if (!scan_obj)
+		return;
+	*min_dwell_time_6ghz = scan_obj->scan_def.min_dwell_time_6g;
 }
 #endif
 
@@ -417,4 +429,15 @@ req_free:
 	qdf_mem_free(req);
 
 	return status;
+}
+
+bool wlan_scan_cfg_skip_6g_and_indoor_freq(struct wlan_objmgr_psoc *psoc)
+{
+	struct wlan_scan_obj *scan_obj;
+
+	scan_obj = wlan_psoc_get_scan_obj(psoc);
+	if (!scan_obj)
+		return false;
+
+	return scan_obj->scan_def.skip_6g_and_indoor_freq;
 }

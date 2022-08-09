@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -542,6 +543,28 @@ dp_peer_update_state(struct dp_soc *soc,
 }
 
 void dp_print_ast_stats(struct dp_soc *soc);
+
+#ifdef DP_RX_UDP_OVER_PEER_ROAM
+/**
+ * dp_rx_reset_roaming_peer() - Reset the roamed peer in vdev
+ * @soc - dp soc pointer
+ * @vdev_id - vdev id
+ * @peer_mac_addr - mac address of the peer
+ *
+ * This function resets the roamed peer auth status and mac address
+ * after peer map indication of same peer is received from firmware.
+ *
+ * Return: None
+ */
+void dp_rx_reset_roaming_peer(struct dp_soc *soc, uint8_t vdev_id,
+			      uint8_t *peer_mac_addr);
+#else
+static inline void dp_rx_reset_roaming_peer(struct dp_soc *soc, uint8_t vdev_id,
+					    uint8_t *peer_mac_addr)
+{
+}
+#endif
+
 QDF_STATUS dp_rx_peer_map_handler(struct dp_soc *soc, uint16_t peer_id,
 				  uint16_t hw_peer_id, uint8_t vdev_id,
 				  uint8_t *peer_mac_addr, uint16_t ast_hash,
@@ -841,6 +864,7 @@ static inline void dp_peer_delete_ast_entries(struct dp_soc *soc,
 {
 	struct dp_ast_entry *ast_entry, *temp_ast_entry;
 
+	dp_debug("peer: %pK, self_ast: %pK", peer, peer->self_ast_entry);
 	/*
 	 * Delete peer self ast entry. This is done to handle scenarios
 	 * where peer is freed before peer map is received(for ex in case

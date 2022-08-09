@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -813,12 +814,14 @@ typedef struct {
  * @vdev_id: vdev id
  * @pdev_id: pdev_id
  * @wmi_host_inst_rssi_args: Instantaneous rssi stats args
+ * @is_qmi_send_support: support to send by qmi or not
  */
 struct stats_request_params {
 	uint32_t stats_id;
 	uint8_t vdev_id;
 	uint8_t pdev_id;
 	wmi_host_inst_rssi_args rssi_args;
+	bool is_qmi_send_support;
 };
 
 /**
@@ -1296,6 +1299,12 @@ struct seg_hdr_info {
  *	        Data:1 Mgmt:0
  * @cfr_enable: flag to enable CFR capture
  *              0:disable 1:enable
+ * @en_beamforming: flag to enable tx beamforming
+ *              0:disable 1:enable
+ * @retry_limit_ext: 3 bits of extended retry limit.
+ *              Combined with 4 bits "retry_limit"
+ *              to create 7 bits hw retry count.
+ *              Maximum 127 retries for specific frames.
  */
 struct tx_send_params {
 	uint32_t pwr:8,
@@ -1307,7 +1316,9 @@ struct tx_send_params {
 		 preamble_type:5,
 		 frame_type:1,
 		 cfr_enable:1,
-		 reserved:10;
+		 en_beamforming:1,
+		 retry_limit_ext:3,
+		 reserved:6;
 };
 
 /**
@@ -4631,6 +4642,7 @@ typedef enum {
 	wmi_twt_nudge_dialog_complete_event_id,
 	wmi_twt_session_stats_event_id,
 	wmi_twt_notify_event_id,
+	wmi_twt_ack_complete_event_id,
 #endif
 	wmi_apf_get_vdev_work_memory_resp_event_id,
 	wmi_roam_scan_stats_event_id,
@@ -4682,6 +4694,9 @@ typedef enum {
 	wmi_peer_create_conf_event_id,
 	wmi_pdev_cp_fwstats_eventid,
 	wmi_vdev_send_big_data_p2_eventid,
+#ifdef WLAN_FEATURE_PKT_CAPTURE_V2
+	wmi_vdev_smart_monitor_event_id,
+#endif
 	wmi_events_max,
 } wmi_conv_event_id;
 
@@ -5246,6 +5261,18 @@ typedef enum {
 #ifdef WLAN_FEATURE_IGMP_OFFLOAD
 	wmi_service_igmp_offload_support,
 #endif
+	wmi_service_sae_eapol_offload_support,
+	wmi_service_ampdu_tx_buf_size_256_support,
+
+#ifdef WLAN_FEATURE_11AX
+#ifdef FEATURE_WLAN_TDLS
+	wmi_service_tdls_ax_support,
+#endif
+#endif
+#ifdef THERMAL_STATS_SUPPORT
+	wmi_service_thermal_stats_temp_range_supported,
+#endif
+	wmi_service_pno_scan_conf_per_ch_support,
 	wmi_services_max,
 } wmi_conv_service_ids;
 #define WMI_SERVICE_UNAVAILABLE 0xFFFF
@@ -5500,6 +5527,8 @@ typedef struct {
 	uint32_t max_ndi;
 	uint32_t is_sap_connected_d3wow_enabled;
 	uint32_t is_go_connected_d3wow_enabled;
+	bool sae_eapol_offload;
+	bool twt_ack_support_cap;
 } target_resource_config;
 
 /**
@@ -7789,6 +7818,10 @@ struct wmi_roam_deauth_trigger_data {
  * @wtc_scan_mode: WTC scan mode
  * @wtc_rssi_th: Connected AP threshold
  * @wtc_candi_rssi_th: Candidate AP threshold
+ * @wtc_candi_rssi_ext_present: Flag to notify that whether fw sends rssi
+ * threshold for 5g & 6g AP to host or not
+ * @wtc_candi_rssi_th_5g: 5g candidate AP rssi threshold
+ * @wtc_candi_rssi_th_6g: 6g candidate AP rssi threshold
  */
 struct wmi_roam_wtc_btm_trigger_data {
 	uint32_t roaming_mode;
@@ -7798,6 +7831,9 @@ struct wmi_roam_wtc_btm_trigger_data {
 	uint32_t wtc_scan_mode;
 	uint32_t wtc_rssi_th;
 	uint32_t wtc_candi_rssi_th;
+	uint32_t wtc_candi_rssi_ext_present;
+	uint32_t wtc_candi_rssi_th_5g;
+	uint32_t wtc_candi_rssi_th_6g;
 };
 
 /**
@@ -7863,12 +7899,14 @@ struct wmi_roam_scan_data {
  * @status:             0 - Roaming is success ; 1 - Roaming failed ;
  * 2 - No roam
  * @fail_reason:        One of WMI_ROAM_FAIL_REASON_ID
+ * @fail_bssid:         BSSID of the last attempted roam failed AP
  */
 struct wmi_roam_result {
 	bool present;
 	uint32_t timestamp;
 	uint32_t status;
 	uint32_t fail_reason;
+	struct qdf_mac_addr fail_bssid;
 };
 
 /**
@@ -8087,6 +8125,12 @@ typedef struct {
 	uint32_t counter;
 	uint32_t chain_rssi[WMI_HOST_MAX_CHAINS];
 	uint16_t chain_phase[WMI_HOST_MAX_CHAINS];
+	int32_t cfo_measurement;
+	uint8_t agc_gain[WMI_HOST_MAX_CHAINS];
+	uint32_t rx_start_ts;
+	uint32_t rx_ts_reset;
+	uint32_t mcs_rate;
+	uint32_t gi_type;
 } wmi_cfr_peer_tx_event_param;
 
 /**

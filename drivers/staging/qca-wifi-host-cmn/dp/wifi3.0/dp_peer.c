@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -548,6 +549,9 @@ static inline void dp_peer_ast_cleanup(struct dp_soc *soc,
 	txrx_ast_free_cb cb = ast->callback;
 	void *cookie = ast->cookie;
 
+	dp_debug("mac_addr: " QDF_MAC_ADDR_FMT ", cb: %pK, cookie: %pK",
+		 QDF_MAC_ADDR_REF(ast->mac_addr.raw), cb, cookie);
+
 	/* Call the callbacks to free up the cookie */
 	if (cb) {
 		ast->callback = NULL;
@@ -575,6 +579,8 @@ static void dp_peer_ast_hash_detach(struct dp_soc *soc)
 
 	if (!soc->ast_hash.bins)
 		return;
+
+	dp_debug("%pK: num_ast_entries: %u", soc, soc->num_ast_entries);
 
 	qdf_spin_lock_bh(&soc->ast_lock);
 	for (index = 0; index <= soc->ast_hash.mask; index++) {
@@ -652,6 +658,9 @@ void dp_peer_ast_hash_remove(struct dp_soc *soc,
 	index = dp_peer_ast_hash_index(soc, &ase->mac_addr);
 	/* Check if tail is not empty before delete*/
 	QDF_ASSERT(!TAILQ_EMPTY(&soc->ast_hash.bins[index]));
+
+	dp_debug("ID: %u idx: %u mac_addr: " QDF_MAC_ADDR_FMT,
+		 ase->peer_id, index, QDF_MAC_ADDR_REF(ase->mac_addr.raw));
 
 	TAILQ_FOREACH(tmpase, &soc->ast_hash.bins[index], hash_list_elem) {
 		if (tmpase == ase) {
@@ -1228,6 +1237,10 @@ void dp_peer_free_ast_entry(struct dp_soc *soc,
 	 * NOTE: Ensure that call to this API is done
 	 * after soc->ast_lock is taken
 	 */
+	dp_debug("type: %d ID: %u vid: %u mac_addr: " QDF_MAC_ADDR_FMT,
+		 ast_entry->type, ast_entry->peer_id, ast_entry->vdev_id,
+		 QDF_MAC_ADDR_REF(ast_entry->mac_addr.raw));
+
 	ast_entry->callback = NULL;
 	ast_entry->cookie = NULL;
 
@@ -1311,6 +1324,10 @@ void dp_peer_del_ast(struct dp_soc *soc, struct dp_ast_entry *ast_entry)
 			  ast_entry->type);
 		return;
 	}
+
+	dp_debug("call by %ps: ID: %u vid: %u mac_addr: " QDF_MAC_ADDR_FMT,
+		 (void *)_RET_IP_, ast_entry->peer_id, ast_entry->vdev_id,
+		 QDF_MAC_ADDR_REF(ast_entry->mac_addr.raw));
 
 	ast_entry->delete_in_progress = true;
 
@@ -2078,6 +2095,26 @@ static inline struct dp_peer *dp_peer_find_add_id(struct dp_soc *soc,
 	return NULL;
 }
 
+#ifdef DP_RX_UDP_OVER_PEER_ROAM
+void dp_rx_reset_roaming_peer(struct dp_soc *soc, uint8_t vdev_id,
+			      uint8_t *peer_mac_addr)
+{
+	struct dp_vdev *vdev = NULL;
+
+	vdev = dp_vdev_get_ref_by_id(soc, vdev_id, DP_MOD_ID_HTT);
+	if (vdev) {
+		if (qdf_mem_cmp(vdev->roaming_peer_mac.raw, peer_mac_addr,
+				QDF_MAC_ADDR_SIZE) == 0) {
+			vdev->roaming_peer_status =
+						WLAN_ROAM_PEER_AUTH_STATUS_NONE;
+			qdf_mem_zero(vdev->roaming_peer_mac.raw,
+				     QDF_MAC_ADDR_SIZE);
+		}
+		dp_vdev_unref_delete(soc, vdev, DP_MOD_ID_HTT);
+	}
+}
+#endif
+
 /**
  * dp_rx_peer_map_handler() - handle peer map event from firmware
  * @soc_handle - genereic soc handle
@@ -2170,6 +2207,8 @@ dp_rx_peer_map_handler(struct dp_soc *soc, uint16_t peer_id,
 		err = dp_peer_map_ast(soc, peer, peer_mac_addr, hw_peer_id,
 				      vdev_id, ast_hash, is_wds);
 	}
+
+	dp_rx_reset_roaming_peer(soc, vdev_id, peer_mac_addr);
 
 	return err;
 }
@@ -2309,7 +2348,8 @@ static bool dp_get_peer_vdev_roaming_in_progress(struct dp_peer *peer)
 }
 
 QDF_STATUS dp_rx_tid_update_wifi3(struct dp_peer *peer, int tid, uint32_t
-					 ba_window_size, uint32_t start_seq)
+					 ba_window_size, uint32_t start_seq,
+					 bool bar_update)
 {
 	struct dp_rx_tid *rx_tid = &peer->rx_tid[tid];
 	struct dp_soc *soc = peer->vdev->pdev->soc;
@@ -2341,7 +2381,7 @@ QDF_STATUS dp_rx_tid_update_wifi3(struct dp_peer *peer, int tid, uint32_t
 	if (dp_get_peer_vdev_roaming_in_progress(peer))
 		return QDF_STATUS_E_PERM;
 
-	if (soc->cdp_soc.ol_ops->peer_rx_reorder_queue_setup)
+	if (soc->cdp_soc.ol_ops->peer_rx_reorder_queue_setup && !bar_update)
 		soc->cdp_soc.ol_ops->peer_rx_reorder_queue_setup(
 			soc->ctrl_psoc, peer->vdev->pdev->pdev_id,
 			peer->vdev->vdev_id, peer->mac_addr.raw,
@@ -2532,7 +2572,7 @@ QDF_STATUS dp_rx_tid_setup_wifi3(struct dp_peer *peer, int tid,
 	rx_tid->ba_win_size = ba_window_size;
 	if (rx_tid->hw_qdesc_vaddr_unaligned)
 		return dp_rx_tid_update_wifi3(peer, tid, ba_window_size,
-			start_seq);
+			start_seq, false);
 	rx_tid->delba_tx_status = 0;
 	rx_tid->ppdu_id_2k = 0;
 	rx_tid->num_of_addba_req = 0;
@@ -3240,7 +3280,8 @@ static void dp_teardown_256_ba_sessions(struct dp_peer *peer)
 							peer->vdev->pdev->soc->ctrl_psoc,
 							peer->vdev->vdev_id,
 							peer->mac_addr.raw,
-							tid, delba_rcode);
+							tid, delba_rcode,
+							CDP_DELBA_REASON_NONE);
 				} else {
 					qdf_spin_unlock_bh(&rx_tid->tid_lock);
 				}
@@ -3281,7 +3322,7 @@ int dp_addba_resp_tx_completion_wifi3(struct cdp_soc_t *cdp_soc,
 	if (status) {
 		rx_tid->num_addba_rsp_failed++;
 		dp_rx_tid_update_wifi3(peer, tid, 1,
-				       IEEE80211_SEQ_MAX);
+				       IEEE80211_SEQ_MAX, false);
 		rx_tid->ba_status = DP_RX_BA_INACTIVE;
 		qdf_spin_unlock_bh(&rx_tid->tid_lock);
 		dp_err("RxTid- %d addba rsp tx completion failed", tid);
@@ -3308,7 +3349,8 @@ int dp_addba_resp_tx_completion_wifi3(struct cdp_soc_t *cdp_soc,
 
 	if (dp_rx_tid_update_wifi3(peer, tid,
 				   rx_tid->ba_win_size,
-				   rx_tid->startseqnum)) {
+				   rx_tid->startseqnum,
+				   false)) {
 		dp_err("Failed update REO SSN");
 	}
 
@@ -3477,7 +3519,7 @@ int dp_addba_requestprocess_wifi3(struct cdp_soc_t *cdp_soc,
 	rx_tid->num_of_addba_req++;
 	if ((rx_tid->ba_status == DP_RX_BA_ACTIVE &&
 	     rx_tid->hw_qdesc_vaddr_unaligned)) {
-		dp_rx_tid_update_wifi3(peer, tid, 1, IEEE80211_SEQ_MAX);
+		dp_rx_tid_update_wifi3(peer, tid, 1, IEEE80211_SEQ_MAX, false);
 		rx_tid->ba_status = DP_RX_BA_INACTIVE;
 		peer->active_ba_session_cnt--;
 		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG,
@@ -3510,9 +3552,7 @@ int dp_addba_requestprocess_wifi3(struct cdp_soc_t *cdp_soc,
 
 		buffersize = rx_tid->rx_ba_win_size_override;
 	} else {
-		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_INFO,
-			  "%s restore BA win %d based on addba req",
-			    __func__, buffersize);
+		dp_info("restore BA win %d based on addba req", buffersize);
 	}
 
 	dp_check_ba_buffersize(peer, tid, buffersize);
@@ -3616,7 +3656,7 @@ int dp_delba_process_wifi3(struct cdp_soc_t *cdp_soc, uint8_t *peer_mac,
 	 */
 	rx_tid->delba_rcode = reasoncode;
 	rx_tid->num_of_delba_req++;
-	dp_rx_tid_update_wifi3(peer, tid, 1, IEEE80211_SEQ_MAX);
+	dp_rx_tid_update_wifi3(peer, tid, 1, IEEE80211_SEQ_MAX, false);
 
 	rx_tid->ba_status = DP_RX_BA_INACTIVE;
 	peer->active_ba_session_cnt--;
@@ -3670,7 +3710,8 @@ int dp_delba_tx_completion_wifi3(struct cdp_soc_t *cdp_soc, uint8_t *peer_mac,
 					peer->vdev->pdev->soc->ctrl_psoc,
 					peer->vdev->vdev_id,
 					peer->mac_addr.raw, tid,
-					rx_tid->delba_rcode);
+					rx_tid->delba_rcode,
+					CDP_DELBA_REASON_NONE);
 		}
 		goto end;
 	} else {
@@ -3679,12 +3720,12 @@ int dp_delba_tx_completion_wifi3(struct cdp_soc_t *cdp_soc, uint8_t *peer_mac,
 		rx_tid->delba_tx_status = 0;
 	}
 	if (rx_tid->ba_status == DP_RX_BA_ACTIVE) {
-		dp_rx_tid_update_wifi3(peer, tid, 1, IEEE80211_SEQ_MAX);
+		dp_rx_tid_update_wifi3(peer, tid, 1, IEEE80211_SEQ_MAX, false);
 		rx_tid->ba_status = DP_RX_BA_INACTIVE;
 		peer->active_ba_session_cnt--;
 	}
 	if (rx_tid->ba_status == DP_RX_BA_IN_PROGRESS) {
-		dp_rx_tid_update_wifi3(peer, tid, 1, IEEE80211_SEQ_MAX);
+		dp_rx_tid_update_wifi3(peer, tid, 1, IEEE80211_SEQ_MAX, false);
 		rx_tid->ba_status = DP_RX_BA_INACTIVE;
 	}
 	qdf_spin_unlock_bh(&rx_tid->tid_lock);
@@ -4057,7 +4098,8 @@ dp_rx_delba_ind_handler(void *soc_handle, uint16_t peer_id,
 					peer->vdev->vdev_id,
 					peer->mac_addr.raw,
 					tid,
-					rx_tid->delba_rcode);
+					rx_tid->delba_rcode,
+					CDP_DELBA_REASON_NONE);
 		}
 	} else {
 		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -466,6 +467,32 @@ void wlan_cfg_fill_interrupt_mask(struct wlan_cfg_dp_soc_ctxt *wlan_cfg_ctx,
 	}
 }
 
+#ifdef IPA_OFFLOAD
+/**
+ * wlan_soc_ipa_cfg_attach() - Update ipa config in dp soc
+ *  cfg context
+ * @psoc - Object manager psoc
+ * @wlan_cfg_ctx - dp soc cfg ctx
+ *
+ * Return: None
+ */
+static void
+wlan_soc_ipa_cfg_attach(struct cdp_ctrl_objmgr_psoc *psoc,
+			struct wlan_cfg_dp_soc_ctxt *wlan_cfg_ctx)
+{
+	wlan_cfg_ctx->ipa_tx_ring_size =
+			cfg_get(psoc, CFG_DP_IPA_TX_RING_SIZE);
+	wlan_cfg_ctx->ipa_tx_comp_ring_size =
+			cfg_get(psoc, CFG_DP_IPA_TX_COMP_RING_SIZE);
+}
+#else
+static inline void
+wlan_soc_ipa_cfg_attach(struct cdp_ctrl_objmgr_psoc *psoc,
+			struct wlan_cfg_dp_soc_ctxt *wlan_cfg_ctx)
+{
+}
+#endif
+
 /**
  * wlan_cfg_soc_attach() - Allocate and prepare SoC configuration
  * @psoc - Object manager psoc
@@ -476,6 +503,7 @@ wlan_cfg_soc_attach(struct cdp_ctrl_objmgr_psoc *psoc)
 {
 	struct wlan_cfg_dp_soc_ctxt *wlan_cfg_ctx =
 		qdf_mem_malloc(sizeof(struct wlan_cfg_dp_soc_ctxt));
+	uint32_t gro_bit_set;
 
 	if (!wlan_cfg_ctx)
 		return NULL;
@@ -534,7 +562,12 @@ wlan_cfg_soc_attach(struct cdp_ctrl_objmgr_psoc *psoc)
 	wlan_cfg_ctx->tso_enabled = cfg_get(psoc, CFG_DP_TSO);
 	wlan_cfg_ctx->lro_enabled = cfg_get(psoc, CFG_DP_LRO);
 	wlan_cfg_ctx->sg_enabled = cfg_get(psoc, CFG_DP_SG);
-	wlan_cfg_ctx->gro_enabled = cfg_get(psoc, CFG_DP_GRO);
+	gro_bit_set = cfg_get(psoc, CFG_DP_GRO);
+	if (gro_bit_set & DP_GRO_ENABLE_BIT_SET) {
+		wlan_cfg_ctx->gro_enabled = true;
+		if (gro_bit_set & DP_FORCE_USE_GRO_BIT_SET)
+			wlan_cfg_ctx->force_gro_enabled = true;
+	}
 	wlan_cfg_ctx->ol_tx_csum_enabled = cfg_get(psoc, CFG_DP_OL_TX_CSUM);
 	wlan_cfg_ctx->ol_rx_csum_enabled = cfg_get(psoc, CFG_DP_OL_RX_CSUM);
 	wlan_cfg_ctx->rawmode_enabled = cfg_get(psoc, CFG_DP_RAWMODE);
@@ -630,6 +663,11 @@ wlan_cfg_soc_attach(struct cdp_ctrl_objmgr_psoc *psoc)
 			cfg_get(psoc, CFG_DP_TX_PER_PKT_VDEV_ID_CHECK);
 	wlan_cfg_ctx->wow_check_rx_pending_enable =
 			cfg_get(psoc, CFG_DP_WOW_CHECK_RX_PENDING);
+	wlan_soc_ipa_cfg_attach(psoc, wlan_cfg_ctx);
+#ifdef WLAN_FEATURE_PKT_CAPTURE_V2
+	wlan_cfg_ctx->pkt_capture_mode = cfg_get(psoc, CFG_PKT_CAPTURE_MODE) &
+						 PKT_CAPTURE_MODE_DATA_ONLY;
+#endif
 
 	return wlan_cfg_ctx;
 }
@@ -1481,3 +1519,42 @@ bool wlan_cfg_is_dp_force_rx_64_ba(struct wlan_cfg_dp_soc_ctxt *cfg)
 {
 	return cfg->enable_force_rx_64_ba;
 }
+
+#ifdef IPA_OFFLOAD
+uint32_t wlan_cfg_ipa_tx_ring_size(struct wlan_cfg_dp_soc_ctxt *cfg)
+{
+	return cfg->ipa_tx_ring_size;
+}
+
+uint32_t wlan_cfg_ipa_tx_comp_ring_size(struct wlan_cfg_dp_soc_ctxt *cfg)
+{
+	return cfg->ipa_tx_comp_ring_size;
+}
+#endif
+
+void
+wlan_cfg_get_prealloc_cfg(struct cdp_ctrl_objmgr_psoc *ctrl_psoc,
+			  struct wlan_dp_prealloc_cfg *cfg)
+{
+	if (!ctrl_psoc || !cfg)
+		return;
+
+	cfg->num_tx_ring_entries = cfg_get(ctrl_psoc, CFG_DP_TX_RING_SIZE);
+	cfg->num_tx_comp_ring_entries = cfg_get(ctrl_psoc,
+						CFG_DP_TX_COMPL_RING_SIZE);
+	cfg->num_wbm_rel_ring_entries = cfg_get(ctrl_psoc,
+						CFG_DP_WBM_RELEASE_RING);
+	cfg->num_rxdma_err_dst_ring_entries = cfg_get(ctrl_psoc,
+						     CFG_DP_RXDMA_ERR_DST_RING);
+	cfg->num_reo_exception_ring_entries = cfg_get(ctrl_psoc,
+						     CFG_DP_REO_EXCEPTION_RING);
+	cfg->num_tx_desc = cfg_get(ctrl_psoc, CFG_DP_TX_DESC);
+	cfg->num_tx_ext_desc = cfg_get(ctrl_psoc, CFG_DP_TX_EXT_DESC);
+}
+
+#ifdef WLAN_FEATURE_PKT_CAPTURE_V2
+uint32_t wlan_cfg_get_pkt_capture_mode(struct wlan_cfg_dp_soc_ctxt *cfg)
+{
+	return cfg->pkt_capture_mode;
+}
+#endif

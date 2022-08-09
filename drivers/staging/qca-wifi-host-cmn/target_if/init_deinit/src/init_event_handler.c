@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -173,6 +174,11 @@ static int init_deinit_service_ready_event_handler(ol_scn_t scn_handle,
 		wlan_psoc_nif_fw_ext_cap_set(psoc,
 					     WLAN_SOC_CEXT_SCAN_PER_CH_CONFIG);
 
+	if (wmi_service_enabled(wmi_handle,
+				wmi_service_pno_scan_conf_per_ch_support))
+		wlan_psoc_nif_fw_ext_cap_set(psoc,
+					WLAN_SOC_PNO_SCAN_CONFIG_PER_CHANNEL);
+
 	if (wmi_service_enabled(wmi_handle, wmi_service_csa_beacon_template))
 		wlan_psoc_nif_fw_ext_cap_set(psoc,
 					     WLAN_SOC_CEXT_CSA_TX_OFFLOAD);
@@ -311,6 +317,12 @@ static int init_deinit_service_ext2_ready_event_handler(ol_scn_t scn_handle,
 		target_if_err("failed to populate scan radio cap ext2");
 		goto exit;
 	}
+
+	err_code = init_deinit_populate_twt_cap_ext2(psoc, wmi_handle, event,
+						     info);
+
+	if (err_code)
+		target_if_debug("failed to populate twt cap ext2");
 
 	target_if_regulatory_set_ext_tpc(psoc);
 

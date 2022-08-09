@@ -370,7 +370,8 @@ QDF_STATUS wlan_crypto_set_pmksa(struct wlan_crypto_params *crypto_params,
 		return QDF_STATUS_E_INVAL;
 	}
 	crypto_params->pmksa[first_available_slot] = pmksa;
-	crypto_debug("PMKSA: Added the PMKSA entry at index=%d", i);
+	crypto_debug("PMKSA: Added the PMKSA entry at index=%d",
+		     first_available_slot);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -379,7 +380,7 @@ static
 QDF_STATUS wlan_crypto_del_pmksa(struct wlan_crypto_params *crypto_params,
 				 struct wlan_crypto_pmksa *pmksa)
 {
-	uint8_t i, j;
+	uint8_t i, j, valid_entries_in_table = 0;
 	bool match_found = false;
 	u8 del_pmk[MAX_PMK_LEN] = {0};
 
@@ -387,7 +388,12 @@ QDF_STATUS wlan_crypto_del_pmksa(struct wlan_crypto_params *crypto_params,
 	for (i = 0; i < WLAN_CRYPTO_MAX_PMKID; i++) {
 		if (!crypto_params->pmksa[i])
 			continue;
-		if (qdf_is_macaddr_equal(&pmksa->bssid,
+
+		valid_entries_in_table++;
+
+		if (!pmksa->ssid_len &&
+		    !qdf_is_macaddr_zero(&pmksa->bssid) &&
+		    qdf_is_macaddr_equal(&pmksa->bssid,
 					 &crypto_params->pmksa[i]->bssid)) {
 			match_found = true;
 		} else if (pmksa->ssid_len &&
@@ -435,7 +441,8 @@ QDF_STATUS wlan_crypto_del_pmksa(struct wlan_crypto_params *crypto_params,
 	}
 
 	if (i == WLAN_CRYPTO_MAX_PMKID && !match_found)
-		crypto_debug("No such pmksa entry exists");
+		crypto_debug("No such pmksa entry exists: valid entries:%d",
+			     valid_entries_in_table);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -452,6 +459,8 @@ QDF_STATUS wlan_crypto_pmksa_flush(struct wlan_crypto_params *crypto_params)
 		qdf_mem_free(crypto_params->pmksa[i]);
 		crypto_params->pmksa[i] = NULL;
 	}
+
+	crypto_debug("Flushed the pmksa table");
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -485,13 +494,9 @@ QDF_STATUS wlan_crypto_set_del_pmksa(struct wlan_objmgr_vdev *vdev,
 
 	crypto_params = &crypto_priv->crypto_params;
 	if (set) {
-		if (!pmksa->pmk_len || pmksa->pmk_len > MAX_PMK_LEN) {
-			crypto_err("Invalid PMK length");
-			return QDF_STATUS_E_FAILURE;
-		}
-
 		pmkid_cache = wlan_crypto_get_pmksa(vdev, &pmksa->bssid);
-		if (pmkid_cache && (!qdf_mem_cmp(pmkid_cache->pmk, pmksa->pmk,
+		if (pmkid_cache && ((pmksa->pmk_len == pmkid_cache->pmk_len) &&
+				    !qdf_mem_cmp(pmkid_cache->pmk, pmksa->pmk,
 						 pmksa->pmk_len))) {
 			crypto_debug("PMKSA entry found with same PMK");
 			pmkid_cache = NULL;
@@ -611,16 +616,19 @@ wlan_crypto_get_peer_pmksa(struct wlan_objmgr_vdev *vdev,
 	for (i = 0; i < WLAN_CRYPTO_MAX_PMKID; i++) {
 		if (!crypto_params->pmksa[i])
 			continue;
-		if (qdf_is_macaddr_equal(&pmksa->bssid,
-					 &crypto_params->pmksa[i]->bssid)) {
+
+		if (pmksa->ssid_len &&
+		    !qdf_mem_cmp(pmksa->ssid,
+				 crypto_params->pmksa[i]->ssid,
+				 pmksa->ssid_len) &&
+		    !qdf_mem_cmp(pmksa->cache_id,
+				 crypto_params->pmksa[i]->cache_id,
+				 WLAN_CACHE_ID_LEN)) {
 			return crypto_params->pmksa[i];
-		} else if (pmksa->ssid_len &&
-			   !qdf_mem_cmp(pmksa->ssid,
-					crypto_params->pmksa[i]->ssid,
-					pmksa->ssid_len) &&
-			   !qdf_mem_cmp(pmksa->cache_id,
-					crypto_params->pmksa[i]->cache_id,
-					WLAN_CACHE_ID_LEN)){
+		} else if (!pmksa->ssid_len &&
+			   !qdf_is_macaddr_zero(&pmksa->bssid) &&
+			   qdf_is_macaddr_equal(&pmksa->bssid,
+					 &crypto_params->pmksa[i]->bssid)) {
 			return crypto_params->pmksa[i];
 		}
 	}
@@ -2841,19 +2849,25 @@ QDF_STATUS wlan_crypto_rsnie_check(struct wlan_crypto_params *crypto_params,
 			return QDF_STATUS_E_INVAL;
 		}
 		/*TODO: Save pmkid in params for further reference */
+	} else if (len == 1) {
+		crypto_err("PMKID is truncated");
+		return QDF_STATUS_E_INVAL;
 	}
 
 	/* BIP */
-	if (!len &&
-	    (crypto_params->rsn_caps & WLAN_CRYPTO_RSN_CAP_MFP_ENABLED)) {
+	if (!len) {
 		/* when no BIP mentioned and MFP capable use CMAC as default*/
-		SET_MGMT_CIPHER(crypto_params, WLAN_CRYPTO_CIPHER_AES_CMAC);
+		if (crypto_params->rsn_caps & WLAN_CRYPTO_RSN_CAP_MFP_ENABLED)
+			SET_MGMT_CIPHER(crypto_params,
+					WLAN_CRYPTO_CIPHER_AES_CMAC);
 		return QDF_STATUS_SUCCESS;
-	} else if (len >= 4) {
-		w = wlan_crypto_rsn_suite_to_cipher(frm);
-		frm += 4, len -= 4;
-		SET_MGMT_CIPHER(crypto_params, w);
+	} else if (len < 4) {
+		crypto_err("Mgmt cipher is truncated");
+		return QDF_STATUS_E_INVAL;
 	}
+	w = wlan_crypto_rsn_suite_to_cipher(frm);
+	frm += 4, len -= 4;
+	SET_MGMT_CIPHER(crypto_params, w);
 
 	return QDF_STATUS_SUCCESS;
 }

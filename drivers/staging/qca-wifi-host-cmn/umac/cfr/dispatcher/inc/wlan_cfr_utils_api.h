@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -64,9 +64,13 @@
 
 enum cfrmetaversion {
 	CFR_META_VERSION_NONE,
-	CFR_META_VERSION_1,
-	CFR_META_VERSION_2,
-	CFR_META_VERSION_3,
+	CFR_META_VERSION_1, /* initial version for leg_cfr_metadata */
+	CFR_META_VERSION_2, /* initial version for dbr_cfr_metadata */
+	CFR_META_VERSION_3, /* initial version for enh_cfr_metadata */
+	CFR_META_VERSION_4, /* agc gain, cfo, rx_start_ts in dbr_cfr_metadata */
+	CFR_META_VERSION_5, /* agc gain, cfo, rx_start_ts in enh_cfr_metadata */
+	CFR_META_VERSION_6, /* mcs, gi_type in dbr_cfr_metadata */
+	CFR_META_VERSION_7, /* mcs, gi_type, sig_info in enh_cfr_metadata */
 	CFR_META_VERSION_MAX = 0xFF,
 };
 
@@ -132,7 +136,8 @@ enum cfr_capture_type {
 	CFR_TYPE_METHOD_MAX,
 };
 
-struct cfr_metadata_version_1 {
+/* ensure to add new members at the end of the structure only */
+struct leg_cfr_metadata {
 	u_int8_t    peer_addr[QDF_MAC_ADDR_SIZE];
 	u_int8_t    status;
 	u_int8_t    capture_bw;
@@ -151,7 +156,8 @@ struct cfr_metadata_version_1 {
 
 #define HOST_MAX_CHAINS 8
 
-struct cfr_metadata_version_2 {
+/* ensure to add new members at the end of the structure only */
+struct dbr_cfr_metadata {
 	u_int8_t    peer_addr[QDF_MAC_ADDR_SIZE];
 	u_int8_t    status;
 	u_int8_t    capture_bw;
@@ -168,10 +174,26 @@ struct cfr_metadata_version_2 {
 	u_int32_t   length;
 	u_int32_t   chain_rssi[HOST_MAX_CHAINS];
 	u_int16_t   chain_phase[HOST_MAX_CHAINS];
+	u_int32_t   rtt_cfo_measurement;
+	u_int8_t    agc_gain[HOST_MAX_CHAINS];
+	u_int32_t   rx_start_ts;
+	u_int16_t   mcs_rate;
+	u_int16_t   gi_type;
 } __attribute__ ((__packed__));
 
 #ifdef WLAN_ENH_CFR_ENABLE
-struct cfr_metadata_version_3 {
+struct cfr_su_sig_info {
+	u_int8_t coding;
+	u_int8_t stbc;
+	u_int8_t beamformed;
+	u_int8_t dcm;
+	u_int8_t ltf_size;
+	u_int8_t sgi;
+	u_int16_t reserved;
+} __attribute__ ((__packed__));
+
+/* ensure to add new members at the end of the structure only */
+struct enh_cfr_metadata {
 	u_int8_t    status;
 	u_int8_t    capture_bw;
 	u_int8_t    channel_bw;
@@ -193,23 +215,35 @@ struct cfr_metadata_version_3 {
 	} peer_addr;
 	u_int32_t   chain_rssi[HOST_MAX_CHAINS];
 	u_int16_t   chain_phase[HOST_MAX_CHAINS];
+	u_int32_t   rtt_cfo_measurement;
+	u_int8_t    agc_gain[HOST_MAX_CHAINS];
+	u_int32_t   rx_start_ts;
+	u_int16_t   mcs_rate;
+	u_int16_t   gi_type;
+	struct cfr_su_sig_info sig_info;
 } __attribute__ ((__packed__));
 #endif
 
-struct csi_cfr_header {
+#define  CFR_META_DATA_LEN \
+	(sizeof(struct csi_cfr_header) - sizeof(struct cfr_header_cmn))
+
+struct cfr_header_cmn {
 	u_int32_t   start_magic_num;
 	u_int32_t   vendorid;
 	u_int8_t    cfr_metadata_version;
 	u_int8_t    cfr_data_version;
 	u_int8_t    chip_type;
 	u_int8_t    pltform_type;
-	u_int32_t   Reserved;
+	u_int32_t   cfr_metadata_len;
+} __attribute__ ((__packed__));
 
+struct csi_cfr_header {
+	struct cfr_header_cmn cmn;
 	union {
-		struct cfr_metadata_version_1 meta_v1;
-		struct cfr_metadata_version_2 meta_v2;
+		struct leg_cfr_metadata meta_leg;
+		struct dbr_cfr_metadata meta_dbr;
 #ifdef WLAN_ENH_CFR_ENABLE
-		struct cfr_metadata_version_3 meta_v3;
+		struct enh_cfr_metadata meta_enh;
 #endif
 	} u;
 } __attribute__ ((__packed__));
@@ -459,6 +493,19 @@ struct cfr_rcc_param {
 #endif /* WLAN_ENH_CFR_ENABLE */
 
 /**
+ * struct nl_event_cb - nl event cb for cfr data
+ * vdev_id: vdev id
+ * pid: PID to which data is sent via unicast nl evnet
+ * cfr_nl_cb: callback to send nl evnet
+ */
+struct nl_event_cb {
+	uint8_t vdev_id;
+	uint32_t pid;
+	void (*cfr_nl_cb)(uint8_t vdev_id, uint32_t pid,
+			  const void *data, uint32_t data_len);
+};
+
+/**
  * struct pdev_cfr - private pdev object for cfr
  * pdev_obj: pointer to pdev object
  * is_cfr_capable: flag to determine if cfr is enabled or not
@@ -505,7 +552,11 @@ struct cfr_rcc_param {
  * capture_count and capture_duration modes with a nob provided to configure.
  * unassoc_pool: Pool of un-associated clients used when capture method is
  * CFR_CAPTURE_METHOD_PROBE_RESPONSE
+ * nl_cb: call back to register for nl event for cfr data
  * lut_lock: Lock to protect access to cfr lookup table
+ * is_prevent_suspend: CFR wake lock acquired or not
+ * wake_lock: wake lock for cfr
+ * runtime_lock: runtime lock for cfr
  */
 /*
  * To be extended if we get more capbality info
@@ -552,7 +603,13 @@ struct pdev_cfr {
 	uint8_t is_mo_marking_support;
 #endif
 	struct unassoc_pool_entry unassoc_pool[MAX_CFR_ENABLED_CLIENTS];
+	struct nl_event_cb nl_cb;
 	qdf_spinlock_t lut_lock;
+#ifdef WLAN_CFR_PM
+	bool is_prevent_suspend;
+	qdf_wake_lock_t wake_lock;
+	qdf_runtime_lock_t runtime_lock;
+#endif
 };
 
 /**

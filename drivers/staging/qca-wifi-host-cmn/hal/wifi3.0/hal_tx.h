@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -106,7 +107,11 @@ do {                                            \
  * (Exception frames and TQM bypass frames)
  */
 #define HAL_TX_COMP_HTT_STATUS_OFFSET 8
+#ifdef CONFIG_BERYLLIUM
+#define HAL_TX_COMP_HTT_STATUS_LEN 20
+#else
 #define HAL_TX_COMP_HTT_STATUS_LEN 16
+#endif
 
 #define HAL_TX_BUF_TYPE_BUFFER 0
 #define HAL_TX_BUF_TYPE_EXT_DESC 1
@@ -165,6 +170,8 @@ enum hal_tx_ret_buf_manager {
  * @transmit_cnt: Number of times this frame has been transmitted
  * @tid: TID of the flow or MPDU queue
  * @peer_id: Peer ID of the flow or MPDU queue
+ * @buffer_timestamp: Frame system entrance timestamp in units of 1024
+ *		      microseconds
  */
 struct hal_tx_completion_status {
 	uint8_t status;
@@ -187,6 +194,9 @@ struct hal_tx_completion_status {
 	uint8_t transmit_cnt;
 	uint8_t tid;
 	uint16_t peer_id;
+#ifdef WLAN_FEATURE_TSF_UPLINK_DELAY
+	uint32_t buffer_timestamp:19;
+#endif
 };
 
 /**
@@ -463,6 +473,19 @@ static inline void hal_tx_desc_set_hlos_tid(void *desc,
 	HAL_SET_FLD(desc, TCL_DATA_CMD_4, HLOS_TID_OVERWRITE) |=
 	   HAL_TX_SM(TCL_DATA_CMD_4, HLOS_TID_OVERWRITE, 1);
 }
+
+/**
+ * hal_tx_desc_clear - Clear the HW descriptor entry
+ * @hw_desc: Hardware descriptor to be cleared
+ *
+ * Return: void
+ */
+static inline void hal_tx_desc_clear(void *hw_desc)
+{
+	qdf_mem_set(hw_desc + sizeof(struct tlv_32_hdr),
+		    HAL_TX_DESC_LEN_BYTES, 0);
+}
+
 /**
  * hal_tx_desc_sync - Commit the descriptor to Hardware
  * @hal_tx_des_cached: Cached descriptor that software maintains

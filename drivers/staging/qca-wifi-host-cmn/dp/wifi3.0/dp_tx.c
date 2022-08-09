@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -57,6 +58,8 @@
 
 /* invalid peer id for reinject*/
 #define DP_INVALID_PEER 0XFFFE
+
+#define DP_RETRY_COUNT 7
 
 /*mapping between hal encrypt type and cdp_sec_type*/
 #define MAX_CDP_SEC_TYPE 12
@@ -1562,6 +1565,36 @@ dp_tx_hw_desc_update_evt(uint8_t *hal_tx_desc_cached,
 }
 #endif
 
+#if defined(CLEAR_SW2TCL_CONSUMED_DESC)
+/**
+ * dp_tx_clear_consumed_hw_descs - Reset all the consumed Tx ring descs to 0
+ *
+ * @soc: DP soc handle
+ * @hal_ring_hdl: Source ring pointer
+ *
+ * Return: void
+ */
+static inline
+void dp_tx_clear_consumed_hw_descs(struct dp_soc *soc,
+				   hal_ring_handle_t hal_ring_hdl)
+{
+	void *desc = hal_srng_src_get_next_consumed(soc->hal_soc, hal_ring_hdl);
+
+	while (desc) {
+		hal_tx_desc_clear(desc);
+		desc = hal_srng_src_get_next_consumed(soc->hal_soc,
+						      hal_ring_hdl);
+	}
+}
+
+#else
+static inline
+void dp_tx_clear_consumed_hw_descs(struct dp_soc *soc,
+				   hal_ring_handle_t hal_ring_hdl)
+{
+}
+#endif /* CLEAR_SW2TCL_CONSUMED_DESC */
+
 /**
  * dp_tx_hw_enqueue() - Enqueue to TCL HW for transmit
  * @soc: DP Soc Handle
@@ -1664,9 +1697,8 @@ dp_tx_hw_enqueue(struct dp_soc *soc, struct dp_vdev *vdev,
 		hal_tx_desc_set_to_fw(hal_tx_desc_cached, 1);
 
 	/* verify checksum offload configuration*/
-	if (vdev->csum_enabled &&
-	    ((qdf_nbuf_get_tx_cksum(tx_desc->nbuf) == QDF_NBUF_TX_CKSUM_TCP_UDP)
-		|| qdf_nbuf_is_tso(tx_desc->nbuf)))  {
+	if ((qdf_nbuf_get_tx_cksum(tx_desc->nbuf) == QDF_NBUF_TX_CKSUM_TCP_UDP)
+		|| qdf_nbuf_is_tso(tx_desc->nbuf))  {
 		hal_tx_desc_set_l3_checksum_en(hal_tx_desc_cached, 1);
 		hal_tx_desc_set_l4_checksum_en(hal_tx_desc_cached, 1);
 	}
@@ -1696,6 +1728,8 @@ dp_tx_hw_enqueue(struct dp_soc *soc, struct dp_vdev *vdev,
 		DP_STATS_INC(vdev, tx_i.dropped.enqueue_fail, 1);
 		return status;
 	}
+
+	dp_tx_clear_consumed_hw_descs(soc, hal_ring_hdl);
 
 	/* Sync cached descriptor with HW */
 
@@ -2514,7 +2548,6 @@ qdf_nbuf_t dp_tx_send_msdu_multiple(struct dp_vdev *vdev, qdf_nbuf_t nbuf,
 				    tid_tx_stats[tx_q->ring_id][msdu_info->tid];
 			tid_stats->swdrop_cnt[TX_HW_ENQUEUE]++;
 
-			dp_tx_desc_release(tx_desc, tx_q->desc_pool_id);
 			if (msdu_info->frm_type == dp_tx_frm_me) {
 				hw_enq_fail++;
 				if (hw_enq_fail == msdu_info->num_seg) {
@@ -2540,6 +2573,7 @@ qdf_nbuf_t dp_tx_send_msdu_multiple(struct dp_vdev *vdev, qdf_nbuf_t nbuf,
 						msdu_info->u.sg_info
 						.curr_seg->next;
 				i++;
+				dp_tx_desc_release(tx_desc, tx_q->desc_pool_id);
 				continue;
 			}
 
@@ -2556,9 +2590,11 @@ qdf_nbuf_t dp_tx_send_msdu_multiple(struct dp_vdev *vdev, qdf_nbuf_t nbuf,
 				 */
 				dp_tx_comp_free_buf(soc, tx_desc);
 				i++;
+				dp_tx_desc_release(tx_desc, tx_q->desc_pool_id);
 				continue;
 			}
 
+			dp_tx_desc_release(tx_desc, tx_q->desc_pool_id);
 			goto done;
 		}
 
@@ -4087,6 +4123,12 @@ dp_tx_update_peer_stats(struct dp_tx_desc_s *tx_desc,
 			     &peer->stats, ts->peer_id,
 			     UPDATE_PEER_STATS, pdev->pdev_id);
 #endif
+	if (ts->first_msdu) {
+		DP_STATS_INCC(peer, tx.mpdu_success_with_retries,
+			      qdf_do_div(ts->transmit_cnt, DP_RETRY_COUNT),
+			      ts->transmit_cnt > DP_RETRY_COUNT);
+		DP_STATS_INCC(peer, tx.retries_mpdu, 1, ts->transmit_cnt > 1);
+	}
 }
 
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
@@ -4358,6 +4400,138 @@ void dp_tx_update_connectivity_stats(struct dp_soc *soc,
 }
 #endif
 
+#ifdef WLAN_FEATURE_TSF_UPLINK_DELAY
+void dp_set_delta_tsf(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
+		      uint32_t delta_tsf)
+{
+	struct dp_soc *soc = cdp_soc_t_to_dp_soc(soc_hdl);
+	struct dp_vdev *vdev = dp_vdev_get_ref_by_id(soc, vdev_id,
+						     DP_MOD_ID_CDP);
+
+	if (!vdev) {
+		dp_err_rl("vdev %d does not exist", vdev_id);
+		return;
+	}
+
+	vdev->delta_tsf = delta_tsf;
+	dp_debug("vdev id %u delta_tsf %u", vdev_id, delta_tsf);
+
+	dp_vdev_unref_delete(soc, vdev, DP_MOD_ID_CDP);
+}
+
+QDF_STATUS dp_set_tsf_ul_delay_report(struct cdp_soc_t *soc_hdl,
+				      uint8_t vdev_id, bool enable)
+{
+	struct dp_soc *soc = cdp_soc_t_to_dp_soc(soc_hdl);
+	struct dp_vdev *vdev = dp_vdev_get_ref_by_id(soc, vdev_id,
+						     DP_MOD_ID_CDP);
+
+	if (!vdev) {
+		dp_err_rl("vdev %d does not exist", vdev_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	qdf_atomic_set(&vdev->ul_delay_report, enable);
+
+	dp_vdev_unref_delete(soc, vdev, DP_MOD_ID_CDP);
+
+	return QDF_STATUS_SUCCESS;
+}
+
+QDF_STATUS dp_get_uplink_delay(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
+			       uint32_t *val)
+{
+	struct dp_soc *soc = cdp_soc_t_to_dp_soc(soc_hdl);
+	struct dp_vdev *vdev;
+	uint32_t delay_accum;
+	uint32_t pkts_accum;
+
+	vdev = dp_vdev_get_ref_by_id(soc, vdev_id, DP_MOD_ID_CDP);
+	if (!vdev) {
+		dp_err_rl("vdev %d does not exist", vdev_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	if (!qdf_atomic_read(&vdev->ul_delay_report)) {
+		dp_vdev_unref_delete(soc, vdev, DP_MOD_ID_CDP);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	/* Average uplink delay based on current accumulated values */
+	delay_accum = qdf_atomic_read(&vdev->ul_delay_accum);
+	pkts_accum = qdf_atomic_read(&vdev->ul_pkts_accum);
+
+	*val = delay_accum / pkts_accum;
+	dp_debug("uplink_delay %u delay_accum %u pkts_accum %u", *val,
+		 delay_accum, pkts_accum);
+
+	/* Reset accumulated values to 0 */
+	qdf_atomic_set(&vdev->ul_delay_accum, 0);
+	qdf_atomic_set(&vdev->ul_pkts_accum, 0);
+
+	dp_vdev_unref_delete(soc, vdev, DP_MOD_ID_CDP);
+
+	return QDF_STATUS_SUCCESS;
+}
+
+static void dp_tx_update_uplink_delay(struct dp_soc *soc, struct dp_vdev *vdev,
+				      struct hal_tx_completion_status *ts)
+{
+	uint32_t buffer_ts;
+	uint32_t delta_tsf;
+	uint32_t ul_delay;
+
+	/* Tx_rate_stats_info_valid is 0 and tsf is invalid then */
+	if (!ts->valid)
+		return;
+
+	if (qdf_unlikely(!vdev)) {
+		dp_info_rl("vdev is null or delete in progrss");
+		return;
+	}
+
+	if (!qdf_atomic_read(&vdev->ul_delay_report))
+		return;
+
+	delta_tsf = vdev->delta_tsf;
+
+	/* buffer_timestamp is in units of 1024 us and is [31:13] of
+	 * WBM_RELEASE_RING_4. After left shift 10 bits, it's
+	 * valid up to 29 bits.
+	 */
+	buffer_ts = ts->buffer_timestamp << 10;
+
+	ul_delay = ts->tsf - buffer_ts - delta_tsf;
+	ul_delay &= 0x1FFFFFFF; /* mask 29 BITS */
+	if (ul_delay > 0x1000000) {
+		dp_info_rl("----------------------\n"
+			   "Tx completion status:\n"
+			   "----------------------\n"
+			   "release_src = %d\n"
+			   "ppdu_id = 0x%x\n"
+			   "release_reason = %d\n"
+			   "tsf = %u (0x%x)\n"
+			   "buffer_timestamp = %u (0x%x)\n"
+			   "delta_tsf = %u (0x%x)\n",
+			   ts->release_src, ts->ppdu_id, ts->status,
+			   ts->tsf, ts->tsf, ts->buffer_timestamp,
+			   ts->buffer_timestamp, delta_tsf, delta_tsf);
+		return;
+	}
+
+	ul_delay /= 1000; /* in unit of ms */
+
+	qdf_atomic_add(ul_delay, &vdev->ul_delay_accum);
+	qdf_atomic_inc(&vdev->ul_pkts_accum);
+}
+#else /* !WLAN_FEATURE_TSF_UPLINK_DELAY */
+static inline
+void dp_tx_update_uplink_delay(struct dp_soc *soc, struct dp_vdev *vdev,
+			       struct hal_tx_completion_status *ts)
+{
+}
+#endif /* WLAN_FEATURE_TSF_UPLINK_DELAY */
+
 /**
  * dp_tx_comp_process_tx_status() - Parse and Dump Tx completion status info
  * @soc: DP soc handle
@@ -4438,6 +4612,7 @@ void dp_tx_comp_process_tx_status(struct dp_soc *soc,
 	vdev = peer->vdev;
 
 	dp_tx_update_connectivity_stats(soc, vdev, tx_desc, ts->status);
+	dp_tx_update_uplink_delay(soc, vdev, ts);
 
 	/* Update per-packet stats for mesh mode */
 	if (qdf_unlikely(vdev->mesh_vdev) &&
@@ -4868,6 +5043,7 @@ more_data:
 				 !tx_desc->flags)) {
 				dp_info_rl("Descriptor freed in vdev_detach %d",
 					   tx_desc_id);
+				DP_STATS_INC(soc, tx.tx_comp_exception, 1);
 				continue;
 			}
 
@@ -4975,30 +5151,6 @@ qdf_nbuf_t dp_tx_non_std(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
 }
 #endif
 
-static void dp_tx_vdev_update_feature_flags(struct dp_vdev *vdev)
-{
-	struct wlan_cfg_dp_soc_ctxt *cfg;
-
-	struct dp_soc *soc;
-
-	soc = vdev->pdev->soc;
-	if (!soc)
-		return;
-
-	cfg = soc->wlan_cfg_ctx;
-	if (!cfg)
-		return;
-
-	if (vdev->opmode == wlan_op_mode_ndi)
-		vdev->csum_enabled = wlan_cfg_get_nan_checksum_offload(cfg);
-	else if ((vdev->subtype == wlan_op_subtype_p2p_device) ||
-		 (vdev->subtype == wlan_op_subtype_p2p_cli) ||
-		 (vdev->subtype == wlan_op_subtype_p2p_go))
-		vdev->csum_enabled = wlan_cfg_get_p2p_checksum_offload(cfg);
-	else
-		vdev->csum_enabled = wlan_cfg_get_checksum_offload(cfg);
-}
-
 /**
  * dp_tx_vdev_attach() - attach vdev to dp tx
  * @vdev: virtual device instance
@@ -5029,8 +5181,6 @@ QDF_STATUS dp_tx_vdev_attach(struct dp_vdev *vdev)
 	HTT_TX_TCL_METADATA_VALID_HTT_SET(vdev->htt_tcl_metadata, 0);
 
 	dp_tx_vdev_update_search_flags(vdev);
-
-	dp_tx_vdev_update_feature_flags(vdev);
 
 	return QDF_STATUS_SUCCESS;
 }

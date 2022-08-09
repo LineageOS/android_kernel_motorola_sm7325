@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -302,6 +303,7 @@ struct extscan_def_config {
  * @skip_dfs_chan_in_p2p_search: Skip DFS channels in p2p search.
  * @use_wake_lock_in_user_scan: if wake lock will be acquired during user scan
  * @active_dwell_2g: default active dwell time for 2G channels, if it's not zero
+ * @min_dwell_time_6g: default min dwell time for 6G channels
  * @active_dwell_6g: default active dwell time for 6G channels
  * @passive_dwell_6g: default passive dwell time for 6G channels
  * @active_dwell_time_6g_conc: default concurrent active dwell time for 6G
@@ -340,6 +342,8 @@ struct extscan_def_config {
  * @adaptive_dwell_time_mode_nc: adaptive dwell mode without connection
  * @honour_nl_scan_policy_flags: honour nl80211 scan policy flags
  * @extscan_adaptive_dwell_mode: Adaptive dwell mode during ext scan
+ * @skip_6g_and_indoor_freq: skip 6Ghz and 5Gh indoor freq channel for
+ * STA scan if hw is non-DBS and SAP is present
  * @scan_f_passive: passively scan all channels including active channels
  * @scan_f_bcast_probe: add wild card ssid prbreq even if ssid_list is specified
  * @scan_f_cck_rates: add cck rates to rates/xrates ie in prb req
@@ -391,6 +395,7 @@ struct scan_default_params {
 	bool skip_dfs_chan_in_p2p_search;
 	bool use_wake_lock_in_user_scan;
 	uint32_t active_dwell_2g;
+	uint32_t min_dwell_time_6g;
 	uint32_t active_dwell_6g;
 	uint32_t passive_dwell_6g;
 	uint32_t active_dwell_time_6g_conc;
@@ -430,6 +435,7 @@ struct scan_default_params {
 	enum scan_dwelltime_adaptive_mode adaptive_dwell_time_mode_nc;
 	bool honour_nl_scan_policy_flags;
 	enum scan_dwelltime_adaptive_mode extscan_adaptive_dwell_mode;
+	bool skip_6g_and_indoor_freq;
 	union {
 		struct {
 			uint32_t scan_f_passive:1,

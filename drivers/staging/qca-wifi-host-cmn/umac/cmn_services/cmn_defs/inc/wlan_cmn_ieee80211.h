@@ -210,8 +210,16 @@
 #define WLAN_HE_6GHZ_CHWIDTH_160_80_80    3 /* 160/80+80 MHz Oper Ch width */
 
 #define WLAN_RATE_VAL              0x7f
+#define WLAN_BASIC_RATE_MASK       0x80
 
 #define WLAN_RV(v)     ((v) & WLAN_RATE_VAL)
+
+#define WLAN_BSS_MEMBERSHIP_SELECTOR_HT_PHY       127
+#define WLAN_BSS_MEMBERSHIP_SELECTOR_VHT_PHY      126
+#define WLAN_BSS_MEMBERSHIP_SELECTOR_GLK          125
+#define WLAN_BSS_MEMBERSHIP_SELECTOR_EPD          124
+#define WLAN_BSS_MEMBERSHIP_SELECTOR_SAE_H2E      123
+#define WLAN_BSS_MEMBERSHIP_SELECTOR_HE_PHY       122
 
 #define WLAN_CHAN_IS_5GHZ(chanidx) \
 	((chanidx > 30) ? true : false)
@@ -436,6 +444,7 @@ enum element_ie {
  * @WLAN_EXTN_ELEMID_HECAP:  HE capabilities IE
  * @WLAN_EXTN_ELEMID_HEOP:   HE Operation IE
  * @WLAN_EXTN_ELEMID_MUEDCA: MU-EDCA IE
+ * @WLAN_EXTN_ELEMID_NONINHERITANCE: Non inheritance IE
  * @WLAN_EXTN_ELEMID_HE_6G_CAP: HE 6GHz Band Capabilities IE
  * @WLAN_EXTN_ELEMID_SRP:    spatial reuse parameter IE
  */
@@ -445,6 +454,7 @@ enum extn_element_ie {
 	WLAN_EXTN_ELEMID_HEOP        = 36,
 	WLAN_EXTN_ELEMID_MUEDCA      = 38,
 	WLAN_EXTN_ELEMID_SRP         = 39,
+	WLAN_EXTN_ELEMID_NONINHERITANCE = 56,
 	WLAN_EXTN_ELEMID_HE_6G_CAP   = 59,
 	WLAN_EXTN_ELEMID_ESP         = 11,
 };

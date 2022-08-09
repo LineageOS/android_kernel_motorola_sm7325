@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -132,7 +133,7 @@ static void scm_add_rnr_channel_db(struct wlan_objmgr_psoc *psoc,
 			continue;
 		chan_freq = wlan_reg_chan_opclass_to_freq(rnr_bss->channel_number,
 							  rnr_bss->operating_class,
-							  false);
+							  true);
 		channel = scm_get_chan_meta(psoc, chan_freq);
 		if (!channel) {
 			scm_debug("Failed to get chan Meta freq %d", chan_freq);
@@ -155,11 +156,66 @@ static void scm_add_rnr_channel_db(struct wlan_objmgr_psoc *psoc,
 				     QDF_MAC_ADDR_SIZE);
 		if (rnr_bss->short_ssid)
 			rnr_node->entry.short_ssid = rnr_bss->short_ssid;
+		if (rnr_bss->bss_params)
+			rnr_node->entry.bss_params = rnr_bss->bss_params;
 		scm_debug("Add freq %d: "QDF_MAC_ADDR_FMT" short ssid %x", chan_freq,
 			  QDF_MAC_ADDR_REF(rnr_bss->bssid.bytes),
 			  rnr_bss->short_ssid);
 		qdf_list_insert_back(&channel->rnr_list,
 				     &rnr_node->node);
+	}
+}
+
+void scm_filter_rnr_flag_pno(struct wlan_objmgr_vdev *vdev,
+			     uint32_t short_ssid,
+			     struct chan_list *pno_chan_list)
+{
+	uint8_t i;
+	uint32_t freq;
+	struct meta_rnr_channel *chan;
+	struct scan_rnr_node *rnr_node;
+	enum scan_mode_6ghz scan_mode;
+	struct wlan_scan_obj *scan_obj;
+	struct wlan_objmgr_psoc *psoc;
+
+	psoc = wlan_vdev_get_psoc(vdev);
+	if (!psoc)
+		return;
+
+	scan_obj = wlan_vdev_get_scan_obj(vdev);
+	if (!scan_obj) {
+		scm_err("scan_obj is NULL");
+		return;
+	}
+
+	scan_mode = scan_obj->scan_def.scan_mode_6g;
+	/* No Filteration required for below scan modes since
+	 * no RNR flag marked
+	 */
+	if (scan_mode == SCAN_MODE_6G_NO_CHANNEL ||
+	    scan_mode == SCAN_MODE_6G_ALL_CHANNEL ||
+	    scan_mode == SCAN_MODE_6G_ALL_DUTY_CYCLE)
+		return;
+
+	for (i = 0; i < pno_chan_list->num_chan; i++) {
+		freq = pno_chan_list->chan[i].freq;
+
+		chan = scm_get_chan_meta(psoc, freq);
+		if (!chan || qdf_list_empty(&chan->rnr_list))
+			continue;
+
+		qdf_list_for_each(&chan->rnr_list, rnr_node, node) {
+			if (rnr_node->entry.short_ssid) {
+				if (rnr_node->entry.short_ssid == short_ssid) {
+			/* If short ssid entry present in RNR db cache, remove
+			 * FLAG_SCAN_ONLY_IF_RNR_FOUND flag from the channel.
+			 */
+					pno_chan_list->chan[i].flags &=
+						~FLAG_SCAN_ONLY_IF_RNR_FOUND;
+					break;
+				}
+			}
+		}
 	}
 }
 #endif
@@ -906,6 +962,40 @@ static QDF_STATUS scm_add_update_entry(struct wlan_objmgr_psoc *psoc,
 	return QDF_STATUS_SUCCESS;
 }
 
+#ifdef CONFIG_REG_CLIENT
+/**
+ * scm_is_bss_allowed_for_country() - Check if bss is allowed to start for a
+ * specific country and power mode (VLP?LPI/SP) for 6GHz.
+ * @psoc: psoc ptr
+ * @scan_entry: ptr to scan entry
+ *
+ * Return: True if allowed, False if not.
+ */
+static bool scm_is_bss_allowed_for_country(struct wlan_objmgr_psoc *psoc,
+					   struct scan_cache_entry *scan_entry)
+{
+	struct wlan_country_ie *cc_ie;
+	uint8_t programmed_country[REG_ALPHA2_LEN + 1];
+
+	if (wlan_reg_is_6ghz_chan_freq(scan_entry->channel.chan_freq)) {
+		cc_ie = util_scan_entry_country(scan_entry);
+		wlan_reg_read_current_country(psoc, programmed_country);
+		if (cc_ie && qdf_mem_cmp(cc_ie->cc, programmed_country,
+					 REG_ALPHA2_LEN)) {
+			if (wlan_reg_is_us(programmed_country))
+				return false;
+		}
+	}
+	return true;
+}
+#else
+static bool scm_is_bss_allowed_for_country(struct wlan_objmgr_psoc *psoc,
+					   struct scan_cache_entry *scan_entry)
+{
+	return true;
+}
+#endif
+
 QDF_STATUS __scm_handle_bcn_probe(struct scan_bcn_probe_event *bcn)
 {
 	struct wlan_objmgr_psoc *psoc;
@@ -1070,6 +1160,22 @@ QDF_STATUS __scm_handle_bcn_probe(struct scan_bcn_probe_event *bcn)
 		}
 		if (scan_obj->cb.update_beacon)
 			scan_obj->cb.update_beacon(pdev, scan_entry);
+
+		/**
+		 * Do not drop the frame if Wi-Fi safe mode or RF test mode is
+		 * enabled. wlan_cm_get_check_6ghz_security API returns true if
+		 * neither Safe mode nor RF test mode are enabled.
+		 */
+		if (!scm_is_bss_allowed_for_country(psoc, scan_entry) &&
+		    wlan_cm_get_check_6ghz_security(psoc)) {
+			scm_info_rl(
+				"Drop frame from "QDF_MAC_ADDR_FMT
+				": AP in VLP mode not supported for US",
+				QDF_MAC_ADDR_REF(scan_entry->bssid.bytes));
+			util_scan_free_cache_entry(scan_entry);
+			qdf_mem_free(scan_node);
+			continue;
+		}
 
 		status = scm_add_update_entry(psoc, pdev, scan_entry);
 		if (QDF_IS_STATUS_ERROR(status)) {

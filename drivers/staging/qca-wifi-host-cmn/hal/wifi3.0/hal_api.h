@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -455,8 +456,7 @@ static inline void hal_srng_write_address_32_mb(struct hal_soc *hal_soc,
 {
 	qdf_iowrite32(addr, value);
 }
-#elif defined(FEATURE_HAL_DELAYED_REG_WRITE) || \
-	defined(FEATURE_HAL_DELAYED_REG_WRITE_V2)
+#elif defined(FEATURE_HAL_DELAYED_REG_WRITE)
 static inline void hal_srng_write_address_32_mb(struct hal_soc *hal_soc,
 						struct hal_srng *srng,
 						void __iomem *addr,
@@ -778,8 +778,7 @@ static inline void hal_write32_mb_confirm_retry(struct hal_soc *hal_soc,
 }
 #endif /* GENERIC_SHADOW_REGISTER_ACCESS_ENABLE */
 
-#if defined(FEATURE_HAL_DELAYED_REG_WRITE) || \
-	defined(FEATURE_HAL_DELAYED_REG_WRITE_V2)
+#if defined(FEATURE_HAL_DELAYED_REG_WRITE)
 /**
  * hal_dump_reg_write_srng_stats() - dump SRNG reg write stats
  * @hal_soc: HAL soc handle
@@ -1764,6 +1763,47 @@ void hal_get_sw_hptp(void *hal_soc, hal_ring_handle_t hal_ring_hdl,
 	}
 }
 
+#if defined(CLEAR_SW2TCL_CONSUMED_DESC)
+/**
+ * hal_srng_src_get_next_consumed - Get the next desc if consumed by HW
+ *
+ * @hal_soc: Opaque HAL SOC handle
+ * @hal_ring_hdl: Source ring pointer
+ *
+ * Return: pointer to descriptor if consumed by HW, else NULL
+ */
+static inline
+void *hal_srng_src_get_next_consumed(void *hal_soc,
+				     hal_ring_handle_t hal_ring_hdl)
+{
+	struct hal_srng *srng = (struct hal_srng *)hal_ring_hdl;
+	uint32_t *desc = NULL;
+	/* TODO: Using % is expensive, but we have to do this since
+	 * size of some SRNG rings is not power of 2 (due to descriptor
+	 * sizes). Need to create separate API for rings used
+	 * per-packet, with sizes power of 2 (TCL2SW, REO2SW,
+	 * SW2RXDMA and CE rings)
+	 */
+	uint32_t next_entry = (srng->last_desc_cleared + srng->entry_size) %
+			      srng->ring_size;
+
+	if (next_entry != srng->u.src_ring.cached_tp) {
+		desc = &srng->ring_base_vaddr[next_entry];
+		srng->last_desc_cleared = next_entry;
+	}
+
+	return desc;
+}
+
+#else
+static inline
+void *hal_srng_src_get_next_consumed(void *hal_soc,
+				     hal_ring_handle_t hal_ring_hdl)
+{
+	return NULL;
+}
+#endif /* CLEAR_SW2TCL_CONSUMED_DESC */
+
 /**
  * hal_srng_src_get_next - Get next entry from a source ring and move cached tail pointer
  *
@@ -2376,6 +2416,15 @@ void hal_compute_reo_remap_ix2_ix3(hal_soc_handle_t hal_soc_hdl,
 
 	return hal_soc->ops->hal_compute_reo_remap_ix2_ix3(ring,
 					num_rings, remap1, remap2);
+}
+
+static inline
+void hal_compute_reo_remap_ix0(hal_soc_handle_t hal_soc_hdl, uint32_t *remap0)
+{
+	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
+
+	if (hal_soc->ops->hal_compute_reo_remap_ix0)
+		hal_soc->ops->hal_compute_reo_remap_ix0(remap0);
 }
 
 /**

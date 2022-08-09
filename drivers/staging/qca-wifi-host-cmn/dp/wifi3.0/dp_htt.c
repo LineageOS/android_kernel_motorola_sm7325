@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -4094,6 +4095,45 @@ static struct ppdu_info *dp_htt_process_tlv(struct dp_pdev *pdev,
 }
 #endif /* FEATURE_PERPKT_INFO */
 
+#ifdef WLAN_FEATURE_PKT_CAPTURE_V2
+static void dp_htt_process_stats_tlv(struct dp_soc *soc,
+				     qdf_nbuf_t htt_t2h_msg)
+{
+	uint32_t length;
+	uint8_t tlv_type;
+	uint32_t tlv_length, tlv_expected_size;
+	uint8_t *tlv_buf;
+
+	uint32_t *msg_word = (uint32_t *) qdf_nbuf_data(htt_t2h_msg);
+
+	length = HTT_T2H_PPDU_STATS_PAYLOAD_SIZE_GET(*msg_word);
+
+	msg_word = msg_word + 4;
+
+	while (length > 0) {
+		tlv_buf = (uint8_t *)msg_word;
+		tlv_type = HTT_STATS_TLV_TAG_GET(*msg_word);
+		tlv_length = HTT_STATS_TLV_LENGTH_GET(*msg_word);
+
+		if (tlv_length == 0)
+			break;
+
+		tlv_length += HTT_TLV_HDR_LEN;
+
+		if (tlv_type == HTT_PPDU_STATS_FOR_SMU_TLV) {
+			tlv_expected_size = sizeof(htt_ppdu_stats_for_smu_tlv);
+
+			if (tlv_length >= tlv_expected_size)
+				dp_wdi_event_handler(
+					WDI_EVENT_PKT_CAPTURE_PPDU_STATS,
+					soc, msg_word, HTT_INVALID_VDEV,
+					WDI_NO_VAL, 0);
+		}
+		msg_word = (uint32_t *)((uint8_t *)tlv_buf + tlv_length);
+		length -= (tlv_length);
+	}
+}
+#endif
 /**
  * dp_txrx_ppdu_stats_handler() - Function to process HTT PPDU stats from FW
  * @soc: DP SOC handle
@@ -4139,6 +4179,15 @@ static bool dp_txrx_ppdu_stats_handler(struct dp_soc *soc,
 	pdev->mgmtctrl_frm_info.ppdu_id = 0;
 
 	return free_buf;
+}
+#elif defined(WLAN_FEATURE_PKT_CAPTURE_V2)
+static bool dp_txrx_ppdu_stats_handler(struct dp_soc *soc,
+				       uint8_t pdev_id, qdf_nbuf_t htt_t2h_msg)
+{
+	if (wlan_cfg_get_pkt_capture_mode(soc->wlan_cfg_ctx))
+		dp_htt_process_stats_tlv(soc, htt_t2h_msg);
+
+	return true;
 }
 #else
 static bool dp_txrx_ppdu_stats_handler(struct dp_soc *soc,
@@ -4536,7 +4585,7 @@ static void dp_htt_t2h_msg_handler(void *context, HTC_PACKET *pkt)
 				(u_int8_t *) (msg_word+1),
 				&mac_addr_deswizzle_buf[0]);
 			QDF_TRACE(QDF_MODULE_ID_TXRX,
-				QDF_TRACE_LEVEL_INFO,
+				QDF_TRACE_LEVEL_DEBUG,
 				"HTT_T2H_MSG_TYPE_PEER_MAP msg for peer id %d vdev id %d n",
 				peer_id, vdev_id);
 
@@ -4660,6 +4709,12 @@ static void dp_htt_t2h_msg_handler(void *context, HTC_PACKET *pkt)
 					peer->mac_addr.raw, peer->vdev->vdev_id,
 					0, tid, 0, win_sz + 1, 0xffff);
 
+				dp_addba_resp_tx_completion_wifi3(
+					(struct cdp_soc_t *)soc->dp_soc,
+					peer->mac_addr.raw, peer->vdev->vdev_id,
+					tid,
+					status);
+
 				/*
 				 * If PEER_LOCK_REF_PROTECT enbled dec ref
 				 * which is inc by dp_peer_get_ref_by_id
@@ -4744,7 +4799,7 @@ static void dp_htt_t2h_msg_handler(void *context, HTC_PACKET *pkt)
 			HTT_RX_PEER_MAP_V2_TID_VALID_HI_PRI_GET(*(msg_word + 5));
 
 			QDF_TRACE(QDF_MODULE_ID_TXRX,
-				  QDF_TRACE_LEVEL_INFO,
+				  QDF_TRACE_LEVEL_DEBUG,
 				  "HTT_T2H_MSG_TYPE_PEER_MAP msg for peer id %d vdev id %d n",
 				  peer_id, vdev_id);
 

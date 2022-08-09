@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -83,6 +84,20 @@ QDF_STATUS wlan_reg_get_max_5g_bw_from_regdomain(uint16_t regdmn,
 	 */
 	return reg_get_max_5g_bw_from_regdomain(regdmn, max_bw_5g);
 }
+
+#ifdef CONFIG_REG_CLIENT
+QDF_STATUS
+wlan_reg_get_6g_power_type_for_ctry(struct wlan_objmgr_psoc *psoc,
+				    uint8_t *ap_ctry, uint8_t *sta_ctry,
+				    enum reg_6g_ap_type *pwr_type_6g,
+				    bool *ctry_code_match,
+				    enum reg_6g_ap_type ap_pwr_type)
+{
+	return reg_get_6g_power_type_for_ctry(psoc, ap_ctry, sta_ctry,
+					      pwr_type_6g, ctry_code_match,
+					      ap_pwr_type);
+}
+#endif
 
 #ifdef CONFIG_CHAN_NUM_API
 /**
@@ -465,6 +480,16 @@ regulatory_assign_unregister_master_ext_handler(struct wlan_objmgr_psoc *psoc,
 	if (tx_ops->unregister_master_ext_handler)
 		tx_ops->unregister_master_ext_handler(psoc, NULL);
 }
+
+QDF_STATUS wlan_reg_get_6g_ap_master_chan_list(
+					struct wlan_objmgr_pdev *pdev,
+					enum reg_6g_ap_type ap_pwr_type,
+					struct regulatory_channel *chan_list)
+{
+	return  reg_get_6g_ap_master_chan_list(pdev, ap_pwr_type, chan_list);
+}
+
+qdf_export_symbol(wlan_reg_get_6g_ap_master_chan_list);
 #else
 static inline void
 regulatory_assign_register_master_ext_handler(struct wlan_objmgr_psoc *psoc,

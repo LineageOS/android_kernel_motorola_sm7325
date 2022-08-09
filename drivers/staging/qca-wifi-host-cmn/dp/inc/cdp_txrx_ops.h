@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
- *
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -56,6 +56,17 @@ enum cdp_nac_param_cmd {
 	CDP_NAC_PARAM_DEL,
 	/* IEEE80211_NAC_PARAM_LIST */
 	CDP_NAC_PARAM_LIST,
+};
+
+#define CDP_DELBA_INTERVAL_MS 3000
+/**
+ * enum cdp_delba_rcode - CDP reason code for sending DELBA
+ * @CDP_DELBA_REASON_NONE: None
+ * @CDP_DELBA_2K_JUMP: Sending DELBA from 2k_jump_handle
+ */
+enum cdp_delba_rcode {
+	CDP_DELBA_REASON_NONE = 0,
+	CDP_DELBA_2K_JUMP,
 };
 
 /**
@@ -547,6 +558,13 @@ struct cdp_cmn_ops {
 	QDF_STATUS (*set_vdev_pcp_tid_map)(struct cdp_soc_t *soc,
 					   uint8_t vdev_id,
 					   uint8_t pcp, uint8_t tid);
+#ifdef DP_RX_UDP_OVER_PEER_ROAM
+	QDF_STATUS (*txrx_update_roaming_peer)(struct cdp_soc_t *soc,
+					       uint8_t vdev_id,
+					       uint8_t *peer_mac,
+					       uint32_t auth_status);
+#endif
+
 #ifdef QCA_MULTIPASS_SUPPORT
 	QDF_STATUS (*set_vlan_groupkey)(struct cdp_soc_t *soc, uint8_t vdev_id,
 					uint16_t vlan_id, uint16_t group_key);
@@ -567,6 +585,9 @@ struct cdp_cmn_ops {
 					  ol_osif_peer_handle osif_peer);
 #endif /* QCA_SUPPORT_WDS_EXTENDED */
 	void (*txrx_drain)(ol_txrx_soc_handle soc);
+#ifdef WLAN_FEATURE_PKT_CAPTURE_V2
+	void (*set_pkt_capture_mode)(struct cdp_soc_t *soc, bool val);
+#endif
 };
 
 struct cdp_ctrl_ops {
@@ -779,6 +800,17 @@ struct cdp_ctrl_ops {
 	int (*txrx_get_peer_protocol_drop_mask)(struct cdp_soc_t *soc,
 						int8_t vdev_id);
 
+#endif
+
+#ifdef WLAN_FEATURE_TSF_UPLINK_DELAY
+	void (*txrx_set_delta_tsf)(struct cdp_soc_t *soc, uint8_t vdev_id,
+				   uint32_t delta_tsf);
+	QDF_STATUS (*txrx_set_tsf_ul_delay_report)(struct cdp_soc_t *soc,
+						   uint8_t vdev_id,
+						   bool enable);
+	QDF_STATUS (*txrx_get_uplink_delay)(struct cdp_soc_t *soc,
+					    uint8_t vdev_id,
+					    uint32_t *val);
 #endif
 };
 
@@ -1097,12 +1129,14 @@ struct ol_if_ops {
 	 * @vdev_id: dp vdev id
 	 * @peer_macaddr: Peer mac addr
 	 * @tid: Tid number
+	 * @reason_code: Reason code
+	 * @cdp_rcode: CDP reason code for sending DELBA
 	 *
 	 * Return: 0 for success, non-zero for failure
 	 */
 	int (*send_delba)(struct cdp_ctrl_objmgr_psoc *psoc, uint8_t vdev_id,
 			  uint8_t *peer_macaddr, uint8_t tid,
-			  uint8_t reason_code);
+			  uint8_t reason_code, uint8_t cdp_rcode);
 
 	int
 	(*peer_delete_multiple_wds_entries)(struct cdp_ctrl_objmgr_psoc *psoc,
@@ -1252,6 +1286,7 @@ struct cdp_misc_ops {
 			     void *scn);
 	void (*pkt_log_con_service)(struct cdp_soc_t *soc_hdl,
 				    uint8_t pdev_id, void *scn);
+	void (*pkt_log_exit)(struct cdp_soc_t *soc_hdl, uint8_t pdev_id);
 	int (*get_num_rx_contexts)(struct cdp_soc_t *soc_hdl);
 	void (*register_pktdump_cb)(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
 				    ol_txrx_pktdump_cb tx_cb,

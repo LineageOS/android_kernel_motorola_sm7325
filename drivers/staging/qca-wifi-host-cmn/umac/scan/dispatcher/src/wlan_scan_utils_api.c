@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -969,16 +970,17 @@ util_scan_populate_bcn_ie_list(struct wlan_objmgr_pdev *pdev,
 			if (ie->ie_len != WLAN_DS_PARAM_IE_MAX_LEN)
 				return QDF_STATUS_E_INVAL;
 			scan_params->ie_list.ds_param = (uint8_t *)ie;
-			chan_idx =
-				((struct ds_ie *)ie)->cur_chan;
+			chan_idx = ((struct ds_ie *)ie)->cur_chan;
 			*chan_freq = wlan_reg_chan_band_to_freq(pdev, chan_idx,
 								band_mask);
 			/* Drop if invalid freq */
 			if (scan_obj->drop_bcn_on_invalid_freq &&
-			    wlan_reg_is_disable_for_freq(pdev, *chan_freq)) {
-				scm_debug_rl(QDF_MAC_ADDR_FMT": Drop as invalid channel %d freq %d in DS IE",
-					     QDF_MAC_ADDR_REF(scan_params->bssid.bytes),
-					     chan_idx, *chan_freq);
+			    !wlan_reg_is_freq_present_in_cur_chan_list(pdev,
+								*chan_freq)) {
+				scm_debug(QDF_MAC_ADDR_FMT": Drop as invalid chan %d in DS IE, freq %d, band_mask %d",
+					  QDF_MAC_ADDR_REF(
+						  scan_params->bssid.bytes),
+					  chan_idx, *chan_freq, band_mask);
 				return QDF_STATUS_E_INVAL;
 			}
 			break;
@@ -1029,10 +1031,10 @@ util_scan_populate_bcn_ie_list(struct wlan_objmgr_pdev *pdev,
 			scan_params->erp = ((struct erp_ie *)ie)->value;
 			break;
 		case WLAN_ELEMID_HTCAP_ANA:
-			if (ie->ie_len != sizeof(struct htcap_cmn_ie))
-				goto err;
-			scan_params->ie_list.htcap =
+			if (ie->ie_len == sizeof(struct htcap_cmn_ie)) {
+				scan_params->ie_list.htcap =
 				(uint8_t *)&(((struct htcap_ie *)ie)->ie);
+			}
 			break;
 		case WLAN_ELEMID_RSN:
 			/*
@@ -1373,7 +1375,7 @@ util_scan_add_hidden_ssid(struct wlan_objmgr_pdev *pdev, qdf_nbuf_t bcnbuf)
 	uint16_t tmplen, ie_length;
 	uint8_t *pbeacon, *tmp;
 	bool     set_ssid_flag = false;
-	struct ie_ssid *ssid;
+	struct ie_ssid ssid = {0};
 	uint8_t pdev_id;
 
 	if (!pdev) {
@@ -1422,8 +1424,15 @@ util_scan_add_hidden_ssid(struct wlan_objmgr_pdev *pdev, qdf_nbuf_t bcnbuf)
 						 sizeof(struct ie_header))) {
 				return QDF_STATUS_E_INVAL;
 			}
-			ssid = (struct ie_ssid *)ie;
-			if (util_scan_is_hidden_ssid(ssid)) {
+			ssid.ssid_id = ie->ie_id;
+			ssid.ssid_len = ie->ie_len;
+
+			if (ssid.ssid_len)
+				qdf_mem_copy(ssid.ssid,
+					     ie + sizeof(struct ie_header),
+					     ssid.ssid_len);
+
+			if (util_scan_is_hidden_ssid(&ssid)) {
 				set_ssid_flag  = true;
 				ssid_ie_start_offset = bcn_ie_offset -
 					sizeof(struct ie_header);
@@ -1450,7 +1459,7 @@ util_scan_add_hidden_ssid(struct wlan_objmgr_pdev *pdev, qdf_nbuf_t bcnbuf)
 
 	if (set_ssid_flag) {
 		/* Hidden SSID if the Length is 0 */
-		if (!ssid->ssid_len) {
+		if (!ssid.ssid_len) {
 			/* increase the taillength by length of ssid */
 			if (qdf_nbuf_put_tail(bcnbuf,
 					      conf_ssid->length) == NULL) {
@@ -1483,7 +1492,7 @@ util_scan_add_hidden_ssid(struct wlan_objmgr_pdev *pdev, qdf_nbuf_t bcnbuf)
 			qdf_mem_free(tmp);
 
 			/* Hidden ssid with all 0's */
-		} else if (ssid->ssid_len == conf_ssid->length) {
+		} else if (ssid.ssid_len == conf_ssid->length) {
 			/* Insert the  SSID string */
 			qdf_mem_copy((pbeacon + ssid_ie_start_offset +
 				      sizeof(struct ie_header)),
@@ -1748,6 +1757,63 @@ static uint8_t *util_scan_find_ie(uint8_t eid, uint8_t *ies,
 }
 
 #ifdef WLAN_FEATURE_MBSSID
+/*
+ * util_is_noninh_ie() - find the noninhertance information element
+ * in the received frame's IE list, so that we can stop inheriting that IE
+ * in the caller function.
+ *
+ * @elem_id: Element ID in the received frame's IE, which is being processed.
+ * @non_inh_list: pointer to the non inherited list of element IDs or
+ *                list of extension element IDs.
+ * @len: Length of non inheritance IE list
+ *
+ * Return: False if the element ID is not found or else return true
+ */
+static bool util_is_noninh_ie(uint8_t elem_id,
+			      uint8_t *non_inh_list,
+			      int8_t len)
+{
+	int count;
+
+	for (count = 0; count < len; count++) {
+		if (elem_id == non_inh_list[count])
+			return true;
+	}
+
+	return false;
+}
+
+/*
+ * util_scan_find_noninheritance_ie() - find noninheritance information element
+ * This block of code is to identify if there is any non-inheritance element
+ * present as part of the nontransmitted BSSID profile.
+ * @elem_id: element id
+ * @ies: pointer consisting of IEs
+ * @len: IE length
+ *
+ * Return: NULL if the element ID is not found or if IE pointer is NULL else
+ * pointer to the first byte of the requested element
+ */
+static uint8_t
+*util_scan_find_noninheritance_ie(uint8_t elem_id, uint8_t *ies,
+				  int32_t len)
+{
+	if (!ies)
+		return NULL;
+
+	while (len >= MIN_IE_LEN && len >= ies[TAG_LEN_POS] + MIN_IE_LEN) {
+		if ((ies[ID_POS] == elem_id) &&
+		    (ies[ELEM_ID_EXTN_POS] ==
+		     WLAN_EXTN_ELEMID_NONINHERITANCE)) {
+			return ies;
+		}
+		len -= ies[TAG_LEN_POS] + MIN_IE_LEN;
+		ies += ies[TAG_LEN_POS] + MIN_IE_LEN;
+	}
+
+	return NULL;
+}
+
 static void util_gen_new_bssid(uint8_t *bssid, uint8_t max_bssid,
 			       uint8_t mbssid_index,
 			       uint8_t *new_bssid_addr)
@@ -1764,13 +1830,140 @@ static void util_gen_new_bssid(uint8_t *bssid, uint8_t max_bssid,
 	new_bssid_addr[5] |= (lsb_n + mbssid_index) % (1 << max_bssid);
 }
 
+/*
+ * util_parse_noninheritance_list() - This block of code will be executed only
+ * if there is a valid non inheritance IE present in the nontx profile.
+ * Host need not inherit those list of element IDs and list of element ID
+ * extensions from the transmitted BSSID profile.
+ * Since non-inheritance element is an element ID extension, it should
+ * be part of extension element. So first we need to find if there are
+ * any extension element present in the nontransmitted BSSID profile.
+ * @extn_elem: If valid, it points to the element ID field of
+ * extension element tag in the nontransmitted BSSID profile.
+ * It may or may not have non inheritance tag present.
+ *      _____________________________________________
+ *     |         |       |       |List of|List of    |
+ *     | Element |Length |Element|Element|Element ID |
+ *     |  ID     |       |ID extn| IDs   |Extension  |
+ *     |_________|_______|_______|_______|___________|
+ * List of Element IDs:
+ *      __________________
+ *     |         |        |
+ *     |  Length |Element |
+ *     |         |ID List |
+ *     |_________|________|
+ * List of Element ID Extensions:
+ *      __________________________
+ *     |         |                |
+ *     |  Length |Element ID      |
+ *     |         |extension List  |
+ *     |_________|________________|
+ * @elem_list: Element ID list
+ * @extn_elem_list: Element ID exiension list
+ * @non_inheritance_ie: Non inheritance IE information
+ */
+
+static void util_parse_noninheritance_list(uint8_t *extn_elem,
+					   uint8_t **elem_list,
+					   uint8_t **extn_elem_list,
+					   struct non_inheritance_ie *ninh)
+{
+	int8_t extn_rem_len = 0;
+
+	if (extn_elem[ELEM_ID_LIST_LEN_POS] < extn_elem[TAG_LEN_POS]) {
+		/*
+		 * extn_rem_len represents the number of bytes after
+		 * the length subfield of list of Element IDs.
+		 * So here, extn_rem_len should be equal to
+		 * Element ID list + Length subfield of Element ID
+		 * extension list + Element ID extension list.
+		 *
+		 * Here we have taken two pointers pointing to the
+		 * element ID list and element ID extension list
+		 * which we will use to detect the same elements
+		 * in the transmitted BSSID profile and choose not
+		 * to inherit those elements while constructing the
+		 * frame for nontransmitted BSSID profile.
+		 */
+		extn_rem_len = extn_elem[TAG_LEN_POS] - MIN_IE_LEN;
+		ninh->non_inherit = true;
+
+		if (extn_rem_len && extn_elem[ELEM_ID_LIST_LEN_POS]) {
+			if (extn_rem_len >= extn_elem[ELEM_ID_LIST_LEN_POS]) {
+				ninh->list_len =
+					extn_elem[ELEM_ID_LIST_LEN_POS];
+				*elem_list = extn_elem + ELEM_ID_LIST_POS;
+				extn_rem_len -= ninh->list_len;
+			} else {
+				/*
+				 * Corrupt frame. length subfield of
+				 * element ID list is greater than
+				 * what it should be. Go ahead with
+				 * frame generation but do not honour
+				 * the non inheritance part. Also, mark
+				 * the element ID in subcopy as 0, so
+				 * that this element info will not
+				 * be copied.
+				 */
+				ninh->non_inherit = false;
+				extn_elem[0] = 0;
+			}
+		}
+
+		extn_rem_len--;
+		if (extn_rem_len > 0) {
+			if (!ninh->list_len) {
+				ninh->extn_len =
+					extn_elem[ELEM_ID_LIST_LEN_POS + 1];
+			} else {
+				ninh->extn_len =
+					extn_elem[ELEM_ID_LIST_POS +
+					ninh->list_len];
+			}
+
+			if (extn_rem_len != ninh->extn_len) {
+				/*
+				 * Corrupt frame. length subfield of
+				 * element ID extn list is not
+				 * what it should be. Go ahead with
+				 * frame generation but do not honour
+				 * the non inheritance part. Also, mark
+				 * the element ID in subcopy as 0, so
+				 * that this element info will not
+				 * be copied.
+				 */
+				ninh->non_inherit = false;
+				extn_elem[0] = 0;
+			}
+
+			if (ninh->extn_len) {
+				*extn_elem_list =
+					(extn_elem + ninh->list_len +
+					 ELEM_ID_LIST_POS + 1);
+			}
+		}
+	}
+}
+
+static size_t util_oui_header_len(uint8_t *ie)
+{
+	/* Cisco Vendor Specific IEs doesn't have subtype in
+	 * their VSIE header, therefore skip subtype
+	 */
+	if (ie[0] == 0x00 && ie[1] == 0x40 && ie[2] == 0x96)
+		return OUI_LEN - 1;
+	return OUI_LEN;
+}
+
 static uint32_t util_gen_new_ie(uint8_t *ie, uint32_t ielen,
 				uint8_t *subelement,
 				size_t subie_len, uint8_t *new_ie)
 {
 	uint8_t *pos, *tmp;
 	const uint8_t *tmp_old, *tmp_new;
-	uint8_t *sub_copy;
+	uint8_t *sub_copy, *extn_elem = NULL;
+	struct non_inheritance_ie ninh = {0};
+	uint8_t *elem_list = NULL, *extn_elem_list = NULL;
 	size_t tmp_rem_len;
 
 	/* copy subelement as we need to change its content to
@@ -1786,121 +1979,296 @@ static uint32_t util_gen_new_ie(uint8_t *ie, uint32_t ielen,
 	/* new ssid */
 	tmp_new = util_scan_find_ie(WLAN_ELEMID_SSID, sub_copy, subie_len);
 	if (tmp_new) {
-		scm_debug(" SSID %.*s", tmp_new[1], &tmp_new[2]);
-		if ((pos + tmp_new[1] + 2) <= (new_ie + ielen)) {
-			qdf_mem_copy(pos, tmp_new, tmp_new[1] + 2);
-			pos += (tmp_new[1] + 2);
+		scm_debug(" SSID %.*s", tmp_new[1],
+			  &tmp_new[PAYLOAD_START_POS]);
+		if ((pos + tmp_new[1] + MIN_IE_LEN) <=
+		    (new_ie + ielen)) {
+			qdf_mem_copy(pos, tmp_new,
+				     (tmp_new[1] + MIN_IE_LEN));
+			pos += (tmp_new[1] + MIN_IE_LEN);
 		}
+	}
+
+	extn_elem = util_scan_find_noninheritance_ie(WLAN_ELEMID_EXTN_ELEM,
+						     sub_copy, subie_len);
+
+	if (extn_elem && extn_elem[TAG_LEN_POS]) {
+		util_parse_noninheritance_list(extn_elem, &elem_list,
+					       &extn_elem_list, &ninh);
 	}
 
 	/* go through IEs in ie (skip SSID) and subelement,
 	 * merge them into new_ie
 	 */
 	tmp_old = util_scan_find_ie(WLAN_ELEMID_SSID, ie, ielen);
-	tmp_old = (tmp_old) ? tmp_old + tmp_old[1] + 2 : ie;
+	tmp_old = (tmp_old) ? tmp_old + tmp_old[1] + MIN_IE_LEN : ie;
 
-	while (tmp_old + tmp_old[1] + 2 - ie <= ielen) {
-		if (tmp_old[0] == 0) {
-			tmp_old++;
+	while (((tmp_old + tmp_old[1] + MIN_IE_LEN) - ie) <= ielen) {
+		ninh.non_inh_ie_found = 0;
+		if (ninh.non_inherit) {
+			if (ninh.list_len) {
+				ninh.non_inh_ie_found =
+					util_is_noninh_ie(tmp_old[0],
+							  elem_list,
+							  ninh.list_len);
+			}
+
+			if (!ninh.non_inh_ie_found &&
+			    ninh.extn_len &&
+			    (tmp_old[0] == WLAN_ELEMID_EXTN_ELEM)) {
+				ninh.non_inh_ie_found =
+					util_is_noninh_ie(tmp_old[2],
+							  extn_elem_list,
+							  ninh.extn_len);
+			}
+		}
+
+		if (ninh.non_inh_ie_found || (tmp_old[0] == 0)) {
+			tmp_old += tmp_old[1] + MIN_IE_LEN;
 			continue;
 		}
 
 		tmp = (uint8_t *)util_scan_find_ie(tmp_old[0], sub_copy,
-				subie_len);
+						   subie_len);
 		if (!tmp) {
 			/* ie in old ie but not in subelement */
 			if (tmp_old[0] != WLAN_ELEMID_MULTIPLE_BSSID) {
-				if ((pos + tmp_old[1] + 2) <=
+				if ((pos + tmp_old[1] + MIN_IE_LEN) <=
 				    (new_ie + ielen)) {
 					qdf_mem_copy(pos, tmp_old,
-						     tmp_old[1] + 2);
-					pos += tmp_old[1] + 2;
+						     (tmp_old[1] +
+						      MIN_IE_LEN));
+					pos += tmp_old[1] + MIN_IE_LEN;
 				}
 			}
 		} else {
 			/* ie in transmitting ie also in subelement,
 			 * copy from subelement and flag the ie in subelement
-			 * as copied (by setting eid field to 0xff). For
-			 * vendor ie, compare OUI + type + subType to
-			 * determine if they are the same ie.
+			 * as copied (by setting eid field to 0xff).
+			 * To determine if the vendor ies are same:
+			 * 1. For Cisco OUI, compare only OUI + type
+			 * 2. For other OUI, compare OUI + type + subType
 			 */
 			tmp_rem_len = subie_len - (tmp - sub_copy);
 			if (tmp_old[0] == WLAN_ELEMID_VENDOR &&
-			    tmp_rem_len >= 7) {
-				if (!qdf_mem_cmp(tmp_old + 2, tmp + 2, 5)) {
+			    tmp_rem_len >= MIN_VENDOR_TAG_LEN) {
+				if (!qdf_mem_cmp(tmp_old + PAYLOAD_START_POS,
+						 tmp + PAYLOAD_START_POS,
+						 util_oui_header_len(tmp +
+								     PAYLOAD_START_POS))) {
 					/* same vendor ie, copy from
 					 * subelement
 					 */
-					if ((pos + tmp[1] + 2) <=
+					if ((pos + tmp[1] + MIN_IE_LEN) <=
 					    (new_ie + ielen)) {
 						qdf_mem_copy(pos, tmp,
-							     tmp[1] + 2);
-						pos += tmp[1] + 2;
+							     tmp[1] +
+							     MIN_IE_LEN);
+						pos += tmp[1] + MIN_IE_LEN;
 						tmp[0] = 0;
 					}
 				} else {
-					if ((pos + tmp_old[1] + 2) <=
+					if ((pos + tmp_old[1] +
+					     MIN_IE_LEN) <=
 					    (new_ie + ielen)) {
 						qdf_mem_copy(pos, tmp_old,
-							     tmp_old[1] + 2);
-						pos += tmp_old[1] + 2;
+							     tmp_old[1] +
+							     MIN_IE_LEN);
+						pos += tmp_old[1] +
+							MIN_IE_LEN;
 					}
 				}
 			} else if (tmp_old[0] == WLAN_ELEMID_EXTN_ELEM) {
-				if (tmp_old[2] == tmp[2]) {
+				if (tmp_old[PAYLOAD_START_POS] ==
+				    tmp[PAYLOAD_START_POS]) {
 					/* same ie, copy from subelement */
-					if ((pos + tmp[1] + 2) <=
+					if ((pos + tmp[1] + MIN_IE_LEN) <=
 					    (new_ie + ielen)) {
 						qdf_mem_copy(pos, tmp,
-							     tmp[1] + 2);
-						pos += tmp[1] + 2;
+							     tmp[1] +
+							     MIN_IE_LEN);
+						pos += tmp[1] + MIN_IE_LEN;
 						tmp[0] = 0;
 					}
 				} else {
-					if ((pos + tmp_old[1] + 2) <=
+					if ((pos + tmp_old[1] + MIN_IE_LEN) <=
 					    (new_ie + ielen)) {
 						qdf_mem_copy(pos, tmp_old,
-							     tmp_old[1] + 2);
-						pos += tmp_old[1] + 2;
+							     tmp_old[1] +
+							     MIN_IE_LEN);
+						pos += tmp_old[1] +
+							MIN_IE_LEN;
 					}
 				}
 			} else {
 				/* copy ie from subelement into new ie */
-				if ((pos + tmp[1] + 2) <= (new_ie + ielen)) {
-					qdf_mem_copy(pos, tmp, tmp[1] + 2);
-					pos += tmp[1] + 2;
+				if ((pos + tmp[1] + MIN_IE_LEN) <=
+				    (new_ie + ielen)) {
+					qdf_mem_copy(pos, tmp,
+						     tmp[1] + MIN_IE_LEN);
+					pos += tmp[1] + MIN_IE_LEN;
 					tmp[0] = 0;
 				}
 			}
 		}
 
-		if (tmp_old + tmp_old[1] + 2 - ie == ielen)
+		if (((tmp_old + tmp_old[1] + MIN_IE_LEN) - ie) >= ielen)
 			break;
 
-		tmp_old += tmp_old[1] + 2;
+		tmp_old += tmp_old[1] + MIN_IE_LEN;
 	}
 
 	/* go through subelement again to check if there is any ie not
 	 * copied to new ie, skip ssid, capability, bssid-index ie
 	 */
 	tmp_new = sub_copy;
-	while (tmp_new + tmp_new[1] + 2 - sub_copy <= subie_len) {
+	while (((tmp_new + tmp_new[1] + MIN_IE_LEN) - sub_copy) <=
+	       subie_len) {
 		if (!(tmp_new[0] == WLAN_ELEMID_NONTX_BSSID_CAP ||
 		      tmp_new[0] == WLAN_ELEMID_SSID ||
 		      tmp_new[0] == WLAN_ELEMID_MULTI_BSSID_IDX ||
-		      tmp_new[0] == 0xff)) {
-			if ((pos + tmp_new[1] + 2) <= (new_ie + ielen)) {
-				qdf_mem_copy(pos, tmp_new, tmp_new[1] + 2);
-				pos += tmp_new[1] + 2;
+		      ((tmp_new[0] == WLAN_ELEMID_EXTN_ELEM) &&
+		       (tmp_new[2] == WLAN_EXTN_ELEMID_NONINHERITANCE)))) {
+			if ((pos + tmp_new[1] + MIN_IE_LEN) <=
+			    (new_ie + ielen)) {
+				qdf_mem_copy(pos, tmp_new,
+					     tmp_new[1] + MIN_IE_LEN);
+				pos += tmp_new[1] + MIN_IE_LEN;
 			}
 		}
-		if (tmp_new + tmp_new[1] + 2 - sub_copy == subie_len)
+		if (((tmp_new + tmp_new[1] + MIN_IE_LEN) - sub_copy) >=
+		    subie_len)
 			break;
-		tmp_new += tmp_new[1] + 2;
+		tmp_new += tmp_new[1] + MIN_IE_LEN;
 	}
 
 	qdf_mem_free(sub_copy);
-	return pos - new_ie;
+
+	if (pos > new_ie)
+		return pos - new_ie;
+	else
+		return 0;
+}
+
+static enum nontx_profile_reasoncode
+util_handle_nontx_prof(uint8_t *mbssid_elem, uint8_t *subelement,
+		       uint8_t *next_subelement,
+		       struct scan_mbssid_info *mbssid_info,
+		       char *bssid, char *new_bssid)
+{
+	uint8_t *mbssid_index_ie;
+	uint32_t prof_len;
+
+	prof_len = subelement[TAG_LEN_POS];
+	/*
+	 * If we are executing the split portion of the nontx
+	 * profile present in the subsequent MBSSID, then there
+	 * is no need of any sanity check for valid BSS profile
+	 */
+
+	if (mbssid_info->split_prof_continue) {
+		if ((subelement[ID_POS] != 0) ||
+		    (subelement[TAG_LEN_POS] < SPLIT_PROF_DATA_LEAST_LEN)) {
+			return INVALID_SPLIT_PROF;
+		}
+	} else {
+		if ((subelement[ID_POS] != 0) ||
+		    (subelement[TAG_LEN_POS] < VALID_ELEM_LEAST_LEN)) {
+			/* not a valid BSS profile */
+			return INVALID_NONTX_PROF;
+		}
+	}
+
+	if (mbssid_info->split_profile) {
+		if (next_subelement[PAYLOAD_START_POS] !=
+		    WLAN_ELEMID_NONTX_BSSID_CAP) {
+			mbssid_info->prof_residue = true;
+		}
+	}
+
+	if (!mbssid_info->split_prof_continue &&
+	    ((subelement[PAYLOAD_START_POS] != WLAN_ELEMID_NONTX_BSSID_CAP) ||
+	     (subelement[NONTX_BSSID_CAP_TAG_LEN_POS] != CAP_INFO_LEN))) {
+		/* The first element within the Nontransmitted
+		 * BSSID Profile is not the Nontransmitted
+		 * BSSID Capability element.
+		 */
+		return INVALID_NONTX_PROF;
+	}
+
+	/* found a Nontransmitted BSSID Profile */
+	mbssid_index_ie =
+		util_scan_find_ie(WLAN_ELEMID_MULTI_BSSID_IDX,
+				  (subelement + PAYLOAD_START_POS), prof_len);
+
+	if (!mbssid_index_ie) {
+		if (!mbssid_info->prof_residue)
+			return INVALID_NONTX_PROF;
+
+		mbssid_info->skip_bssid_copy = true;
+	} else if ((mbssid_index_ie[TAG_LEN_POS] < 1) ||
+		   (mbssid_index_ie[BSS_INDEX_POS] == 0)) {
+		/* No valid Multiple BSSID-Index element */
+		return INVALID_NONTX_PROF;
+	}
+
+	if (!mbssid_info->skip_bssid_copy) {
+		qdf_mem_copy(mbssid_info->trans_bssid,
+			     bssid, QDF_MAC_ADDR_SIZE);
+		mbssid_info->profile_num =
+			mbssid_index_ie[BSS_INDEX_POS];
+		util_gen_new_bssid(bssid,
+				   mbssid_elem[MBSSID_INDICATOR_POS],
+				   mbssid_index_ie[BSS_INDEX_POS],
+				   new_bssid);
+	}
+	/* In single MBSS IE, there could be subelement holding
+	 * remaining vendor IEs of non tx profile from last MBSS IE
+	 * [split profile] and new non tx profile, hence reset
+	 * skip_bssid_copy flag after each subelement processing
+	 */
+	mbssid_info->skip_bssid_copy = false;
+	return VALID_NONTX_PROF;
+}
+
+/*
+ * What's split profile:
+ *  If any nontransmitted BSSID profile is fragmented across
+ * multiple MBSSID elements, then it is called split profile.
+ * For a split profile to exist we need to have at least two
+ * MBSSID elements as part of the RX beacon or probe response
+ * Hence, first we need to identify the next MBSSID element
+ * and check for the 5th bit from the starting of the next
+ * MBSSID IE and if it does not have Nontransmitted BSSID
+ * capability element, then it's a split profile case.
+ */
+static bool util_scan_is_split_prof_found(uint8_t *next_elem,
+					  uint8_t *ie, uint32_t ielen)
+{
+	uint8_t *next_mbssid_elem;
+
+	if (next_elem[0] == WLAN_ELEMID_MULTIPLE_BSSID) {
+		if ((next_elem[TAG_LEN_POS] >= VALID_ELEM_LEAST_LEN) &&
+		    (next_elem[SUBELEM_DATA_POS_FROM_MBSSID] !=
+		     WLAN_ELEMID_NONTX_BSSID_CAP)) {
+			return true;
+		}
+	} else {
+		next_mbssid_elem =
+			util_scan_find_ie(WLAN_ELEMID_MULTIPLE_BSSID,
+					  next_elem,
+					  ielen - (next_elem - ie));
+		if (!next_mbssid_elem)
+			return false;
+
+		if ((next_mbssid_elem[TAG_LEN_POS] >= VALID_ELEM_LEAST_LEN) &&
+		    (next_mbssid_elem[SUBELEM_DATA_POS_FROM_MBSSID] !=
+		     WLAN_ELEMID_NONTX_BSSID_CAP)) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 static QDF_STATUS util_scan_parse_mbssid(struct wlan_objmgr_pdev *pdev,
@@ -1911,22 +2279,25 @@ static QDF_STATUS util_scan_parse_mbssid(struct wlan_objmgr_pdev *pdev,
 {
 	struct wlan_bcn_frame *bcn;
 	struct wlan_frame_hdr *hdr;
-	struct scan_mbssid_info mbssid_info;
+	struct scan_mbssid_info mbssid_info = {0};
 	QDF_STATUS status;
-	uint8_t *pos, *subelement, *mbssid_end_pos;
-	uint8_t *tmp, *mbssid_index_ie;
-	uint32_t subie_len, new_ie_len;
+	uint8_t *pos, *subelement, *next_elem;
+	uint8_t *mbssid_elem;
+	uint32_t subie_len, new_ie_len, ielen;
+	uint8_t *next_subelement = NULL;
 	uint8_t new_bssid[QDF_MAC_ADDR_SIZE], bssid[QDF_MAC_ADDR_SIZE];
-	uint8_t *new_ie;
+	uint8_t *new_ie, *split_prof_start = NULL, *split_prof_end = NULL;
 	uint8_t *ie, *new_frame = NULL;
-	uint64_t ielen, new_frame_len;
+	int new_frame_len = 0, split_prof_len = 0;
+	enum nontx_profile_reasoncode retval;
+	uint8_t *nontx_profile = NULL;
 
 	hdr = (struct wlan_frame_hdr *)frame;
 	bcn = (struct wlan_bcn_frame *)(frame + sizeof(struct wlan_frame_hdr));
 	ie = (uint8_t *)&bcn->ie;
 	ielen = (uint16_t)(frame_len -
-		sizeof(struct wlan_frame_hdr) -
-		offsetof(struct wlan_bcn_frame, ie));
+			   sizeof(struct wlan_frame_hdr) -
+			   offsetof(struct wlan_bcn_frame, ie));
 	qdf_mem_copy(bssid, hdr->i_addr3, QDF_MAC_ADDR_SIZE);
 
 	if (!util_scan_find_ie(WLAN_ELEMID_MULTIPLE_BSSID, ie, ielen))
@@ -1938,59 +2309,216 @@ static QDF_STATUS util_scan_parse_mbssid(struct wlan_objmgr_pdev *pdev,
 	if (!new_ie)
 		return QDF_STATUS_E_NOMEM;
 
-	while (pos < ie + ielen + 2) {
-		tmp = util_scan_find_ie(WLAN_ELEMID_MULTIPLE_BSSID, pos,
-					ielen - (pos - ie));
-		if (!tmp)
+	while (pos < (ie + ielen + MIN_IE_LEN)) {
+		mbssid_elem =
+			util_scan_find_ie(WLAN_ELEMID_MULTIPLE_BSSID, pos,
+					  ielen - (pos - ie));
+		if (!mbssid_elem)
 			break;
 
-		mbssid_info.profile_count = 1 << tmp[2];
-		mbssid_end_pos = tmp + tmp[1] + 2;
+		mbssid_info.profile_count =
+			(1 << mbssid_elem[MBSSID_INDICATOR_POS]);
+
+		next_elem =
+			mbssid_elem + mbssid_elem[TAG_LEN_POS] + MIN_IE_LEN;
+
 		/* Skip Element ID, Len, MaxBSSID Indicator */
-		if (tmp[1] < 4)
+		if (!mbssid_info.split_profile &&
+		    (mbssid_elem[TAG_LEN_POS] < VALID_ELEM_LEAST_LEN)) {
 			break;
-		for (subelement = tmp + 3; subelement < mbssid_end_pos - 1;
-		     subelement += 2 + subelement[1]) {
-			subie_len = subelement[1];
-			if (mbssid_end_pos - subelement < 2 + subie_len)
+		}
+
+		/*
+		 * Find if the next IE is MBSSID, if not, then scan through
+		 * the IE list and find the next MBSSID tag, if present.
+		 * Once we find the MBSSID tag, check if this MBSSID tag has
+		 * the other fragmented part of the non Tx profile.
+		 */
+
+		mbssid_info.split_profile =
+			util_scan_is_split_prof_found(next_elem, ie, ielen);
+
+		for (subelement = mbssid_elem + SUBELEMENT_START_POS;
+		     subelement < (next_elem - 1);
+		     subelement += MIN_IE_LEN + subelement[TAG_LEN_POS]) {
+			subie_len = subelement[TAG_LEN_POS];
+
+			/*
+			 * if prof_residue is true, that means we are
+			 * in the continuation of the fragmented profile part,
+			 * present in the next MBSSD IE else this profile
+			 * is a non fragmented non tx BSSID profile.
+			 */
+
+			if (mbssid_info.prof_residue)
+				mbssid_info.split_prof_continue = true;
+			else
+				mbssid_info.split_prof_continue = false;
+
+			if (subie_len > MAX_SUBELEM_LEN) {
+				scm_err_rl("Corrupt frame with subie_len: %d\n"
+					   "split_prof_continue: %d\n"
+					   "prof_residue: %d\n",
+					   subie_len,
+					   mbssid_info.split_prof_continue,
+					   mbssid_info.prof_residue);
+				if (mbssid_info.split_prof_continue)
+					qdf_mem_free(split_prof_start);
+
+				qdf_mem_free(new_ie);
+				return QDF_STATUS_E_INVAL;
+			}
+
+			if ((next_elem - subelement) <
+			    (MIN_IE_LEN + subie_len))
 				break;
-			if (subelement[0] != 0 || subelement[1] < 4) {
-				/* not a valid BSS profile */
+
+			next_subelement = subelement + subie_len + MIN_IE_LEN;
+			retval = util_handle_nontx_prof(mbssid_elem, subelement,
+							next_subelement,
+							&mbssid_info,
+							bssid, new_bssid);
+
+			if (retval == INVALID_SPLIT_PROF) {
+				scm_err_rl("Corrupt frame with ID_POS: %d\n"
+					   "TAG_LEN_POS: %d\n",
+					   subelement[ID_POS],
+					   subelement[TAG_LEN_POS]);
+				qdf_mem_free(split_prof_start);
+				qdf_mem_free(new_ie);
+				return QDF_STATUS_E_INVAL;
+			} else if (retval == INVALID_NONTX_PROF) {
 				continue;
 			}
 
-			if (subelement[2] != WLAN_ELEMID_NONTX_BSSID_CAP ||
-			    subelement[3] != 2) {
-				/* The first element within the Nontransmitted
-				 * BSSID Profile is not the Nontransmitted
-				 * BSSID Capability element.
+			/*
+			 * Merging parts of nontx profile-
+			 * Just for understanding, let's make an assumption
+			 * that nontx profile is fragmented across MBSSIE1
+			 * and MBSSIE2.
+			 * mbssid_info.prof_residue being set indicates
+			 * that the ongoing nontx profile is part of split
+			 * profile, whose other fragmented part is present
+			 * in MBSSIE2.
+			 * So once prof_residue is set, we need to
+			 * identify whether we are accessing the split
+			 * profile in MBSSIE1 or MBSSIE2.
+			 * If we are in MBSSIE1, then copy the part of split
+			 * profile from MBSSIE1 into a new buffer and then
+			 * move to the next part of the split profile which
+			 * is present in MBSSIE2 and append that part into
+			 * the new buffer.
+			 * Once the full profile is accumulated, go ahead with
+			 * the ie generation and length calculation of the
+			 * new frame.
+			 */
+
+			if (mbssid_info.prof_residue) {
+				if (!mbssid_info.split_prof_continue) {
+					split_prof_start =
+						qdf_mem_malloc(ielen);
+					if (!split_prof_start) {
+						scm_err_rl("Malloc failed");
+						qdf_mem_free(new_ie);
+						return QDF_STATUS_E_NOMEM;
+					}
+
+					qdf_mem_copy(split_prof_start,
+						     subelement,
+						     (subie_len +
+						      MIN_IE_LEN));
+					split_prof_end = (split_prof_start +
+							  subie_len +
+							  MIN_IE_LEN);
+					break;
+				}
+
+				/*
+				 * Currently we are accessing other part of the
+				 * split profile present in the subsequent
+				 * MBSSIE. There is a possibility that one
+				 * non tx profile is spread across more than
+				 * two MBSSID tag as well. This code will
+				 * handle such scenario.
 				 */
-				continue;
+
+				qdf_mem_copy(split_prof_end,
+					     (subelement + MIN_IE_LEN),
+					     subie_len);
+				split_prof_end =
+					(split_prof_end + subie_len);
+
+				/*
+				 * When to stop the process of accumulating
+				 * parts of split profile, is decided by
+				 * mbssid_info.prof_residue. prof_residue
+				 * could be made false if there is not any
+				 * continuation of the split profile.
+				 * which could be identified by two factors
+				 * 1. By checking if the next MBSSIE's first
+				 * non tx profile is not a fragmented one or
+				 * 2. there is a probability that first
+				 * subelement of MBSSIE2 is end if split
+				 * profile and the next subelement of MBSSIE2
+				 * is a non split one.
+				 */
+
+				if (!mbssid_info.split_profile ||
+				    (next_subelement[PAYLOAD_START_POS] ==
+				     WLAN_ELEMID_NONTX_BSSID_CAP)) {
+					mbssid_info.prof_residue = false;
+				}
+
+				/*
+				 * Until above mentioned conditions are met,
+				 * we need to iterate and keep accumulating
+				 * the split profile contents.
+				 */
+
+				if (mbssid_info.prof_residue)
+					break;
+
+				split_prof_len =
+					(split_prof_end -
+					 split_prof_start - MIN_IE_LEN);
 			}
 
-			/* found a Nontransmitted BSSID Profile */
-			mbssid_index_ie =
-				util_scan_find_ie(WLAN_ELEMID_MULTI_BSSID_IDX,
-						  subelement + 2, subie_len);
-			if (!mbssid_index_ie || mbssid_index_ie[1] < 1 ||
-			    mbssid_index_ie[2] == 0) {
-				/* No valid Multiple BSSID-Index element */
-				continue;
+			if (mbssid_info.split_prof_continue) {
+				nontx_profile = split_prof_start;
+				subie_len = split_prof_len;
+			} else {
+				nontx_profile = subelement;
 			}
-			qdf_mem_copy(&mbssid_info.trans_bssid, bssid,
-				     QDF_MAC_ADDR_SIZE);
-			mbssid_info.profile_num = mbssid_index_ie[2];
-			util_gen_new_bssid(bssid, tmp[2], mbssid_index_ie[2],
-					   new_bssid);
-			new_ie_len = util_gen_new_ie(ie, ielen, subelement + 2,
-						     subie_len, new_ie);
+
+			new_ie_len =
+				util_gen_new_ie(ie, ielen,
+						(nontx_profile +
+						 PAYLOAD_START_POS),
+						subie_len, new_ie);
+
 			if (!new_ie_len)
 				continue;
 
 			new_frame_len = frame_len - ielen + new_ie_len;
+
+			if (new_frame_len < 0) {
+				if (mbssid_info.split_prof_continue)
+					qdf_mem_free(split_prof_start);
+				qdf_mem_free(new_ie);
+				scm_err("Invalid frame:Stop MBSSIE parsing");
+				scm_err("Frame_len: %zu,ielen:%u,new_ie_len:%u",
+					frame_len, ielen, new_ie_len);
+				return QDF_STATUS_E_INVAL;
+			}
+
 			new_frame = qdf_mem_malloc(new_frame_len);
 			if (!new_frame) {
+				if (mbssid_info.split_prof_continue)
+					qdf_mem_free(split_prof_start);
 				qdf_mem_free(new_ie);
+				scm_err_rl("Malloc for new_frame failed");
+				scm_err_rl("split_prof_continue: %d",
+					   mbssid_info.split_prof_continue);
 				return QDF_STATUS_E_NOMEM;
 			}
 
@@ -1998,21 +2526,25 @@ static QDF_STATUS util_scan_parse_mbssid(struct wlan_objmgr_pdev *pdev,
 			 * Copy the header(24byte), timestamp(8 byte),
 			 * beaconinterval(2byte) and capability(2byte)
 			 */
-			qdf_mem_copy(new_frame, frame, 36);
+			qdf_mem_copy(new_frame, frame, FIXED_LENGTH);
 			/* Copy the new ie generated from MBSSID profile*/
 			hdr = (struct wlan_frame_hdr *)new_frame;
 			qdf_mem_copy(hdr->i_addr2, new_bssid,
 				     QDF_MAC_ADDR_SIZE);
 			qdf_mem_copy(hdr->i_addr3, new_bssid,
 				     QDF_MAC_ADDR_SIZE);
-			bcn = (struct wlan_bcn_frame *)(new_frame + sizeof(struct wlan_frame_hdr));
+			bcn = (struct wlan_bcn_frame *)
+				(new_frame + sizeof(struct wlan_frame_hdr));
 			/* update the non-tx capability */
-			qdf_mem_copy(&bcn->capability, subelement + 4, 2);
+			qdf_mem_copy(&bcn->capability,
+				     nontx_profile + CAP_INFO_POS,
+				     CAP_INFO_LEN);
+
 			/* Copy the new ie generated from MBSSID profile*/
 			qdf_mem_copy(new_frame +
-					offsetof(struct wlan_bcn_frame, ie) +
-					sizeof(struct wlan_frame_hdr),
-					new_ie, new_ie_len);
+				     offsetof(struct wlan_bcn_frame, ie) +
+				     sizeof(struct wlan_frame_hdr),
+				     new_ie, new_ie_len);
 			status = util_scan_gen_scan_entry(pdev, new_frame,
 							  new_frame_len,
 							  frm_subtype,
@@ -2020,20 +2552,30 @@ static QDF_STATUS util_scan_parse_mbssid(struct wlan_objmgr_pdev *pdev,
 							  &mbssid_info,
 							  scan_list);
 			if (QDF_IS_STATUS_ERROR(status)) {
+				if (mbssid_info.split_prof_continue) {
+					qdf_mem_free(split_prof_start);
+					qdf_mem_zero(&mbssid_info,
+						     sizeof(mbssid_info));
+				}
 				qdf_mem_free(new_frame);
-				scm_err("failed to generate a scan entry");
+				scm_err_rl("failed to generate a scan entry");
+				scm_err_rl("split_prof_continue: %d",
+					   mbssid_info.split_prof_continue);
 				break;
 			}
 			/* scan entry makes its own copy so free the frame*/
+			if (mbssid_info.split_prof_continue)
+				qdf_mem_free(split_prof_start);
 			qdf_mem_free(new_frame);
 		}
 
-		pos = mbssid_end_pos;
+		pos = next_elem;
 	}
 	qdf_mem_free(new_ie);
 
 	return QDF_STATUS_SUCCESS;
 }
+
 #else
 static QDF_STATUS util_scan_parse_mbssid(struct wlan_objmgr_pdev *pdev,
 					 uint8_t *frame, qdf_size_t frame_len,
@@ -2055,9 +2597,9 @@ util_scan_parse_beacon_frame(struct wlan_objmgr_pdev *pdev,
 {
 	struct wlan_bcn_frame *bcn;
 	struct wlan_frame_hdr *hdr;
-	uint8_t *mbssid_ie = NULL;
+	uint8_t *mbssid_ie = NULL, *extcap_ie;
 	uint32_t ie_len = 0;
-	QDF_STATUS status;
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	struct scan_mbssid_info mbssid_info = { 0 };
 
 	hdr = (struct wlan_frame_hdr *)frame;
@@ -2067,12 +2609,24 @@ util_scan_parse_beacon_frame(struct wlan_objmgr_pdev *pdev,
 		sizeof(struct wlan_frame_hdr) -
 		offsetof(struct wlan_bcn_frame, ie));
 
-	mbssid_ie = util_scan_find_ie(WLAN_ELEMID_MULTIPLE_BSSID,
+	extcap_ie = util_scan_find_ie(WLAN_ELEMID_XCAPS,
 				      (uint8_t *)&bcn->ie, ie_len);
-	if (mbssid_ie) {
-		qdf_mem_copy(&mbssid_info.trans_bssid,
-			     hdr->i_addr3, QDF_MAC_ADDR_SIZE);
-		mbssid_info.profile_count = 1 << mbssid_ie[2];
+	/* Process MBSSID when Multiple BSSID (Bit 22) is set in Ext Caps */
+	if (extcap_ie &&
+	    extcap_ie[1] >= 3 && extcap_ie[1] <= WLAN_EXTCAP_IE_MAX_LEN &&
+	    (extcap_ie[4] & 0x40)) {
+		mbssid_ie = util_scan_find_ie(WLAN_ELEMID_MULTIPLE_BSSID,
+					      (uint8_t *)&bcn->ie, ie_len);
+		if (mbssid_ie) {
+			if (mbssid_ie[1] <= 0) {
+				scm_debug("MBSSID IE length is wrong %d",
+					  mbssid_ie[1]);
+				return status;
+			}
+			qdf_mem_copy(&mbssid_info.trans_bssid,
+				     hdr->i_addr3, QDF_MAC_ADDR_SIZE);
+			mbssid_info.profile_count = 1 << mbssid_ie[2];
+		}
 	}
 
 	status = util_scan_gen_scan_entry(pdev, frame, frame_len,

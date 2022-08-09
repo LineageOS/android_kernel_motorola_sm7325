@@ -676,6 +676,7 @@ dp_rx_wbm_err_process(struct dp_intr *int_ctx, struct dp_soc *soc,
 /**
  * dp_rx_sg_create() - create a frag_list for MSDUs which are spread across
  *		     multiple nbufs.
+ * @soc: core txrx main context
  * @nbuf: pointer to the first msdu of an amsdu.
  *
  * This function implements the creation of RX frag_list for cases
@@ -683,7 +684,7 @@ dp_rx_wbm_err_process(struct dp_intr *int_ctx, struct dp_soc *soc,
  *
  * Return: returns the head nbuf which contains complete frag_list.
  */
-qdf_nbuf_t dp_rx_sg_create(qdf_nbuf_t nbuf);
+qdf_nbuf_t dp_rx_sg_create(struct dp_soc *soc, qdf_nbuf_t nbuf);
 
 
 /*
@@ -1158,6 +1159,23 @@ dp_rx_update_protocol_tag(struct dp_soc *soc, struct dp_vdev *vdev,
 			  bool is_reo_exception, bool is_update_stats)
 {
 }
+
+/**
+ * dp_rx_err_cce_drop() - Reads CCE metadata from the RX MSDU end TLV
+ *                        and returns whether cce metadata matches
+ * @soc: core txrx main context
+ * @vdev: vdev on which the packet is received
+ * @nbuf: QDF pkt buffer on which the protocol tag should be set
+ * @rx_tlv_hdr: rBbase address where the RX TLVs starts
+ * Return: bool
+ */
+static inline bool
+dp_rx_err_cce_drop(struct dp_soc *soc, struct dp_vdev *vdev,
+		   qdf_nbuf_t nbuf, uint8_t *rx_tlv_hdr)
+{
+	return false;
+}
+
 #endif /* WLAN_SUPPORT_RX_PROTOCOL_TYPE_TAG */
 
 #ifndef WLAN_SUPPORT_RX_FLOW_TAG
