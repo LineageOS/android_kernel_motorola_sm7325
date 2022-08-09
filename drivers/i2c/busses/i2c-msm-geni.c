@@ -976,6 +976,8 @@ static int geni_i2c_gsi_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		timeout = wait_for_completion_timeout(&gi2c->xfer,
 						gi2c->xfer_timeout);
 		if (!timeout) {
+			u32 geni_ios = 0;
+
 			GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
 				"I2C gsi xfer timeout:%u flags:%d addr:0x%x\n",
 				gi2c->xfer_timeout, gi2c->cur->flags,
@@ -1017,6 +1019,7 @@ geni_i2c_err_prep_sg:
 			/* Resend cfg tre for every new message on shared se */
 			gi2c->cfg_sent = 0;
 
+geni_i2c_gsi_cancel_pending:
 		if (msgs[i].flags & I2C_M_RD)
 			geni_se_iommu_unmap_buf(rx_dev, &gi2c->rx_ph,
 				msgs[i].len, DMA_FROM_DEVICE);
@@ -1189,6 +1192,8 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 		timeout = wait_for_completion_timeout(&gi2c->xfer,
 						gi2c->xfer_timeout);
 		if (!timeout) {
+			u32 geni_ios = 0;
+
 			GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
 				"I2C xfer timeout: %d\n", gi2c->xfer_timeout);
 			geni_i2c_err(gi2c, GENI_TIMEOUT);
