@@ -1204,6 +1204,11 @@ static netdev_tx_t ipa3_wwan_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 	}
 
+	if (unlikely(skb == NULL)) {
+		IPAWANERR_RL("unexpected NULL data\n");
+		return NETDEV_TX_BUSY;
+	}
+
 	if (skb->protocol != htons(ETH_P_MAP)) {
 		IPAWANDBG_LOW
 		("SW filtering out none QMAP packet received from %s",
@@ -1571,13 +1576,14 @@ static int handle3_ingress_format(struct net_device *dev,
 	}
 	IPAWANDBG("ingress WAN pipe setup successfully\n");
 
-	ret = ipa3_setup_apps_low_lat_cons_pipe();
-	if (ret)
-		goto low_lat_fail;
+	if (ipa3_ctx->rmnet_ctl_enable) {
+		ret = ipa3_setup_apps_low_lat_cons_pipe();
+		if (ret)
+			goto low_lat_fail;
 
-	ingress_eps_mask |= IPA_AP_INGRESS_EP_LOW_LAT;
-
-	IPAWANDBG("ingress low latency pipe setup successfully\n");
+		ingress_eps_mask |= IPA_AP_INGRESS_EP_LOW_LAT;
+		IPAWANDBG("ingress low latency pipe setup successfully\n");
+	}
 
 low_lat_fail:
 	mutex_unlock(&rmnet_ipa3_ctx->pipe_handle_guard);
@@ -1698,13 +1704,15 @@ static int handle3_egress_format(struct net_device *dev,
 		return rc;
 	}
 	IPAWANDBG("engress WAN pipe setup successfully\n");
-	rc = ipa3_setup_apps_low_lat_prod_pipe();
-	if (rc) {
-		IPAWANERR("failed to setup egress low lat endpoint\n");
-		mutex_unlock(&rmnet_ipa3_ctx->pipe_handle_guard);
-		goto low_lat_fail;
+	if (ipa3_ctx->rmnet_ctl_enable) {
+		rc = ipa3_setup_apps_low_lat_prod_pipe();
+		if (rc) {
+			IPAWANERR("failed to setup egress low lat endpoint\n");
+			mutex_unlock(&rmnet_ipa3_ctx->pipe_handle_guard);
+			goto low_lat_fail;
+		}
+		IPAWANDBG("engress low lat pipe setup successfully\n");
 	}
-	IPAWANDBG("engress low lat pipe setup successfully\n");
 	mutex_unlock(&rmnet_ipa3_ctx->pipe_handle_guard);
 
 low_lat_fail:
@@ -2229,16 +2237,14 @@ static int rmnet_ipa_send_coalesce_notification(uint8_t qmap_id,
 	if (!coalesce_info)
 		return -ENOMEM;
 
-	if (enable) {
-		coalesce_info->qmap_id = qmap_id;
-		coalesce_info->tcp_enable = tcp;
-		coalesce_info->udp_enable = udp;
+	coalesce_info->qmap_id = qmap_id;
+	coalesce_info->tcp_enable = tcp;
+	coalesce_info->udp_enable = udp;
+	msg_meta.msg_len = sizeof(struct ipa_coalesce_info);
+	if (enable)
 		msg_meta.msg_type = IPA_COALESCE_ENABLE;
-		msg_meta.msg_len = sizeof(struct ipa_coalesce_info);
-	} else {
+	else
 		msg_meta.msg_type = IPA_COALESCE_DISABLE;
-		msg_meta.msg_len = sizeof(struct ipa_coalesce_info);
-	}
 	rc = ipa_send_msg(&msg_meta, coalesce_info, ipa3_wwan_msg_free_cb);
 	if (rc) {
 		IPAWANERR("ipa_send_msg failed: %d\n", rc);
@@ -2959,6 +2965,9 @@ static int ipa3_lcl_mdm_ssr_notifier_cb(struct notifier_block *this,
 	}
 
 	switch (code) {
+#if IS_ENABLED(CONFIG_DEEPSLEEP)
+	case SUBSYS_BEFORE_DS_ENTRY:
+#endif
 	case SUBSYS_BEFORE_SHUTDOWN:
 		IPAWANINFO("IPA received MPSS BEFORE_SHUTDOWN\n");
 		/*Stop netdev first to stop queueing pkts to Q6 */
@@ -2980,6 +2989,16 @@ static int ipa3_lcl_mdm_ssr_notifier_cb(struct notifier_block *this,
 		ipa3_odl_pipe_cleanup(true);
 		IPAWANINFO("IPA BEFORE_SHUTDOWN handling is complete\n");
 		break;
+#if IS_ENABLED(CONFIG_DEEPSLEEP)
+	case SUBSYS_AFTER_DS_ENTRY:
+		IPAWANINFO("IPA Received AFTER DEEPSLEEP ENTRY\n");
+		if (atomic_read(&rmnet_ipa3_ctx->is_ssr) &&
+				ipa3_ctx_get_type(IPA_HW_TYPE) < IPA_HW_v4_0)
+			ipa3_q6_post_shutdown_cleanup();
+
+		IPAWANINFO("AFTER DEEPSLEEP ENTRY handling is complete\n");
+		break;
+#endif
 	case SUBSYS_AFTER_SHUTDOWN:
 		IPAWANINFO("IPA Received MPSS AFTER_SHUTDOWN\n");
 		if (atomic_read(&rmnet_ipa3_ctx->is_ssr) &&
@@ -2991,6 +3010,20 @@ static int ipa3_lcl_mdm_ssr_notifier_cb(struct notifier_block *this,
 
 		IPAWANINFO("IPA AFTER_SHUTDOWN handling is complete\n");
 		break;
+#if IS_ENABLED(CONFIG_DEEPSLEEP)
+	case SUBSYS_BEFORE_DS_EXIT:
+		IPAWANINFO("IPA received BEFORE DEEPSLEEP EXIT\n");
+		if (atomic_read(&rmnet_ipa3_ctx->is_ssr)) {
+			/* clean up cached QMI msg/handlers */
+			ipa3_qmi_service_exit();
+			ipa3_q6_pre_powerup_cleanup();
+		}
+		/* hold a proxy vote for the modem. */
+		ipa3_proxy_clk_vote(atomic_read(&rmnet_ipa3_ctx->is_ssr));
+		ipa3_reset_freeze_vote();
+		IPAWANINFO("BEFORE DEEPSLEEP EXIT handling is complete\n");
+		break;
+#endif
 	case SUBSYS_BEFORE_POWERUP:
 		IPAWANINFO("IPA received MPSS BEFORE_POWERUP\n");
 		if (atomic_read(&rmnet_ipa3_ctx->is_ssr)) {
@@ -3003,6 +3036,9 @@ static int ipa3_lcl_mdm_ssr_notifier_cb(struct notifier_block *this,
 		ipa3_reset_freeze_vote();
 		IPAWANINFO("IPA BEFORE_POWERUP handling is complete\n");
 		break;
+#if IS_ENABLED(CONFIG_DEEPSLEEP)
+	case SUBSYS_AFTER_DS_EXIT:
+#endif
 	case SUBSYS_AFTER_POWERUP:
 		IPAWANINFO("IPA received MPSS AFTER_POWERUP\n");
 		if (!atomic_read(&rmnet_ipa3_ctx->is_initialized) &&
@@ -3374,8 +3410,7 @@ int rmnet_ipa3_set_tether_client_pipe(
 		return -EFAULT;
 	}
 	/* error checking if dl_dst_pipe_len valid or not*/
-	if (data->dl_dst_pipe_len > QMI_IPA_MAX_PIPES_V01 ||
-		data->dl_dst_pipe_len < 0) {
+	if (data->dl_dst_pipe_len > QMI_IPA_MAX_PIPES_V01) {
 		IPAWANERR("DL dst pipes %d exceeding max %d\n",
 			data->dl_dst_pipe_len,
 			QMI_IPA_MAX_PIPES_V01);
@@ -4166,7 +4201,8 @@ int rmnet_ipa3_query_tethering_stats_all(
 	} else if (upstream_type == IPA_UPSTEAM_WLAN) {
 		IPAWANDBG_LOW(" query wifi-backhaul stats\n");
 		if (ipa3_ctx_get_type(IPA_HW_TYPE) < IPA_HW_v4_5 ||
-			!ipa3_ctx_get_flag(IPA_HW_STATS_EN)) {
+			!ipa3_ctx_get_flag(IPA_HW_STATS_EN) ||
+			ipa3_ctx->fnr_stats_not_supported) {
 			IPAWANDBG("hw version %d,hw_stats.enabled %d\n",
 				ipa3_ctx_get_type(IPA_HW_TYPE),
 				ipa3_ctx_get_flag(IPA_HW_STATS_EN));
@@ -4278,6 +4314,10 @@ void ipa3_broadcast_quota_reach_ind(u32 mux_id,
 	/* check upstream_type*/
 	if (upstream_type == IPA_UPSTEAM_MAX) {
 		IPAWANERR(" Wrong upstreamIface type %d\n", upstream_type);
+		return;
+	} else if (upstream_type == IPA_UPSTEAM_WLAN) {
+		/* TODO: Fix this case when adding quota on WLAN Backhaul*/
+		IPAWANERR_RL("Quota indication is not supported for WLAN\n");
 		return;
 	} else if (upstream_type == IPA_UPSTEAM_MODEM) {
 		index = ipa3_find_mux_channel_index(mux_id);
