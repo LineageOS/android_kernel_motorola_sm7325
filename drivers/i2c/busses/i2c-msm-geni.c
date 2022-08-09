@@ -134,6 +134,8 @@ struct geni_i2c_dev {
 	bool first_resume;
 	bool gpi_reset;
 	bool disable_dma_mode;
+	bool prev_cancel_pending; //Halt cancel till IOS in good state
+	bool is_i2c_rtl_based; /* doing pending cancel only for rtl based SE's */
 };
 
 static struct geni_i2c_dev *gi2c_dev_dbg[MAX_SE];
@@ -241,6 +243,58 @@ err_ret:
 	gi2c->err = gi2c_log[err].err;
 }
 
+static int do_pending_cancel(struct geni_i2c_dev *gi2c)
+{
+	int timeout = 0;
+	u32 geni_ios = 0;
+
+	/* doing pending cancel only rtl based SE's */
+	if (!gi2c->is_i2c_rtl_based)
+		return 0;
+
+	geni_ios = geni_read_reg_nolog(gi2c->base, SE_GENI_IOS);
+	if ((geni_ios & 0x3) != 0x3) {
+		/* Try to restore IOS with FORCE_DEFAULT */
+		GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
+			"%s: IOS:0x%x, bad state\n", __func__, geni_ios);
+
+		geni_write_reg(FORCE_DEFAULT,
+			gi2c->base, GENI_FORCE_DEFAULT_REG);
+		geni_ios = geni_read_reg_nolog(gi2c->base, SE_GENI_IOS);
+		if ((geni_ios & 0x3) != 0x3) {
+			GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
+				"%s: IOS:0x%x, Fix from Slave side\n",
+				__func__, geni_ios);
+			return -EINVAL;
+		}
+		GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
+			"%s: IOS:0x%x restored properly\n", __func__, geni_ios);
+	}
+
+	if (gi2c->se_mode == GSI_ONLY) {
+		dmaengine_terminate_all(gi2c->tx_c);
+		gi2c->cfg_sent = 0;
+	} else {
+		reinit_completion(&gi2c->xfer);
+		geni_cancel_m_cmd(gi2c->base);
+		timeout = wait_for_completion_timeout(&gi2c->xfer, HZ);
+		if (!timeout) {
+			GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
+				"%s:Pending Cancel failed\n", __func__);
+			reinit_completion(&gi2c->xfer);
+			geni_abort_m_cmd(gi2c->base);
+			timeout = wait_for_completion_timeout(&gi2c->xfer, HZ);
+			if (!timeout)
+				GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
+				"%s:Abort failed\n", __func__);
+		}
+	}
+	gi2c->prev_cancel_pending = false;
+	GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
+			"%s: Pending Cancel done\n", __func__);
+	return timeout;
+}
+
 static int geni_i2c_prepare(struct geni_i2c_dev *gi2c)
 {
 	if (gi2c->se_mode == UNINITIALIZED) {
@@ -298,7 +352,8 @@ static irqreturn_t geni_i2c_irq(int irq, void *dev)
 	if ((m_stat & M_CMD_FAILURE_EN) ||
 		    (dm_rx_st & (DM_I2C_CB_ERR)) ||
 		    (m_stat & M_CMD_CANCEL_EN) ||
-		    (m_stat & M_CMD_ABORT_EN)) {
+		    (m_stat & M_CMD_ABORT_EN) ||
+		    (m_stat & M_GP_IRQ_1_EN)) {
 
 		if (m_stat & M_GP_IRQ_1_EN)
 			geni_i2c_err(gi2c, I2C_NACK);
@@ -928,6 +983,18 @@ static int geni_i2c_gsi_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			geni_se_dump_dbg_regs(&gi2c->i2c_rsc, gi2c->base,
 						gi2c->ipcl);
 			gi2c->err = -ETIMEDOUT;
+
+			/* WAR: Set flag to mark cancel pending if IOS stuck */
+			geni_ios = geni_read_reg_nolog(gi2c->base, SE_GENI_IOS);
+			if ((geni_ios & 0x3) != 0x3) { //SCL:b'1, SDA:b'0
+				GENI_SE_DBG(gi2c->ipcl, true, gi2c->dev,
+					"%s: IO lines not in good state\n", __func__);
+					/* doing pending cancel only rtl based SE's */
+					if (gi2c->is_i2c_rtl_based) {
+						gi2c->prev_cancel_pending = true;
+						goto geni_i2c_gsi_cancel_pending;
+					}
+			}
 		}
 geni_i2c_err_prep_sg:
 		if (gi2c->err) {
@@ -992,6 +1059,16 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 			/* Set device in suspended since resume failed */
 			pm_runtime_set_suspended(gi2c->dev);
 			return ret;
+		}
+	}
+
+	// WAR : Complete previous pending cancel cmd
+	if (gi2c->prev_cancel_pending) {
+		ret = do_pending_cancel(gi2c);
+		if (ret) {
+			pm_runtime_mark_last_busy(gi2c->dev);
+			pm_runtime_put_autosuspend(gi2c->dev);
+			return ret; //Don't perform xfer is cancel failed
 		}
 	}
 
@@ -1115,6 +1192,18 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 			GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
 				"I2C xfer timeout: %d\n", gi2c->xfer_timeout);
 			geni_i2c_err(gi2c, GENI_TIMEOUT);
+
+			/* WAR: Set flag to mark cancel pending if IOS bad */
+			geni_ios = geni_read_reg_nolog(gi2c->base, SE_GENI_IOS);
+			if ((geni_ios & 0x3) != 0x3) { //SCL:b'1, SDA:b'0
+				GENI_SE_DBG(gi2c->ipcl, true, gi2c->dev,
+					"%s: IO lines not in good state\n", __func__);
+				/* doing pending cancel only rtl based SE's */
+				if (gi2c->is_i2c_rtl_based) {
+					gi2c->prev_cancel_pending = true;
+					goto geni_i2c_txn_ret;
+				}
+			}
 		}
 
 		if (gi2c->err) {
@@ -1167,11 +1256,15 @@ geni_i2c_txn_ret:
 		pm_runtime_mark_last_busy(gi2c->dev);
 		pm_runtime_put_autosuspend(gi2c->dev);
 	}
+
 	gi2c->cur = NULL;
-	gi2c->err = 0;
 	GENI_SE_DBG(gi2c->ipcl, false, gi2c->dev,
-			"i2c txn ret:%d\n", ret);
-	return ret;
+		"i2c txn ret:%d, num:%d, err:%d\n", ret, num, gi2c->err);
+
+	if (gi2c->err)
+		return gi2c->err;
+	else
+		return ret;
 }
 
 static u32 geni_i2c_func(struct i2c_adapter *adap)
@@ -1239,6 +1332,11 @@ static int geni_i2c_probe(struct platform_device *pdev)
 
 	if (of_property_read_bool(pdev->dev.of_node, "qcom,leica-used-i2c"))
 		gi2c->i2c_rsc.skip_bw_vote = true;
+
+	if (of_property_read_bool(pdev->dev.of_node, "qcom,rtl_se")) {
+		gi2c->is_i2c_rtl_based  = true;
+		dev_info(&pdev->dev, "%s: RTL based SE\n", __func__);
+	}
 
 	gi2c->i2c_rsc.wrapper_dev = &wrapper_pdev->dev;
 	gi2c->i2c_rsc.ctrl_dev = gi2c->dev;

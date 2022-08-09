@@ -472,8 +472,14 @@ struct sock {
 	u32			sk_ack_backlog;
 	u32			sk_max_ack_backlog;
 	kuid_t			sk_uid;
+#if IS_ENABLED(CONFIG_DEBUG_SPINLOCK) || IS_ENABLED(CONFIG_DEBUG_LOCK_ALLOC)
+	spinlock_t		sk_peer_lock;
+#else
+	/* sk_peer_lock is in the ANDROID_KABI_RESERVE(1) field below */
+#endif
 	struct pid		*sk_peer_pid;
 	const struct cred	*sk_peer_cred;
+
 	long			sk_rcvtimeo;
 	ktime_t			sk_stamp;
 #if BITS_PER_LONG==32
@@ -514,7 +520,11 @@ struct sock {
 #endif
 	struct rcu_head		sk_rcu;
 
+#if IS_ENABLED(CONFIG_DEBUG_SPINLOCK) || IS_ENABLED(CONFIG_DEBUG_LOCK_ALLOC)
 	ANDROID_KABI_RESERVE(1);
+#else
+	ANDROID_KABI_USE(1, spinlock_t sk_peer_lock);
+#endif
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);
@@ -2594,6 +2604,9 @@ extern int sysctl_optmem_max;
 extern __u32 sysctl_wmem_default;
 extern __u32 sysctl_rmem_default;
 
+
+/* On 32bit arches, an skb frag is limited to 2^15 */
+#define SKB_FRAG_PAGE_ORDER	get_order(32768)
 DECLARE_STATIC_KEY_FALSE(net_high_order_alloc_disable_key);
 
 static inline int sk_get_wmem0(const struct sock *sk, const struct proto *proto)

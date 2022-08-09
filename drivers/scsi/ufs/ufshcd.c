@@ -429,8 +429,7 @@ static void ufshcd_add_query_upiu_trace(struct ufs_hba *hba, unsigned int tag,
 static void ufshcd_add_tm_upiu_trace(struct ufs_hba *hba, unsigned int tag,
 		const char *str)
 {
-	int off = (int)tag - hba->nutrs;
-	struct utp_task_req_desc *descp = &hba->utmrdl_base_addr[off];
+	struct utp_task_req_desc *descp = &hba->utmrdl_base_addr[tag];
 
 	trace_ufshcd_upiu(dev_name(hba->dev), str, &descp->req_header,
 			&descp->input_param1);
@@ -5315,7 +5314,8 @@ ufshcd_transfer_rsp_status(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 		break;
 	} /* end of switch */
 
-	if ((host_byte(result) != DID_OK) && !hba->silence_err_logs)
+	if ((host_byte(result) != DID_OK) &&
+	    (host_byte(result) != DID_REQUEUE) && !hba->silence_err_logs)
 		ufshcd_print_trs(hba, 1 << lrbp->task_tag, true);
 	return result;
 }
@@ -6066,7 +6066,12 @@ static inline void ufshcd_schedule_eh_work(struct ufs_hba *hba)
 
 static void ufshcd_err_handling_prepare(struct ufs_hba *hba)
 {
+#if defined(CONFIG_SCSI_UFSHCD_QTI)
+	if (!hba->abort_triggered_wlun)
+		pm_runtime_get_sync(hba->dev);
+#else
 	pm_runtime_get_sync(hba->dev);
+#endif
 	if (pm_runtime_suspended(hba->dev)) {
 		/*
 		 * Don't assume anything of pm_runtime_get_sync(), if
@@ -6098,7 +6103,13 @@ static void ufshcd_err_handling_unprepare(struct ufs_hba *hba)
 	ufshcd_release(hba);
 	if (hba->clk_scaling.is_allowed)
 		ufshcd_resume_clkscaling(hba);
+#if defined(CONFIG_SCSI_UFSHCD_QTI)
+	if (!hba->abort_triggered_wlun)
+		pm_runtime_put(hba->dev);
+	hba->abort_triggered_wlun = false;
+#else
 	pm_runtime_put(hba->dev);
+#endif
 }
 
 static inline bool ufshcd_err_handling_should_stop(struct ufs_hba *hba)
@@ -6554,9 +6565,12 @@ static irqreturn_t ufshcd_intr(int irq, void *__hba)
 		intr_status = ufshcd_readl(hba, REG_INTERRUPT_STATUS);
 	}
 
-	if (enabled_intr_status && retval == IRQ_NONE) {
-		dev_err(hba->dev, "%s: Unhandled interrupt 0x%08x\n",
-					__func__, intr_status);
+	if (enabled_intr_status && retval == IRQ_NONE &&
+				!ufshcd_eh_in_progress(hba)) {
+		dev_err(hba->dev, "%s: Unhandled interrupt 0x%08x (-, 0x%08x)\n",
+					__func__,
+					intr_status,
+					enabled_intr_status);
 		ufshcd_dump_regs(hba, 0, UFSHCI_REG_SPACE_SIZE, "host_regs: ");
 	}
 
@@ -7011,8 +7025,15 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	 * To avoid these unnecessary/illegal step we skip to the last error
 	 * handling stage: reset and restore.
 	 */
+#if defined(CONFIG_SCSI_UFSHCD_QTI)
+	if (lrbp->lun == UFS_UPIU_UFS_DEVICE_WLUN) {
+		hba->abort_triggered_wlun = true;
+		return ufshcd_eh_host_reset_handler(cmd);
+	}
+#else
 	if (lrbp->lun == UFS_UPIU_UFS_DEVICE_WLUN)
 		return ufshcd_eh_host_reset_handler(cmd);
+#endif
 
 	ufshcd_hold(hba, false);
 	reg = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
@@ -9291,6 +9312,22 @@ static int ufshcd_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 
 	if (!ufshcd_is_ufs_dev_active(hba)) {
 		ret = ufshcd_set_dev_pwr_mode(hba, UFS_ACTIVE_PWR_MODE);
+#if defined(CONFIG_SCSI_UFSHCD_QTI)
+		if (ret) {
+			if (ufshcd_is_ufs_dev_active(hba) &&
+					ufshcd_is_link_active(hba)) {
+				ret = 0;
+				dev_err(hba->dev, "UFS device and link are Active\n");
+			} else if ((work_pending(&hba->eh_work)) ||
+					ufshcd_eh_in_progress(hba)) {
+				flush_work(&hba->eh_work);
+				ret = 0;
+				dev_err(hba->dev, "dev pwr mode=%d, UIC link state=%d\n",
+						hba->curr_dev_pwr_mode,
+						hba->uic_link_state);
+			}
+		}
+#endif
 		if (ret)
 			goto set_old_link_state;
 	}
@@ -9720,6 +9757,13 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	struct Scsi_Host *host = hba->host;
 	struct device *dev = hba->dev;
 	char eh_wq_name[sizeof("ufs_eh_wq_00")];
+
+	/*
+	 * dev_set_drvdata() must be called before any callbacks are registered
+	 * that use dev_get_drvdata() (frequency scaling, clock scaling, hwmon,
+	 * sysfs).
+	 */
+	dev_set_drvdata(dev, hba);
 
 	if (!mmio_base) {
 		dev_err(hba->dev,
