@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -34,6 +35,8 @@
 #include "wlan_mlme_ucfg_api.h"
 
 #define POLICY_MGR_MAX_CON_STRING_LEN   100
+
+static const uint16_t sap_mand_5g_freq_list[] = {5745, 5765, 5785, 5805};
 
 struct policy_mgr_conc_connection_info
 	pm_conc_connection_list[MAX_NUMBER_OF_CONC_CONNECTIONS];
@@ -629,6 +632,9 @@ void policy_mgr_update_conc_list(struct wlan_objmgr_psoc *psoc,
 		if (pm_ctx->dp_cbacks.hdd_ipa_set_mcc_mode_cb)
 			pm_ctx->dp_cbacks.hdd_ipa_set_mcc_mode_cb(mcc_mode);
 	}
+
+	if (pm_ctx->conc_cbacks.connection_info_update)
+		pm_ctx->conc_cbacks.connection_info_update();
 }
 
 /**
@@ -1404,7 +1410,21 @@ void policy_mgr_set_pcl_for_connected_vdev(struct wlan_objmgr_psoc *psoc,
 					   uint8_t vdev_id, bool clear_pcl)
 {
 	struct policy_mgr_pcl_list msg = { {0} };
+	struct wlan_objmgr_vdev *vdev;
 	uint8_t roam_enabled_vdev_id;
+
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(psoc, vdev_id,
+						    WLAN_POLICY_MGR_ID);
+	if (!vdev) {
+		policy_mgr_err("vdev is NULL");
+		return;
+	}
+
+	if (wlan_vdev_mlme_get_opmode(vdev) != QDF_STA_MODE) {
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_POLICY_MGR_ID);
+		return;
+	}
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_POLICY_MGR_ID);
 
 	/*
 	 * Get the vdev id of the STA on which roaming is already
@@ -3598,8 +3618,9 @@ policy_mgr_init_sap_mandatory_chan_by_band(struct wlan_objmgr_psoc *psoc,
 		}
 	}
 	if (band_bitmap & BIT(REG_BAND_5G))
-		policy_mgr_add_sap_mandatory_chan(psoc,
-						  SAP_MANDATORY_5G_CH_FREQ);
+		for (i = 0; i < ARRAY_SIZE(sap_mand_5g_freq_list); i++)
+			policy_mgr_add_sap_mandatory_chan(
+				psoc, sap_mand_5g_freq_list[i]);
 	if (band_bitmap & BIT(REG_BAND_6G))
 		policy_mgr_add_sap_mandatory_6ghz_chan(psoc);
 }
@@ -3610,9 +3631,8 @@ void  policy_mgr_init_sap_mandatory_chan(struct wlan_objmgr_psoc *psoc,
 	if (WLAN_REG_IS_5GHZ_CH_FREQ(org_ch_freq)) {
 		policy_mgr_debug("channel %hu, sap mandatory chan list enabled",
 				 org_ch_freq);
-		if (!policy_mgr_get_sap_mandatory_chan_list_len(psoc))
-			policy_mgr_init_sap_mandatory_chan_by_band(
-				psoc, BIT(REG_BAND_2G));
+		policy_mgr_init_sap_mandatory_chan_by_band(
+			psoc, BIT(REG_BAND_2G) | BIT(REG_BAND_5G));
 		policy_mgr_add_sap_mandatory_chan(
 			psoc, org_ch_freq);
 	} else if (WLAN_REG_IS_6GHZ_CHAN_FREQ(org_ch_freq)) {

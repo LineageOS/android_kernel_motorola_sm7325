@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -358,10 +359,6 @@ void wma_set_max_tx_power(WMA_HANDLE handle,
 	}
 
 	iface = &wma_handle->interfaces[vdev_id];
-	if (mlme_get_max_reg_power(iface->vdev) == tx_pwr_params->power) {
-		ret = QDF_STATUS_SUCCESS;
-		goto end;
-	}
 	prev_max_power = mlme_get_max_reg_power(iface->vdev);
 
 	mlme_set_max_reg_power(iface->vdev, tx_pwr_params->power);
@@ -1195,6 +1192,14 @@ static void wma_update_beacon_noa_ie(struct beacon_info *bcn,
 			 bcn->len);
 		buf = qdf_nbuf_data(bcn->buf);
 		bcn->noa_ie = buf + bcn->len;
+	}
+
+	if (bcn->len + sizeof(struct p2p_ie) + new_noa_sub_ie_len >
+	    SIR_MAX_BEACON_SIZE) {
+		wma_err("exceed max beacon length, bcn->len %d, new_noa_sub_ie_len %d, p2p len %u",
+			bcn->len, new_noa_sub_ie_len,
+			(uint32_t)sizeof(struct p2p_ie));
+		return;
 	}
 
 	bcn->noa_sub_ie_len = new_noa_sub_ie_len;

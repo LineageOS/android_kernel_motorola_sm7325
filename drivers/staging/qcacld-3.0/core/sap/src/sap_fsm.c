@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -797,7 +798,7 @@ sap_validate_chan(struct sap_context *sap_context,
 	uint32_t sta_sap_bit_mask = QDF_STA_MASK | QDF_SAP_MASK;
 	uint32_t concurrent_state;
 	bool go_force_scc;
-	struct ch_params ch_params;
+	struct ch_params ch_params = {0};
 
 	mac_handle = cds_get_context(QDF_MODULE_ID_SME);
 	mac_ctx = MAC_CONTEXT(mac_handle);
@@ -837,7 +838,15 @@ sap_validate_chan(struct sap_context *sap_context,
 					sap_context->cc_switch_mode);
 			sap_debug("After check overlap: sap freq %d con freq:%d",
 				  sap_context->chan_freq, con_ch_freq);
-			ch_params = sap_context->ch_params;
+			/*
+			 * For non-DBS platform, a 2.4Ghz can become a 5Ghz freq
+			 * so lets used max BW in that case, if it remain 2.4Ghz
+			 * then BW will be limited to 20 anyway
+			 */
+			if (WLAN_REG_IS_24GHZ_CH_FREQ(sap_context->chan_freq))
+				ch_params.ch_width = CH_WIDTH_MAX;
+			else
+				ch_params = sap_context->ch_params;
 
 			if (sap_context->cc_switch_mode !=
 		QDF_MCC_TO_SCC_SWITCH_FORCE_PREFERRED_WITHOUT_DISCONNECTION) {
@@ -851,6 +860,9 @@ sap_validate_chan(struct sap_context *sap_context,
 					return QDF_STATUS_E_ABORTED;
 				}
 			}
+			/* if CH width didn't change fallback to original */
+			if (ch_params.ch_width == CH_WIDTH_MAX)
+				ch_params = sap_context->ch_params;
 
 			sap_debug("After check concurrency: con freq:%d",
 				  con_ch_freq);
@@ -1099,8 +1111,8 @@ sap_find_valid_concurrent_session(mac_handle_t mac_handle)
 	return NULL;
 }
 
-static QDF_STATUS sap_clear_global_dfs_param(mac_handle_t mac_handle,
-					     struct sap_context *sap_ctx)
+QDF_STATUS sap_clear_global_dfs_param(mac_handle_t mac_handle,
+				      struct sap_context *sap_ctx)
 {
 	struct mac_context *mac_ctx = MAC_CONTEXT(mac_handle);
 	struct sap_context *con_sap_ctx;
@@ -1492,7 +1504,7 @@ QDF_STATUS sap_signal_hdd_event(struct sap_context *sap_ctx,
 		bss_complete->status = (eSapStatus) context;
 		bss_complete->staId = sap_ctx->sap_sta_id;
 
-		sap_info("(eSAP_START_BSS_EVENT): staId = %d",
+		sap_debug("(eSAP_START_BSS_EVENT): staId = %d",
 			  bss_complete->staId);
 
 		bss_complete->operating_chan_freq = sap_ctx->chan_freq;
@@ -2158,6 +2170,52 @@ static QDF_STATUS sap_validate_dfs_nol(struct sap_context *sap_ctx,
 	return QDF_STATUS_SUCCESS;
 }
 
+static void sap_validate_chanmode_and_chwidth(struct mac_context *mac_ctx,
+					      struct sap_context *sap_ctx)
+{
+	uint32_t orig_phymode;
+	enum phy_ch_width orig_ch_width;
+
+	orig_ch_width = sap_ctx->ch_params.ch_width;
+	orig_phymode = sap_ctx->csr_roamProfile.phyMode;
+
+	if (WLAN_REG_IS_5GHZ_CH_FREQ(sap_ctx->chan_freq) &&
+	    (sap_ctx->csr_roamProfile.phyMode == eCSR_DOT11_MODE_11g ||
+	     sap_ctx->csr_roamProfile.phyMode ==
+					eCSR_DOT11_MODE_11g_ONLY)) {
+		sap_ctx->csr_roamProfile.phyMode = eCSR_DOT11_MODE_11a;
+	} else if (WLAN_REG_IS_24GHZ_CH_FREQ(sap_ctx->chan_freq) &&
+		   (sap_ctx->csr_roamProfile.phyMode == eCSR_DOT11_MODE_11a)) {
+		sap_ctx->csr_roamProfile.phyMode = eCSR_DOT11_MODE_11g;
+	}
+
+	if (sap_ctx->ch_params.ch_width > CH_WIDTH_20MHZ &&
+	    (sap_ctx->csr_roamProfile.phyMode == eCSR_DOT11_MODE_abg ||
+	     sap_ctx->csr_roamProfile.phyMode == eCSR_DOT11_MODE_11a ||
+	     sap_ctx->csr_roamProfile.phyMode == eCSR_DOT11_MODE_11g ||
+	     sap_ctx->csr_roamProfile.phyMode == eCSR_DOT11_MODE_11b)) {
+		sap_ctx->ch_params.ch_width = CH_WIDTH_20MHZ;
+		wlan_reg_set_channel_params_for_freq(mac_ctx->pdev,
+					       sap_ctx->chan_freq,
+					       sap_ctx->ch_params.sec_ch_offset,
+					       &sap_ctx->ch_params);
+	} else if (sap_ctx->ch_params.ch_width > CH_WIDTH_40MHZ &&
+		   sap_ctx->csr_roamProfile.phyMode == eCSR_DOT11_MODE_11n) {
+		sap_ctx->ch_params.ch_width = CH_WIDTH_40MHZ;
+		wlan_reg_set_channel_params_for_freq(mac_ctx->pdev,
+					       sap_ctx->chan_freq,
+					       sap_ctx->ch_params.sec_ch_offset,
+					       &sap_ctx->ch_params);
+	}
+
+	if (orig_ch_width != sap_ctx->ch_params.ch_width ||
+	    orig_phymode != sap_ctx->csr_roamProfile.phyMode)
+		sap_info("Freq %d Updated BW %d -> %d , phymode %d -> %d",
+			 sap_ctx->chan_freq, orig_ch_width,
+			 sap_ctx->ch_params.ch_width,
+			 orig_phymode, sap_ctx->csr_roamProfile.phyMode);
+}
+
 /**
  * sap_goto_starting() - Trigger softap start
  * @sap_ctx: SAP context
@@ -2216,22 +2274,13 @@ static QDF_STATUS sap_goto_starting(struct sap_context *sap_ctx,
 						    &sap_ctx->ch_params);
 		}
 	}
-	if (WLAN_REG_IS_5GHZ_CH_FREQ(sap_ctx->chan_freq) &&
-	    (sap_ctx->csr_roamProfile.phyMode == eCSR_DOT11_MODE_11g ||
-	     sap_ctx->csr_roamProfile.phyMode ==
-					eCSR_DOT11_MODE_11g_ONLY))
-		sap_ctx->csr_roamProfile.phyMode = eCSR_DOT11_MODE_11a;
-	else if (WLAN_REG_IS_24GHZ_CH_FREQ(sap_ctx->chan_freq) &&
-		 (sap_ctx->csr_roamProfile.phyMode == eCSR_DOT11_MODE_11a))
-		sap_ctx->csr_roamProfile.phyMode = eCSR_DOT11_MODE_11g;
 
-	/*
-	 * Transition from SAP_INIT to SAP_STARTING
-	 * (both without substates)
-	 */
-	sap_debug("from state %s => %s", "SAP_INIT", "SAP_STARTING");
+	sap_validate_chanmode_and_chwidth(mac_ctx, sap_ctx);
 	/* Channel selected. Now can sap_goto_starting */
 	sap_ctx->fsm_state = SAP_STARTING;
+	sap_debug("from state %s => %s phyMode %d, bw %d",
+		  "SAP_INIT", "SAP_STARTING", sap_ctx->csr_roamProfile.phyMode,
+		  sap_ctx->ch_params.ch_width);
 	/* Specify the channel */
 	sap_ctx->csr_roamProfile.ChannelInfo.numOfChannels =
 					1;
@@ -2251,6 +2300,10 @@ static QDF_STATUS sap_goto_starting(struct sap_context *sap_ctx,
 			     eSAP_CHANNEL_CHANGE_EVENT,
 			     (void *)eSAP_STATUS_SUCCESS);
 	sap_dfs_set_current_channel(sap_ctx);
+	/* Reset radar found flag before start sap, the flag will
+	 * be set when radar found in CAC wait.
+	 */
+	mac_ctx->sap.SapDfsInfo.sap_radar_found_status = false;
 
 	sap_debug("session: %d", sap_ctx->sessionId);
 
@@ -2392,7 +2445,7 @@ static QDF_STATUS sap_fsm_handle_radar_during_cac(struct sap_context *sap_ctx,
 }
 
 /**
- * sap_fsm_handle_start_failure() - handle start failure or stop during cac wait
+ * sap_fsm_handle_start_failure() - handle sap start failure
  * @sap_ctx: SAP context
  * @msg: event msg
  * @mac_handle: Opaque handle to the global MAC context
@@ -2405,13 +2458,11 @@ static QDF_STATUS sap_fsm_handle_start_failure(struct sap_context *sap_ctx,
 {
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
 
-	if (msg == eSAP_HDD_STOP_INFRA_BSS &&
-	    (QDF_IS_STATUS_SUCCESS(wlan_vdev_is_dfs_cac_wait(sap_ctx->vdev)) ||
-	     QDF_IS_STATUS_SUCCESS(
-	     wlan_vdev_is_restart_progress(sap_ctx->vdev)))) {
+	if (msg == eSAP_HDD_STOP_INFRA_BSS) {
 		/* Transition from SAP_STARTING to SAP_STOPPING */
-		sap_debug("In cac wait state from state %s => %s",
+		sap_debug("SAP start is in progress, state from state %s => %s",
 			  "SAP_STARTING", "SAP_STOPPING");
+
 		/*
 		 * Stop the CAC timer only in following conditions
 		 * single AP: if there is a single AP then stop timer
@@ -2477,6 +2528,38 @@ static void sap_propagate_cac_events(struct sap_context *sap_ctx)
 	}
 }
 
+static void sap_check_and_update_vdev_ch_params(struct sap_context *sap_ctx)
+{
+	struct wlan_channel *chan;
+	enum phy_ch_width orig_ch_width;
+
+	chan = wlan_vdev_get_active_channel(sap_ctx->vdev);
+	if (!chan) {
+		sap_debug("Couldn't get vdev active channel");
+		return;
+	}
+	if (sap_ctx->ch_params.ch_width == chan->ch_width)
+		return;
+
+	orig_ch_width = sap_ctx->ch_params.ch_width;
+
+	sap_ctx->ch_params.ch_width = chan->ch_width;
+	sap_ctx->ch_params.center_freq_seg0 = chan->ch_freq_seg1;
+	sap_ctx->ch_params.center_freq_seg1 = chan->ch_freq_seg2;
+	sap_ctx->ch_params.mhz_freq_seg0 = chan->ch_cfreq1;
+	sap_ctx->ch_params.mhz_freq_seg1 = chan->ch_cfreq2;
+
+	if (WLAN_REG_IS_24GHZ_CH_FREQ(sap_ctx->chan_freq) &&
+	    (chan->ch_width == CH_WIDTH_40MHZ)) {
+		if (sap_ctx->chan_freq < chan->ch_freq_seg1)
+			sap_ctx->ch_params.sec_ch_offset = LOW_PRIMARY_CH;
+		else
+			sap_ctx->ch_params.sec_ch_offset = HIGH_PRIMARY_CH;
+	}
+	sap_debug("updated BW %d -> %d", orig_ch_width,
+		  sap_ctx->ch_params.ch_width);
+}
+
 /**
  * sap_fsm_state_starting() - utility function called from sap fsm
  * @sap_ctx: SAP context
@@ -2504,6 +2587,12 @@ static QDF_STATUS sap_fsm_state_starting(struct sap_context *sap_ctx,
 	enum reg_wifi_band band;
 
 	if (msg == eSAP_MAC_START_BSS_SUCCESS) {
+		/*
+		 * Update sap_ctx->ch_params from vdev to make up with any BW
+		 * change in lower layer
+		 */
+		sap_check_and_update_vdev_ch_params(sap_ctx);
+
 		/*
 		 * Transition from SAP_STARTING to SAP_STARTED
 		 * (both without substates)
@@ -2577,6 +2666,7 @@ static QDF_STATUS sap_fsm_state_starting(struct sap_context *sap_ctx,
 							       mac_handle);
 			} else {
 				sap_debug("skip cac timer");
+				mac_ctx->sap.SapDfsInfo.sap_radar_found_status = false;
 				/*
 				 * If hostapd starts AP on dfs channel,
 				 * hostapd will wait for CAC START/CAC END
@@ -3033,6 +3123,8 @@ sapconvert_to_csr_profile(struct sap_config *config, eCsrRoamBssType bssType,
 		profile->extended_rates.numRates =
 			config->extended_rates.numRates;
 	}
+
+	profile->require_h2e = config->require_h2e;
 
 	qdf_status = ucfg_mlme_get_sap_chan_switch_rate_enabled(
 					mac_ctx->psoc,

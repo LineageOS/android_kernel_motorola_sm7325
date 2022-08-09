@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -52,4 +52,47 @@ tgt_pkt_capture_unregister_ev_handler(struct wlan_objmgr_vdev *vdev);
 QDF_STATUS
 tgt_pkt_capture_send_mode(struct wlan_objmgr_vdev *vdev,
 			  enum pkt_capture_mode mode);
+
+/**
+ * tgt_pkt_capture_send_beacon_interval() - send beacon interval to firmware
+ * @vdev: pointer to vdev object
+ * @nth_value: Beacon report period
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+tgt_pkt_capture_send_beacon_interval(struct wlan_objmgr_vdev *vdev,
+				     uint32_t nth_value);
+
+/**
+ * tgt_pkt_capture_send_config() - send packet capture config to firmware
+ * @vdev: pointer to vdev object
+ * @config: packet capture config
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+tgt_pkt_capture_send_config(struct wlan_objmgr_vdev *vdev,
+			    enum pkt_capture_config config);
+
+#ifdef WLAN_FEATURE_PKT_CAPTURE_V2
+/**
+ * tgt_pkt_capture_smu_event() - Receive smart monitor event from firmware
+ * @psoc: pointer to psoc
+ * @param: smart monitor event params
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+tgt_pkt_capture_smu_event(struct wlan_objmgr_psoc *psoc,
+			  struct smu_event_params *param);
+#else
+static inline QDF_STATUS
+tgt_pkt_capture_smu_event(struct wlan_objmgr_psoc *psoc,
+			  struct smu_event_params *param)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
+
 #endif /* _WLAN_PKT_CAPTURE_TGT_API_H */

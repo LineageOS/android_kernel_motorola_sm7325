@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -65,6 +66,7 @@ static void lim_fill_status_code(uint8_t frame_type,
 			*proto_status_code = STATUS_AUTH_TX_FAIL;
 			break;
 		case LIM_ACK_RCD_FAILURE:
+		case LIM_ACK_NOT_RCD:
 			*proto_status_code = STATUS_AUTH_NO_ACK_RECEIVED;
 			break;
 		case LIM_ACK_RCD_SUCCESS:
@@ -79,6 +81,7 @@ static void lim_fill_status_code(uint8_t frame_type,
 			*proto_status_code = STATUS_ASSOC_TX_FAIL;
 			break;
 		case LIM_ACK_RCD_FAILURE:
+		case LIM_ACK_NOT_RCD:
 			*proto_status_code = STATUS_ASSOC_NO_ACK_RECEIVED;
 			break;
 		case LIM_ACK_RCD_SUCCESS:
@@ -90,14 +93,7 @@ static void lim_fill_status_code(uint8_t frame_type,
 	}
 }
 
-/**
- * lim_process_sae_auth_timeout() - This function is called to process sae
- * auth timeout
- * @mac_ctx: Pointer to Global MAC structure
- *
- * @Return: None
- */
-static void lim_process_sae_auth_timeout(struct mac_context *mac_ctx)
+void lim_process_sae_auth_timeout(struct mac_context *mac_ctx)
 {
 	struct pe_session *session;
 	enum wlan_status_code proto_status_code;
@@ -122,7 +118,8 @@ static void lim_process_sae_auth_timeout(struct mac_context *mac_ctx)
 		 * SAE authentication is not completed. Restore from
 		 * auth state.
 		 */
-		if (session->opmode == QDF_STA_MODE)
+		if ((session->opmode == QDF_STA_MODE) ||
+		    (session->opmode == QDF_P2P_CLIENT_MODE))
 			lim_restore_from_auth_state(mac_ctx,
 				eSIR_SME_AUTH_TIMEOUT_RESULT_CODE,
 				proto_status_code, session);
@@ -1656,16 +1653,57 @@ static void lim_process_periodic_join_probe_req_timer(struct mac_context *mac_ct
 	}
 }
 
+static void lim_send_pre_auth_failure(uint8_t vdev_id, tSirMacAddr bssid)
+{
+	struct scheduler_msg sch_msg = {0};
+	struct wmi_roam_auth_status_params *params;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+
+	params = qdf_mem_malloc(sizeof(*params));
+	if (!params)
+		return;
+
+	params->vdev_id = vdev_id;
+	params->preauth_status = STATUS_UNSPECIFIED_FAILURE;
+	qdf_mem_copy(params->bssid.bytes, bssid, QDF_MAC_ADDR_SIZE);
+	qdf_mem_zero(params->pmkid, PMKID_LEN);
+
+	sch_msg.type = WMA_ROAM_PRE_AUTH_STATUS;
+	sch_msg.bodyptr = params;
+	pe_debug("Sending pre auth failure for mac_addr " QDF_MAC_ADDR_FMT,
+		 QDF_MAC_ADDR_REF(params->bssid.bytes));
+
+	status = scheduler_post_message(QDF_MODULE_ID_PE,
+					QDF_MODULE_ID_WMA,
+					QDF_MODULE_ID_WMA,
+					&sch_msg);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		pe_err("Sending preauth status failed");
+		qdf_mem_free(params);
+	}
+}
+
 static void lim_handle_sae_auth_timeout(struct mac_context *mac_ctx,
 					struct pe_session *session_entry)
 {
 	struct sae_auth_retry *sae_retry;
+	tpSirMacMgmtHdr mac_hdr;
 
 	sae_retry = mlme_get_sae_auth_retry(session_entry->vdev);
 	if (!(sae_retry && sae_retry->sae_auth.data)) {
 		pe_debug("sae auth frame is not buffered vdev id %d",
 			 session_entry->vdev_id);
 		return;
+	}
+
+	if (!sae_retry->sae_auth_max_retry) {
+		if (MLME_IS_ROAMING_IN_PROG(mac_ctx->psoc,
+					    session_entry->vdev_id)) {
+			mac_hdr = (tpSirMacMgmtHdr)sae_retry->sae_auth.data;
+			lim_send_pre_auth_failure(session_entry->vdev_id,
+						  mac_hdr->bssId);
+		}
+		goto free_and_deactivate_timer;
 	}
 
 	pe_debug("retry sae auth for seq num %d vdev id %d",
@@ -1675,7 +1713,7 @@ static void lim_handle_sae_auth_timeout(struct mac_context *mac_ctx,
 
 	sae_retry->sae_auth_max_retry--;
 	/* Activate Auth Retry timer if max_retries are not done */
-	if (!sae_retry->sae_auth_max_retry || (tx_timer_activate(
+	if ((tx_timer_activate(
 	    &mac_ctx->lim.lim_timers.g_lim_periodic_auth_retry_timer) !=
 	    TX_SUCCESS))
 		goto free_and_deactivate_timer;

@@ -561,6 +561,15 @@ bool csr_is_profile_wapi(struct csr_roam_profile *pProfile);
 void csr_get_vdev_type_nss(enum QDF_OPMODE dev_mode, uint8_t *nss_2g,
 			   uint8_t *nss_5g);
 
+/**
+ * csr_send_set_ie  - Send Set IE request to lim
+ * @type: Vdev type
+ * @sub_type: Vdev sub type
+ * @vdev_id: Vdev id
+ *
+ * Return: None
+ */
+void csr_send_set_ie(uint8_t type, uint8_t sub_type, uint8_t vdev_id);
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
 
 /* Security */
@@ -725,9 +734,21 @@ void csr_get_pmk_info(struct mac_context *mac_ctx, uint8_t session_id,
  *
  * Return QDF_STATUS - usually it succeed unless sessionId is not found
  */
-QDF_STATUS csr_roam_set_psk_pmk(struct mac_context *mac, uint32_t sessionId,
-				uint8_t *psk_pmk, size_t pmk_len,
-				bool update_to_fw);
+QDF_STATUS csr_roam_set_psk_pmk(struct mac_context *mac,
+				struct wlan_crypto_pmksa *pmksa,
+				uint8_t vdev_id, bool update_to_fw);
+
+/**
+ * csr_set_pmk_cache_ft() - store MDID in PMK cache
+ *
+ * @mac  - pointer to global structure for MAC
+ * @session_id - Sme session id
+ * @pmk_cache: pointer to a structure of PMK
+ *
+ * Return QDF_STATUS - usually it succeed unless session_id is not found
+ */
+QDF_STATUS csr_set_pmk_cache_ft(struct mac_context *mac, uint32_t session_id,
+				tPmkidCacheInfo *pmk_cache);
 
 QDF_STATUS csr_roam_set_key_mgmt_offload(struct mac_context *mac_ctx,
 					 uint32_t session_id,
@@ -880,13 +901,16 @@ QDF_STATUS csr_roam_del_pmkid_from_cache(struct mac_context *mac,
 
 /**
  * csr_update_pmk_cache_ft - API to update MDID in PMKSA cache entry
- * @session_id: session ID
- * @session: sme session pointer
+ * @mac: Pointer to global structure for MAC
+ * @vdev_id: session ID
+ * @pmk_cache: pointer to pmk cache
+ * @scan_res: pointer to tCsrScanResultInfo
  *
  * Return: None
  */
-void csr_update_pmk_cache_ft(struct mac_context *mac, uint32_t session_id,
-			     struct csr_roam_session *session);
+void csr_update_pmk_cache_ft(struct mac_context *mac, uint32_t vdev_id,
+			     tPmkidCacheInfo *pmk_cache,
+			     tCsrScanResultInfo *scan_res);
 
 #if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
 /**
@@ -958,6 +982,17 @@ csr_get_bssdescr_from_scan_handle(tScanResultHandle result_handle,
 
 bool is_disconnect_pending(struct mac_context *mac_ctx,
 				   uint8_t sessionid);
+
+/**
+ * is_disconnect_pending_on_other_vdev() - To check whether a disconnect req
+ * is pending on any other vdev or not
+ * @mac_tx: mac context
+ * @sessionid: session id
+ *
+ * Return true if disconnect is pending on any other vdev
+ */
+bool is_disconnect_pending_on_other_vdev(struct mac_context *mac_ctx,
+					 uint8_t sessionid);
 
 QDF_STATUS
 csr_roam_prepare_bss_config_from_profile(struct mac_context *mac_ctx,

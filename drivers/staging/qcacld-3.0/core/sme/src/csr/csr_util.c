@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1106,8 +1107,9 @@ uint16_t csr_check_concurrent_channel_overlap(struct mac_context *mac_ctx,
 			    cc_switch_mode ==
 			    QDF_MCC_TO_SCC_WITH_PREFERRED_BAND)
 				intf_ch_freq = 0;
-		} else if (cc_switch_mode ==
-			   QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL) {
+		} else if (policy_mgr_is_hw_dbs_capable(mac_ctx->psoc) &&
+			   cc_switch_mode ==
+				QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL) {
 			status = policy_mgr_get_sap_mandatory_channel(
 					mac_ctx->psoc, sap_ch_freq,
 					&intf_ch_freq);
@@ -1388,9 +1390,11 @@ QDF_STATUS csr_parse_bss_description_ies(struct mac_context *mac_ctx,
 	int ieLen;
 
 	ieFields_offset = GET_FIELD_OFFSET(struct bss_description, ieFields);
-	if (!bss_desc->length ||
-	    (bss_desc->length - sizeof(bss_desc->length) <= ieFields_offset))
+	if (bss_desc->length <= (ieFields_offset - sizeof(bss_desc->length))) {
+		sme_err_rl("Invalid bss_desc IES: len:%d ie_fields_offset:%d",
+			   bss_desc->length, ieFields_offset);
 		return status;
+	}
 
 	ieLen =	(int)(bss_desc->length + sizeof(bss_desc->length) -
 		ieFields_offset);
@@ -1399,7 +1403,7 @@ QDF_STATUS csr_parse_bss_description_ies(struct mac_context *mac_ctx,
 		if (!DOT11F_FAILED(dot11f_unpack_beacon_i_es
 				    (mac_ctx, (uint8_t *)bss_desc->ieFields,
 				    ieLen, pIEStruct, false)))
-		status = QDF_STATUS_SUCCESS;
+			status = QDF_STATUS_SUCCESS;
 	}
 
 	return status;
@@ -1742,7 +1746,8 @@ static bool csr_get_phy_mode_in_use(struct mac_context *mac_ctx,
 		break;
 
 	case eCSR_DOT11_MODE_11n_ONLY:
-		if (eCSR_DOT11_MODE_11n == bssPhyMode) {
+		if (eCSR_DOT11_MODE_11n == bssPhyMode ||
+			bssPhyMode >= eCSR_DOT11_MODE_11ac) {
 			fMatch = true;
 			cfgDot11Mode = eCSR_CFG_DOT11_MODE_11N;
 
@@ -2487,8 +2492,7 @@ uint8_t csr_construct_rsn_ie(struct mac_context *mac, uint32_t sessionId,
 		self_rsn_cap |= WLAN_CRYPTO_RSN_CAP_MFP_ENABLED;
 		if (pProfile->MFPRequired)
 			self_rsn_cap |= WLAN_CRYPTO_RSN_CAP_MFP_REQUIRED;
-		if (!(rsn_cap & WLAN_CRYPTO_RSN_CAP_OCV_SUPPORTED))
-			self_rsn_cap &= ~WLAN_CRYPTO_RSN_CAP_OCV_SUPPORTED;
+
 	} else {
 		self_rsn_cap &= ~WLAN_CRYPTO_RSN_CAP_MFP_ENABLED;
 		self_rsn_cap &= ~WLAN_CRYPTO_RSN_CAP_MFP_REQUIRED;
@@ -3436,6 +3440,11 @@ QDF_STATUS csr_set_modify_profile_fields(struct mac_context *mac,
 					 pModifyProfileFields)
 {
 	struct csr_roam_session *pSession = CSR_GET_SESSION(mac, sessionId);
+
+	if (!pSession) {
+		sme_err("Session_id invalid %d", sessionId);
+		return QDF_STATUS_E_INVAL;
+	}
 
 	qdf_mem_copy(&pSession->connectedProfile.modifyProfileFields,
 		     pModifyProfileFields, sizeof(tCsrRoamModifyProfileFields));

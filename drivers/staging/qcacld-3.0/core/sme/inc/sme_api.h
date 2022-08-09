@@ -364,6 +364,20 @@ sme_nss_chains_update(mac_handle_t mac_handle,
 		      uint8_t vdev_id);
 
 /**
+ * sme_update_bfer_caps_as_per_nss_chains() - Update beamformer caps as per nss
+ * chains.
+ * @mac_handle: The handle returned by mac_open
+ * @cfg: wma target config
+ *
+ * This API will update beamformer capability as per nss chains
+ *
+ * Return: None
+ */
+void
+sme_update_bfer_caps_as_per_nss_chains(mac_handle_t mac_handle,
+				       struct wma_tgt_cfg *cfg);
+
+/**
  * sme_vdev_create() - Create vdev for given persona
  * @mac_handle: The handle returned by mac_open
  * @vdev_params: params required for vdev creation
@@ -631,9 +645,54 @@ sme_get_roam_scan_ch(mac_handle_t mac_handle,
 void sme_get_pmk_info(mac_handle_t mac_handle, uint8_t session_id,
 		      tPmkidCacheInfo *pmk_cache);
 
-QDF_STATUS sme_roam_set_psk_pmk(mac_handle_t mac_handle, uint8_t sessionId,
-				uint8_t *psk_pmk, size_t pmk_len,
-				bool update_to_fw);
+/**
+ * sme_roam_set_psk_pmk  - Set the PMK to vdev cache
+ * @mac_handle: Opaque Mac handle
+ * @pmksa: Pointer to pmksa cache
+ * @vdev_id: Vdev id
+ * @update_to_fw: Send RSO update config command to firmware to update
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_roam_set_psk_pmk(mac_handle_t mac_handle,
+				struct wlan_crypto_pmksa *pmksa,
+				uint8_t vdev_id, bool update_to_fw);
+
+/**
+ * sme_set_pmk_cache_ft() - a wrapper function to request CSR to save MDID
+ * This is a synchronous call.
+ * @mac_handle:  Global structure
+ * @session_id:   SME session id
+ * @pmk_cache:    pointer to pmk cache structure tPmkidCacheInfo
+ *
+ * Return: QDF_STATUS -status whether MDID is set or not
+ */
+QDF_STATUS sme_set_pmk_cache_ft(mac_handle_t mac_handle, uint8_t session_id,
+				tPmkidCacheInfo *pmk_cache);
+
+/**
+ * sme_roam_events_register_callback() - Register roam events callback
+ * @mac_handle: Opaque handle to the MAC context
+ * @roam_rt_stats_cb: Function to be invoked for roam events stats
+ *
+ * This function will register a callback for roams events stats.
+ *
+ * Return: void
+ */
+void sme_roam_events_register_callback(mac_handle_t mac_handle,
+				       void (*roam_rt_stats_cb)(
+				hdd_handle_t hdd_handle,
+				struct mlme_roam_debug_info *roam_stats));
+
+/**
+ * sme_roam_events_deregister_callback() - DeRegister roam events callback
+ * @mac_handle: Opaque handle to the MAC context
+ *
+ * This function will deregister the callback of roams events stats.
+ *
+ * Return: void
+ */
+void sme_roam_events_deregister_callback(mac_handle_t mac_handle);
 #else
 static inline
 void sme_get_pmk_info(mac_handle_t mac_handle, uint8_t session_id,
@@ -655,12 +714,30 @@ sme_set_roam_scan_ch_event_cb(mac_handle_t mac_handle,
 }
 
 static inline
-QDF_STATUS sme_roam_set_psk_pmk(mac_handle_t mac_handle, uint8_t sessionId,
-				uint8_t *psk_pmk, size_t pmk_len,
-				bool update_to_fw)
+QDF_STATUS sme_roam_set_psk_pmk(mac_handle_t mac_handle,
+				struct wlan_crypto_pmksa *pmksa,
+				uint8_t vdev_id, bool update_to_fw)
 {
 	return QDF_STATUS_SUCCESS;
 }
+
+static inline
+QDF_STATUS sme_set_pmk_cache_ft(mac_handle_t mac_handle, uint8_t session_id,
+				tPmkidCacheInfo *pmk_cache)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline void
+sme_roam_events_register_callback(mac_handle_t mac_handle,
+				  void (*roam_rt_stats_cb)(
+				hdd_handle_t hdd_handle,
+				struct mlme_roam_debug_info *roam_stats))
+{}
+
+static inline
+void sme_roam_events_deregister_callback(mac_handle_t mac_handle)
+{}
 #endif
 
 /**
@@ -2429,6 +2506,27 @@ sme_set_del_peers_ind_callback(mac_handle_t mac_handle,
 void sme_set_chan_info_callback(mac_handle_t mac_handle,
 			void (*callback)(struct scan_chan_info *chan_info));
 
+#ifdef WLAN_FEATURE_CAL_FAILURE_TRIGGER
+/**
+ * sme_set_cal_failure_event_cb() - Register calibration failure event callback
+ * @mac_handle - MAC global handle
+ * @callback   - calibration failure event callback from HDD
+ *
+ * This API is invoked by HDD to register its callback to mac
+ *
+ * Return: None
+ */
+void sme_set_cal_failure_event_cb(
+			mac_handle_t mac_handle,
+			void (*callback)(uint8_t cal_type, uint8_t reason));
+#else
+static inline void
+sme_set_cal_failure_event_cb(mac_handle_t mac_handle,
+			     void (*callback)(uint8_t cal_type, uint8_t reason))
+{
+}
+#endif
+
 /**
  * sme_get_rssi_snr_by_bssid() - gets the rssi and snr by bssid from scan cache
  * @mac_handle: handle returned by mac_open
@@ -3687,12 +3785,14 @@ QDF_STATUS sme_register_twt_callbacks(mac_handle_t mac_handle,
  * @mac_handle: MAC handle
  * @twt_add_dialog_cb: Function callback to handle add_dialog event
  * @twt_params: TWT add dialog parameters
+ * @context: TWT context
  *
  * Return: QDF Status
  */
 QDF_STATUS sme_add_dialog_cmd(mac_handle_t mac_handle,
 			      twt_add_dialog_cb twt_add_dialog_cb,
-			      struct wmi_twt_add_dialog_param *twt_params);
+			      struct wmi_twt_add_dialog_param *twt_params,
+			      void *context);
 
 /**
  * sme_del_dialog_cmd() - Register callback and send TWT del dialog
@@ -3700,12 +3800,14 @@ QDF_STATUS sme_add_dialog_cmd(mac_handle_t mac_handle,
  * @mac_handle: MAC handle
  * @twt_del_dialog_cb: Function callback to handle del_dialog event
  * @twt_params: TWT del dialog parameters
+ * @context: TWT context
  *
  * Return: QDF Status
  */
 QDF_STATUS sme_del_dialog_cmd(mac_handle_t mac_handle,
 			      twt_del_dialog_cb del_dialog_cb,
-			      struct wmi_twt_del_dialog_param *twt_params);
+			      struct wmi_twt_del_dialog_param *twt_params,
+			      void *context);
 
 /**
  * sme_sap_del_dialog_cmd() - Register callback and send TWT del dialog
@@ -3725,41 +3827,55 @@ QDF_STATUS sme_sap_del_dialog_cmd(mac_handle_t mac_handle,
  * command to firmware
  * @mac_handle: MAC handle
  * @twt_params: TWT pause dialog parameters
+ * @context: TWT context
  *
  * Return: QDF_STATUS_SUCCESS on Success, other QDF_STATUS error codes
  * on failure
  */
 QDF_STATUS
 sme_pause_dialog_cmd(mac_handle_t mac_handle,
-		     struct wmi_twt_pause_dialog_cmd_param *twt_params);
+		     struct wmi_twt_pause_dialog_cmd_param *twt_params,
+		     void *context);
 
 /**
  * sme_nudge_dialog_cmd() - Register callback and send TWT nudge dialog
  * command to firmware
  * @mac_handle: MAC handle
  * @twt_params: TWT nudge dialog parameters
+ * @context: TWT context
  *
  * Return: QDF_STATUS_SUCCESS on Success, other QDF_STATUS error codes
  * on failure
  */
 QDF_STATUS
 sme_nudge_dialog_cmd(mac_handle_t mac_handle,
-		     struct wmi_twt_nudge_dialog_cmd_param *twt_params);
+		     struct wmi_twt_nudge_dialog_cmd_param *twt_params,
+		     void *context);
 
 /**
  * sme_resume_dialog_cmd() - Register callback and send TWT resume dialog
  * command to firmware
  * @mac_handle: MAC handle
  * @twt_params: TWT resume dialog parameters
+ * @context: TWT context
  *
  * Return: QDF_STATUS_SUCCESS on Success, other QDF_STATUS error codes
  * on failure
  */
 QDF_STATUS
 sme_resume_dialog_cmd(mac_handle_t mac_handle,
-		      struct wmi_twt_resume_dialog_cmd_param *twt_params);
-#else
+		      struct wmi_twt_resume_dialog_cmd_param *twt_params,
+		      void *context);
 
+/**
+ * sme_twt_update_beacon_template() - API to send beacon update to fw
+ * @mac: Global MAC pointer
+ *
+ * Return: None
+ */
+void sme_twt_update_beacon_template(mac_handle_t mac_handle);
+
+#else
 static inline
 QDF_STATUS sme_test_config_twt_setup(struct wmi_twt_add_dialog_param *params)
 {
@@ -3771,6 +3887,12 @@ sme_test_config_twt_terminate(struct wmi_twt_del_dialog_param *params)
 {
 	return QDF_STATUS_E_FAILURE;
 }
+
+static inline void
+sme_twt_update_beacon_template(mac_handle_t mac_handle)
+{
+}
+
 #endif
 
 /**
@@ -4145,6 +4267,19 @@ void sme_chan_to_freq_list(
 			uint32_t *freq_list,
 			const uint8_t *chan_list,
 			uint32_t chan_list_len);
+
+/**
+ * sme_set_vdev_sw_retry() - set sw retry threshold per vdev
+ * @vdev_id: vdev id
+ * @sw_retry_count: sw retry number
+ * @retry_type: SW vdev retry type
+ *
+ * This function calls WMA api to send the sw retry threshold per vdev.
+ *
+ * Return: QDF_STATUS.
+ */
+QDF_STATUS sme_set_vdev_sw_retry(uint8_t vdev_id, uint8_t sw_retry_count,
+				 wmi_vdev_custom_sw_retry_type_t sw_retry_type);
 
 /**
  * sme_set_roam_config_enable() - Cache roam config status in SME

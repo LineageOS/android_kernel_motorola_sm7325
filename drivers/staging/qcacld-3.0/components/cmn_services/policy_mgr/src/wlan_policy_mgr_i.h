@@ -26,12 +26,10 @@
 #include "qdf_defer.h"
 #include "wlan_reg_services_api.h"
 #include "cds_ieee80211_common_i.h"
-
+#include "qdf_delayed_work.h"
 #define DBS_OPPORTUNISTIC_TIME   5
 
 #define POLICY_MGR_SER_CMD_TIMEOUT 4000
-
-#define SAP_MANDATORY_5G_CH_FREQ 5745
 
 #ifdef QCA_WIFI_3_0_EMU
 #define CONNECTION_UPDATE_TIMEOUT (POLICY_MGR_SER_CMD_TIMEOUT + 3000)
@@ -42,6 +40,7 @@
 #define PM_24_GHZ_CH_FREQ_6   (2437)
 #define PM_5_GHZ_CH_FREQ_36   (5180)
 #define CHANNEL_SWITCH_COMPLETE_TIMEOUT   (2000)
+#define MAX_NOA_TIME (3000)
 
 /**
  * Policy Mgr hardware mode list bit-mask definitions.
@@ -298,6 +297,8 @@ struct policy_mgr_cfg {
  * interaction with Policy Manager
  * @cdp_cbacks: callbacks to be registered by SME for
  * interaction with Policy Manager
+ * @conc_cbacks: callbacks to be registered by lim for
+ * interaction with Policy Manager
  * @sap_mandatory_channels: The user preferred master list on
  *                        which SAP can be brought up. This
  *                        mandatory channel freq list would be as per
@@ -344,13 +345,14 @@ struct policy_mgr_psoc_priv_obj {
 	struct policy_mgr_tdls_cbacks tdls_cbacks;
 	struct policy_mgr_cdp_cbacks cdp_cbacks;
 	struct policy_mgr_dp_cbacks dp_cbacks;
+	struct policy_mgr_conc_cbacks conc_cbacks;
 	uint32_t sap_mandatory_channels[NUM_CHANNELS];
 	uint32_t sap_mandatory_channels_len;
 	bool do_sap_unsafe_ch_check;
 	uint32_t concurrency_mode;
 	uint8_t no_of_open_sessions[QDF_MAX_NO_OF_MODE];
 	uint8_t no_of_active_sessions[QDF_MAX_NO_OF_MODE];
-	qdf_work_t sta_ap_intf_check_work;
+	struct qdf_delayed_work sta_ap_intf_check_work;
 	qdf_work_t nan_sap_conc_work;
 	uint32_t num_dbs_hw_modes;
 	struct dbs_hw_mode_info hw_mode;

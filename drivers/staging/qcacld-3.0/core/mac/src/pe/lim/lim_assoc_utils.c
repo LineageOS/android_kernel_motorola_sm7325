@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1587,6 +1588,41 @@ static bool lim_check_valid_mcs_for_nss(struct pe_session *session,
 }
 #endif
 
+/**
+ * lim_remove_membership_selectors() - remove elements from rate set
+ *
+ * @rate_set: pointer to rate set
+ *
+ * Removes the BSS membership selector elements from the rate set, and keep
+ * only the rates
+ *
+ * Return: none
+ */
+static void lim_remove_membership_selectors(tSirMacRateSet *rate_set)
+{
+	int i, selector_count = 0;
+
+	for (i = 0; i < rate_set->numRates; i++) {
+		if ((rate_set->rate[i] == (WLAN_BASIC_RATE_MASK |
+				WLAN_BSS_MEMBERSHIP_SELECTOR_HT_PHY)) ||
+		    (rate_set->rate[i] == (WLAN_BASIC_RATE_MASK |
+				WLAN_BSS_MEMBERSHIP_SELECTOR_VHT_PHY)) ||
+		    (rate_set->rate[i] == (WLAN_BASIC_RATE_MASK |
+				WLAN_BSS_MEMBERSHIP_SELECTOR_GLK)) ||
+		    (rate_set->rate[i] == (WLAN_BASIC_RATE_MASK |
+				WLAN_BSS_MEMBERSHIP_SELECTOR_EPD)) ||
+		    (rate_set->rate[i] == (WLAN_BASIC_RATE_MASK |
+				WLAN_BSS_MEMBERSHIP_SELECTOR_SAE_H2E)) ||
+		    (rate_set->rate[i] == (WLAN_BASIC_RATE_MASK |
+				WLAN_BSS_MEMBERSHIP_SELECTOR_HE_PHY)))
+			selector_count++;
+
+		if (i + selector_count < rate_set->numRates)
+			rate_set->rate[i] = rate_set->rate[i + selector_count];
+	}
+	rate_set->numRates -= selector_count;
+}
+
 QDF_STATUS lim_populate_peer_rate_set(struct mac_context *mac,
 				      struct supported_rates *pRates,
 				      uint8_t *pSupportedMCSSet,
@@ -1599,7 +1635,7 @@ QDF_STATUS lim_populate_peer_rate_set(struct mac_context *mac,
 {
 	tSirMacRateSet tempRateSet;
 	tSirMacRateSet tempRateSet2;
-	uint32_t i, j, val, min, isArate = 0;
+	uint32_t i, j, val, min;
 	qdf_size_t val_len;
 	uint8_t aRateIndex = 0;
 	uint8_t bRateIndex = 0;
@@ -1635,6 +1671,10 @@ QDF_STATUS lim_populate_peer_rate_set(struct mac_context *mac,
 		}
 	} else
 		tempRateSet2.numRates = 0;
+
+	lim_remove_membership_selectors(&tempRateSet);
+	lim_remove_membership_selectors(&tempRateSet2);
+
 	if ((tempRateSet.numRates + tempRateSet2.numRates) >
 	    WLAN_SUPPORTED_RATES_IE_MAX_LEN) {
 		pe_err("more than 12 rates in CFG");
@@ -1655,7 +1695,6 @@ QDF_STATUS lim_populate_peer_rate_set(struct mac_context *mac,
 	for (i = 0; i < tempRateSet.numRates; i++) {
 		min = 0;
 		val = 0xff;
-		isArate = 0;
 		for (j = 0; (j < tempRateSet.numRates) &&
 		     (j < WLAN_SUPPORTED_RATES_IE_MAX_LEN); j++) {
 			if ((uint32_t)(tempRateSet.rate[j] & 0x7f) <
@@ -1664,8 +1703,6 @@ QDF_STATUS lim_populate_peer_rate_set(struct mac_context *mac,
 				min = j;
 			}
 		}
-		if (sirIsArate(tempRateSet.rate[min] & 0x7f))
-			isArate = 1;
 		/*
 		 * HAL needs to know whether the rate is basic rate or not,
 		 * as it needs to update the response rate table accordingly.
@@ -1673,22 +1710,33 @@ QDF_STATUS lim_populate_peer_rate_set(struct mac_context *mac,
 		 * can be used for sending control frames. HAL updates the
 		 * response rate table whenever basic rate set is changed.
 		 */
-		if (basicOnly) {
-			if (tempRateSet.rate[min] & 0x80) {
-				if (isArate)
-					pRates->llaRates[aRateIndex++] =
+		if (basicOnly && !(tempRateSet.rate[min] & 0x80)) {
+			pe_debug("Invalid basic rate");
+		} else if (sirIsArate(tempRateSet.rate[min] & 0x7f)) {
+			if (aRateIndex >= SIR_NUM_11A_RATES) {
+				pe_debug("OOB, aRateIndex: %d", aRateIndex);
+			} else if (aRateIndex >= 1 && (tempRateSet.rate[min] ==
+				   pRates->llaRates[aRateIndex - 1])) {
+				pe_debug("Duplicate 11a rate: %d",
+					 tempRateSet.rate[min]);
+			} else {
+				pRates->llaRates[aRateIndex++] =
 						tempRateSet.rate[min];
-				else
-					pRates->llbRates[bRateIndex++] =
+			}
+		} else if (sirIsBrate(tempRateSet.rate[min] & 0x7f)) {
+			if (bRateIndex >= SIR_NUM_11B_RATES) {
+				pe_debug("OOB, bRateIndex: %d", bRateIndex);
+			} else if (bRateIndex >= 1 && (tempRateSet.rate[min] ==
+				   pRates->llbRates[bRateIndex - 1])) {
+				pe_debug("Duplicate 11b rate: %d",
+					 tempRateSet.rate[min]);
+			} else {
+				pRates->llbRates[bRateIndex++] =
 						tempRateSet.rate[min];
 			}
 		} else {
-			if (isArate)
-				pRates->llaRates[aRateIndex++] =
-					tempRateSet.rate[min];
-			else
-				pRates->llbRates[bRateIndex++] =
-					tempRateSet.rate[min];
+			pe_debug("%d is neither 11a nor 11b rate",
+				 tempRateSet.rate[min]);
 		}
 		tempRateSet.rate[min] = 0xff;
 	}
@@ -1786,8 +1834,8 @@ QDF_STATUS lim_populate_peer_rate_set(struct mac_context *mac,
  * in IBSS role to process the CFG rate sets and
  * the rate sets received in the Assoc request on AP
  *
- * 1. It makes the intersection between our own rate Sat
- *    and extemcded rate set and the ones received in the
+ * 1. It makes the intersection between our own rate set
+ *    and extended rate set and the ones received in the
  *    association request.
  * 2. It creates a combined rate set of 12 rates max which
  *    comprised the basic and extended rates
@@ -1837,13 +1885,16 @@ QDF_STATUS lim_populate_matching_rate_set(struct mac_context *mac_ctx,
 		temp_rate_set2.numRates = 0;
 	}
 
+	lim_remove_membership_selectors(&temp_rate_set);
+	lim_remove_membership_selectors(&temp_rate_set2);
+
 	/*
 	 * absolute sum of both num_rates should be less than 12. following
-	 * 16-bit sum avoids false codition where 8-bit arthematic overflow
+	 * 16-bit sum avoids false condition where 8-bit arithmetic overflow
 	 * might have caused total sum to be less than 12
 	 */
 	if (((uint16_t)temp_rate_set.numRates +
-		(uint16_t)temp_rate_set2.numRates) > 12) {
+	    (uint16_t)temp_rate_set2.numRates) > SIR_MAC_MAX_NUMBER_OF_RATES) {
 		pe_err("more than 12 rates in CFG");
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -2090,6 +2141,14 @@ static void lim_add_tdls_sta_he_config(tpAddStaParams add_sta_params,
 		     sizeof(add_sta_params->he_config));
 }
 
+static void lim_add_tdls_sta_6ghz_he_cap(struct mac_context *mac_ctx,
+					 tpAddStaParams add_sta_params,
+					 tpDphHashNode sta_ds)
+{
+	lim_update_he_6ghz_band_caps(mac_ctx, &sta_ds->he_6g_band_cap,
+				     add_sta_params);
+}
+
 #else
 static void lim_update_he_stbc_capable(tpAddStaParams add_sta_params)
 {}
@@ -2100,6 +2159,12 @@ static void lim_update_he_mcs_12_13(tpAddStaParams add_sta_params,
 
 static void lim_add_tdls_sta_he_config(tpAddStaParams add_sta_params,
 				       tpDphHashNode sta_ds)
+{
+}
+
+static void lim_add_tdls_sta_6ghz_he_cap(struct mac_context *mac_ctx,
+					 tpAddStaParams add_sta_params,
+					 tpDphHashNode sta_ds)
 {
 }
 #endif
@@ -2381,6 +2446,10 @@ lim_add_sta(struct mac_context *mac_ctx,
 			  add_sta_params->ht_caps,
 			  add_sta_params->vht_caps);
 		lim_add_tdls_sta_he_config(add_sta_params, sta_ds);
+
+		if (lim_is_he_6ghz_band(session_entry))
+			lim_add_tdls_sta_6ghz_he_cap(mac_ctx, add_sta_params,
+						     sta_ds);
 	}
 #endif
 
@@ -2483,9 +2552,11 @@ lim_add_sta(struct mac_context *mac_ctx,
 			assoc_req =
 			(tpSirAssocReq) session_entry->parsedAssocReq[aid];
 
-			add_sta_params->wpa_rsn = assoc_req->rsnPresent;
-			add_sta_params->wpa_rsn |=
-				(assoc_req->wpaPresent << 1);
+			if (assoc_req) {
+				add_sta_params->wpa_rsn = assoc_req->rsnPresent;
+				add_sta_params->wpa_rsn |=
+					(assoc_req->wpaPresent << 1);
+			}
 		}
 	}
 

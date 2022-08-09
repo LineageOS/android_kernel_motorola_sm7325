@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -50,6 +51,8 @@ typedef void *WMA_HANDLE;
  * @GEN_VDEV_PARAM_RX_AMPDU: Set rx ampdu size
  * @GEN_VDEV_PARAM_TX_AMSDU: Set tx amsdu size
  * @GEN_VDEV_PARAM_RX_AMSDU: Set rx amsdu size
+ * @GEN_PARAM_TSF_AUTO_REPORT_ENABLE: Enable auto report of clock delta change
+ * @GEN_PARAM_TSF_AUTO_REPORT_DISABLE: Disable auto report of clock delta change
  */
 enum GEN_PARAM {
 	GEN_VDEV_PARAM_AMPDU = 0x1,
@@ -62,6 +65,8 @@ enum GEN_PARAM {
 	GEN_VDEV_PARAM_RX_AMPDU,
 	GEN_VDEV_PARAM_TX_AMSDU,
 	GEN_VDEV_PARAM_RX_AMSDU,
+	GEN_PARAM_TSF_AUTO_REPORT_ENABLE,
+	GEN_PARAM_TSF_AUTO_REPORT_DISABLE,
 };
 
 /**
@@ -357,6 +362,19 @@ wma_set_tx_rx_aggr_size_per_ac(WMA_HANDLE wma_handle,
 			       uint8_t vdev_id,
 			       struct wlan_mlme_qos *qos_aggr,
 			       wmi_vdev_custom_aggr_type_t aggr_type);
+
+/**
+ * wma_set_sw_retry_threshold() - set sw retry threshold per vdev
+ * @vdev_id: vdev id
+ * @sw_retry_count: sw retry number
+ * @retry_type: SW vdev retry type
+ *
+ * This function sends WMI command to set the sw retry threshold per vdev.
+ *
+ * Return: QDF_STATUS.
+ */
+QDF_STATUS wma_set_vdev_sw_retry_th(uint8_t vdev_id, uint8_t sw_retry_count,
+				    wmi_vdev_custom_sw_retry_type_t retry_type);
 
 /**
  * wma_set_sw_retry_threshold_per_ac() - set sw retry threshold per AC for tx

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -550,6 +551,7 @@ static QDF_STATUS nan_handle_confirm(struct nan_datapath_confirm_event *confirm)
 	struct wlan_objmgr_psoc *psoc;
 	struct nan_psoc_priv_obj *psoc_nan_obj;
 	struct nan_vdev_priv_obj *vdev_nan_obj;
+	struct wlan_objmgr_peer *peer;
 
 	vdev_id = wlan_vdev_get_id(confirm->vdev);
 	psoc = wlan_vdev_get_psoc(confirm->vdev);
@@ -557,6 +559,17 @@ static QDF_STATUS nan_handle_confirm(struct nan_datapath_confirm_event *confirm)
 		nan_err("psoc is null");
 		return QDF_STATUS_E_NULL_VALUE;
 	}
+
+	peer = wlan_objmgr_get_peer_by_mac(psoc,
+					   confirm->peer_ndi_mac_addr.bytes,
+					   WLAN_NAN_ID);
+	if (!peer && confirm->rsp_code == NAN_DATAPATH_RESPONSE_ACCEPT) {
+		nan_debug("Drop NDP confirm as peer isn't available");
+		return QDF_STATUS_E_NULL_VALUE;
+	}
+
+	if (peer)
+		wlan_objmgr_peer_release_ref(peer, WLAN_NAN_ID);
 
 	psoc_nan_obj = nan_get_psoc_priv_obj(psoc);
 	if (!psoc_nan_obj) {
@@ -827,6 +840,7 @@ static QDF_STATUS nan_handle_enable_rsp(struct nan_event_params *nan_event)
 	QDF_STATUS status;
 	void (*call_back)(void *cookie);
 	uint8_t vdev_id;
+	void (*nan_conc_callback)(void);
 
 	psoc = nan_event->psoc;
 	psoc_nan_obj = nan_get_psoc_priv_obj(psoc);
@@ -874,6 +888,9 @@ fail:
 	policy_mgr_check_n_start_opportunistic_timer(psoc);
 
 done:
+	nan_conc_callback = psoc_nan_obj->cb_obj.nan_concurrency_update;
+	if (nan_conc_callback)
+		nan_conc_callback();
 	call_back = psoc_nan_obj->cb_obj.ucfg_nan_request_process_cb;
 	if (call_back)
 		call_back(psoc_nan_obj->nan_disc_request_ctx);
@@ -886,6 +903,7 @@ QDF_STATUS nan_disable_cleanup(struct wlan_objmgr_psoc *psoc)
 	struct nan_psoc_priv_obj *psoc_nan_obj;
 	QDF_STATUS status;
 	uint8_t vdev_id;
+	void (*nan_conc_callback)(void);
 
 	if (!psoc) {
 		nan_err("psoc is NULL");
@@ -917,6 +935,9 @@ QDF_STATUS nan_disable_cleanup(struct wlan_objmgr_psoc *psoc)
 		nan_err("Cannot set NAN state to disabled!");
 		return QDF_STATUS_E_FAILURE;
 	}
+	nan_conc_callback = psoc_nan_obj->cb_obj.nan_concurrency_update;
+	if (nan_conc_callback)
+		nan_conc_callback();
 
 	return status;
 }

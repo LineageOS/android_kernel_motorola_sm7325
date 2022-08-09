@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1231,10 +1232,16 @@ wlansap_get_csa_chanwidth_from_phymode(struct sap_context *sap_context,
 				       uint32_t chan_freq,
 				       struct ch_params *tgt_ch_params)
 {
-	uint32_t max_fw_bw;
 	enum phy_ch_width ch_width, concurrent_bw = 0;
-	struct mac_context *mac = sap_get_mac_context();
+	struct mac_context *mac;
 	struct ch_params ch_params = {0};
+	uint32_t channel_bonding_mode = 0;
+
+	mac = sap_get_mac_context();
+	if (!mac) {
+		sap_err("Invalid MAC context");
+		return CH_WIDTH_20MHZ;
+	}
 
 	if (WLAN_REG_IS_24GHZ_CH_FREQ(chan_freq)) {
 		/*
@@ -1244,33 +1251,20 @@ wlansap_get_csa_chanwidth_from_phymode(struct sap_context *sap_context,
 		 */
 		ch_width = CH_WIDTH_20MHZ;
 	} else {
-		if (sap_context->csr_roamProfile.phyMode ==
-		    eCSR_DOT11_MODE_11ac ||
-		    sap_context->csr_roamProfile.phyMode ==
-		    eCSR_DOT11_MODE_11ac_ONLY ||
-		    sap_context->csr_roamProfile.phyMode ==
-		    eCSR_DOT11_MODE_11ax ||
-		    sap_context->csr_roamProfile.phyMode ==
-		    eCSR_DOT11_MODE_11ax_ONLY) {
-			max_fw_bw = sme_get_vht_ch_width();
-			if (max_fw_bw >= WNI_CFG_VHT_CHANNEL_WIDTH_160MHZ)
-				ch_width = CH_WIDTH_160MHZ;
-			else
-				ch_width = CH_WIDTH_80MHZ;
-		} else if (sap_context->csr_roamProfile.phyMode ==
-			   eCSR_DOT11_MODE_11n ||
-			   sap_context->csr_roamProfile.phyMode ==
-			   eCSR_DOT11_MODE_11n_ONLY) {
-			ch_width = CH_WIDTH_40MHZ;
-		} else {
-			/* For legacy 11a mode return 20MHz */
+		wlan_mlme_get_channel_bonding_5ghz(mac->psoc,
+						   &channel_bonding_mode);
+		if (WLAN_REG_IS_5GHZ_CH_FREQ(chan_freq) &&
+		    (!channel_bonding_mode))
 			ch_width = CH_WIDTH_20MHZ;
-		}
+		else
+			ch_width = wlansap_get_max_bw_by_phymode(sap_context);
+
 		concurrent_bw = wlan_sap_get_concurrent_bw(
 				mac->pdev, mac->psoc, chan_freq,
 				ch_width);
 		ch_width = QDF_MIN(ch_width, concurrent_bw);
-		ch_width = QDF_MIN(ch_width, sap_context->ch_width_orig);
+		if (tgt_ch_params)
+			ch_width = QDF_MIN(ch_width, tgt_ch_params->ch_width);
 	}
 	ch_params.ch_width = ch_width;
 	wlan_reg_set_channel_params_for_freq(mac->pdev, chan_freq, 0,
@@ -1278,11 +1272,12 @@ wlansap_get_csa_chanwidth_from_phymode(struct sap_context *sap_context,
 	ch_width = ch_params.ch_width;
 	if (tgt_ch_params)
 		*tgt_ch_params = ch_params;
-	sap_nofl_debug("freq %d bw %d (orig bw %d phymode %d, con bw %d)",
+	sap_nofl_debug("freq %d bw %d (phymode %d, con bw %d, tgt bw %d) channel bonding 5g %d",
 		       chan_freq, ch_width,
-		       sap_context->ch_width_orig,
 		       sap_context->csr_roamProfile.phyMode,
-		       concurrent_bw);
+		       concurrent_bw,
+		       tgt_ch_params ? tgt_ch_params->ch_width : CH_WIDTH_MAX,
+		       channel_bonding_mode);
 
 	return ch_width;
 }
@@ -1356,10 +1351,13 @@ wlansap_set_chan_params_for_csa(struct mac_context *mac,
 				uint32_t target_chan_freq,
 				enum phy_ch_width target_bw)
 {
+	struct ch_params tmp_ch_params = {0};
+
+	tmp_ch_params.ch_width = target_bw;
 	mac->sap.SapDfsInfo.new_chanWidth =
 		wlansap_get_csa_chanwidth_from_phymode(sap_ctx,
 						       target_chan_freq,
-						       NULL);
+						       &tmp_ch_params);
 	/*
 	 * Copy the requested target channel
 	 * to sap context.
@@ -1449,10 +1447,10 @@ QDF_STATUS wlansap_set_channel_change_with_csa(struct sap_context *sap_ctx,
 	sta_sap_scc_on_dfs_chan =
 		policy_mgr_is_sta_sap_scc_allowed_on_dfs_chan(mac->psoc);
 
-	tmp_ch_params.ch_width =
-		wlansap_get_csa_chanwidth_from_phymode(sap_ctx,
-						       target_chan_freq,
-						       NULL);
+	tmp_ch_params.ch_width = target_bw;
+	wlansap_get_csa_chanwidth_from_phymode(sap_ctx,
+					       target_chan_freq,
+					       &tmp_ch_params);
 	if (target_bw != CH_WIDTH_MAX) {
 		tmp_ch_params.ch_width =
 			QDF_MIN(tmp_ch_params.ch_width, target_bw);
@@ -2609,6 +2607,43 @@ uint32_t wlansap_get_chan_width(struct sap_context *sap_ctx)
 	return wlan_sap_get_vht_ch_width(sap_ctx);
 }
 
+enum phy_ch_width
+wlansap_get_max_bw_by_phymode(struct sap_context *sap_ctx)
+{
+	uint32_t max_fw_bw;
+	enum phy_ch_width ch_width;
+
+	if (!sap_ctx) {
+		sap_err("Invalid SAP pointer");
+		return CH_WIDTH_20MHZ;
+	}
+
+	if (sap_ctx->csr_roamProfile.phyMode ==
+	    eCSR_DOT11_MODE_11ac ||
+	    sap_ctx->csr_roamProfile.phyMode ==
+	    eCSR_DOT11_MODE_11ac_ONLY ||
+	    sap_ctx->csr_roamProfile.phyMode ==
+	    eCSR_DOT11_MODE_11ax ||
+	    sap_ctx->csr_roamProfile.phyMode ==
+	    eCSR_DOT11_MODE_11ax_ONLY) {
+		max_fw_bw = sme_get_vht_ch_width();
+		if (max_fw_bw >= WNI_CFG_VHT_CHANNEL_WIDTH_160MHZ)
+			ch_width = CH_WIDTH_160MHZ;
+		else
+			ch_width = CH_WIDTH_80MHZ;
+	} else if (sap_ctx->csr_roamProfile.phyMode ==
+		   eCSR_DOT11_MODE_11n ||
+		   sap_ctx->csr_roamProfile.phyMode ==
+		   eCSR_DOT11_MODE_11n_ONLY) {
+		ch_width = CH_WIDTH_40MHZ;
+	} else {
+		/* For legacy 11a mode return 20MHz */
+		ch_width = CH_WIDTH_20MHZ;
+	}
+
+	return ch_width;
+}
+
 QDF_STATUS wlansap_set_invalid_session(struct sap_context *sap_ctx)
 {
 	if (!sap_ctx) {
@@ -2890,7 +2925,7 @@ wlansap_get_safe_channel(struct sap_context *sap_ctx)
 	uint32_t pcl_freqs[NUM_CHANNELS];
 	QDF_STATUS status;
 	mac_handle_t mac_handle;
-	uint32_t pcl_len = 0;
+	uint32_t pcl_len = 0, i;
 
 	if (!sap_ctx) {
 		sap_err("NULL parameter");
@@ -2923,16 +2958,23 @@ wlansap_get_safe_channel(struct sap_context *sap_ctx)
 							       pcl_freqs,
 							       &pcl_len,
 							       PM_SAP_MODE);
-		if (QDF_IS_STATUS_ERROR(status)) {
-			sap_err("failed to get valid channel: %d", status);
+		if (QDF_IS_STATUS_ERROR(status) || !pcl_len) {
+			sap_err("failed to get valid channel: %d len %d",
+				status, pcl_len);
 			return INVALID_CHANNEL_ID;
 		}
 
-		if (pcl_len) {
-			sap_debug("select %d from valid channel list",
-				  pcl_freqs[0]);
-			return pcl_freqs[0];
+		for (i = 0; i < pcl_len; i++) {
+			if (WLAN_REG_IS_SAME_BAND_FREQS(sap_ctx->chan_freq,
+							pcl_freqs[i])) {
+				sap_debug("select %d from valid channel list",
+					  pcl_freqs[i]);
+				return pcl_freqs[i];
+			}
 		}
+		sap_debug("select first %d from valid channel list",
+			  pcl_freqs[0]);
+		return pcl_freqs[0];
 	}
 
 	return INVALID_CHANNEL_ID;
@@ -3195,6 +3237,11 @@ qdf_freq_t wlansap_get_chan_band_restrict(struct sap_context *sap_ctx,
 		return wlansap_get_safe_channel_from_pcl_and_acs_range(sap_ctx);
 	} else if (wlan_reg_is_passive_for_freq(mac->pdev,
 						sap_ctx->chan_freq)) {
+		sap_ctx->chan_freq_before_switch_band = sap_ctx->chan_freq;
+		sap_ctx->chan_width_before_switch_band =
+			sap_ctx->ch_params.ch_width;
+		sap_debug("Save chan info before switch: %d, width: %d",
+			  sap_ctx->chan_freq, sap_ctx->ch_params.ch_width);
 		sap_debug("channel is passive");
 		*csa_reason = CSA_REASON_CHAN_PASSIVE;
 		return wlansap_get_safe_channel_from_pcl_for_sap(sap_ctx);

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -428,7 +429,7 @@ static void lim_process_sae_auth_frame(struct mac_context *mac_ctx,
 		       pe_session->limMlmState);
 
 	if (LIM_IS_AP_ROLE(pe_session)) {
-		struct tLimPreAuthNode *sta_pre_auth_ctx;
+		struct tLimPreAuthNode *pre_auth_node;
 
 		rx_flags = RXMGMT_FLAG_EXTERNAL_AUTH;
 		/* Add preauth node when the first SAE authentication frame
@@ -438,12 +439,16 @@ static void lim_process_sae_auth_frame(struct mac_context *mac_ctx,
 		 * SAE protocol optimizations.
 		 */
 		/* Extract pre-auth context for the STA, if any. */
-		sta_pre_auth_ctx = lim_search_pre_auth_list(mac_ctx,
-							    mac_hdr->sa);
-		if (!sta_pre_auth_ctx ||
-		    (sta_pre_auth_ctx->mlmState != eLIM_MLM_WT_SAE_AUTH_STATE &&
-		     sta_pre_auth_ctx->mlmState !=
-		     eLIM_MLM_AUTHENTICATED_STATE)) {
+		pre_auth_node = lim_search_pre_auth_list(mac_ctx, mac_hdr->sa);
+		if (!pre_auth_node ||
+		    (pre_auth_node->mlmState != eLIM_MLM_WT_SAE_AUTH_STATE)) {
+			if (pre_auth_node) {
+				pe_debug("Delete existing preauth node for SAE peer in state: %u "
+					 QDF_MAC_ADDR_FMT,
+					 pre_auth_node->mlmState,
+					 QDF_MAC_ADDR_REF(mac_hdr->sa));
+				lim_delete_pre_auth_node(mac_ctx, mac_hdr->sa);
+			}
 			lim_external_auth_add_pre_auth_node(mac_ctx, mac_hdr,
 						eLIM_MLM_WT_SAE_AUTH_STATE);
 		}
@@ -1327,6 +1332,14 @@ lim_process_auth_frame(struct mac_context *mac_ctx, uint8_t *rx_pkt_info,
 		return;
 	}
 
+	/* Duplicate Auth frame from peer */
+	auth_node = lim_search_pre_auth_list(mac_ctx, mac_hdr->sa);
+	if (auth_node && (auth_node->seq_num == curr_seq_num)) {
+		pe_err("Received an already processed auth frame with seq_num : %d",
+		       curr_seq_num);
+		return;
+	}
+
 	/* save seq number and mac_addr in pe_session */
 	pe_session->prev_auth_seq_num = curr_seq_num;
 	qdf_mem_copy(pe_session->prev_auth_mac_addr, mac_hdr->sa, ETH_ALEN);
@@ -1458,7 +1471,6 @@ lim_process_auth_frame(struct mac_context *mac_ctx, uint8_t *rx_pkt_info,
 		 * Authentication frame3 and there is a context for requesting
 		 * STA. If not, reject with unspecified failure status code
 		 */
-		auth_node = lim_search_pre_auth_list(mac_ctx, mac_hdr->sa);
 		if (!auth_node) {
 			pe_err("rx Auth frame with no preauth ctx with WEP bit set "
 				QDF_MAC_ADDR_FMT,

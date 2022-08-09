@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2015-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -49,7 +50,11 @@
 #include "wlan_hdd_thermal.h"
 
 #ifdef MODULE
+#ifdef WLAN_WEAR_CHIPSET
+#define WLAN_MODULE_NAME  "wlan"
+#else
 #define WLAN_MODULE_NAME  module_name(THIS_MODULE)
+#endif
 #else
 #define WLAN_MODULE_NAME  "wlan"
 #endif
@@ -612,17 +617,17 @@ static int __hdd_soc_probe(struct device *dev,
 	if (errno)
 		goto unlock;
 
-	status = dp_prealloc_init();
-
-	if (status != QDF_STATUS_SUCCESS) {
-		errno = qdf_status_to_os_return(status);
-		goto unlock;
-	}
-
 	hdd_ctx = hdd_context_create(dev);
 	if (IS_ERR(hdd_ctx)) {
 		errno = PTR_ERR(hdd_ctx);
 		goto assert_fail_count;
+	}
+
+	status = dp_prealloc_init((struct cdp_ctrl_objmgr_psoc *)hdd_ctx->psoc);
+
+	if (status != QDF_STATUS_SUCCESS) {
+		errno = qdf_status_to_os_return(status);
+		goto dp_prealloc_fail;
 	}
 
 	errno = hdd_wlan_startup(hdd_ctx);
@@ -649,10 +654,12 @@ wlan_exit:
 	hdd_wlan_exit(hdd_ctx);
 
 hdd_context_destroy:
+	dp_prealloc_deinit();
+
+dp_prealloc_fail:
 	hdd_context_destroy(hdd_ctx);
 
 assert_fail_count:
-	dp_prealloc_deinit();
 	probe_fail_cnt++;
 	hdd_err("consecutive probe failures:%u", probe_fail_cnt);
 	QDF_BUG(probe_fail_cnt < SSR_MAX_FAIL_CNT);
@@ -741,8 +748,10 @@ static int __hdd_soc_recovery_reinit(struct device *dev,
 	 * So check if FW is down then don't reset the recovery
 	 * in progress
 	 */
-	if (!qdf_is_fw_down())
+	if (!qdf_is_fw_down()) {
 		cds_set_recovery_in_progress(false);
+		hdd_handle_cached_commands();
+	}
 
 	hdd_soc_load_unlock(dev);
 	hdd_start_complete(0);
@@ -1195,11 +1204,16 @@ static int __wlan_hdd_bus_suspend(struct wow_enable_params wow_params)
 	hdd_info("starting bus suspend");
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx)
+		return -ENODEV;
 
 	err = wlan_hdd_validate_context(hdd_ctx);
-	if (err)
-		return err;
-
+	if (0 != err) {
+		if (pld_is_low_power_mode(hdd_ctx->parent_dev))
+			hdd_debug("low power mode (Deep Sleep/Hibernate)");
+		else
+			return err;
+	}
 
 	/* If Wifi is off, return success for system suspend */
 	if (hdd_ctx->driver_status != DRIVER_MODULES_ENABLED) {
@@ -1904,10 +1918,17 @@ static int wlan_hdd_pld_suspend(struct device *dev,
 	struct hdd_context *hdd_ctx;
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx)
+		return -ENODEV;
 
 	errno = wlan_hdd_validate_context(hdd_ctx);
-	if (errno)
-		return errno;
+	if (0 != errno) {
+		if (pld_is_low_power_mode(hdd_ctx->parent_dev))
+			hdd_debug("low power mode (Deep Sleep/Hibernate)");
+		else
+			return errno;
+	}
+
 	/*
 	 * Flush the idle shutdown before ops start.This is done here to avoid
 	 * the deadlock as idle shutdown waits for the dsc ops
@@ -2067,6 +2088,10 @@ wlan_hdd_pld_uevent(struct device *dev, struct pld_uevent_data *event_data)
 	bus_type = pld_get_bus_type(dev);
 
 	switch (event_data->uevent) {
+	case PLD_SMMU_FAULT:
+		qdf_set_smmu_fault_state(true);
+		hdd_debug("Received smmu fault indication");
+		break;
 	case PLD_FW_DOWN:
 		hdd_debug("Received firmware down indication");
 

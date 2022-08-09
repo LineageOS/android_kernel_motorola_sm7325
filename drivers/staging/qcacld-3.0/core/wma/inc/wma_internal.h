@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -292,6 +293,25 @@ int wma_roam_synch_frame_event_handler(void *handle, uint8_t *event,
 int wma_roam_vdev_disconnect_event_handler(void *handle, uint8_t *event,
 					   uint32_t len);
 
+/**
+ * wma_report_real_time_roam_stats - Gathers/Sends the roam events stats
+ * @psoc:      Pointer to psoc structure
+ * @vdev_id:   Vdev ID
+ * @events:    Event/Notif type from roam event/roam stats event
+ * @roam_info: Roam stats from the roam stats event
+ * @value:     Notif param value from the roam event
+ * @reason:    Notif param value from the roam event that carries trigger reason
+ *
+ * Gathers the roam stats from the roam event and the roam stats event and
+ * sends them to hdd for filling the vendor attributes.
+ *
+ * Return: none
+ */
+void wma_report_real_time_roam_stats(struct wlan_objmgr_psoc *psoc,
+				     uint8_t vdev_id,
+				     enum roam_rt_stats_type events,
+				     struct mlme_roam_debug_info *roam_info,
+				     uint32_t value, uint32_t reason);
 #else
 static inline int wma_mlme_roam_synch_event_handler_cb(void *handle,
 						       uint8_t *event,
@@ -321,6 +341,14 @@ wma_roam_pmkid_request_event_handler(void *handle,
 {
 	return 0;
 }
+
+static void
+wma_report_real_time_roam_stats(struct wlan_objmgr_psoc *psoc,
+				uint8_t vdev_id,
+				enum roam_rt_stats_type events,
+				struct mlme_roam_debug_info *roam_info,
+				uint32_t value, uint32_t reason)
+{}
 #endif
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
@@ -1310,6 +1338,28 @@ int wma_vdev_tsf_handler(void *handle, uint8_t *data, uint32_t data_len);
 QDF_STATUS wma_capture_tsf(tp_wma_handle wma_handle, uint32_t vdev_id);
 QDF_STATUS wma_reset_tsf_gpio(tp_wma_handle wma_handle, uint32_t vdev_id);
 QDF_STATUS wma_set_tsf_gpio_pin(WMA_HANDLE handle, uint32_t pin);
+
+#ifdef WLAN_FEATURE_TSF_UPLINK_DELAY
+/**
+ * wma_set_tsf_auto_report() - Set TSF auto report in firmware
+ * @wma_handle: wma handle
+ * @vdev_id: vdev id
+ * @param_id: enum GEN_PARAM
+ * @ena: true for enable, and false for disable
+ *
+ * Return: QDF_STATUS_SUCCESS for success, otherwise for failure
+ */
+QDF_STATUS wma_set_tsf_auto_report(WMA_HANDLE handle, uint32_t vdev_id,
+				   uint32_t param_id, bool ena);
+#else /* !WLAN_FEATURE_TSF_UPLINK_DELAY */
+static inline QDF_STATUS wma_set_tsf_auto_report(WMA_HANDLE handle,
+						 uint32_t vdev_id,
+						 uint32_t param_id, bool ena)
+{
+	return QDF_STATUS_E_FAILURE;
+}
+#endif /* WLAN_FEATURE_TSF_UPLINK_DELAY */
+
 #else
 static inline QDF_STATUS wma_capture_tsf(tp_wma_handle wma_handle,
 					uint32_t vdev_id)

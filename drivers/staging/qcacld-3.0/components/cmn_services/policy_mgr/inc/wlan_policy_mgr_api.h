@@ -1494,6 +1494,18 @@ struct policy_mgr_hdd_cbacks {
 			struct ch_params *ch_params);
 };
 
+/**
+ * struct policy_mgr_conc_cbacks - lim Callbacks to be invoked
+ * from policy manager
+ * @connection_info_update: check and update params based on STA/SAP
+ *                          concurrency.such as EDCA params and RTS threshold.
+ *                          If updated, it will also send the updated parameters
+ *                          to FW.
+ */
+
+struct policy_mgr_conc_cbacks {
+	void (*connection_info_update)(void);
+};
 
 /**
  * struct policy_mgr_tdls_cbacks - TDLS Callbacks to be invoked
@@ -2327,6 +2339,16 @@ void policy_mgr_hw_mode_transition_cb(uint32_t old_hw_mode_index,
 		struct wlan_objmgr_psoc *context);
 
 /**
+ * policy_mgr_current_concurrency_is_scc() - To check the current
+ * concurrency combination if it is doing SCC
+ * @psoc: PSOC object information
+ * This routine is called to check if it is doing SCC
+ *
+ * Return: True - SCC, False - Otherwise
+ */
+bool policy_mgr_current_concurrency_is_scc(struct wlan_objmgr_psoc *psoc);
+
+/**
  * policy_mgr_current_concurrency_is_mcc() - To check the current
  * concurrency combination if it is doing MCC
  * @psoc: PSOC object information
@@ -2386,6 +2408,21 @@ QDF_STATUS policy_mgr_register_hdd_cb(struct wlan_objmgr_psoc *psoc,
  *         Failure (if de-registration fails)
  */
 QDF_STATUS policy_mgr_deregister_hdd_cb(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * policy_mgr_register_conc_cb() - register Lim callbacks
+ * @psoc: PSOC object information
+ * @hdd_cbacks: function pointers from lim
+ *
+ * API, allows Lim to register callbacks to be invoked by policy
+ * mgr
+ *
+ * Return: SUCCESS,
+ *         Failure (if registration fails)
+ */
+
+QDF_STATUS policy_mgr_register_conc_cb(struct wlan_objmgr_psoc *psoc,
+				struct policy_mgr_conc_cbacks *conc_cbacks);
 
 /**
  * policy_mgr_register_tdls_cb() - register TDLS callbacks
@@ -3056,6 +3093,22 @@ QDF_STATUS policy_mgr_valid_sap_conc_channel_check(
 	struct wlan_objmgr_psoc *psoc, uint32_t *con_ch_freq,
 	uint32_t sap_ch_freq, uint8_t sap_vdev_id,
 	struct ch_params *ch_params);
+
+/**
+ * policy_mgr_sap_allowed_on_indoor_freq() - Check whether STA+SAP concurrency
+ * allowed on indoor channel or not
+ * @psoc: pointer to PSOC object information
+ * @pdev: pointer to PDEV object information
+ * @sap_ch_freq: initial channel frequency for SAP
+ *
+ * This function checks whether SAP is allowed to turn on in case of STA+SAP
+ * concurrency if STA is on indoor channel.
+ *
+ * Return: false if SAP not allowed to come up on a indoor channel
+ */
+bool policy_mgr_sap_allowed_on_indoor_freq(struct wlan_objmgr_psoc *psoc,
+					   struct wlan_objmgr_pdev *pdev,
+					   uint32_t sap_ch_freq);
 
 /**
  * policy_mgr_get_alternate_channel_for_sap() - Get an alternate

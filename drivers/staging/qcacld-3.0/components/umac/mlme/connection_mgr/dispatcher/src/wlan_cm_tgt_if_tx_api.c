@@ -154,6 +154,37 @@ end:
 
 	return status;
 }
+
+QDF_STATUS wlan_cm_tgt_send_roam_rt_stats_config(struct wlan_objmgr_psoc *psoc,
+						 struct roam_disable_cfg *req)
+{
+	QDF_STATUS status;
+	struct wlan_cm_roam_tx_ops *roam_tx_ops;
+	struct wlan_objmgr_vdev *vdev;
+
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(psoc, req->vdev_id,
+						    WLAN_MLME_NB_ID);
+	if (!vdev)
+		return QDF_STATUS_E_INVAL;
+
+	roam_tx_ops = wlan_cm_roam_get_tx_ops_from_vdev(vdev);
+	if (!roam_tx_ops || !roam_tx_ops->send_roam_rt_stats_config) {
+		mlme_err("vdev %d send_roam_rt_stats_config is NULL",
+			 req->vdev_id);
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_MLME_NB_ID);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	status = roam_tx_ops->send_roam_rt_stats_config(vdev,
+							req->vdev_id, req->cfg);
+	if (QDF_IS_STATUS_ERROR(status))
+		mlme_debug("vdev %d fail to send roam rt stats config",
+			   req->vdev_id);
+
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_MLME_NB_ID);
+
+	return status;
+}
 #endif
 
 #if defined(WLAN_FEATURE_HOST_ROAM) || defined(WLAN_FEATURE_ROAM_OFFLOAD)
@@ -164,7 +195,8 @@ QDF_STATUS wlan_cm_tgt_send_roam_offload_init(struct wlan_objmgr_psoc *psoc,
 	struct wlan_cm_roam_tx_ops *roam_tx_ops;
 	struct wlan_objmgr_vdev *vdev;
 	struct wlan_roam_offload_init_params init_msg = {0};
-	bool disable_4way_hs_offload, bmiss_skip_full_scan;
+	uint32_t disable_4way_hs_offload;
+	bool bmiss_skip_full_scan;
 
 	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(psoc, vdev_id,
 						    WLAN_MLME_NB_ID);
@@ -190,9 +222,14 @@ QDF_STATUS wlan_cm_tgt_send_roam_offload_init(struct wlan_objmgr_psoc *psoc,
 				 WLAN_ROAM_BMISS_FINAL_SCAN_ENABLE;
 
 		wlan_mlme_get_4way_hs_offload(psoc, &disable_4way_hs_offload);
-		if (disable_4way_hs_offload)
+		if (!disable_4way_hs_offload)
 			init_msg.roam_offload_flag |=
-				WLAN_ROAM_SKIP_EAPOL_4WAY_HANDSHAKE;
+				WLAN_ROAM_SKIP_SAE_ROAM_4WAY_HANDSHAKE;
+		if (disable_4way_hs_offload &
+		    CFG_DISABLE_4WAY_HS_OFFLOAD_DEFAULT)
+			init_msg.roam_offload_flag |=
+				(WLAN_ROAM_SKIP_EAPOL_4WAY_HANDSHAKE |
+				 WLAN_ROAM_SKIP_SAE_ROAM_4WAY_HANDSHAKE);
 
 		wlan_mlme_get_bmiss_skip_full_scan_value(psoc,
 							 &bmiss_skip_full_scan);

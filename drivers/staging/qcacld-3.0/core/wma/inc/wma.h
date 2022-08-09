@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -683,15 +684,12 @@ struct wma_invalid_peer_params {
  * @roam_synch_in_progress: flag is in progress or not
  * @plink_status_req: link status request
  * @psnr_req: snr request
- * @delay_before_vdev_stop: delay
  * @tx_streams: number of tx streams can be used by the vdev
  * @mac_id: the mac on which vdev is on
  * @arp_offload_req: cached arp offload request
  * @ns_offload_req: cached ns offload request
  * @rcpi_req: rcpi request
  * @in_bmps: Whether bmps for this interface has been enabled
- * @vdev_set_key_wakelock: wakelock to protect vdev set key op with firmware
- * @vdev_set_key_runtime_wakelock: runtime pm wakelock for set key
  * @ch_freq: channel frequency
  * @roam_scan_stats_req: cached roam scan stats request
  * @wma_invalid_peer_params: structure storing invalid peer params
@@ -728,7 +726,6 @@ struct wma_txrx_node {
 	uint32_t peer_count;
 	void *plink_status_req;
 	void *psnr_req;
-	uint8_t delay_before_vdev_stop;
 #ifdef FEATURE_WLAN_EXTSCAN
 	bool extscan_in_progress;
 #endif
@@ -740,8 +737,6 @@ struct wma_txrx_node {
 	bool in_bmps;
 	struct beacon_filter_param beacon_filter;
 	bool beacon_filter_enabled;
-	qdf_wake_lock_t vdev_set_key_wakelock;
-	qdf_runtime_lock_t vdev_set_key_runtime_wakelock;
 	struct roam_synch_frame_ind roam_synch_frame_ind;
 	bool is_waiting_for_key;
 	uint32_t ch_freq;
@@ -2333,13 +2328,15 @@ uint8_t wma_rx_invalid_peer_ind(uint8_t vdev_id, void *wh);
  * @peer_macaddr: peer mac address
  * @tid: tid of rx
  * @reason_code: reason code
+ * @cdp_rcode: CDP reason code for sending DELBA
  *
  * Return: 0 for success or non-zero on failure
  */
 int wma_dp_send_delba_ind(uint8_t vdev_id,
 			  uint8_t *peer_macaddr,
 			  uint8_t tid,
-			  uint8_t reason_code);
+			  uint8_t reason_code,
+			  enum cdp_delba_rcode cdp_rcode);
 
 /**
  * is_roam_inprogress() - Is vdev in progress

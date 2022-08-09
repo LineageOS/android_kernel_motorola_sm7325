@@ -36,6 +36,17 @@
 QDF_STATUS
 wlan_cm_roam_send_set_vdev_pcl(struct wlan_objmgr_psoc *psoc,
 			       struct set_pcl_req *pcl_req);
+
+/**
+ * wlan_cm_tgt_send_roam_rt_stats_config() - Send roam event stats config
+ * command to FW
+ * @psoc: psoc pointer
+ * @req: roam stats config parameter
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS wlan_cm_tgt_send_roam_rt_stats_config(struct wlan_objmgr_psoc *psoc,
+						 struct roam_disable_cfg *req);
 #else
 static inline QDF_STATUS
 wlan_cm_roam_send_set_vdev_pcl(struct wlan_objmgr_psoc *psoc,
@@ -43,9 +54,19 @@ wlan_cm_roam_send_set_vdev_pcl(struct wlan_objmgr_psoc *psoc,
 {
 	return QDF_STATUS_E_FAILURE;
 }
+
+static inline QDF_STATUS
+wlan_cm_tgt_send_roam_rt_stats_config(struct wlan_objmgr_psoc *psoc,
+				      struct roam_disable_cfg *req)
+{
+	return QDF_STATUS_E_FAILURE;
+}
 #endif /* WLAN_FEATURE_ROAM_OFFLOAD */
 
 #if defined(WLAN_FEATURE_HOST_ROAM) || defined(WLAN_FEATURE_ROAM_OFFLOAD)
+
+#define CFG_DISABLE_4WAY_HS_OFFLOAD_DEFAULT BIT(0)
+
 /**
  * wlan_cm_tgt_send_roam_offload_init()  - Send WMI_VDEV_PARAM_ROAM_FW_OFFLOAD
  * to init/deinit roaming module at firmware

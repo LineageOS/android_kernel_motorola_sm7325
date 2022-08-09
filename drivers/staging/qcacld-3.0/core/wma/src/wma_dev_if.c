@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -82,6 +83,7 @@
 #include "wlan_mlme_public_struct.h"
 #include "wlan_mlme_api.h"
 #include "wlan_mlme_main.h"
+#include "wlan_mlme_ucfg_api.h"
 #include <wlan_dfs_utils_api.h>
 #include "../../core/src/vdev_mgr_ops.h"
 #include "wlan_utility.h"
@@ -328,7 +330,8 @@ static struct wma_target_req *wma_find_remove_req_msgtype(tp_wma_handle wma,
 	if (QDF_STATUS_SUCCESS != qdf_list_peek_front(&wma->wma_hold_req_queue,
 						      &node2)) {
 		qdf_spin_unlock_bh(&wma->wma_hold_req_q_lock);
-		wma_err("unable to get msg node from request queue");
+		wma_debug("unable to get msg node from request queue for vdev_id %d type %d",
+			  vdev_id, msg_type);
 		return NULL;
 	}
 
@@ -345,7 +348,7 @@ static struct wma_target_req *wma_find_remove_req_msgtype(tp_wma_handle wma,
 		if (QDF_STATUS_SUCCESS != status) {
 			qdf_spin_unlock_bh(&wma->wma_hold_req_q_lock);
 			wma_debug("Failed to remove request. vdev_id %d type %d",
-				 vdev_id, msg_type);
+				  vdev_id, msg_type);
 			return NULL;
 		}
 		break;
@@ -355,13 +358,13 @@ static struct wma_target_req *wma_find_remove_req_msgtype(tp_wma_handle wma,
 
 	qdf_spin_unlock_bh(&wma->wma_hold_req_q_lock);
 	if (!found) {
-		wma_err("target request not found for vdev_id %d type %d",
-			 vdev_id, msg_type);
+		wma_debug("target request not found for vdev_id %d type %d",
+			  vdev_id, msg_type);
 		return NULL;
 	}
 
 	wma_debug("target request found for vdev id: %d type %d",
-		 vdev_id, msg_type);
+		  vdev_id, msg_type);
 
 	return req_msg;
 }
@@ -1641,6 +1644,7 @@ peer_detach:
 			cdp_peer_delete(soc, vdev_id, peer_addr, bitmap);
 	}
 
+	wlan_release_peer_key_wakelock(wma->pdev, peer_mac);
 	wma_remove_objmgr_peer(wma, wma->interfaces[vdev_id].vdev, peer_mac);
 
 	wma->interfaces[vdev_id].peer_count--;
@@ -2459,7 +2463,6 @@ QDF_STATUS wma_post_vdev_create_setup(struct wlan_objmgr_vdev *vdev)
 	struct wlan_mlme_qos *qos_aggr;
 	struct vdev_mlme_obj *vdev_mlme;
 	tp_wma_handle wma_handle;
-	uint8_t amsdu_val;
 
 	if (!mac) {
 		wma_err("Failed to get mac");
@@ -2499,34 +2502,7 @@ QDF_STATUS wma_post_vdev_create_setup(struct wlan_objmgr_vdev *vdev)
 		vdev_mlme->mgmt.generic.subtype;
 
 	qos_aggr = &mac->mlme_cfg->qos_mlme_params;
-	status = wma_set_tx_rx_aggr_size(vdev_id, qos_aggr->tx_aggregation_size,
-					 qos_aggr->rx_aggregation_size,
-					 WMI_VDEV_CUSTOM_AGGR_TYPE_AMPDU);
-	if (QDF_IS_STATUS_ERROR(status))
-		wma_err("failed to set aggregation sizes(status = %d)", status);
-
-	status = wlan_mlme_get_max_amsdu_num(wma_handle->psoc, &amsdu_val);
-	if (QDF_IS_STATUS_ERROR(status)) {
-		wma_err("failed to get amsdu aggr.size %d", status);
-	} else {
-		status = wma_set_tx_rx_aggr_size(vdev_id, amsdu_val,
-						 amsdu_val,
-					    WMI_VDEV_CUSTOM_AGGR_TYPE_AMSDU);
-		if (QDF_IS_STATUS_ERROR(status)) {
-			wma_err("failed to set amsdu aggr.size %d", status);
-		}
-	}
-
 	if (vdev_mlme->mgmt.generic.type == WMI_VDEV_TYPE_STA) {
-		status = wma_set_tx_rx_aggr_size_per_ac(
-					wma_handle, vdev_id,
-					qos_aggr,
-					WMI_VDEV_CUSTOM_AGGR_TYPE_AMPDU);
-
-		if (QDF_IS_STATUS_ERROR(status))
-			wma_err("failed to set aggr size per ac(status = %d)",
-				 status);
-
 		wma_set_sta_keep_alive(
 				wma_handle, vdev_id,
 				SIR_KEEP_ALIVE_NULL_PKT,
@@ -2762,6 +2738,8 @@ QDF_STATUS wma_vdev_pre_start(uint8_t vdev_id, bool restart)
 	struct wlan_channel *des_chan;
 	QDF_STATUS status;
 	uint8_t btc_chain_mode;
+	struct wlan_mlme_qos *qos_aggr;
+	uint8_t amsdu_val;
 
 	if (!wma) {
 		wma_err("Invalid wma handle");
@@ -2872,6 +2850,33 @@ QDF_STATUS wma_vdev_pre_start(uint8_t vdev_id, bool restart)
 				btc_chain_mode);
 			return QDF_STATUS_E_FAILURE;
 		}
+	}
+
+	qos_aggr = &mac_ctx->mlme_cfg->qos_mlme_params;
+	status = wma_set_tx_rx_aggr_size(vdev_id, qos_aggr->tx_aggregation_size,
+					 qos_aggr->rx_aggregation_size,
+					 WMI_VDEV_CUSTOM_AGGR_TYPE_AMPDU);
+	if (QDF_IS_STATUS_ERROR(status))
+		wma_err("failed to set aggregation sizes(status = %d)", status);
+
+	status = wlan_mlme_get_max_amsdu_num(wma->psoc, &amsdu_val);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		wma_err("failed to get amsdu aggr.size(status = %d)", status);
+	} else {
+		status = wma_set_tx_rx_aggr_size(vdev_id, amsdu_val, amsdu_val,
+					WMI_VDEV_CUSTOM_AGGR_TYPE_AMSDU);
+		if (QDF_IS_STATUS_ERROR(status))
+			wma_err("failed to set amsdu aggr.size(status = %d)",
+				status);
+	}
+
+	if (mlme_obj->mgmt.generic.type == WMI_VDEV_TYPE_STA) {
+		status = wma_set_tx_rx_aggr_size_per_ac(wma, vdev_id, qos_aggr,
+					WMI_VDEV_CUSTOM_AGGR_TYPE_AMPDU);
+
+		if (QDF_IS_STATUS_ERROR(status))
+			wma_err("failed to set aggr size per ac(status = %d)",
+				status);
 	}
 
 	return QDF_STATUS_SUCCESS;
@@ -2989,8 +2994,8 @@ int wma_peer_create_confirm_handler(void *handle, uint8_t *evt_param_info,
 	req_msg = wma_find_remove_req_msgtype(wma, peer_create_rsp->vdev_id,
 					      WMA_PEER_CREATE_REQ);
 	if (!req_msg) {
-		wma_err("vdev:%d Failed to lookup peer create request message",
-			peer_create_rsp->vdev_id);
+		wma_debug("vdev:%d Failed to lookup peer create request msg",
+			  peer_create_rsp->vdev_id);
 		return -EINVAL;
 	}
 
@@ -4783,7 +4788,7 @@ void wma_add_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 			htc_vote_link_up(htc_handle);
 			wmi_info("sap d0 wow");
 		} else {
-			wmi_info("sap d3 wow");
+			wmi_debug("sap d3 wow");
 		}
 		wma_sap_prevent_runtime_pm(wma);
 
@@ -4876,7 +4881,7 @@ void wma_delete_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 			htc_vote_link_down(htc_handle);
 			wmi_info("sap d0 wow");
 		} else {
-			wmi_info("sap d3 wow");
+			wmi_debug("sap d3 wow");
 		}
 		wma_sap_allow_runtime_pm(wma);
 
@@ -5001,19 +5006,21 @@ fail_del_bss_ho_fail:
 static void wma_wait_tx_complete(tp_wma_handle wma,
 				uint32_t session_id)
 {
-	uint8_t max_wait_iterations = 0;
+	uint8_t max_wait_iterations = 0, delay = 0;
 	cdp_config_param_type val;
 	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
+	QDF_STATUS status;
 
 	if (!wma_is_vdev_valid(session_id)) {
 		wma_err("Vdev is not valid: %d", session_id);
 		return;
 	}
 
-	max_wait_iterations =
-		wma->interfaces[session_id].delay_before_vdev_stop /
-		WMA_TX_Q_RECHECK_TIMER_WAIT;
+	status = ucfg_mlme_get_delay_before_vdev_stop(wma->psoc, &delay);
+	if (QDF_IS_STATUS_ERROR(status))
+		wma_err("Failed to get delay before vdev stop");
 
+	max_wait_iterations = delay / WMA_TX_Q_RECHECK_TIMER_WAIT;
 	if (cdp_txrx_get_pdev_param(soc,
 				    wlan_objmgr_pdev_get_pdev_id(wma->pdev),
 				    CDP_TX_PENDING, &val))

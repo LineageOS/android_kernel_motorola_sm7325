@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -106,9 +107,11 @@ struct cds_hang_event_fixed_param {
 static inline int
 cds_send_delba(struct cdp_ctrl_objmgr_psoc *psoc,
 	       uint8_t vdev_id, uint8_t *peer_macaddr,
-	       uint8_t tid, uint8_t reason_code)
+	       uint8_t tid, uint8_t reason_code,
+	       uint8_t cdp_reason_code)
 {
-	return wma_dp_send_delba_ind(vdev_id, peer_macaddr, tid, reason_code);
+	return wma_dp_send_delba_ind(vdev_id, peer_macaddr, tid,
+				     reason_code, cdp_reason_code);
 }
 
 static struct ol_if_ops  dp_ol_if_ops = {
@@ -421,6 +424,7 @@ static void cds_cdp_cfg_attach(struct wlan_objmgr_psoc *psoc)
 	struct txrx_pdev_cfg_param_t cdp_cfg = {0};
 	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
 	struct hdd_context *hdd_ctx = gp_cds_context->hdd_context;
+	uint32_t gro_bit_set;
 
 	cdp_cfg.is_full_reorder_offload =
 		cfg_get(psoc, CFG_DP_REORDER_OFFLOAD_SUPPORT);
@@ -447,7 +451,9 @@ static void cds_cdp_cfg_attach(struct wlan_objmgr_psoc *psoc)
 	cdp_cfg.lro_enable = cfg_get(psoc, CFG_DP_LRO);
 	cdp_cfg.enable_data_stall_detection =
 		cfg_get(psoc, CFG_DP_ENABLE_DATA_STALL_DETECTION);
-	cdp_cfg.gro_enable = cfg_get(psoc, CFG_DP_GRO);
+	gro_bit_set = cfg_get(psoc, CFG_DP_GRO);
+	if (gro_bit_set & DP_GRO_ENABLE_BIT_SET)
+		cdp_cfg.gro_enable = true;
 	cdp_cfg.enable_flow_steering =
 		cfg_get(psoc, CFG_DP_FLOW_STEERING_ENABLED);
 	cdp_cfg.disable_intra_bss_fwd =
@@ -952,6 +958,11 @@ QDF_STATUS cds_dp_open(struct wlan_objmgr_psoc *psoc)
 
 	cds_debug("CDS successfully Opened");
 
+	if (cdp_cfg_get(gp_cds_context->dp_soc, cfg_dp_force_gro_enable))
+		hdd_ctx->dp_agg_param.force_gro_enable = true;
+	else
+		hdd_ctx->dp_agg_param.force_gro_enable = false;
+
 	return 0;
 
 intr_close:
@@ -1036,13 +1047,13 @@ QDF_STATUS cds_pre_enable(void)
 	status = wma_pre_start();
 	if (QDF_IS_STATUS_ERROR(status)) {
 		cds_err("Failed to WMA prestart");
-		return QDF_STATUS_E_FAILURE;
+		goto exit_pkt_log;
 	}
 
 	status = htc_start(gp_cds_context->htc_ctx);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		cds_err("Failed to Start HTC");
-		goto exit_with_status;
+		goto exit_pkt_log;
 	}
 
 	status = wma_wait_for_ready_event(gp_cds_context->wma_context);
@@ -1081,7 +1092,12 @@ stop_wmi:
 	htc_stop(gp_cds_context->htc_ctx);
 
 	wma_wmi_work_close();
-exit_with_status:
+
+exit_pkt_log:
+	if (QDF_GLOBAL_FTM_MODE != cds_get_conparam() &&
+	    QDF_GLOBAL_EPPING_MODE != cds_get_conparam())
+		cdp_pkt_log_exit(soc, OL_TXRX_PDEV_ID);
+
 	return status;
 }
 
@@ -2810,6 +2826,9 @@ cds_dp_get_vdev_stats(uint8_t vdev_id, struct cds_vdev_dp_stats *stats)
 
 	if (cds_get_cdp_vdev_stats(vdev_id, vdev_stats)) {
 		stats->tx_retries = vdev_stats->tx.retries;
+		stats->tx_retries_mpdu = vdev_stats->tx.retries_mpdu;
+		stats->tx_mpdu_success_with_retries =
+			vdev_stats->tx.mpdu_success_with_retries;
 		ret = true;
 	}
 

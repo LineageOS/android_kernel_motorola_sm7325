@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2011-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -630,18 +631,7 @@ static void pe_shutdown_notifier_cb(void *ctx)
 }
 
 #ifdef WLAN_FEATURE_11W
-/**
- * is_mgmt_protected - check RMF enabled for the peer
- * @vdev_id: vdev id
- * @peer_mac_addr: peer mac address
- *
- * The function check the mgmt frame protection enabled or not
- * for station mode and AP mode
- *
- * Return: true, if the connection is RMF enabled.
- */
-static bool is_mgmt_protected(uint32_t vdev_id,
-				  const uint8_t *peer_mac_addr)
+bool is_mgmt_protected(uint32_t vdev_id, const uint8_t *peer_mac_addr)
 {
 	uint16_t aid;
 	tpDphHashNode sta_ds;
@@ -747,6 +737,19 @@ static QDF_STATUS lim_unregister_sap_bcn_callback(struct mac_context *mac_ctx)
 	}
 
 	return status;
+}
+
+static void lim_register_policy_mgr_callback(struct wlan_objmgr_psoc *psoc)
+{
+	struct policy_mgr_conc_cbacks conc_cbacks;
+
+	qdf_mem_zero(&conc_cbacks, sizeof(conc_cbacks));
+	conc_cbacks.connection_info_update = lim_send_conc_params_update;
+
+	if (QDF_STATUS_SUCCESS != policy_mgr_register_conc_cb(psoc,
+							      &conc_cbacks)) {
+		pe_err("failed to register policy manager callbacks");
+	}
 }
 
 static int pe_hang_event_notifier_call(struct notifier_block *block,
@@ -862,6 +865,8 @@ QDF_STATUS pe_open(struct mac_context *mac, struct cds_config_info *cds_cfg)
 	lim_nan_register_callbacks(mac);
 	p2p_register_callbacks(mac);
 	lim_register_sap_bcn_callback(mac);
+	if (mac->mlme_cfg->edca_params.enable_edca_params)
+		lim_register_policy_mgr_callback(mac->psoc);
 
 	if (!QDF_IS_STATUS_SUCCESS(
 	    cds_shutdown_notifier_register(pe_shutdown_notifier_cb, mac))) {
@@ -1233,7 +1238,7 @@ static QDF_STATUS pe_handle_mgmt_frame(struct wlan_objmgr_psoc *psoc,
 
 	ret = wma_form_rx_packet(buf, mgmt_rx_params, pVosPkt);
 	if (ret) {
-		pe_err_rl("Failed to fill cds packet from event buffer");
+		pe_debug_rl("Failed to fill cds packet from event buffer");
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -2118,11 +2123,14 @@ lim_roam_fill_bss_descr(struct mac_context *mac,
 		qdf_mem_free(parsed_frm_ptr);
 		return QDF_STATUS_E_FAILURE;
 	}
-	pe_debug("LFR3:Beacon/Prb Rsp: %d bssid "QDF_MAC_ADDR_FMT" beacon "QDF_MAC_ADDR_FMT,
+	pe_debug("LFR3:Beacon/Prb Rsp: %d len %d bssid "QDF_MAC_ADDR_FMT" beacon "QDF_MAC_ADDR_FMT,
 		 roam_synch_ind_ptr->isBeacon,
+		 roam_synch_ind_ptr->beaconProbeRespLength,
 		 QDF_MAC_ADDR_REF(roam_synch_ind_ptr->bssid.bytes),
 		 QDF_MAC_ADDR_REF(mac_hdr->bssId));
-
+	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
+			   bcn_proberesp_ptr,
+			   roam_synch_ind_ptr->beaconProbeRespLength);
 	status = lim_roam_gen_beacon_descr(mac,
 					   roam_synch_ind_ptr,
 					   parsed_frm_ptr,
@@ -2200,15 +2208,21 @@ lim_roam_fill_bss_descr(struct mac_context *mac,
 				(uint8_t *)parsed_frm_ptr->mdie,
 				SIR_MDIE_SIZE);
 	}
-	pe_debug("chan: %d rssi: %d ie_len %d",
+	pe_debug("chan: %d rssi: %d desc len %d",
 		 bss_desc_ptr->chan_freq,
-		 bss_desc_ptr->rssi, ie_len);
+		 bss_desc_ptr->rssi,
+		 bss_desc_ptr->length);
+
+	qdf_mem_free(parsed_frm_ptr);
 	if (ie_len) {
 		qdf_mem_copy(&bss_desc_ptr->ieFields,
 			     ie, ie_len);
 		qdf_mem_free(ie);
+	} else {
+		pe_err("Beacon/Probe rsp doesn't have any IEs");
+		return QDF_STATUS_E_FAILURE;
 	}
-	qdf_mem_free(parsed_frm_ptr);
+
 	return QDF_STATUS_SUCCESS;
 }
 

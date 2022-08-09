@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1057,6 +1058,17 @@ int os_if_nan_process_ndp_cmd(struct wlan_objmgr_psoc *psoc,
 
 	switch (ndp_cmd_type) {
 	case QCA_WLAN_VENDOR_ATTR_NDP_INTERFACE_CREATE:
+		/**
+		 * NDI creation is not allowed if NAN discovery is not running.
+		 * Allowing NDI creation when NAN discovery is not enabled may
+		 * lead to issues if NDI has to be started in a
+		 * 2GHz channel and if the target is not operating in DBS mode.
+		 */
+		if ((ucfg_is_nan_conc_control_supported(psoc)) &&
+		    (!ucfg_is_nan_disc_active(psoc))) {
+			osif_err("NDI creation is not allowed when NAN discovery is not running");
+			return -EOPNOTSUPP;
+		}
 		return os_if_nan_process_ndi_create(psoc, tb);
 	case QCA_WLAN_VENDOR_ATTR_NDP_INTERFACE_DELETE:
 		return os_if_nan_process_ndi_delete(psoc, tb);
@@ -1983,15 +1995,15 @@ static void os_if_ndp_iface_create_rsp_handler(struct wlan_objmgr_psoc *psoc,
 	osif_debug("transaction id: %u status code: %u Reason: %u",
 		   create_transaction_id, create_status, create_reason);
 
-	cfg80211_vendor_event(vendor_event, GFP_KERNEL);
-
 	if (!create_fail) {
 		/* update txrx queues and register self sta */
 		cb_obj.drv_ndi_create_rsp_handler(wlan_vdev_get_id(vdev),
 						  ndi_rsp);
+		cfg80211_vendor_event(vendor_event, GFP_KERNEL);
 	} else {
 		osif_err("NDI interface creation failed with reason %d",
 			 create_reason);
+		cfg80211_vendor_event(vendor_event, GFP_KERNEL);
 		goto close_ndi;
 	}
 

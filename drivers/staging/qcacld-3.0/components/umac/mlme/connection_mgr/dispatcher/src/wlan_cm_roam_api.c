@@ -358,6 +358,9 @@ wlan_cm_dual_sta_roam_update_connect_channels(struct wlan_objmgr_psoc *psoc,
 	bool is_ch_allowed;
 	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 	struct wlan_mlme_cfg *mlme_cfg;
+	uint32_t buff_len;
+	char *chan_buff;
+	uint32_t len = 0;
 
 	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
@@ -376,6 +379,16 @@ wlan_cm_dual_sta_roam_update_connect_channels(struct wlan_objmgr_psoc *psoc,
 	num_channels = mlme_cfg->reg.valid_channel_list_num;
 	channel_list = mlme_cfg->reg.valid_channel_freq_list;
 
+	/*
+	 * Buffer of (num channl * 5) + 1  to consider the 4 char freq,
+	 * 1 space after it for each channel and 1 to end the string
+	 * with NULL.
+	 */
+	buff_len = (num_channels * 5) + 1;
+	chan_buff = qdf_mem_malloc(buff_len);
+	if (!chan_buff)
+		return;
+
 	filter->num_of_channels = 0;
 	for (i = 0; i < num_channels; i++) {
 		is_ch_allowed =
@@ -387,89 +400,58 @@ wlan_cm_dual_sta_roam_update_connect_channels(struct wlan_objmgr_psoc *psoc,
 		filter->chan_freq_list[filter->num_of_channels] =
 					channel_list[i];
 		filter->num_of_channels++;
+
+		len += qdf_scnprintf(chan_buff + len, buff_len - len,
+				     "%d ", channel_list[i]);
 	}
+
+	if (filter->num_of_channels)
+		mlme_debug("Freq list (%d): %s", filter->num_of_channels,
+			   chan_buff);
+
+	qdf_mem_free(chan_buff);
 }
 
 void
-wlan_cm_roam_disable_vendor_btm(struct wlan_objmgr_psoc *psoc, uint8_t vdev_id)
+wlan_cm_roam_disable_vendor_btm(struct wlan_objmgr_psoc *psoc)
 {
-	struct wlan_objmgr_vdev *vdev;
-	struct mlme_legacy_priv *mlme_priv;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(psoc, vdev_id,
-						    WLAN_MLME_NB_ID);
-	if (!vdev) {
-		mlme_err("vdev object is NULL");
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
+	if (!mlme_obj)
 		return;
-	}
-
-	mlme_priv = wlan_vdev_mlme_get_ext_hdl(vdev);
-	if (!mlme_priv) {
-		mlme_err("vdev legacy private object is NULL");
-		wlan_objmgr_vdev_release_ref(vdev, WLAN_MLME_NB_ID);
-		return;
-	}
 
 	/* Set default value of reason code */
-	mlme_priv->cm_roam.vendor_btm_param.user_roam_reason =
-						DISABLE_VENDOR_BTM_CONFIG;
-	wlan_objmgr_vdev_release_ref(vdev, WLAN_MLME_NB_ID);
+	mlme_obj->cfg.lfr.vendor_btm_param.user_roam_reason =
+					DISABLE_VENDOR_BTM_CONFIG;
 }
 
 void
 wlan_cm_roam_set_vendor_btm_params(struct wlan_objmgr_psoc *psoc,
-				   uint8_t vdev_id,
-				   struct wlan_cm_roam_vendor_btm_params
-									*param)
+				   struct wlan_cm_roam_vendor_btm_params *param)
 {
-	struct wlan_objmgr_vdev *vdev;
-	struct mlme_legacy_priv *mlme_priv;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(psoc, vdev_id,
-						    WLAN_MLME_NB_ID);
-	if (!vdev) {
-		mlme_err("vdev object is NULL");
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
+	if (!mlme_obj)
 		return;
-	}
 
-	mlme_priv = wlan_vdev_mlme_get_ext_hdl(vdev);
-	if (!mlme_priv) {
-		mlme_err("vdev legacy private object is NULL");
-		wlan_objmgr_vdev_release_ref(vdev, WLAN_MLME_NB_ID);
-		return;
-	}
-
-	qdf_mem_copy(&mlme_priv->cm_roam.vendor_btm_param, param,
+	qdf_mem_copy(&mlme_obj->cfg.lfr.vendor_btm_param, param,
 		     sizeof(struct wlan_cm_roam_vendor_btm_params));
-	wlan_objmgr_vdev_release_ref(vdev, WLAN_MLME_NB_ID);
 }
 
 void
 wlan_cm_roam_get_vendor_btm_params(struct wlan_objmgr_psoc *psoc,
-				   uint8_t vdev_id,
 				   struct wlan_cm_roam_vendor_btm_params *param)
 {
-	struct wlan_objmgr_vdev *vdev;
-	struct mlme_legacy_priv *mlme_priv;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(psoc, vdev_id,
-						    WLAN_MLME_NB_ID);
-	if (!vdev) {
-		mlme_err("vdev object is NULL");
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
+	if (!mlme_obj)
 		return;
-	}
 
-	mlme_priv = wlan_vdev_mlme_get_ext_hdl(vdev);
-	if (!mlme_priv) {
-		mlme_err("vdev legacy private object is NULL");
-		wlan_objmgr_vdev_release_ref(vdev, WLAN_MLME_NB_ID);
-		return;
-	}
-
-	qdf_mem_copy(param, &mlme_priv->cm_roam.vendor_btm_param,
+	qdf_mem_copy(param, &mlme_obj->cfg.lfr.vendor_btm_param,
 		     sizeof(struct wlan_cm_roam_vendor_btm_params));
-
-	wlan_objmgr_vdev_release_ref(vdev, WLAN_MLME_NB_ID);
 }
 
 void
@@ -799,7 +781,7 @@ wlan_cm_update_roam_states(struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
 	rso_config = &mlme_priv->cm_roam.vdev_rso_config;
 	switch (states) {
 	case ROAM_TRIGGER_REASON:
-		rso_config->rescan_rssi_delta = value;
+		rso_config->roam_trigger_reason = value;
 		break;
 	case ROAM_INVOKE_FAIL_REASON:
 		rso_config->roam_invoke_fail_reason = value;
@@ -857,5 +839,62 @@ uint32_t wlan_cm_get_roam_states(struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
 	wlan_objmgr_vdev_release_ref(vdev, WLAN_MLME_NB_ID);
 
 	return roam_states;
+}
+
+QDF_STATUS
+wlan_cm_update_roam_rt_stats(struct wlan_objmgr_psoc *psoc,
+			     uint8_t value, enum roam_rt_stats_params stats)
+{
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
+	struct wlan_cm_roam_rt_stats *roam_rt_stats;
+
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
+	if (!mlme_obj) {
+		mlme_legacy_err("Failed to get MLME Obj");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	roam_rt_stats = &mlme_obj->cfg.lfr.roam_rt_stats;
+
+	switch (stats) {
+	case ROAM_RT_STATS_ENABLE:
+		roam_rt_stats->roam_stats_enabled = value;
+		break;
+	case ROAM_RT_STATS_SUSPEND_MODE_ENABLE:
+		roam_rt_stats->roam_stats_wow_sent = value;
+		break;
+	default:
+		break;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+uint8_t wlan_cm_get_roam_rt_stats(struct wlan_objmgr_psoc *psoc,
+				  enum roam_rt_stats_params stats)
+{
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
+	struct wlan_cm_roam_rt_stats *roam_rt_stats;
+	uint8_t rstats_value = 0;
+
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
+	if (!mlme_obj) {
+		mlme_legacy_err("Failed to get MLME Obj");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	roam_rt_stats = &mlme_obj->cfg.lfr.roam_rt_stats;
+	switch (stats) {
+	case ROAM_RT_STATS_ENABLE:
+		rstats_value = roam_rt_stats->roam_stats_enabled;
+		break;
+	case ROAM_RT_STATS_SUSPEND_MODE_ENABLE:
+		rstats_value = roam_rt_stats->roam_stats_wow_sent;
+		break;
+	default:
+		break;
+	}
+
+	return rstats_value;
 }
 #endif

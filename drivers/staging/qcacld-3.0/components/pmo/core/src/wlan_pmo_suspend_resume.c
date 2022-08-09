@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -733,8 +734,11 @@ pmo_core_enable_wow_in_fw(struct wlan_objmgr_psoc *psoc,
 	struct pmo_wow_cmd_params param = {0};
 	struct pmo_psoc_cfg *psoc_cfg = &psoc_ctx->psoc_cfg;
 	QDF_STATUS status;
+	void *hif_ctx;
 
 	pmo_enter();
+
+	hif_ctx = pmo_core_psoc_get_hif_handle(psoc);
 	qdf_event_reset(&psoc_ctx->wow.target_suspend);
 	pmo_core_set_wow_nack(psoc_ctx, false);
 	host_credits = pmo_tgt_psoc_get_host_credits(psoc);
@@ -797,26 +801,28 @@ pmo_core_enable_wow_in_fw(struct wlan_objmgr_psoc *psoc,
 			pmo_info("drv wow is enabled");
 			param.flags |= WMI_WOW_FLAG_ENABLE_DRV_PCIE_L1SS_SLEEP;
 		} else {
-			pmo_info("non-drv wow is enabled");
+			pmo_debug("non-drv wow is enabled");
 		}
 	} else {
 		pmo_info("Prevent link down, non-drv wow is enabled");
+		if (hif_ctx)
+			hif_print_runtime_pm_prevent_list(hif_ctx);
 	}
 
 	if (type == QDF_SYSTEM_SUSPEND) {
 		pmo_info("system suspend wow");
 		param.flags |= WMI_WOW_FLAG_SYSTEM_SUSPEND_WOW;
 	} else {
-		pmo_info("RTPM wow");
+		pmo_debug("RTPM wow");
 	}
 
 	if (psoc_cfg->is_mod_dtim_on_sys_suspend_enabled) {
-		pmo_info("mod DTIM enabled");
+		pmo_debug("mod DTIM enabled");
 		param.flags |= WMI_WOW_FLAG_MOD_DTIM_ON_SYS_SUSPEND;
 	}
 
 	if (psoc_cfg->sta_forced_dtim) {
-		pmo_info("forced DTIM enabled");
+		pmo_debug("forced DTIM enabled");
 		param.flags |= WMI_WOW_FLAG_FORCED_DTIM_ON_SYS_SUSPEND;
 	}
 	status = pmo_tgt_psoc_send_wow_enable_req(psoc, &param);

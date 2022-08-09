@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -342,6 +343,10 @@ int wma_peer_sta_kickout_event_handler(void *handle, uint8_t *event,
 			 QDF_MAC_ADDR_REF(macaddr));
 		return -EINVAL;
 	}
+
+	if (!wma_is_vdev_valid(vdev_id))
+		return -EINVAL;
+
 	vdev = wma->interfaces[vdev_id].vdev;
 	if (!vdev) {
 		wma_err("Not able to find vdev for VDEV_%d", vdev_id);
@@ -1441,14 +1446,11 @@ QDF_STATUS wma_send_peer_assoc(tp_wma_handle wma,
 	    || params->encryptType == eSIR_ED_WPI
 #endif /* FEATURE_WLAN_WAPI */
 	    ) {
-		if (!params->no_ptk_4_way)
+		if (!params->no_ptk_4_way) {
 			cmd->need_ptk_4_way = 1;
-		wma_nofl_debug("Acquire set key wake lock for %d ms",
-			       WMA_VDEV_SET_KEY_WAKELOCK_TIMEOUT);
-		wma_acquire_wakelock(&intr->vdev_set_key_wakelock,
-			WMA_VDEV_SET_KEY_WAKELOCK_TIMEOUT);
-		qdf_runtime_pm_prevent_suspend(
-			&intr->vdev_set_key_runtime_wakelock);
+			wlan_acquire_peer_key_wakelock(wma->pdev,
+						       cmd->peer_mac);
+		}
 	}
 	if (params->wpa_rsn >> 1)
 		cmd->need_gtk_2_way = 1;
@@ -2004,8 +2006,22 @@ static QDF_STATUS wma_unified_bcn_tmpl_send(tp_wma_handle wma,
 		tmpl_len = *(uint32_t *) &bcn_info->beacon[0];
 	else
 		tmpl_len = bcn_info->beaconLength;
-	if (p2p_ie_len)
+
+	if (tmpl_len > WMI_BEACON_TX_BUFFER_SIZE) {
+		wma_err("tmpl_len: %d > %d. Invalid tmpl len", tmpl_len,
+			WMI_BEACON_TX_BUFFER_SIZE);
+		return -EINVAL;
+	}
+
+	if (p2p_ie_len) {
+		if (tmpl_len <= p2p_ie_len) {
+			wma_err("tmpl_len %d <= p2p_ie_len %d, Invalid",
+				tmpl_len, p2p_ie_len);
+			return -EINVAL;
+		}
 		tmpl_len -= (uint32_t) p2p_ie_len;
+	}
+
 	frm = bcn_info->beacon + bytes_to_strip;
 	tmpl_len_aligned = roundup(tmpl_len, sizeof(A_UINT32));
 	/*
@@ -3185,8 +3201,8 @@ wma_get_peer_pmf_status(tp_wma_handle wma, uint8_t *peer_mac)
 				    wlan_objmgr_pdev_get_pdev_id(wma->pdev),
 				    peer_mac, WLAN_LEGACY_WMA_ID);
 	if (!peer) {
-		wma_err("Peer of peer_mac "QDF_MAC_ADDR_FMT" not found",
-			 QDF_MAC_ADDR_REF(peer_mac));
+		wma_debug("Peer of peer_mac " QDF_MAC_ADDR_FMT " not found",
+			  QDF_MAC_ADDR_REF(peer_mac));
 		return false;
 	}
 	is_pmf_enabled = mlme_get_peer_pmf_status(peer);

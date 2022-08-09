@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -35,7 +36,7 @@
 #include <wlan_reg_services_api.h>
 #include "wlan_cfg80211_mc_cp_stats.h"
 #include "sir_api.h"
-
+#include "wlan_tdls_ucfg_api.h"
 
 #define TDLS_MAX_NO_OF_2_4_CHANNELS 14
 
@@ -292,8 +293,27 @@ tdls_calc_channels_from_staparams(struct tdls_update_peer_params *req_info,
 }
 
 #ifdef WLAN_FEATURE_11AX
-#define MIN_TDLS_HE_CAP_LEN 17
-#define MAX_TDLS_HE_CAP_LEN 29
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+static void
+wlan_cfg80211_tdls_extract_6ghz_params(struct tdls_update_peer_params *req_info,
+				       struct station_parameters *params)
+{
+	if (!params->he_6ghz_capa) {
+		osif_debug("6 Ghz he_capa not present");
+		return;
+	}
+
+	qdf_mem_copy(&req_info->he_6ghz_cap, params->he_6ghz_capa,
+		     sizeof(params->he_6ghz_capa));
+}
+#else
+static void
+wlan_cfg80211_tdls_extract_6ghz_params(struct tdls_update_peer_params *req_info,
+				       struct station_parameters *params)
+{
+	osif_debug("kernel don't support tdls 6 ghz band");
+}
+#endif
 
 static void
 wlan_cfg80211_tdls_extract_he_params(struct tdls_update_peer_params *req_info,
@@ -317,6 +337,8 @@ wlan_cfg80211_tdls_extract_he_params(struct tdls_update_peer_params *req_info,
 	qdf_mem_copy(&req_info->he_cap, params->he_capa,
 		     req_info->he_cap_len);
 
+	wlan_cfg80211_tdls_extract_6ghz_params(req_info, params);
+
 	return;
 }
 
@@ -330,7 +352,8 @@ wlan_cfg80211_tdls_extract_he_params(struct tdls_update_peer_params *req_info,
 
 static void
 wlan_cfg80211_tdls_extract_params(struct tdls_update_peer_params *req_info,
-				  struct station_parameters *params)
+				  struct station_parameters *params,
+				  bool tdls_11ax_support)
 {
 	int i;
 
@@ -411,7 +434,10 @@ wlan_cfg80211_tdls_extract_params(struct tdls_update_peer_params *req_info,
 		req_info->is_pmf = 1;
 	}
 
-	wlan_cfg80211_tdls_extract_he_params(req_info, params);
+	if (tdls_11ax_support)
+		wlan_cfg80211_tdls_extract_he_params(req_info, params);
+	else
+		osif_debug("tdls ax disabled");
 }
 
 int wlan_cfg80211_tdls_update_peer(struct wlan_objmgr_vdev *vdev,
@@ -423,6 +449,8 @@ int wlan_cfg80211_tdls_update_peer(struct wlan_objmgr_vdev *vdev,
 	struct vdev_osif_priv *osif_priv;
 	struct osif_tdls_vdev *tdls_priv;
 	unsigned long rc;
+	struct wlan_objmgr_psoc *psoc;
+	bool tdls_11ax_support = false;
 
 	status = wlan_cfg80211_tdls_validate_mac_addr(mac);
 
@@ -436,7 +464,14 @@ int wlan_cfg80211_tdls_update_peer(struct wlan_objmgr_vdev *vdev,
 	if (!req_info)
 		return -EINVAL;
 
-	wlan_cfg80211_tdls_extract_params(req_info, params);
+	psoc = wlan_vdev_get_psoc(vdev);
+	if (!psoc) {
+		osif_err("Invalid psoc");
+		return -EINVAL;
+	}
+
+	tdls_11ax_support = ucfg_tdls_is_fw_11ax_capable(psoc);
+	wlan_cfg80211_tdls_extract_params(req_info, params, tdls_11ax_support);
 
 	osif_priv = wlan_vdev_get_ospriv(vdev);
 	if (!osif_priv || !osif_priv->osif_tdls) {
@@ -700,6 +735,29 @@ int wlan_cfg80211_tdls_get_all_peers(struct wlan_objmgr_vdev *vdev,
 
 	tdls_priv = osif_priv->osif_tdls;
 
+	/*
+	 * We shouldn't use completion_done here for checking for completion
+	 * as this will always return false, as tdls_user_cmd_comp.done will
+	 * remain in init state always. So, the very first command will also
+	 * not work.
+	 * In general completion_done is used to check if there are multiple
+	 * threads waiting on the complete event that's why it will return true
+	 * only when tdls_user_cmd_comp.done is set with complete()
+	 * In general completion_done will return true only when
+	 * tdls_user_cmd_comp.done is set that will happen in complete().
+	 * Also, if there is already a thread waiting for wait_for_completion,
+	 * this function will
+	 * return true only after the wait timer is over or condition is
+	 * met as wait_for_completion will hold out the hold lock and will
+	 * will prevent completion_done from returning.
+	 * Better to use a flag to determine command condition.
+	 */
+	if (tdls_priv->tdls_user_cmd_in_progress) {
+		osif_err("TDLS user cmd still in progress, reject this one");
+		return -EBUSY;
+	}
+
+	tdls_priv->tdls_user_cmd_in_progress = true;
 	wlan_cfg80211_update_tdls_peers_rssi(vdev);
 
 	reinit_completion(&tdls_priv->tdls_user_cmd_comp);
@@ -729,6 +787,7 @@ int wlan_cfg80211_tdls_get_all_peers(struct wlan_objmgr_vdev *vdev,
 	len = tdls_priv->tdls_user_cmd_len;
 
 error_get_tdls_peers:
+	tdls_priv->tdls_user_cmd_in_progress = false;
 	return len;
 }
 

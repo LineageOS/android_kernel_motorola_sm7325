@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -689,7 +690,7 @@ out:
  * populate_dot11f_ds_params() - To populate DS IE params
  * mac_ctx: Pointer to global mac context
  * dot11f_param: pointer to DS params IE
- * channel: channel number
+ * freq: freq
  *
  * This routine will populate DS param in management frame like
  * beacon, probe response, and etc.
@@ -698,11 +699,13 @@ out:
  */
 QDF_STATUS
 populate_dot11f_ds_params(struct mac_context *mac_ctx,
-			  tDot11fIEDSParams *dot11f_param, uint8_t channel)
+			  tDot11fIEDSParams *dot11f_param, qdf_freq_t freq)
 {
-	if (IS_24G_CH(channel)) {
+	if (WLAN_REG_IS_24GHZ_CH_FREQ(freq)) {
 		/* .11b/g mode PHY => Include the DS Parameter Set IE: */
-		dot11f_param->curr_channel = channel;
+		dot11f_param->curr_channel = wlan_reg_freq_to_chan(
+								mac_ctx->pdev,
+								freq);
 		dot11f_param->present = 1;
 	}
 
@@ -826,7 +829,7 @@ populate_dot11f_ext_supp_rates(struct mac_context *mac, uint8_t nChannelNum,
 			       struct pe_session *pe_session)
 {
 	QDF_STATUS nsir_status;
-	qdf_size_t nRates = 0;
+	qdf_size_t n_rates = 0;
 	uint8_t rates[WLAN_SUPPORTED_RATES_IE_MAX_LEN];
 
 	/* Use the ext rates present in session entry whenever nChannelNum is set to OPERATIONAL
@@ -835,9 +838,9 @@ populate_dot11f_ext_supp_rates(struct mac_context *mac, uint8_t nChannelNum,
 	 */
 	if (POPULATE_DOT11F_RATES_OPERATIONAL == nChannelNum) {
 		if (pe_session) {
-			nRates = pe_session->extRateSet.numRates;
+			n_rates = pe_session->extRateSet.numRates;
 			qdf_mem_copy(rates, pe_session->extRateSet.rate,
-				     nRates);
+				     n_rates);
 		} else {
 			pe_err("no session context exists while populating Operational Rate Set");
 		}
@@ -846,20 +849,21 @@ populate_dot11f_ext_supp_rates(struct mac_context *mac, uint8_t nChannelNum,
 			pe_err("null pe_session");
 			return QDF_STATUS_E_INVAL;
 		}
-		nRates = WLAN_SUPPORTED_RATES_IE_MAX_LEN;
+		n_rates = WLAN_SUPPORTED_RATES_IE_MAX_LEN;
 		nsir_status = mlme_get_ext_opr_rate(pe_session->vdev, rates,
-						    &nRates);
+						    &n_rates);
 		if (QDF_IS_STATUS_ERROR(nsir_status)) {
-			nRates = 0;
+			n_rates = 0;
 			pe_err("Failed to retrieve nItem from CFG status: %d",
 			       (nsir_status));
 			return nsir_status;
 		}
 	}
 
-	if (0 != nRates) {
-		pDot11f->num_rates = (uint8_t) nRates;
-		qdf_mem_copy(pDot11f->rates, rates, nRates);
+	if (0 != n_rates) {
+		pe_debug("ext supp rates present, num %d", (uint8_t)n_rates);
+		pDot11f->num_rates = (uint8_t)n_rates;
+		qdf_mem_copy(pDot11f->rates, rates, n_rates);
 		pDot11f->present = 1;
 	}
 
@@ -910,6 +914,7 @@ populate_dot11f_ht_caps(struct mac_context *mac,
 	qdf_size_t ncfglen;
 	QDF_STATUS nSirStatus;
 	uint8_t disable_high_ht_mcs_2x2 = 0;
+	struct ch_params ch_params = {0};
 
 	tSirMacTxBFCapabilityInfo *pTxBFCapabilityInfo;
 	tSirMacASCapabilityInfo *pASCapabilityInfo;
@@ -941,11 +946,22 @@ populate_dot11f_ht_caps(struct mac_context *mac,
 		if (WLAN_REG_IS_24GHZ_CH_FREQ(pe_session->curr_op_freq) &&
 		    LIM_IS_STA_ROLE(pe_session) &&
 		    WNI_CFG_CHANNEL_BONDING_MODE_DISABLE !=
-		    mac->roam.configParam.channelBondingMode24GHz)
+		    mac->roam.configParam.channelBondingMode24GHz) {
 			pDot11f->supportedChannelWidthSet = 1;
-		else
+			ch_params.ch_width = CH_WIDTH_40MHZ;
+			wlan_reg_set_channel_params_for_freq(
+				mac->pdev, pe_session->curr_op_freq, 0,
+				&ch_params);
+			if (ch_params.ch_width != CH_WIDTH_40MHZ)
+				pDot11f->supportedChannelWidthSet = 0;
+			pe_debug("pe ch offset %d ch_width %d htcap ch width set %d",
+				 pe_session->htSecondaryChannelOffset,
+				 ch_params.ch_width,
+				 pDot11f->supportedChannelWidthSet);
+		} else {
 			pDot11f->supportedChannelWidthSet =
 				pe_session->htSupportedChannelWidthSet;
+		}
 
 		pDot11f->advCodingCap = pe_session->ht_config.ht_rx_ldpc;
 		pDot11f->txSTBC = pe_session->ht_config.ht_tx_stbc;
@@ -3418,9 +3434,9 @@ sir_convert_assoc_resp_frame2_struct(struct mac_context *mac,
 	 */
 	auth_type = session_entry->connected_akm;
 	sha384_akm = lim_is_sha384_akm(auth_type);
+	ie_ptr = frame + FIXED_PARAM_OFFSET_ASSOC_RSP;
+	ie_len = frame_len - FIXED_PARAM_OFFSET_ASSOC_RSP;
 	if (sha384_akm) {
-		ie_ptr = frame + FIXED_PARAM_OFFSET_ASSOC_RSP;
-		ie_len = frame_len - FIXED_PARAM_OFFSET_ASSOC_RSP;
 		qdf_status = wlan_parse_ftie_sha384(ie_ptr, ie_len, pAssocRsp);
 		if (QDF_IS_STATUS_ERROR(qdf_status)) {
 			pe_err("FT IE parsing failed status:%d", status);
@@ -6296,9 +6312,9 @@ populate_dot11f_timing_advert_frame(struct mac_context *mac_ctx,
 #ifdef WLAN_FEATURE_11AX
 #ifdef WLAN_SUPPORT_TWT
 static void
-populate_dot11f_broadcast_twt_he_cap(struct mac_context *mac,
-				     struct pe_session *session,
-				     tDot11fIEhe_cap *he_cap)
+populate_dot11f_twt_he_cap(struct mac_context *mac,
+			   struct pe_session *session,
+			   tDot11fIEhe_cap *he_cap)
 {
 	bool bcast_requestor =
 		mac->mlme_cfg->twt_cfg.is_bcast_requestor_enabled;
@@ -6306,6 +6322,17 @@ populate_dot11f_broadcast_twt_he_cap(struct mac_context *mac,
 		mac->mlme_cfg->twt_cfg.is_bcast_responder_enabled;
 
 	he_cap->broadcast_twt = 0;
+	if (session->opmode == QDF_STA_MODE &&
+	    !(mac->mlme_cfg->twt_cfg.req_flag)) {
+		/* Set twt_request as 0 if any SCC/MCC concurrency exist */
+		he_cap->twt_request = 0;
+		return;
+	} else if (session->opmode == QDF_SAP_MODE &&
+		   !(mac->mlme_cfg->twt_cfg.res_flag)) {
+		/** Set twt_responder as 0 if any SCC/MCC concurrency exist */
+		he_cap->twt_responder = 0;
+		return;
+	}
 
 	if (session->opmode == QDF_STA_MODE) {
 		he_cap->broadcast_twt = bcast_requestor;
@@ -6315,9 +6342,9 @@ populate_dot11f_broadcast_twt_he_cap(struct mac_context *mac,
 }
 #else
 static inline void
-populate_dot11f_broadcast_twt_he_cap(struct mac_context *mac_ctx,
-				     struct pe_session *session,
-				     tDot11fIEhe_cap *he_cap)
+populate_dot11f_twt_he_cap(struct mac_context *mac_ctx,
+			   struct pe_session *session,
+			   tDot11fIEhe_cap *he_cap)
 {
 	he_cap->broadcast_twt = 0;
 }
@@ -6365,7 +6392,7 @@ QDF_STATUS populate_dot11f_he_caps(struct mac_context *mac_ctx, struct pe_sessio
 	} else {
 		he_cap->ppet.ppe_threshold.num_ppe_th = 0;
 	}
-	populate_dot11f_broadcast_twt_he_cap(mac_ctx, session, he_cap);
+	populate_dot11f_twt_he_cap(mac_ctx, session, he_cap);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -6494,11 +6521,13 @@ QDF_STATUS populate_dot11f_twt_extended_caps(struct mac_context *mac_ctx,
 
 	if (pe_session->opmode == QDF_STA_MODE)
 		p_ext_cap->twt_requestor_support =
-			mac_ctx->mlme_cfg->he_caps.dot11_he_cap.twt_request;
+			mac_ctx->mlme_cfg->he_caps.dot11_he_cap.twt_request &&
+			mac_ctx->mlme_cfg->twt_cfg.req_flag;
 
 	if (pe_session->opmode == QDF_SAP_MODE)
 		p_ext_cap->twt_responder_support =
-			mac_ctx->mlme_cfg->he_caps.dot11_he_cap.twt_responder;
+			mac_ctx->mlme_cfg->he_caps.dot11_he_cap.twt_responder &&
+			mac_ctx->mlme_cfg->twt_cfg.res_flag;
 
 	dot11f->num_bytes = lim_compute_ext_cap_ie_length(dot11f);
 

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -129,9 +130,9 @@ static void lim_extract_he_op(struct pe_session *session,
 		session->he_op.oper_info_6g.info.center_freq_seg1;
 	session->ap_power_type =
 		session->he_op.oper_info_6g.info.reg_info;
-	pe_debug("6G op info: ch_wd %d cntr_freq_seg0 %d cntr_freq_seg1 %d",
+	pe_debug("6G op info: ch_wd %d cntr_freq_seg0 %d cntr_freq_seg1 %d ap pwr type %d",
 		 session->ch_width, session->ch_center_freq_seg0,
-		 session->ch_center_freq_seg1);
+		 session->ch_center_freq_seg1, session->ap_power_type);
 
 	if (!session->ch_center_freq_seg1)
 		return;
@@ -159,6 +160,36 @@ static void lim_extract_he_op(struct pe_session *session,
 		session->ch_width = CH_WIDTH_80MHZ;
 		session->ch_center_freq_seg1 = 0;
 	}
+}
+
+static bool lim_validate_he160_mcs_map(struct mac_context *mac_ctx,
+				       uint16_t peer_rx, uint16_t peer_tx,
+				       uint8_t nss)
+{
+	uint16_t rx_he_mcs_map;
+	uint16_t tx_he_mcs_map;
+	uint16_t he_mcs_map;
+
+	he_mcs_map = *((uint16_t *)mac_ctx->mlme_cfg->he_caps.dot11_he_cap.
+				tx_he_mcs_map_160);
+	rx_he_mcs_map = HE_INTERSECT_MCS(peer_rx, he_mcs_map);
+
+	he_mcs_map = *((uint16_t *)mac_ctx->mlme_cfg->he_caps.dot11_he_cap.
+				rx_he_mcs_map_160);
+	tx_he_mcs_map = HE_INTERSECT_MCS(peer_tx, he_mcs_map);
+
+	if (nss == NSS_1x1_MODE) {
+		rx_he_mcs_map |= HE_MCS_INV_MSK_4_NSS(1);
+		tx_he_mcs_map |= HE_MCS_INV_MSK_4_NSS(1);
+	} else if (nss == NSS_2x2_MODE) {
+		rx_he_mcs_map |= (HE_MCS_INV_MSK_4_NSS(1) &
+				HE_MCS_INV_MSK_4_NSS(2));
+		tx_he_mcs_map |= (HE_MCS_INV_MSK_4_NSS(1) &
+				HE_MCS_INV_MSK_4_NSS(2));
+	}
+
+	return ((rx_he_mcs_map != HE_MCS_ALL_DISABLED) &&
+		(tx_he_mcs_map != HE_MCS_ALL_DISABLED));
 }
 
 static void lim_check_is_he_mcs_valid(struct pe_session *session,
@@ -197,14 +228,21 @@ void lim_update_he_bw_cap_mcs(struct pe_session *session,
 	if ((session->opmode == QDF_STA_MODE ||
 	     session->opmode == QDF_P2P_CLIENT_MODE) &&
 	    beacon && beacon->he_cap.present) {
-		if (!beacon->he_cap.chan_width_2)
+		if (!beacon->he_cap.chan_width_2) {
 			is_80mhz = 1;
-		else if (beacon->he_cap.chan_width_2 &&
-			 (*(uint16_t *)beacon->he_cap.rx_he_mcs_map_160 ==
-			  HE_MCS_ALL_DISABLED))
+		} else if (beacon->he_cap.chan_width_2 &&
+			 !lim_validate_he160_mcs_map(session->mac_ctx,
+			   *((uint16_t *)beacon->he_cap.rx_he_mcs_map_160),
+			   *((uint16_t *)beacon->he_cap.tx_he_mcs_map_160),
+						     session->nss)) {
 			is_80mhz = 1;
-		else
+			if (session->ch_width == CH_WIDTH_160MHZ) {
+				pe_debug("HE160 Rx/Tx MCS is not valid, falling back to 80MHz");
+				session->ch_width = CH_WIDTH_80MHZ;
+			}
+		} else {
 			is_80mhz = 0;
+		}
 	} else {
 		is_80mhz = 1;
 	}
@@ -429,10 +467,17 @@ void lim_extract_ap_capability(struct mac_context *mac_ctx, uint8_t *p_ie,
 	tDot11fIEVHTCaps *vht_caps;
 	uint8_t channel = 0;
 	struct mlme_vht_capabilities_info *mlme_vht_cap;
+	uint8_t session_id;
 
 	beacon_struct = qdf_mem_malloc(sizeof(tSirProbeRespBeacon));
 	if (!beacon_struct)
 		return;
+
+	session_id = session->smeSessionId;
+	if (session_id >= WLAN_MAX_VDEVS) {
+		pe_err("Invalid session_id %d", session_id);
+		return;
+	}
 
 	*qos_cap = 0;
 	*uapsd = 0;
@@ -660,6 +705,9 @@ void lim_extract_ap_capability(struct mac_context *mac_ctx, uint8_t *p_ie,
 			*is_pwr_constraint = false;
 		}
 	}
+
+	mac_ctx->roam.roamSession[session_id].ap_power_type =
+							session->ap_power_type;
 
 	get_ese_version_ie_probe_response(mac_ctx, beacon_struct, session);
 

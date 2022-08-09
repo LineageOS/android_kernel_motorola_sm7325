@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -383,39 +384,6 @@ void hdd_get_tx_resource(struct hdd_adapter *adapter,
 			adapter->hdd_stats.tx_rx_stats.is_txflow_paused = true;
 		}
 	}
-}
-
-#else
-/**
- * hdd_skb_orphan() - skb_unshare a cloned packed else skb_orphan
- * @adapter: pointer to HDD adapter
- * @skb: pointer to skb data packet
- *
- * Return: pointer to skb structure
- */
-static inline struct sk_buff *hdd_skb_orphan(struct hdd_adapter *adapter,
-		struct sk_buff *skb) {
-
-	struct sk_buff *nskb;
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0))
-	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-#endif
-
-	hdd_skb_fill_gso_size(adapter->dev, skb);
-
-	nskb = skb_unshare(skb, GFP_ATOMIC);
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0))
-	if (unlikely(hdd_ctx->config->tx_orphan_enable) && (nskb == skb)) {
-		/*
-		 * For UDP packets we want to orphan the packet to allow the app
-		 * to send more packets. The flow would ultimately be controlled
-		 * by the limited number of tx descriptors for the vdev.
-		 */
-		++adapter->hdd_stats.tx_rx_stats.tx_orphaned;
-		skb_orphan(skb);
-	}
-#endif
-	return nskb;
 }
 #endif /* QCA_LL_LEGACY_TX_FLOW_CONTROL */
 
@@ -2083,6 +2051,13 @@ QDF_STATUS hdd_rx_pkt_thread_enqueue_cbk(void *adapter,
 		return hdd_adapter->rx_stack(adapter, nbuf_list);
 
 	vdev_id = hdd_adapter->vdev_id;
+
+	if (vdev_id >= WLAN_UMAC_VDEV_ID_MAX) {
+		hdd_info_rl("Vdev invalid. Dropping packets");
+		qdf_nbuf_list_free(nbuf_list);
+		return QDF_STATUS_E_NETDOWN;
+	}
+
 	head_ptr = nbuf_list;
 	while (head_ptr) {
 		qdf_nbuf_cb_update_vdev_id(head_ptr, vdev_id);
@@ -2237,8 +2212,9 @@ QDF_STATUS hdd_rx_deliver_to_stack(struct hdd_adapter *adapter,
 	bool skb_receive_offload_ok = false;
 	uint8_t rx_ctx_id = QDF_NBUF_CB_RX_CTX_ID(skb);
 
-	/* rx_ctx_id is already verified for out-of-range */
-	hdd_rx_check_qdisc_for_adapter(adapter, rx_ctx_id);
+	if (!hdd_ctx->dp_agg_param.force_gro_enable)
+		/* rx_ctx_id is already verified for out-of-range */
+		hdd_rx_check_qdisc_for_adapter(adapter, rx_ctx_id);
 
 	if (QDF_NBUF_CB_RX_TCP_PROTO(skb) &&
 	    !QDF_NBUF_CB_RX_PEER_CACHED_FRM(skb))
@@ -2677,6 +2653,7 @@ const char *hdd_action_type_to_string(enum netif_action_type action)
 	CASE_RETURN_STRING(WLAN_NETIF_VO_QUEUE_OFF);
 	CASE_RETURN_STRING(WLAN_NETIF_VI_QUEUE_ON);
 	CASE_RETURN_STRING(WLAN_NETIF_VI_QUEUE_OFF);
+	CASE_RETURN_STRING(WLAN_NETIF_BE_BK_QUEUE_ON);
 	CASE_RETURN_STRING(WLAN_NETIF_BE_BK_QUEUE_OFF);
 	CASE_RETURN_STRING(WLAN_WAKE_NON_PRIORITY_QUEUE);
 	CASE_RETURN_STRING(WLAN_STOP_NON_PRIORITY_QUEUE);
@@ -2707,6 +2684,7 @@ static void wlan_hdd_update_queue_oper_stats(struct hdd_adapter *adapter,
 	case WLAN_START_ALL_NETIF_QUEUE:
 	case WLAN_WAKE_ALL_NETIF_QUEUE:
 	case WLAN_START_ALL_NETIF_QUEUE_N_CARRIER:
+	case WLAN_NETIF_BE_BK_QUEUE_ON:
 	case WLAN_NETIF_VI_QUEUE_ON:
 	case WLAN_NETIF_VO_QUEUE_ON:
 	case WLAN_NETIF_PRIORITY_QUEUE_ON:
@@ -2938,65 +2916,99 @@ void wlan_hdd_netif_queue_control(struct hdd_adapter *adapter,
 
 	case WLAN_NETIF_PRIORITY_QUEUE_ON:
 		spin_lock_bh(&adapter->pause_map_lock);
-		temp_map = adapter->pause_map;
-		adapter->pause_map &= ~(1 << reason);
-		netif_wake_subqueue(adapter->dev, HDD_LINUX_AC_HI_PRIO);
-		wlan_hdd_update_pause_time(adapter, temp_map);
+		if (reason == WLAN_DATA_FLOW_CTRL_PRI) {
+			temp_map = adapter->subqueue_pause_map;
+			adapter->subqueue_pause_map &= ~(1 << reason);
+		} else {
+			temp_map = adapter->pause_map;
+			adapter->pause_map &= ~(1 << reason);
+		}
+		if (!adapter->pause_map) {
+			netif_wake_subqueue(adapter->dev, HDD_LINUX_AC_HI_PRIO);
+			wlan_hdd_update_pause_time(adapter, temp_map);
+		}
 		spin_unlock_bh(&adapter->pause_map_lock);
 		break;
 
 	case WLAN_NETIF_PRIORITY_QUEUE_OFF:
 		spin_lock_bh(&adapter->pause_map_lock);
-		netif_stop_subqueue(adapter->dev, HDD_LINUX_AC_HI_PRIO);
-		wlan_hdd_update_txq_timestamp(adapter->dev);
-		wlan_hdd_update_unpause_time(adapter);
-		adapter->pause_map |= (1 << reason);
+		if (!adapter->pause_map) {
+			netif_stop_subqueue(adapter->dev, HDD_LINUX_AC_HI_PRIO);
+			wlan_hdd_update_txq_timestamp(adapter->dev);
+			wlan_hdd_update_unpause_time(adapter);
+		}
+		if (reason == WLAN_DATA_FLOW_CTRL_PRI)
+			adapter->subqueue_pause_map |= (1 << reason);
+		else
+			adapter->pause_map |= (1 << reason);
 		spin_unlock_bh(&adapter->pause_map_lock);
 		break;
 
 	case WLAN_NETIF_BE_BK_QUEUE_OFF:
 		spin_lock_bh(&adapter->pause_map_lock);
-		netif_stop_subqueue(adapter->dev, HDD_LINUX_AC_BK);
-		netif_stop_subqueue(adapter->dev, HDD_LINUX_AC_BE);
-		wlan_hdd_update_txq_timestamp(adapter->dev);
-		wlan_hdd_update_unpause_time(adapter);
-		adapter->pause_map |= (1 << reason);
+		if (!adapter->pause_map) {
+			netif_stop_subqueue(adapter->dev, HDD_LINUX_AC_BK);
+			netif_stop_subqueue(adapter->dev, HDD_LINUX_AC_BE);
+			wlan_hdd_update_txq_timestamp(adapter->dev);
+			wlan_hdd_update_unpause_time(adapter);
+		}
+		adapter->subqueue_pause_map |= (1 << reason);
+		spin_unlock_bh(&adapter->pause_map_lock);
+		break;
+
+	case WLAN_NETIF_BE_BK_QUEUE_ON:
+		spin_lock_bh(&adapter->pause_map_lock);
+		temp_map = adapter->subqueue_pause_map;
+		adapter->subqueue_pause_map &= ~(1 << reason);
+		if (!adapter->pause_map) {
+			netif_wake_subqueue(adapter->dev, HDD_LINUX_AC_BK);
+			netif_wake_subqueue(adapter->dev, HDD_LINUX_AC_BE);
+			wlan_hdd_update_pause_time(adapter, temp_map);
+		}
 		spin_unlock_bh(&adapter->pause_map_lock);
 		break;
 
 	case WLAN_NETIF_VI_QUEUE_OFF:
 		spin_lock_bh(&adapter->pause_map_lock);
-		netif_stop_subqueue(adapter->dev, HDD_LINUX_AC_VI);
-		wlan_hdd_update_txq_timestamp(adapter->dev);
-		wlan_hdd_update_unpause_time(adapter);
-		adapter->pause_map |= (1 << reason);
+		if (!adapter->pause_map) {
+			netif_stop_subqueue(adapter->dev, HDD_LINUX_AC_VI);
+			wlan_hdd_update_txq_timestamp(adapter->dev);
+			wlan_hdd_update_unpause_time(adapter);
+		}
+		adapter->subqueue_pause_map |= (1 << reason);
 		spin_unlock_bh(&adapter->pause_map_lock);
 		break;
 
 	case WLAN_NETIF_VI_QUEUE_ON:
 		spin_lock_bh(&adapter->pause_map_lock);
-		temp_map = adapter->pause_map;
-		adapter->pause_map &= ~(1 << reason);
-		netif_wake_subqueue(adapter->dev, HDD_LINUX_AC_VI);
-		wlan_hdd_update_pause_time(adapter, temp_map);
+		temp_map = adapter->subqueue_pause_map;
+		adapter->subqueue_pause_map &= ~(1 << reason);
+		if (!adapter->pause_map) {
+			netif_wake_subqueue(adapter->dev, HDD_LINUX_AC_VI);
+			wlan_hdd_update_pause_time(adapter, temp_map);
+		}
 		spin_unlock_bh(&adapter->pause_map_lock);
 		break;
 
 	case WLAN_NETIF_VO_QUEUE_OFF:
 		spin_lock_bh(&adapter->pause_map_lock);
-		netif_stop_subqueue(adapter->dev, HDD_LINUX_AC_VO);
-		wlan_hdd_update_txq_timestamp(adapter->dev);
-		wlan_hdd_update_unpause_time(adapter);
-		adapter->pause_map |= (1 << reason);
+		if (!adapter->pause_map) {
+			netif_stop_subqueue(adapter->dev, HDD_LINUX_AC_VO);
+			wlan_hdd_update_txq_timestamp(adapter->dev);
+			wlan_hdd_update_unpause_time(adapter);
+		}
+		adapter->subqueue_pause_map |= (1 << reason);
 		spin_unlock_bh(&adapter->pause_map_lock);
 		break;
 
 	case WLAN_NETIF_VO_QUEUE_ON:
 		spin_lock_bh(&adapter->pause_map_lock);
-		temp_map = adapter->pause_map;
-		adapter->pause_map &= ~(1 << reason);
-		netif_wake_subqueue(adapter->dev, HDD_LINUX_AC_VO);
-		wlan_hdd_update_pause_time(adapter, temp_map);
+		temp_map = adapter->subqueue_pause_map;
+		adapter->subqueue_pause_map &= ~(1 << reason);
+		if (!adapter->pause_map) {
+			netif_wake_subqueue(adapter->dev, HDD_LINUX_AC_VO);
+			wlan_hdd_update_pause_time(adapter, temp_map);
+		}
 		spin_unlock_bh(&adapter->pause_map_lock);
 		break;
 
@@ -3078,7 +3090,12 @@ void wlan_hdd_netif_queue_control(struct hdd_adapter *adapter,
 	adapter->queue_oper_history[index].time = qdf_system_ticks();
 	adapter->queue_oper_history[index].netif_action = action;
 	adapter->queue_oper_history[index].netif_reason = reason;
-	adapter->queue_oper_history[index].pause_map = adapter->pause_map;
+	if (reason >= WLAN_DATA_FLOW_CTRL_BE_BK)
+		adapter->queue_oper_history[index].pause_map =
+			adapter->subqueue_pause_map;
+	else
+		adapter->queue_oper_history[index].pause_map =
+			adapter->pause_map;
 
 	txq_hist_ptr = &adapter->queue_oper_history[index];
 

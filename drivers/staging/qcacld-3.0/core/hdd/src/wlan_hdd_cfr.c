@@ -70,7 +70,37 @@ const struct nla_policy cfr_config_policy[
 						.type = NLA_U32},
 	[QCA_WLAN_VENDOR_ATTR_PEER_CFR_GROUP_DATA_FILTER] = {
 						.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_PEER_CFR_DATA_TRANSPORT_MODE] = {
+						.type = NLA_U8},
+	[QCA_WLAN_VENDOR_ATTR_PEER_CFR_DATA_RECEIVER_PID] = {
+						.type = NLA_U32},
 };
+
+static void
+wlan_hdd_transport_mode_cfg(struct wlan_objmgr_pdev *pdev,
+			    uint8_t vdev_id, uint32_t pid,
+			    enum qca_wlan_vendor_cfr_data_transport_modes tx_mode)
+{
+	struct pdev_cfr *pa;
+
+	if (!pdev) {
+		hdd_err("failed to %s transport mode cb for cfr, pdev is NULL for vdev id %d",
+			tx_mode ? "register" : "deregister", vdev_id);
+		return;
+	}
+
+	pa = wlan_objmgr_pdev_get_comp_private_obj(pdev, WLAN_UMAC_COMP_CFR);
+	if (!pa) {
+		hdd_err("cfr private obj is NULL for vdev id %d", vdev_id);
+		return;
+	}
+	pa->nl_cb.vdev_id = vdev_id;
+	pa->nl_cb.pid = pid;
+	if (tx_mode == QCA_WLAN_VENDOR_CFR_DATA_NETLINK_EVENTS)
+		pa->nl_cb.cfr_nl_cb = hdd_cfr_data_send_nl_event;
+	else
+		pa->nl_cb.cfr_nl_cb = NULL;
+}
 
 #ifdef WLAN_ENH_CFR_ENABLE
 
@@ -175,6 +205,7 @@ wlan_cfg80211_cfr_set_group_config(struct wlan_objmgr_vdev *vdev,
 			  params.expected_data_subtype,
 			  params.expected_data_subtype);
 	}
+
 	if (!params.expected_mgmt_subtype ||
 	    !params.expected_ctrl_subtype ||
 		!params.expected_data_subtype) {
@@ -286,6 +317,31 @@ wlan_cfg80211_cfr_set_config(struct wlan_objmgr_vdev *vdev,
 				return -EINVAL;
 			}
 			wlan_cfg80211_cfr_set_group_config(vdev, group);
+		}
+	}
+
+	if (tb[QCA_WLAN_VENDOR_ATTR_PEER_CFR_DATA_TRANSPORT_MODE]) {
+		uint8_t transport_mode = 0xff;
+		uint32_t pid = 0;
+
+		if (tb[QCA_WLAN_VENDOR_ATTR_PEER_CFR_DATA_RECEIVER_PID])
+			pid = nla_get_u32(tb[
+			QCA_WLAN_VENDOR_ATTR_PEER_CFR_DATA_RECEIVER_PID]);
+		else
+			hdd_debug("No PID received");
+
+		transport_mode = nla_get_u8(tb[
+			QCA_WLAN_VENDOR_ATTR_PEER_CFR_DATA_TRANSPORT_MODE]);
+
+		hdd_debug("tx mode attr %d, pid %d", transport_mode, pid);
+		if (transport_mode == QCA_WLAN_VENDOR_CFR_DATA_RELAY_FS ||
+		    transport_mode == QCA_WLAN_VENDOR_CFR_DATA_NETLINK_EVENTS) {
+			wlan_hdd_transport_mode_cfg(vdev->vdev_objmgr.wlan_pdev,
+						    vdev->vdev_objmgr.vdev_id,
+						    pid, transport_mode);
+		} else {
+			hdd_debug("invalid transport mode %d for vdev id %d",
+				  transport_mode, vdev->vdev_objmgr.vdev_id);
 		}
 	}
 
@@ -405,6 +461,30 @@ wlan_cfg80211_peer_cfr_capture_cfg_adrastea(struct hdd_adapter *adapter,
 }
 #endif
 
+static QDF_STATUS hdd_stop_enh_cfr(struct wlan_objmgr_vdev *vdev)
+{
+	if (!ucfg_cfr_get_rcc_enabled(vdev))
+		return QDF_STATUS_SUCCESS;
+
+	hdd_debug("cleanup rcc mode");
+	wlan_objmgr_vdev_try_get_ref(vdev, WLAN_CFR_ID);
+	ucfg_cfr_set_rcc_mode(vdev, RCC_DIS_ALL_MODE, 0);
+	ucfg_cfr_subscribe_ppdu_desc(wlan_vdev_get_pdev(vdev),
+				     false);
+	ucfg_cfr_committed_rcc_config(vdev);
+	ucfg_cfr_stop_indication(vdev);
+	ucfg_cfr_suspend(wlan_vdev_get_pdev(vdev));
+	hdd_debug("stop indication done");
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_CFR_ID);
+
+	return QDF_STATUS_SUCCESS;
+}
+
+QDF_STATUS hdd_cfr_disconnect(struct wlan_objmgr_vdev *vdev)
+{
+	return hdd_stop_enh_cfr(vdev);
+}
+
 static int
 wlan_cfg80211_peer_enh_cfr_capture(struct hdd_adapter *adapter,
 				   struct nlattr **tb)
@@ -441,16 +521,12 @@ wlan_cfg80211_peer_enh_cfr_capture(struct hdd_adapter *adapter,
 			QCA_WLAN_VENDOR_ATTR_PEER_CFR_ENABLE_GROUP_BITMAP]);
 		hdd_debug("params.en_cfg %d", params.en_cfg);
 		ucfg_cfr_set_en_bitmap(vdev, &params);
+		ucfg_cfr_resume(wlan_vdev_get_pdev(vdev));
+		ucfg_cfr_subscribe_ppdu_desc(wlan_vdev_get_pdev(vdev),
+					     true);
+		ucfg_cfr_committed_rcc_config(vdev);
 	} else {
-		hdd_debug("cleanup rcc mode");
-		ucfg_cfr_set_rcc_mode(vdev, RCC_DIS_ALL_MODE, 0);
-	}
-	ucfg_cfr_subscribe_ppdu_desc(wlan_vdev_get_pdev(vdev),
-				     is_start_capture);
-	ucfg_cfr_committed_rcc_config(vdev);
-	if (!is_start_capture) {
-		ucfg_cfr_stop_indication(vdev);
-		hdd_debug("stop indication done");
+		hdd_stop_enh_cfr(vdev);
 	}
 
 out:

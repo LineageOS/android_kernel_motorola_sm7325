@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -114,6 +115,7 @@
 #endif
 
 #include "wlan_pkt_capture_ucfg_api.h"
+#include "wlan_fwol_ucfg_api.h"
 
 #define WMA_LOG_COMPLETION_TIMER 3000 /* 3 seconds */
 #define WMI_TLV_HEADROOM 128
@@ -1012,7 +1014,13 @@ static void wma_process_cli_set_cmd(tp_wma_handle wma,
 			ret = wma_reset_tsf_gpio(wma, privcmd->param_value);
 			break;
 		default:
-			wma_err("Invalid param id 0x%x", privcmd->param_id);
+			ret = wma_set_tsf_auto_report(wma,
+						      privcmd->param_vdev_id,
+						      privcmd->param_id,
+						      privcmd->param_value);
+			if (ret == QDF_STATUS_E_FAILURE)
+				wma_err("Invalid param id 0x%x",
+					privcmd->param_id);
 			break;
 		}
 		break;
@@ -2006,6 +2014,57 @@ static int wma_legacy_service_ready_event_handler(uint32_t event_id,
 	return 0;
 }
 
+#ifdef WLAN_FEATURE_CAL_FAILURE_TRIGGER
+/**
+ * wma_process_cal_fail_info() - Process cal failure event and
+ *                               send it to userspace
+ * @wmi_event:  Cal failure event data
+ */
+static void wma_process_cal_fail_info(uint8_t *wmi_event)
+{
+	struct mac_context *mac = cds_get_context(QDF_MODULE_ID_PE);
+	uint8_t *buf_ptr;
+	wmi_debug_mesg_fw_cal_failure_param *cal_failure_event;
+
+	if (!mac) {
+		wma_err("Invalid mac context");
+		return;
+	}
+
+	if (!mac->cal_failure_event_cb) {
+		wma_err("Callback not registered for cal failure event");
+		return;
+	}
+
+	buf_ptr = wmi_event;
+	buf_ptr = buf_ptr + sizeof(wmi_debug_mesg_flush_complete_fixed_param) +
+		  WMI_TLV_HDR_SIZE +
+		  sizeof(wmi_debug_mesg_fw_data_stall_param) + WMI_TLV_HDR_SIZE;
+
+	cal_failure_event = (wmi_debug_mesg_fw_cal_failure_param *)buf_ptr;
+
+	if (((cal_failure_event->tlv_header & 0xFFFF0000) >> 16 ==
+			WMITLV_TAG_STRUC_wmi_debug_mesg_fw_cal_failure_param)) {
+		/**
+		 * Log calibration failure information received from FW
+		 */
+		wma_debug("Calibration failure event:");
+		wma_debug("calType: %x calFailureReasonCode: %x",
+			  cal_failure_event->cal_type,
+			  cal_failure_event->cal_failure_reason_code);
+		mac->cal_failure_event_cb(
+				cal_failure_event->cal_type,
+				cal_failure_event->cal_failure_reason_code);
+	} else {
+		wma_err("Invalid TLV header in cal failure event");
+	}
+}
+#else
+static inline void wma_process_cal_fail_info(uint8_t *wmi_event)
+{
+}
+#endif
+
 /**
  * wma_flush_complete_evt_handler() - FW log flush complete event handler
  * @handle: WMI handle
@@ -2037,7 +2096,7 @@ static int wma_flush_complete_evt_handler(void *handle,
 	reason_code = wmi_event->reserved0;
 	wma_debug("Received reason code %d from FW", reason_code);
 
-	if (reason_code == WMA_DATA_STALL_TRIGGER) {
+	if (reason_code == WMI_DIAG_TRIGGER_DATA_STALL) {
 		buf_ptr = (uint8_t *)wmi_event;
 		buf_ptr = buf_ptr +
 			  sizeof(wmi_debug_mesg_flush_complete_fixed_param) +
@@ -2046,7 +2105,7 @@ static int wma_flush_complete_evt_handler(void *handle,
 				(wmi_debug_mesg_fw_data_stall_param *)buf_ptr;
 	}
 
-	if (reason_code == WMA_DATA_STALL_TRIGGER &&
+	if (reason_code == WMI_DIAG_TRIGGER_DATA_STALL &&
 	    ((data_stall_event->tlv_header & 0xFFFF0000) >> 16 ==
 	      WMITLV_TAG_STRUC_wmi_debug_mesg_fw_data_stall_param)) {
 		/**
@@ -2094,6 +2153,11 @@ static int wma_flush_complete_evt_handler(void *handle,
 					OL_TXRX_PDEV_ID,
 					data_stall_event->vdev_id_bitmap,
 					data_stall_event->recovery_type);
+	}
+
+	if (reason_code == WMI_DIAG_TRIGGER_CAL_FAILURE) {
+		wma_process_cal_fail_info((uint8_t *)wmi_event);
+		return QDF_STATUS_SUCCESS;
 	}
 
 	/*
@@ -2589,8 +2653,6 @@ static int wma_unified_phyerr_rx_event_handler(void *handle,
 
 void wma_vdev_init(struct wma_txrx_node *vdev)
 {
-	qdf_wake_lock_create(&vdev->vdev_set_key_wakelock, "vdev_set_key");
-	qdf_runtime_lock_init(&vdev->vdev_set_key_runtime_wakelock);
 	vdev->is_waiting_for_key = false;
 }
 
@@ -2662,8 +2724,6 @@ void wma_vdev_deinit(struct wma_txrx_node *vdev)
 		vdev->plink_status_req = NULL;
 	}
 
-	qdf_runtime_lock_deinit(&vdev->vdev_set_key_runtime_wakelock);
-	qdf_wake_lock_destroy(&vdev->vdev_set_key_wakelock);
 	vdev->is_waiting_for_key = false;
 }
 
@@ -2935,7 +2995,6 @@ QDF_STATUS wma_open(struct wlan_objmgr_psoc *psoc,
 	bool val = 0;
 	void *cds_context;
 	target_resource_config *wlan_res_cfg;
-	uint8_t delay_before_vdev_stop;
 	uint32_t self_gen_frm_pwr = 0;
 
 	wma_debug("Enter");
@@ -3111,13 +3170,9 @@ QDF_STATUS wma_open(struct wlan_objmgr_psoc *psoc,
 		goto err_scn_context;
 	}
 
-	for (i = 0; i < wma_handle->max_bssid; ++i) {
+	for (i = 0; i < wma_handle->max_bssid; ++i)
 		wma_vdev_init(&wma_handle->interfaces[i]);
-		ucfg_mlme_get_delay_before_vdev_stop(wma_handle->psoc,
-						     &delay_before_vdev_stop);
-		wma_handle->interfaces[i].delay_before_vdev_stop =
-							delay_before_vdev_stop;
-	}
+
 	/* Register the debug print event handler */
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
 					wmi_debug_print_event_id,
@@ -4630,6 +4685,36 @@ wma_get_igmp_offload_enable(struct wmi_unified *wmi_handle,
 {}
 #endif
 
+#ifdef WLAN_FEATURE_11AX
+#ifdef FEATURE_WLAN_TDLS
+/**
+ * wma_get_tdls_ax_support() - update tgt service with service tdls ax support
+ * @wmi_handle: Unified wmi handle
+ * @cfg: target services
+ *
+ * Return: none
+ */
+static inline void
+wma_get_tdls_ax_support(struct wmi_unified *wmi_handle,
+			struct wma_tgt_services *cfg)
+{
+	cfg->en_tdls_11ax_support = wmi_service_enabled(
+						wmi_handle,
+						wmi_service_tdls_ax_support);
+}
+#else
+static inline void
+wma_get_tdls_ax_support(struct wmi_unified *wmi_handle,
+			struct wma_tgt_services *cfg)
+{}
+#endif
+#else
+static inline void
+wma_get_tdls_ax_support(struct wmi_unified *wmi_handle,
+			struct wma_tgt_services *cfg)
+{}
+#endif
+
 /**
  * wma_update_target_services() - update target services from wma handle
  * @wmi_handle: Unified wmi handle
@@ -4767,6 +4852,7 @@ static inline void wma_update_target_services(struct wmi_unified *wmi_handle,
 	wma_get_service_cap_club_get_sta_in_ll_stats_req(wmi_handle, cfg);
 
 	wma_get_igmp_offload_enable(wmi_handle, cfg);
+	wma_get_tdls_ax_support(wmi_handle, cfg);
 }
 
 /**
@@ -5778,10 +5864,52 @@ static void wma_set_mlme_caps(struct wlan_objmgr_psoc *psoc)
 		wma_err("Failed to set sae roam support");
 }
 
+#ifdef THERMAL_STATS_SUPPORT
+static void wma_set_thermal_stats_fw_cap(tp_wma_handle wma,
+					 struct wlan_fwol_capability_info *cap)
+{
+	cap->fw_thermal_stats_cap = wmi_service_enabled(wma->wmi_handle,
+				wmi_service_thermal_stats_temp_range_supported);
+}
+#else
+static void wma_set_thermal_stats_fw_cap(tp_wma_handle wma,
+					 struct wlan_fwol_capability_info *cap)
+{
+}
+#endif
+
+/**
+ * wma_set_fwol_caps() - Populate fwol component related capabilities
+ *			 to the fwol component
+ *
+ * @psoc: Pointer to psoc object
+ *
+ * Return: None
+ */
+static void wma_set_fwol_caps(struct wlan_objmgr_psoc *psoc)
+{
+	tp_wma_handle wma;
+	struct wlan_fwol_capability_info cap_info;
+	wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (!wma) {
+		wma_err_rl("wma Null");
+		return;
+	}
+	if (!psoc) {
+		wma_err_rl("psoc Null");
+		return;
+	}
+
+	wma_set_thermal_stats_fw_cap(wma, &cap_info);
+	ucfg_fwol_update_fw_cap_info(psoc, &cap_info);
+}
+
 static void wma_set_component_caps(struct wlan_objmgr_psoc *psoc)
 {
 	wma_set_pmo_caps(psoc);
 	wma_set_mlme_caps(psoc);
+	wma_set_fwol_caps(psoc);
 }
 
 #if defined(WLAN_FEATURE_GTK_OFFLOAD) && defined(WLAN_POWER_MANAGEMENT_OFFLOAD)
@@ -6906,7 +7034,9 @@ int wma_rx_service_ready_ext_event(void *handle, uint8_t *event,
 	 * indicate 3 vdevs and firmware shall add 1 vdev for NAN. So decrement
 	 * the num_vdevs by 1.
 	 */
-	if (ucfg_nan_is_vdev_creation_allowed(wma_handle->psoc)) {
+
+	if (ucfg_nan_is_vdev_creation_allowed(wma_handle->psoc) ||
+	    QDF_GLOBAL_FTM_MODE == cds_get_conparam()) {
 		wlan_res_cfg->nan_separate_iface_support = true;
 	} else {
 		wlan_res_cfg->num_vdevs--;
@@ -6920,6 +7050,12 @@ int wma_rx_service_ready_ext_event(void *handle, uint8_t *event,
 		wlan_res_cfg->pktcapture_support = true;
 	else
 		wlan_res_cfg->pktcapture_support = false;
+
+	if (wmi_service_enabled(wmi_handle,
+				wmi_service_sae_eapol_offload_support))
+		wlan_res_cfg->sae_eapol_offload = true;
+	else
+		wlan_res_cfg->sae_eapol_offload = false;
 
 	wma_debug("num_vdevs: %u", wlan_res_cfg->num_vdevs);
 

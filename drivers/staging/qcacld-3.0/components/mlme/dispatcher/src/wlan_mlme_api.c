@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -555,6 +556,32 @@ QDF_STATUS wlan_mlme_cfg_get_enable_ul_ofdm(struct wlan_objmgr_psoc *psoc,
 	return QDF_STATUS_SUCCESS;
 }
 
+/* mlme_get_min_rate_cap() - get minimum capability for HE-MCS between
+ *                           ini value and fw capability.
+ *
+ * Rx HE-MCS Map and Tx HE-MCS Map subfields format where 2-bit indicates
+ * 0 indicates support for HE-MCS 0-7 for n spatial streams
+ * 1 indicates support for HE-MCS 0-9 for n spatial streams
+ * 2 indicates support for HE-MCS 0-11 for n spatial streams
+ * 3 indicates that n spatial streams is not supported for HE PPDUs
+ *
+ */
+static uint16_t mlme_get_min_rate_cap(uint16_t val1, uint16_t val2)
+{
+	uint16_t ret = 0, i;
+
+	for (i = 0; i < 8; i++) {
+		if (((val1 >> (2 * i)) & 0x3) == 0x3 ||
+		    ((val2 >> (2 * i)) & 0x3) == 0x3) {
+			ret |= 0x3 << (2 * i);
+			continue;
+		}
+		ret |= QDF_MIN((val1 >> (2 * i)) & 0x3,
+			      (val2 >> (2 * i)) & 0x3) << (2 * i);
+	}
+	return ret;
+}
+
 QDF_STATUS mlme_update_tgt_he_caps_in_cfg(struct wlan_objmgr_psoc *psoc,
 					  struct wma_tgt_cfg *wma_cfg)
 {
@@ -802,8 +829,12 @@ QDF_STATUS mlme_update_tgt_he_caps_in_cfg(struct wlan_objmgr_psoc *psoc,
 	mlme_obj->cfg.he_caps.dot11_he_cap.rx_full_bw_su_he_mu_non_cmpr_sigb =
 				he_cap->rx_full_bw_su_he_mu_non_cmpr_sigb;
 
-	tx_mcs_map = he_cap->tx_he_mcs_map_lt_80;
-	rx_mcs_map = he_cap->rx_he_mcs_map_lt_80;
+	tx_mcs_map = mlme_get_min_rate_cap(
+		mlme_obj->cfg.he_caps.dot11_he_cap.tx_he_mcs_map_lt_80,
+		he_cap->tx_he_mcs_map_lt_80);
+	rx_mcs_map = mlme_get_min_rate_cap(
+		mlme_obj->cfg.he_caps.dot11_he_cap.rx_he_mcs_map_lt_80,
+		he_cap->rx_he_mcs_map_lt_80);
 	if (!mlme_obj->cfg.vht_caps.vht_cap_info.enable2x2) {
 		nss = 2;
 		tx_mcs_map = HE_SET_MCS_4_NSS(tx_mcs_map, HE_MCS_DISABLE, nss);
@@ -816,8 +847,12 @@ QDF_STATUS mlme_update_tgt_he_caps_in_cfg(struct wlan_objmgr_psoc *psoc,
 	if (cfg_in_range(CFG_HE_TX_MCS_MAP_LT_80, tx_mcs_map))
 		mlme_obj->cfg.he_caps.dot11_he_cap.tx_he_mcs_map_lt_80 =
 			tx_mcs_map;
-	tx_mcs_map = *((uint16_t *)he_cap->tx_he_mcs_map_160);
-	rx_mcs_map = *((uint16_t *)he_cap->rx_he_mcs_map_160);
+	tx_mcs_map = mlme_get_min_rate_cap(
+	   *((uint16_t *)mlme_obj->cfg.he_caps.dot11_he_cap.tx_he_mcs_map_160),
+	   *((uint16_t *)he_cap->tx_he_mcs_map_160));
+	rx_mcs_map = mlme_get_min_rate_cap(
+	   *((uint16_t *)mlme_obj->cfg.he_caps.dot11_he_cap.rx_he_mcs_map_160),
+	   *((uint16_t *)he_cap->rx_he_mcs_map_160));
 
 	if (!mlme_obj->cfg.vht_caps.vht_cap_info.enable2x2) {
 		nss = 2;
@@ -3602,7 +3637,7 @@ wlan_mlme_get_self_gen_frm_pwr(struct wlan_objmgr_psoc *psoc,
 }
 
 QDF_STATUS
-wlan_mlme_get_4way_hs_offload(struct wlan_objmgr_psoc *psoc, bool *value)
+wlan_mlme_get_4way_hs_offload(struct wlan_objmgr_psoc *psoc, uint32_t *value)
 {
 	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
@@ -4210,6 +4245,20 @@ wlan_mlme_get_idle_roam_band(struct wlan_objmgr_psoc *psoc, uint32_t *val)
 #endif
 
 QDF_STATUS
+wlan_mlme_set_ft_over_ds(struct wlan_objmgr_psoc *psoc,
+			 uint8_t ft_over_ds_enable)
+{
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
+
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
+	if (!mlme_obj)
+		return QDF_STATUS_E_FAILURE;
+
+	mlme_obj->cfg.lfr.enable_ft_over_ds = ft_over_ds_enable;
+	return QDF_STATUS_SUCCESS;
+}
+
+QDF_STATUS
 wlan_mlme_get_dfs_chan_ageout_time(struct wlan_objmgr_psoc *psoc,
 				   uint8_t *dfs_chan_ageout_time)
 {
@@ -4784,4 +4833,190 @@ bool wlan_mlme_skip_tpe(struct wlan_objmgr_psoc *psoc)
 		return false;
 
 	return mlme_obj->cfg.power.skip_tpe;
+}
+
+QDF_STATUS
+wlan_mlme_set_ba_2k_jump_iot_ap(struct wlan_objmgr_vdev *vdev, bool found)
+{
+	struct mlme_legacy_priv *mlme_priv;
+
+	mlme_priv = wlan_vdev_mlme_get_ext_hdl(vdev);
+	if (!mlme_priv) {
+		mlme_legacy_err("vdev legacy private object is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	mlme_priv->ba_2k_jump_iot_ap = found;
+
+	return QDF_STATUS_SUCCESS;
+}
+
+bool wlan_mlme_is_ba_2k_jump_iot_ap(struct wlan_objmgr_vdev *vdev)
+{
+	struct mlme_legacy_priv *mlme_priv;
+
+	mlme_priv = wlan_vdev_mlme_get_ext_hdl(vdev);
+	if (!mlme_priv) {
+		mlme_legacy_err("vdev legacy private object is NULL");
+		return false;
+	}
+
+	return mlme_priv->ba_2k_jump_iot_ap;
+}
+
+QDF_STATUS
+wlan_mlme_set_bad_htc_he_iot_ap(struct wlan_objmgr_vdev *vdev, bool found)
+{
+	struct mlme_legacy_priv *mlme_priv;
+
+	mlme_priv = wlan_vdev_mlme_get_ext_hdl(vdev);
+	if (!mlme_priv) {
+		mlme_legacy_err("vdev legacy private object is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	mlme_priv->bad_htc_he_iot_ap = found;
+	mlme_legacy_debug("set bad htc he iot ap: %d", found);
+
+	return QDF_STATUS_SUCCESS;
+}
+
+bool wlan_mlme_is_bad_htc_he_iot_ap(struct wlan_objmgr_vdev *vdev)
+{
+	struct mlme_legacy_priv *mlme_priv;
+
+	mlme_priv = wlan_vdev_mlme_get_ext_hdl(vdev);
+	if (!mlme_priv) {
+		mlme_legacy_err("vdev legacy private object is NULL");
+		return false;
+	}
+
+	return mlme_priv->bad_htc_he_iot_ap;
+}
+
+QDF_STATUS
+wlan_mlme_set_last_delba_sent_time(struct wlan_objmgr_vdev *vdev,
+				   qdf_time_t delba_sent_time)
+{
+	struct mlme_legacy_priv *mlme_priv;
+
+	mlme_priv = wlan_vdev_mlme_get_ext_hdl(vdev);
+	if (!mlme_priv) {
+		mlme_legacy_err("vdev legacy private object is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	mlme_priv->last_delba_sent_time = delba_sent_time;
+
+	return QDF_STATUS_SUCCESS;
+}
+
+qdf_time_t
+wlan_mlme_get_last_delba_sent_time(struct wlan_objmgr_vdev *vdev)
+{
+	struct mlme_legacy_priv *mlme_priv;
+
+	mlme_priv = wlan_vdev_mlme_get_ext_hdl(vdev);
+	if (!mlme_priv) {
+		mlme_legacy_err("vdev legacy private object is NULL");
+		return 0;
+	}
+
+	return mlme_priv->last_delba_sent_time;
+}
+
+QDF_STATUS mlme_set_user_ps(struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
+			    bool ps_enable)
+{
+	struct wlan_objmgr_vdev *vdev;
+	struct mlme_legacy_priv *mlme_priv;
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(psoc, vdev_id,
+						    WLAN_MLME_OBJMGR_ID);
+	if (!vdev)
+		return status;
+
+	mlme_priv = wlan_vdev_mlme_get_ext_hdl(vdev);
+	if (mlme_priv) {
+		mlme_priv->is_usr_ps_enabled = ps_enable;
+		status = QDF_STATUS_SUCCESS;
+		mlme_legacy_debug("vdev:%d user PS:%d", vdev_id,
+				  mlme_priv->is_usr_ps_enabled);
+	}
+
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_MLME_OBJMGR_ID);
+
+	return status;
+}
+
+bool mlme_get_user_ps(struct wlan_objmgr_psoc *psoc, uint8_t vdev_id)
+{
+	struct wlan_objmgr_vdev *vdev;
+	struct mlme_legacy_priv *mlme_priv;
+	bool usr_ps_enable = false;
+
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(psoc, vdev_id,
+						    WLAN_MLME_OBJMGR_ID);
+	if (!vdev)
+		return false;
+
+	mlme_priv = wlan_vdev_mlme_get_ext_hdl(vdev);
+	if (mlme_priv)
+		usr_ps_enable = mlme_priv->is_usr_ps_enabled;
+
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_MLME_OBJMGR_ID);
+
+	return usr_ps_enable;
+}
+
+uint8_t
+wlan_mlme_get_mgmt_hw_tx_retry_count(struct wlan_objmgr_psoc *psoc,
+				     enum mlme_cfg_frame_type frm_type)
+{
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
+
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
+
+	if (!mlme_obj)
+		return 0;
+
+	if (frm_type >= CFG_FRAME_TYPE_MAX)
+		return 0;
+
+	return mlme_obj->cfg.gen.mgmt_hw_tx_retry_count[frm_type];
+}
+
+QDF_STATUS
+wlan_mlme_get_tx_retry_multiplier(struct wlan_objmgr_psoc *psoc,
+				  uint32_t *tx_retry_multiplier)
+{
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
+
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
+
+	if (!mlme_obj) {
+		*tx_retry_multiplier =
+				cfg_default(CFG_TX_RETRY_MULTIPLIER);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	*tx_retry_multiplier = mlme_obj->cfg.gen.tx_retry_multiplier;
+	return QDF_STATUS_SUCCESS;
+}
+
+QDF_STATUS
+wlan_mlme_get_channel_bonding_5ghz(struct wlan_objmgr_psoc *psoc,
+				   uint32_t *value)
+{
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
+
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
+	if (!mlme_obj) {
+		*value = cfg_default(CFG_CHANNEL_BONDING_MODE_5GHZ);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	*value = mlme_obj->cfg.feature_flags.channel_bonding_mode_5ghz;
+	return QDF_STATUS_SUCCESS;
 }

@@ -42,6 +42,34 @@
 /* invalid channel id. */
 #define INVALID_CHANNEL_ID 0
 
+/**
+ * policy_mgr_debug_alert() - fatal error alert
+ *
+ * This function will flush host drv log and
+ * disable all level logs.
+ * It can be called in fatal error detected in policy
+ * manager.
+ * This is to avoid host log overwritten in stress
+ * test to help issue debug.
+ *
+ * Return: none
+ */
+static void
+policy_mgr_debug_alert(void)
+{
+	int module_id;
+	int qdf_print_idx;
+
+	policy_mgr_err("fatal error detected to flush and pause host log");
+	qdf_logging_flush_logs();
+	qdf_print_idx = qdf_get_pidx();
+	for (module_id = 0; module_id < QDF_MODULE_ID_MAX; module_id++)
+		qdf_print_set_category_verbose(
+					qdf_print_idx,
+					module_id, QDF_TRACE_LEVEL_NONE,
+					0);
+}
+
 QDF_STATUS
 policy_mgr_get_allow_mcc_go_diff_bi(struct wlan_objmgr_psoc *psoc,
 				    uint8_t *allow_mcc_go_diff_bi)
@@ -1609,6 +1637,58 @@ bool policy_mgr_is_scc_with_this_vdev_id(struct wlan_objmgr_psoc *psoc,
 	return false;
 }
 
+bool policy_mgr_current_concurrency_is_scc(struct wlan_objmgr_psoc *psoc)
+{
+	uint32_t num_connections = 0;
+	bool is_scc = false;
+	struct policy_mgr_psoc_priv_obj *pm_ctx;
+
+	pm_ctx = policy_mgr_get_context(psoc);
+	if (!pm_ctx) {
+		policy_mgr_err("Invalid Context");
+		return is_scc;
+	}
+
+	num_connections = policy_mgr_get_connection_count(psoc);
+
+	qdf_mutex_acquire(&pm_ctx->qdf_conc_list_lock);
+	switch (num_connections) {
+	case 1:
+		break;
+	case 2:
+		if (pm_conc_connection_list[0].freq ==
+		    pm_conc_connection_list[1].freq &&
+		    pm_conc_connection_list[0].mac ==
+		    pm_conc_connection_list[1].mac) {
+			is_scc = true;
+		}
+		break;
+	case 3:
+		if (policy_mgr_is_current_hwmode_dbs(psoc) &&
+		    (pm_conc_connection_list[0].freq ==
+		     pm_conc_connection_list[1].freq ||
+		     pm_conc_connection_list[0].freq ==
+		     pm_conc_connection_list[2].freq ||
+		     pm_conc_connection_list[1].freq ==
+		     pm_conc_connection_list[2].freq)) {
+			is_scc = true;
+		} else if ((pm_conc_connection_list[0].freq ==
+			    pm_conc_connection_list[1].freq) &&
+			   (pm_conc_connection_list[0].freq ==
+			   pm_conc_connection_list[2].freq)) {
+			is_scc = true;
+		}
+		break;
+	default:
+		policy_mgr_debug("unexpected num_connections value %d",
+				 num_connections);
+		break;
+	}
+	qdf_mutex_release(&pm_ctx->qdf_conc_list_lock);
+
+	return is_scc;
+}
+
 bool policy_mgr_current_concurrency_is_mcc(struct wlan_objmgr_psoc *psoc)
 {
 	uint32_t num_connections = 0;
@@ -1773,6 +1853,64 @@ void policy_mgr_clear_concurrency_mode(struct wlan_objmgr_psoc *psoc,
 	policy_mgr_debug("concurrency_mode = 0x%x Number of open sessions for mode %d = %d",
 			 pm_ctx->concurrency_mode, mode,
 			 pm_ctx->no_of_open_sessions[mode]);
+}
+
+/**
+ * policy_mgr_validate_conn_info() - validate conn info list
+ * @psoc: PSOC object data
+ *
+ * This function will check connection list to see duplicated
+ * vdev entry existing or not.
+ *
+ * Return: true if conn list is in abnormal state.
+ */
+static bool
+policy_mgr_validate_conn_info(struct wlan_objmgr_psoc *psoc)
+{
+	uint32_t i, j, conn_num = 0;
+	bool panic = false;
+	struct policy_mgr_psoc_priv_obj *pm_ctx;
+
+	pm_ctx = policy_mgr_get_context(psoc);
+	if (!pm_ctx) {
+		policy_mgr_err("Invalid Context");
+		return true;
+	}
+
+	qdf_mutex_acquire(&pm_ctx->qdf_conc_list_lock);
+	for (i = 0; i < MAX_NUMBER_OF_CONC_CONNECTIONS; i++) {
+		if (pm_conc_connection_list[i].in_use) {
+			for (j = i + 1; j < MAX_NUMBER_OF_CONC_CONNECTIONS;
+									j++) {
+				if (pm_conc_connection_list[j].in_use &&
+				    pm_conc_connection_list[i].vdev_id ==
+				    pm_conc_connection_list[j].vdev_id) {
+					policy_mgr_debug(
+					"dup entry %d",
+					pm_conc_connection_list[i].vdev_id);
+					panic = true;
+				}
+			}
+			conn_num++;
+		}
+	}
+	if (panic)
+		policy_mgr_err("dup entry");
+
+	for (i = 0, j = 0; i < QDF_MAX_NO_OF_MODE; i++)
+		j += pm_ctx->no_of_active_sessions[i];
+
+	if (j != conn_num) {
+		policy_mgr_err("active session/conn count mismatch %d %d",
+			       j, conn_num);
+		panic = true;
+	}
+	qdf_mutex_release(&pm_ctx->qdf_conc_list_lock);
+
+	if (panic)
+		policy_mgr_debug_alert();
+
+	return panic;
 }
 
 void policy_mgr_incr_active_session(struct wlan_objmgr_psoc *psoc,
@@ -2096,6 +2234,7 @@ QDF_STATUS policy_mgr_decr_connection_count(struct wlan_objmgr_psoc *psoc,
 	uint32_t conn_index = 0, next_conn_index = 0;
 	bool found = false;
 	struct policy_mgr_psoc_priv_obj *pm_ctx;
+	bool panic = false;
 
 	pm_ctx = policy_mgr_get_context(psoc);
 	if (!pm_ctx) {
@@ -2145,7 +2284,23 @@ QDF_STATUS policy_mgr_decr_connection_count(struct wlan_objmgr_psoc *psoc,
 	/* clean up the entry */
 	qdf_mem_zero(&pm_conc_connection_list[next_conn_index - 1],
 		sizeof(*pm_conc_connection_list));
+
+	conn_index = 0;
+	while (PM_CONC_CONNECTION_LIST_VALID_INDEX(conn_index)) {
+		if (vdev_id == pm_conc_connection_list[conn_index].vdev_id) {
+			panic = true;
+			break;
+		}
+		conn_index++;
+	}
+
 	qdf_mutex_release(&pm_ctx->qdf_conc_list_lock);
+	if (panic) {
+		policy_mgr_err("dup entry occur");
+		policy_mgr_debug_alert();
+	}
+	if (pm_ctx->conc_cbacks.connection_info_update)
+		pm_ctx->conc_cbacks.connection_info_update();
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -2492,6 +2647,7 @@ bool policy_mgr_is_concurrency_allowed(struct wlan_objmgr_psoc *psoc,
 	if (policy_mgr_max_concurrent_connections_reached(psoc)) {
 		policy_mgr_rl_debug("Reached max concurrent connections: %d",
 				    pm_ctx->cfg.max_conc_cxns);
+		policy_mgr_validate_conn_info(psoc);
 		goto done;
 	}
 
@@ -3486,6 +3642,8 @@ void policy_mgr_dump_connection_status_info(struct wlan_objmgr_psoc *psoc)
 				 pm_conc_connection_list[i].ch_flagext);
 	}
 	qdf_mutex_release(&pm_ctx->qdf_conc_list_lock);
+
+	policy_mgr_validate_conn_info(psoc);
 }
 
 bool policy_mgr_is_any_mode_active_on_band_along_with_session(

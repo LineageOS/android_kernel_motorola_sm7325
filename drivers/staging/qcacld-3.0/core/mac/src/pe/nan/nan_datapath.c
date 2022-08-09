@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -50,6 +51,11 @@ static QDF_STATUS lim_add_ndi_peer(struct mac_context *mac_ctx,
 	QDF_STATUS status;
 	uint8_t zero_mac_addr[QDF_MAC_ADDR_SIZE] = { 0, 0, 0, 0, 0, 0 };
 
+	if (!wlan_is_vdev_id_up(mac_ctx->pdev, vdev_id)) {
+		pe_err_rl("NDI vdev is not up");
+		return QDF_STATUS_E_FAILURE;
+	}
+
 	if (!qdf_mem_cmp(&zero_mac_addr, &peer_mac_addr.bytes[0],
 			QDF_MAC_ADDR_SIZE)) {
 		pe_err("Failing to add peer with all zero mac addr");
@@ -73,6 +79,8 @@ static QDF_STATUS lim_add_ndi_peer(struct mac_context *mac_ctx,
 	}
 	pe_info("Need to create NDI Peer :" QDF_MAC_ADDR_FMT,
 		QDF_MAC_ADDR_REF(peer_mac_addr.bytes));
+
+	ucfg_nan_set_peer_mc_list(session->vdev, peer_mac_addr);
 
 	peer_idx = lim_assign_peer_idx(mac_ctx, session);
 	if (!peer_idx) {

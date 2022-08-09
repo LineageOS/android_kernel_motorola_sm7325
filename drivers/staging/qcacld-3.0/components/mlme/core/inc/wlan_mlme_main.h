@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -37,6 +38,7 @@
 #define mlme_legacy_info(params...) QDF_TRACE_INFO(QDF_MODULE_ID_MLME, params)
 #define mlme_legacy_debug(params...) QDF_TRACE_DEBUG(QDF_MODULE_ID_MLME, params)
 
+#define MLME_PEER_SET_KEY_WAKELOCK_TIMEOUT WAKELOCK_DURATION_RECOMMENDED
 /**
  * struct wlan_mlme_psoc_ext_obj -MLME ext psoc priv object
  * @cfg:     cfg items
@@ -84,6 +86,9 @@ struct sae_auth_retry {
  * @last_assoc_received_time: last assoc received time
  * @last_disassoc_deauth_received_time: last disassoc/deauth received time
  * @twt_ctx: TWT context
+ * @peer_set_key_wakelock: wakelock to protect peer set key op with firmware
+ * @peer_set_key_runtime_wakelock: runtime pm wakelock for set key
+ * @is_key_wakelock_set: flag to check if key wakelock is pending to release
  */
 struct peer_mlme_priv_obj {
 	uint8_t last_pn_valid;
@@ -95,6 +100,9 @@ struct peer_mlme_priv_obj {
 #ifdef WLAN_SUPPORT_TWT
 	struct twt_context twt_ctx;
 #endif
+	qdf_wake_lock_t peer_set_key_wakelock;
+	qdf_runtime_lock_t peer_set_key_runtime_wakelock;
+	bool is_key_wakelock_set;
 };
 
 /**
@@ -217,6 +225,14 @@ struct mscs_req_info {
 #endif
 
 /**
+ *  * struct mlme_connect_info - mlme connect information
+ *  @ext_cap_ie: Ext CAP IE
+ */
+struct mlme_connect_info {
+	uint8_t ext_cap_ie[DOT11F_IE_EXTCAP_MAX_LEN + 2];
+};
+
+/**
  * struct mlme_legacy_priv - VDEV MLME legacy priv object
  * @chan_switch_in_progress: flag to indicate that channel switch is in progress
  * @hidden_ssid_restart_in_progress: flag to indicate hidden ssid restart is
@@ -247,6 +263,12 @@ struct mscs_req_info {
  * @he_sta_obsspd: he_sta_obsspd
  * @twt_wait_for_notify: TWT session teardown received, wait for
  * notify event from firmware before next TWT setup is done.
+ * @last_delba_sent_time: Last delba sent time to handle back to back delba
+ *			  requests from some IOT APs
+ * @ba_2k_jump_iot_ap: This is set to true if connected to the ba 2k jump IOT AP
+ * @bad_htc_he_iot_ap: Set to true if connected to AP who can't decode htc he
+ * @is_usr_ps_enabled: Is Power save enabled
+ * @connect_info: mlme connect information
  */
 struct mlme_legacy_priv {
 	bool chan_switch_in_progress;
@@ -282,6 +304,11 @@ struct mlme_legacy_priv {
 	tDot11fIEhe_cap he_config;
 	uint32_t he_sta_obsspd;
 #endif
+	qdf_time_t last_delba_sent_time;
+	bool ba_2k_jump_iot_ap;
+	bool bad_htc_he_iot_ap;
+	bool is_usr_ps_enabled;
+	struct mlme_connect_info connect_info;
 };
 
 
@@ -542,6 +569,32 @@ void mlme_set_peer_pmf_status(struct wlan_objmgr_peer *peer,
  */
 bool mlme_get_peer_pmf_status(struct wlan_objmgr_peer *peer);
 
+
+/**
+ * wlan_acquire_peer_key_wakelock -api to get key wakelock
+ * @pdev: pdev
+ * @mac_addr: peer mac addr
+ *
+ * This function acquires wakelock and prevent runtime pm during key
+ * installation
+ *
+ * Return: None
+ */
+void wlan_acquire_peer_key_wakelock(struct wlan_objmgr_pdev *pdev,
+				    uint8_t *mac_addr);
+
+/**
+ * wlan_release_peer_key_wakelock -api to release key wakelock
+ * @pdev: pdev
+ * @mac_addr: peer mac addr
+ *
+ * This function releases wakelock and allow runtime pm after key
+ * installation
+ *
+ * Return: None
+ */
+void wlan_release_peer_key_wakelock(struct wlan_objmgr_pdev *pdev,
+				    uint8_t *mac_addr);
 /**
  * mlme_set_discon_reason_n_from_ap() - set disconnect reason and from ap flag
  * @psoc: PSOC pointer
@@ -694,6 +747,26 @@ mlme_set_operations_bitmap(struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
 void
 mlme_clear_operations_bitmap(struct wlan_objmgr_psoc *psoc, uint8_t vdev_id);
 
+/**
+ * mlme_get_cfg_wlm_level() - Get the WLM level value
+ * @psoc: pointer to psoc object
+ * @level: level that needs to be filled.
+ *
+ * Return: QDF Status
+ */
+QDF_STATUS mlme_get_cfg_wlm_level(struct wlan_objmgr_psoc *psoc,
+				  uint8_t *level);
+
+/**
+ * mlme_get_cfg_wlm_reset() - Get the WLM reset flag
+ * @psoc: pointer to psoc object
+ * @reset: reset that needs to be filled.
+ *
+ * Return: QDF Status
+ */
+QDF_STATUS mlme_get_cfg_wlm_reset(struct wlan_objmgr_psoc *psoc,
+				  bool *reset);
+
 #define MLME_IS_ROAM_STATE_RSO_ENABLED(psoc, vdev_id) \
 	(mlme_get_roam_state(psoc, vdev_id) == WLAN_ROAM_RSO_ENABLED)
 
@@ -734,4 +807,13 @@ mlme_clear_operations_bitmap(struct wlan_objmgr_psoc *psoc, uint8_t vdev_id);
  */
 void mlme_reinit_control_config_lfr_params(struct wlan_objmgr_psoc *psoc,
 					   struct wlan_mlme_lfr_cfg *lfr);
+
+/**
+ * wlan_is_vdev_id_up() - check if vdev id is in UP state
+ * @pdev: Pointer to pdev
+ * @vdev_id: vdev id
+ *
+ * Return: if vdev is up
+ */
+bool wlan_is_vdev_id_up(struct wlan_objmgr_pdev *pdev, uint8_t vdev_id);
 #endif

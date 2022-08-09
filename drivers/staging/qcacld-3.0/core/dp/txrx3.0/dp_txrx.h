@@ -245,6 +245,8 @@ static inline QDF_STATUS dp_txrx_suspend(ol_txrx_soc_handle soc)
 	}
 
 	qdf_status = dp_rx_tm_suspend(&dp_ext_hdl->rx_tm_hdl);
+	if (QDF_IS_STATUS_ERROR(qdf_status) && refill_thread->enabled)
+		dp_rx_refill_thread_resume(refill_thread);
 
 ret:
 	return qdf_status;
@@ -482,10 +484,11 @@ int dp_rx_tm_get_pending(ol_txrx_soc_handle soc);
 #ifdef DP_MEM_PRE_ALLOC
 /**
  * dp_prealloc_init() - Pre-allocate DP memory
+ * @ctrl_psoc: objmgr psoc
  *
  * Return: QDF_STATUS_SUCCESS on success, error qdf status on failure
  */
-QDF_STATUS dp_prealloc_init(void);
+QDF_STATUS dp_prealloc_init(struct cdp_ctrl_objmgr_psoc *ctrl_psoc);
 
 /**
  * dp_prealloc_deinit() - Free pre-alloced DP memory
@@ -601,7 +604,11 @@ void *dp_prealloc_get_consistent_mem_unaligned(size_t size,
 void dp_prealloc_put_consistent_mem_unaligned(void *va_unaligned);
 
 #else
-static inline QDF_STATUS dp_prealloc_init(void) { return QDF_STATUS_SUCCESS; }
+static inline
+QDF_STATUS dp_prealloc_init(struct cdp_ctrl_objmgr_psoc *ctrl_psoc)
+{
+	return QDF_STATUS_SUCCESS;
+}
 
 static inline void dp_prealloc_deinit(void) { }
 
