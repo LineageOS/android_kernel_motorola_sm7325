@@ -1646,7 +1646,6 @@ static int dp_add_nbuf_to_fisa_flow(struct dp_rx_fst *fisa_hdl,
 	hal_soc_handle_t hal_soc_hdl = fisa_hdl->soc_hdl->hal_soc;
 	uint32_t hal_aggr_count;
 	uint8_t napi_id = QDF_NBUF_CB_RX_CTX_ID(nbuf);
-	uint8_t reo_id = fisa_flow->napi_id;
 	uint32_t fse_metadata;
 	bool cce_match;
 
