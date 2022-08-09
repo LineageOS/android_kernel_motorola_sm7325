@@ -29,6 +29,7 @@ struct dp_altmode_private {
 	struct dp_altmode dp_altmode;
 	struct altmode_client *amclient;
 	struct notifier_block ucsi_nb;
+	struct completion dp_wait_sync;
 	bool connected;
 	bool dp_mode;
 };
@@ -161,8 +162,14 @@ static int dp_altmode_notify(void *priv, void *data, size_t len)
 
 	if(altmode->connected && altmode->dp_altmode.base.hpd_high) {
 		if(!altmode->dp_mode){
-			DP_ERR("skip dp connect without ucsi notify dp enable: %d\n", altmode->dp_mode);
-			goto ack;
+			reinit_completion(&altmode->dp_wait_sync);
+			DP_INFO("dp connect without ucsi notify dp enable: %d, wait for...\n", altmode->dp_mode);
+			if (!wait_for_completion_timeout(&altmode->dp_wait_sync,
+				msecs_to_jiffies(5000))) {
+				DP_ERR("skip dp connect without ucsi notify dp enable: %d\n", altmode->dp_mode);
+				goto ack;
+			}
+			DP_INFO("dp connect without ucsi notify dp enable: %d, wait done\n", altmode->dp_mode);
 		}
 	}
 
@@ -222,7 +229,7 @@ static int dp_ucsi_notifier(struct notifier_block *nb,
 		container_of(nb, struct dp_altmode_private, ucsi_nb);
 	struct ucsi_glink_constat_info *info = data;
 
-	if (info->connect && !info->partner_change)
+	if (info->connect && !info->partner_change && !info->partner_alternate_mode)
 		return NOTIFY_DONE;
 
 	if (!info->connect) {
@@ -230,7 +237,13 @@ static int dp_ucsi_notifier(struct notifier_block *nb,
 			DP_ERR("set partner when no connection\n");
 		altmode->dp_mode = false;
 	} else if (info->partner_alternate_mode) {
-		altmode->dp_mode = true;
+		if(!info->partner_change) {
+			altmode->dp_mode = true;
+			if (!completion_done(&altmode->dp_wait_sync)) {
+				complete(&altmode->dp_wait_sync);
+				DP_INFO("%s: dp_mode: %s, dp_wait_sync complete.\n", __func__, altmode->dp_mode?"enable":"disable");
+			}
+		}
 	} else {
 		altmode->dp_mode = false;
 	}
@@ -331,6 +344,7 @@ struct dp_hpd *dp_altmode_get(struct device *dev, struct dp_hpd_cb *cb)
 	}
 
 	altmode->dp_mode = false;
+	init_completion(&altmode->dp_wait_sync);
 	altmode->ucsi_nb.notifier_call = dp_ucsi_notifier;
 	rc = register_ucsi_glink_notifier(&altmode->ucsi_nb);
 	if (rc < 0) {
