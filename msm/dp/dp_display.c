@@ -1768,17 +1768,6 @@ static int dp_display_usbpd_attention_cb(struct device *dev)
 
 	if (!dp->hpd->hpd_high) {
 		dp_display_disconnect_sync(dp);
-
-		mutex_lock(&dp->session_lock);
-		dp_display_host_deinit(dp);
-		dp_display_state_remove(DP_STATE_CONFIGURED);
-		mutex_unlock(&dp->session_lock);
-
-		if (!dp->debug->sim_mode && !dp->parser->no_aux_switch
-		    && !dp->parser->gpio_aux_switch)
-			dp->aux->aux_switch(dp->aux, false, ORIENTATION_NONE);
-
-		DP_INFO("dp_display_usbpd_attention_cb, disconnect\n");
 		return 0;
 	}
 
