@@ -3663,6 +3663,7 @@ static int sde_kms_set_panel_feature(const struct msm_kms *kms,
 	struct sde_kms *sde_kms;
 	struct dsi_display *display;
 	struct msm_param_info param_info_msm;
+	int rc = 0;
 
 	if (!kms) {
 		SDE_ERROR("invalid input args\n");
@@ -3673,9 +3674,12 @@ static int sde_kms_set_panel_feature(const struct msm_kms *kms,
 	param_info_msm.param_idx = (enum msm_param_id)param_info.param_idx;
 	param_info_msm.value = param_info.value;
 	display = (struct dsi_display *)sde_kms->dsi_displays[0];
-	dsi_display_set_param(display, &param_info_msm);
+	rc = dsi_display_set_param(display, &param_info_msm);
+	if (rc)
+		SDE_ERROR("set param %d value %d failed\n",
+			param_info_msm.param_idx, param_info_msm.value);
 
-	return 0;
+	return rc;
 }
 
 static void _sde_kms_null_commit(struct drm_device *dev,
