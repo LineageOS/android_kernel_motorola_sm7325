@@ -2706,9 +2706,6 @@ static int dp_display_unprepare(struct dp_display *dp_display, void *panel)
 	}
 
 	dp_display_state_remove(DP_STATE_ENABLED);
-	if (!dp_display_state_is(DP_STATE_CONNECTED)){
-		set_dp_state(false);
-	}
 	dp->aux->state = DP_STATE_CTRL_POWERED_OFF;
 
 	complete_all(&dp->notification_comp);
