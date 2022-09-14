@@ -249,9 +249,9 @@ enum hbm_state {
 };
 
 enum cabc_state {
+	CABC_DIS_STATE,
 	CABC_UI_STATE,
 	CABC_MV_STATE,
-	CABC_DIS_STATE,
 	CABC_STATE_NUM,
 };
 
