@@ -399,6 +399,8 @@ struct dsi_panel {
 	bool is_panel_dead;
 	int paramVersion;
 	int paramNum;
+	int dc_state;
+	struct msm_param_info curDCModeParaInfo;
 };
 
 bool dsi_display_all_displays_dead(void);
