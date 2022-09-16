@@ -1185,7 +1185,7 @@ int dsi_panel_set_param(struct dsi_panel *panel,
 		case PARAM_ACL_ID :
 			dsi_panel_set_acl(panel, param_info);
 		case PARAM_DC_ID :
-			dsi_panel_set_dc(panel, param_info);
+			rc = dsi_panel_set_dc(panel, param_info);
 			break;
 		case PARAM_COLOR_ID :
 			dsi_panel_set_color(panel, param_info);
