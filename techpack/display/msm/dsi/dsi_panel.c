@@ -1080,12 +1080,17 @@ static int dsi_panel_set_hbm(struct dsi_panel *panel,
 	return rc;
 };
 
+enum hbm_state dsi_panel_get_fod_hbm_state(struct dsi_panel *panel)
+{
+	return panel->panel_hbm_fod ? HBM_FOD_ON_STATE : HBM_ON_STATE;
+}
+
 int dsi_panel_set_fod_hbm(struct dsi_panel *panel, bool status)
 {
 	struct msm_param_info param_info;
 	int rc;
 
-	param_info.value = status ? HBM_ON_STATE : HBM_OFF_STATE;
+	param_info.value = status ? dsi_panel_get_fod_hbm_state(panel) : HBM_OFF_STATE;
 	param_info.param_idx = PARAM_HBM_ID;
 	param_info.param_conn_idx = CONNECTOR_PROP_HBM;
 
@@ -4489,10 +4494,11 @@ exit:
 	return count;
 }
 
-struct dsi_cmd_desc *get_hbm_cmds(struct device *dev, enum hbm_state state)
+struct dsi_cmd_desc *get_hbm_cmds(struct device *dev, bool status)
 {
 	struct dsi_display *display = dev_get_drvdata(dev);
 	struct dsi_panel *panel = display->panel;
+	enum hbm_state state = status ? dsi_panel_get_fod_hbm_state(panel) : HBM_OFF_STATE;
 
 	return panel->param_cmds[PARAM_HBM_ID].val_map[state].cmds->cmds;
 }
@@ -4500,7 +4506,7 @@ struct dsi_cmd_desc *get_hbm_cmds(struct device *dev, enum hbm_state state)
 static ssize_t sysfs_hbm_on_delay_read(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct dsi_cmd_desc *cmds = get_hbm_cmds(dev, HBM_ON_STATE);
+	struct dsi_cmd_desc *cmds = get_hbm_cmds(dev, true);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", cmds->post_wait_ms);
 }
@@ -4508,7 +4514,7 @@ static ssize_t sysfs_hbm_on_delay_read(struct device *dev,
 static ssize_t sysfs_hbm_on_delay_write(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct dsi_cmd_desc *cmds = get_hbm_cmds(dev, HBM_ON_STATE);
+	struct dsi_cmd_desc *cmds = get_hbm_cmds(dev, true);
 
 	sscanf(buf, "%u", &cmds->post_wait_ms);
 
@@ -4518,7 +4524,7 @@ static ssize_t sysfs_hbm_on_delay_write(struct device *dev,
 static ssize_t sysfs_hbm_off_delay_read(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct dsi_cmd_desc *cmds = get_hbm_cmds(dev, HBM_OFF_STATE);
+	struct dsi_cmd_desc *cmds = get_hbm_cmds(dev, false);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", cmds->post_wait_ms);
 }
@@ -4526,7 +4532,7 @@ static ssize_t sysfs_hbm_off_delay_read(struct device *dev,
 static ssize_t sysfs_hbm_off_delay_write(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct dsi_cmd_desc *cmds = get_hbm_cmds(dev, HBM_OFF_STATE);
+	struct dsi_cmd_desc *cmds = get_hbm_cmds(dev, false);
 
 	sscanf(buf, "%u", &cmds->post_wait_ms);
 
