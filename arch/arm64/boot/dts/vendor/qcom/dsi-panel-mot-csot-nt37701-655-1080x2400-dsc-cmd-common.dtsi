@@ -65,7 +65,7 @@ qcom,mdss-dsi-hbm-off-command = [
 
 qcom,mdss-dsi-hbm-fod;
 qcom,mdss-dsi-hbm-fod-on-command = [
-		39 01 00 00 00 00 03 51 0F FF];
+		39 01 00 00 41 00 03 51 0F FF];
 
 //qcom,mdss-dsi-acl-on-command = [
 //		39 01 00 00 00 00 06 F0 55 AA 52 08 00
