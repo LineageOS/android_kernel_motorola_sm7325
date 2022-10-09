@@ -879,13 +879,10 @@ static void sde_connector_pre_update_fod_hbm(struct sde_connector *c_conn)
 	if (status == dsi_panel_get_fod_ui(panel))
 		return;
 
-	if (status)
+	if (status && panel->cur_mode->timing.refresh_rate >= 120)
 		sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
 
 	dsi_panel_set_fod_hbm(panel, status);
-
-	if (!status)
-		sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
 
 	dsi_panel_set_fod_ui(panel, status);
 }
