@@ -870,23 +870,25 @@ struct dsi_panel *sde_connector_panel(struct sde_connector *c_conn)
 static void sde_connector_pre_update_fod_hbm(struct sde_connector *c_conn)
 {
 	struct dsi_panel *panel;
+	u32 refresh_rate;
 	bool status;
 
 	panel = sde_connector_panel(c_conn);
 	if (!panel)
 		return;
 
+	mutex_lock(&panel->panel_lock);
+	refresh_rate = panel->cur_mode->timing.refresh_rate;
+	mutex_unlock(&panel->panel_lock);
+
 	status = sde_connector_is_fod_enabled(c_conn);
 	if (status == dsi_panel_get_fod_ui(panel))
 		return;
 
-	if (status)
+	if (status && refresh_rate >= 120)
 		sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
 
 	dsi_panel_set_fod_hbm(panel, status);
-
-	if (!status)
-		sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
 
 	dsi_panel_set_fod_ui(panel, status);
 }
