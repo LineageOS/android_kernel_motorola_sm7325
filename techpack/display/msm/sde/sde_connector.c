@@ -869,10 +869,18 @@ struct dsi_panel *sde_connector_panel(struct sde_connector *c_conn)
 static void sde_connector_pre_update_fod_hbm(struct sde_connector *c_conn)
 {
 	struct dsi_panel *panel;
+	bool panel_initialized;
 	bool status;
 
 	panel = sde_connector_panel(c_conn);
 	if (!panel)
+		return;
+
+	mutex_lock(&panel->panel_lock);
+	panel_initialized = panel->panel_initialized;
+	mutex_unlock(&panel->panel_lock);
+
+	if (!panel_initialized)
 		return;
 
 	status = sde_connector_fod_dim_layer_status(c_conn);
