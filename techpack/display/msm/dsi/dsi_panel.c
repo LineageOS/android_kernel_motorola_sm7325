@@ -1135,6 +1135,8 @@ static int dsi_panel_set_hbm(struct dsi_panel *panel,
 			DSI_ERR("unable to set backlight\n");
 	}
 
+	panel->hbm_state = param_info->value;
+
 	return rc;
 };
 

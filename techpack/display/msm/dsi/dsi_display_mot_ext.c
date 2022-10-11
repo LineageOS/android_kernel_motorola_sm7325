@@ -1126,7 +1126,6 @@ static ssize_t dsi_display_hbm_set(struct device *dev,
 	param_info.value = val ? HBM_ON_STATE : HBM_OFF_STATE;
 	param_info.param_idx = PARAM_HBM_ID;
 	param_info.param_conn_idx = CONNECTOR_PROP_HBM;
-	display->panel->hbm_state = param_info.value;
 
 	if (!dsi_panel_initialized(display->panel))
 		return count;
