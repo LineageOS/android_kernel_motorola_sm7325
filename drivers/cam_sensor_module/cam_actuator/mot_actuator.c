@@ -44,7 +44,6 @@ typedef enum {
 	MOT_ACTUATOR_GT9772,
 	MOT_ACTUATOR_DW9714,
 	MOT_ACTUATOR_DW9800V,
-	MOT_ACTUATOR_PENANG_DW9800V,
 	MOT_ACTUATOR_NUM,
 } mot_actuator_type;
 
@@ -106,6 +105,8 @@ typedef struct {
 	bool park_lens_needed;
 	bool reset_lens_needed;
 	mot_launch_lens launch_lens;
+	bool pmic_load_needed;
+	uint32_t regulator_load_ua[REGULATOR_NUM];
 } mot_actuator_hw_info;
 
 typedef struct {
@@ -222,21 +223,6 @@ static struct cam_sensor_i2c_reg_setting mot_dw9800v_dac_settings = {
 	.data_type = CAMERA_SENSOR_I2C_TYPE_WORD,
 };
 
-/*Register settings of Device of Penang DW9800V*/
-static struct cam_sensor_i2c_reg_array mot_penang_dw9800v_init_setting[] ={
-	{0x02, 0x02, 0},
-	{0x06, 0x80, 0},
-	{0x07, 0x62, 0},
-	{0x03, 0x00, 0},
-};
-
-static struct cam_sensor_i2c_reg_setting mot_penang_dw9800v_init_settings = {
-	.reg_setting = mot_penang_dw9800v_init_setting,
-	.size = ARRAY_SIZE(mot_penang_dw9800v_init_setting),
-	.addr_type = CAMERA_SENSOR_I2C_TYPE_BYTE,
-	.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE,
-};
-
 /*Register settings of all supported actuator types*/
 static mot_actuator_settings mot_actuator_list[MOT_ACTUATOR_NUM-1] = {
 	//MUST be sorted as definition order in above structure: mot_actuator_type
@@ -244,7 +230,6 @@ static mot_actuator_settings mot_actuator_list[MOT_ACTUATOR_NUM-1] = {
 	{&mot_gt9772_init_settings, &mot_gt9772_dac_settings},
 	{&mot_dw9714_init_settings, &mot_dw9714_dac_settings},
 	{&mot_dw9800v_init_settings, &mot_dw9800v_dac_settings},
-	{&mot_penang_dw9800v_init_settings},
 };
 
 static const mot_dev_info mot_dev_list[MOT_DEVICE_NUM] = {
@@ -523,7 +508,7 @@ static const mot_dev_info mot_dev_list[MOT_DEVICE_NUM] = {
 		.dev_name = "penang",
 		.actuator_info = {
 			[0] = {
-				.actuator_type = MOT_ACTUATOR_PENANG_DW9800V,
+				.actuator_type = MOT_ACTUATOR_DW9800V,
 				.dac_pos = 0,
 				.init_pos = 512,
 				.cci_addr = 0x0c,
@@ -531,6 +516,16 @@ static const mot_dev_info mot_dev_list[MOT_DEVICE_NUM] = {
 				.cci_master = 0x1,
 				.regulator_list = {"camera_ldo_dovdd", "pm6125_l21"},
 				.regulator_volt_uv = {1800000, 2800000},
+				.launch_lens = {
+						.launch_lens_needed = true,
+						.launch_lens_step = {
+									{200, 100},
+									{100, 60},
+									{50, 30},
+						},
+				},
+				.pmic_load_needed = true,
+				.regulator_load_ua = {120000, 120000},
 			},
 		},
 	},
@@ -703,6 +698,16 @@ static int mot_actuator_init_runtime(void)
 					regulator_set_voltage(mot_actuator_runtime[i].regulators[regIdx],
 						mot_dev_list[mot_device_index].actuator_info[i].regulator_volt_uv[regIdx],
 						mot_dev_list[mot_device_index].actuator_info[i].regulator_volt_uv[regIdx]);
+					/*change current to 120ma avoid current exceeds pmic linit just for penang*/
+					if(mot_dev_list[mot_device_index].actuator_info[i].pmic_load_needed == true){
+						regulator_set_load(mot_actuator_runtime[i].regulators[regIdx],
+						mot_dev_list[mot_device_index].actuator_info[i].regulator_load_ua[regIdx]);
+						CAM_WARN(CAM_ACTUATOR, "REGULATOR use custom load %d  !",
+						mot_dev_list[mot_device_index].actuator_info[i].regulator_load_ua[regIdx]);
+					}
+					else{
+						CAM_DBG(CAM_ACTUATOR, "REGULATOR Use default load !");
+					}
 				}
 			}
 		}
@@ -960,21 +965,13 @@ static int32_t mot_actuator_vib_move_lens(uint32_t index)
 		if (consumers == 0) {
 			/*Just move lens when camera off and before first vibrating*/
 			/*use launch_lens to move lens step-by-step,reduce TICK noise*/
-			if(mot_device_index == MOT_DEVICE_PENANG)
-			{
-				ret = 0;
-				CAM_WARN(CAM_ACTUATOR, "Device is Penang 5G,skip move lens !!!!");
+			if (mot_dev_list[mot_device_index].actuator_info[index].launch_lens.launch_lens_needed == true) {
+				ret = mot_actuator_launch_lens(index, mot_actuator_runtime[index].safe_dac_pos);
+			}else {
+				ret = mot_actuator_move_lens_by_dac(index, mot_actuator_runtime[index].safe_dac_pos);
+				/*delay 10~12ms to wait lens move to specify location*/
+				usleep_range(10000, 12000);
 			}
-			else {
-				if (mot_dev_list[mot_device_index].actuator_info[index].launch_lens.launch_lens_needed == true) {
-					ret = mot_actuator_launch_lens(index, mot_actuator_runtime[index].safe_dac_pos);
-				}else {
-					ret = mot_actuator_move_lens_by_dac(index, mot_actuator_runtime[index].safe_dac_pos);
-					/*delay 10~12ms to wait lens move to specify location*/
-					usleep_range(10000, 12000);
-				}
-			}
-
 			if (ret == 0) {
 				CAM_WARN(CAM_ACTUATOR, "actuator is safe now, safe_dac_pos:%d, please start vibrating.",
 					mot_actuator_runtime[index].safe_dac_pos);
