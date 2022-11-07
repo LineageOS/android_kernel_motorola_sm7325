@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "ad57a304_4889126e",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19252
+      },
+      "writtenOn": "2022-11-07T22:24:29Z",
+      "side": 1,
+      "message": "let\u0027s put a hold on this until that display wake issue is resolved ",
+      "revId": "e613f782689bf7a32f293c8ee2e0a0a3680711ae",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
