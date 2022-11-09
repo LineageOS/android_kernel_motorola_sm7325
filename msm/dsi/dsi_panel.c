@@ -1209,7 +1209,8 @@ void dsi_panel_reset_param(struct dsi_panel *panel)
 	for (i = 0; i < PARAM_ID_NUM; i++) {
 		/* Since only panel support for now */
 		param = &dsi_panel_param[0][i];
-		param->value = param->default_value;
+		if(i != PARAM_DC_ID)
+			param->value = param->default_value;
 	}
 }
 
