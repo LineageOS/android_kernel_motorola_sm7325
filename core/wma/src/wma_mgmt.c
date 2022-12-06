@@ -3456,7 +3456,7 @@ int wma_form_rx_packet(qdf_nbuf_t buf,
 			if (status)
 				return status;
 		} else if (wma_find_vdev_id_by_addr(wma_handle, wh->i_addr1,
-					      &vdev_id) == QDF_STATUS_SUCCESS) {
+					      &vdev_id)) {
 			status = wma_check_and_process_rmf_frame(wma_handle,
 								 vdev_id,
 								 &wh,
