@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "b47f2b66_18769902",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19252
+      },
+      "writtenOn": "2022-12-07T12:03:50Z",
+      "side": 1,
+      "message": "this seems to be the culprit for the display not turning on / display wake issue",
+      "revId": "68aa4f5468a5556518a7670b6bba96b09b465efd",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
