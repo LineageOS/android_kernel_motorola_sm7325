@@ -408,7 +408,6 @@ struct dsi_panel {
 	bool fod_hbm_enabled;
 	bool fod_ui;
 	bool force_fod_ui;
-	bool force_fod_dim_alpha;
 };
 
 bool dsi_display_all_displays_dead(void);
