@@ -463,6 +463,7 @@ struct sde_crtc_state {
 	struct sde_hw_scaler3_lut_cfg scl3_lut_cfg;
 
 	struct sde_core_perf_params new_perf;
+	u8 fod_dim_alpha;
 };
 
 enum sde_crtc_irq_state {
@@ -971,5 +972,7 @@ void _sde_crtc_clear_dim_layers_v1(struct drm_crtc_state *state);
  * @crtc: Pointer to DRM crtc object
  */
 void sde_crtc_cancel_delayed_work(struct drm_crtc *crtc);
+
+bool sde_crtc_is_fod_enabled(struct drm_crtc_state *state);
 
 #endif /* _SDE_CRTC_H_ */
