@@ -135,6 +135,7 @@ struct sde_plane_state {
 	uint32_t static_cache_state;
 
 	struct sde_hw_pipe_cdp_cfg cdp_cfg;
+	u8 fod_dim_alpha;
 };
 
 /**
@@ -352,5 +353,7 @@ void sde_plane_static_img_control(struct drm_plane *plane,
 		enum sde_crtc_cache_state state);
 
 int sde_plane_is_fod_layer(const struct drm_plane_state *drm_state);
+
+void sde_plane_set_fod_dim_alpha(struct sde_plane_state *pstatem, u8 alpha);
 
 #endif /* _SDE_PLANE_H_ */
