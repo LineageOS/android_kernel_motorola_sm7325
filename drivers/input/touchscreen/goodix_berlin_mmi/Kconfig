@@ -27,4 +27,14 @@ config TOUCHSCREEN_GOODIX_BRL_I2C
 	  If build module, say M.
 	  If unsure, say N.
 
+config GTP_FOD
+	bool "supports FOD"
+	help
+		Say Y here to support FOD.
+
+config GTP_LIMIT_USE_SUPPLIER
+	bool "supports using supplier"
+	help
+		Say Y here to support using supplier.
+
 endif
