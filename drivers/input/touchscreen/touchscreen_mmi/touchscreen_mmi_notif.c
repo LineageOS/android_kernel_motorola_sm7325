@@ -42,14 +42,6 @@ extern struct blocking_notifier_head dsi_freq_head;
 					touch_cdev->mdata->power && \
 					IS_DEEPSLEEP_MODE)
 
-enum ts_mmi_work {
-	TS_MMI_DO_RESUME,
-	TS_MMI_DO_PS,
-	TS_MMI_DO_REFRESH_RATE,
-	TS_MMI_DO_FPS,
-	TS_MMI_TASK_INIT,
-};
-
 static int ts_mmi_panel_off(struct ts_mmi_dev *touch_cdev) {
 	int ret = 0;
 

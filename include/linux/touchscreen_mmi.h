@@ -295,6 +295,14 @@ enum ts_mmi_panel_event {
 	TS_MMI_EVENT_UNKNOWN
 };
 
+enum ts_mmi_work {
+	TS_MMI_DO_RESUME,
+	TS_MMI_DO_PS,
+	TS_MMI_DO_REFRESH_RATE,
+	TS_MMI_DO_FPS,
+	TS_MMI_TASK_INIT,
+};
+
 #define TS_MMI_RESET_SOFT	0
 #define TS_MMI_RESET_HARD	1
 #define TS_MMI_POWER_OFF	0
