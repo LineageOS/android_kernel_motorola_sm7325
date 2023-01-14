@@ -431,6 +431,17 @@ static void ts_mmi_worker_func(struct work_struct *w)
 			}
 				break;
 
+		case TS_MMI_SET_GESTURES:
+			if (!atomic_read(&touch_cdev->touch_stopped))
+				break;
+
+			ts_mmi_queued_power_on(touch_cdev);
+			ts_mmi_queued_resume(touch_cdev);
+			ts_mmi_queued_stop(touch_cdev);
+			ts_mmi_queued_power_off(touch_cdev);
+
+			break;
+
 		default:
 			dev_dbg(DEV_MMI, "%s: unknown command %d\n", __func__, cmd);
 		}
