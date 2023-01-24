@@ -1,0 +1,15 @@
+config FPC_FPS_MMI
+	tristate "FPC FPS MMI"
+	default n
+	help
+	 Say Y here if you wish to include support
+	 If unsure, say N.
+
+config INPUT_MISC_FPC1020_SAVE_TO_CLASS_DEVICE
+        bool "FPC1020 Save to Class Device"
+        default n
+        depends on FPC_FPS_MMI
+        help
+         Say Y here if you wish to include support
+         sysfs.
+         If unsure, say N.
