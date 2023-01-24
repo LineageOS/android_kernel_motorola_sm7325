@@ -1,0 +1,9 @@
+config REGULATOR_AW37501
+        tristate "AW37501 REGULATOR"
+        default n
+        help
+         Say Y here if you have a AW37501 compatible
+         device connected.
+
+         This driver can also be built as a module.  If so, the module
+         will be called aw37501-regulator.

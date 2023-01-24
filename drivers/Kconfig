@@ -230,6 +230,8 @@ source "drivers/interconnect/Kconfig"
 
 source "drivers/counter/Kconfig"
 
+source "drivers/backlight/Kconfig"
+
 source "drivers/mmi_annotate/Kconfig"
 
 source "drivers/mmi_info/Kconfig"

@@ -1,4 +1,1 @@
-EXTRA_CFLAGS += -Wall
-EXTRA_CFLAGS += -I$(TOP)/motorola/kernel/modules/include
-
-obj-m	+= aw37501.o
+obj-$(CONFIG_REGULATOR_AW37501) += aw37501.o
