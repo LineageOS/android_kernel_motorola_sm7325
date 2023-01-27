@@ -208,43 +208,13 @@ static inline void update_poison_center(struct touch_event_data *tev)
 }
 #endif /* TS_MMI_TOUCH_GESTURE_POISON_EVENT */
 
-#define DOUBLE_TAP_MAX_TIME	(2 * NSEC_PER_SEC)
-
-static void ts_mmi_single_tap_handler(struct ts_mmi_dev *touch_cdev)
-{
-	ktime_t now, tmp;
-
-	if (!touch_cdev->single_tap_pressed) {
-		touch_cdev->single_tap_pressed_time = ktime_get_boottime();
-		touch_cdev->single_tap_pressed = true;
-		return;
-	}
-
-	touch_cdev->single_tap_pressed = false;
-
-	if (!touch_cdev->double_tap_enabled)
-		return;
-
-	now = ktime_get_boottime();
-	tmp = ktime_add(touch_cdev->single_tap_pressed_time,
-			DOUBLE_TAP_MAX_TIME);
-
-	if (ktime_after(now, tmp))
-		return;
-
-	touch_cdev->double_tap_pressed = true;
-	sysfs_notify(&DEV_MMI->kobj, NULL, "double_tap_pressed");
-}
-
 static int ts_mmi_gesture_handler(struct gesture_event_data *gev)
 {
-	struct ts_mmi_dev *touch_cdev = events_data->touch_cdev;
 	int key_code;
 	bool need2report = true;
 
 	switch (gev->evcode) {
 	case 1:
-		ts_mmi_single_tap_handler(touch_cdev);
 		key_code = KEY_F1;
 		pr_info("%s: single tap\n", __func__);
 			break;
@@ -395,9 +365,6 @@ bool ts_mmi_is_sensor_enable(void)
 	struct ts_mmi_dev *touch_cdev;
 	if (sensor_pdata != NULL) {
 		touch_cdev = sensor_pdata->touch_cdev;
-		if (touch_cdev->double_tap_enabled_prev)
-			return true;
-
 		return !!sensor_pdata->sensor_opened;
 	}
 	else
