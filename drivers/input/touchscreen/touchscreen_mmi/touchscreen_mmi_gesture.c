@@ -236,15 +236,6 @@ static void ts_mmi_single_tap_handler(struct ts_mmi_dev *touch_cdev)
 	sysfs_notify(&DEV_MMI->kobj, NULL, "double_tap_pressed");
 }
 
-static void ts_mmi_zero_tap_handler(struct ts_mmi_dev *touch_cdev)
-{
-	if (!touch_cdev->udfps_enabled)
-		return;
-
-	touch_cdev->udfps_pressed = true;
-	sysfs_notify(&DEV_MMI->kobj, NULL, "udfps_pressed");
-}
-
 static int ts_mmi_gesture_handler(struct gesture_event_data *gev)
 {
 	struct ts_mmi_dev *touch_cdev = events_data->touch_cdev;
@@ -259,7 +250,6 @@ static int ts_mmi_gesture_handler(struct gesture_event_data *gev)
 			break;
 	case 2:
 		key_code = KEY_F2;
-		ts_mmi_zero_tap_handler(touch_cdev);
 		input_report_abs(sensor_pdata->input_sensor_dev, ABS_X, gev->evdata.x);
 		input_report_abs(sensor_pdata->input_sensor_dev, ABS_Y, gev->evdata.y);
 		pr_info("%s: zero tap; x=%x, y=%x\n", __func__, gev->evdata.x, gev->evdata.y);
@@ -406,9 +396,6 @@ bool ts_mmi_is_sensor_enable(void)
 	if (sensor_pdata != NULL) {
 		touch_cdev = sensor_pdata->touch_cdev;
 		if (touch_cdev->double_tap_enabled_prev)
-			return true;
-
-		if (touch_cdev->udfps_enabled_prev)
 			return true;
 
 		return !!sensor_pdata->sensor_opened;

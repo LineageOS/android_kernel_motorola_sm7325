@@ -505,10 +505,6 @@ struct ts_mmi_dev {
 	bool			double_tap_enabled;
 	bool			double_tap_pressed;
 
-	bool			udfps_enabled_prev;
-	bool			udfps_enabled;
-	bool			udfps_pressed;
-
 	/*
 	 * vendor provided
 	 */
