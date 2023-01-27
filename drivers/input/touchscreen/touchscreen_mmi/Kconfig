@@ -42,3 +42,6 @@ config DRM_PANEL_NOTIFICATIONS
 	help
 	 Say Y here if your panel includes support for drm notifications.
 	 If unsure, say N.
+
+config BOARD_USES_DOUBLE_TAP_CTRL
+	bool "Board uses Double Tap Control"
