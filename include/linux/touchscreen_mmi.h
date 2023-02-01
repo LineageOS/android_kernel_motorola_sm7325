@@ -131,10 +131,8 @@ struct drm_panel_notifier *evdata = evd; \
 	((event == DRM_PANEL_EVENT_BLANK) && \
 	 (*blank == DRM_PANEL_BLANK_UNBLANK))
 
-#if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI)
 #define EVENT_DISPLAY_LP \
 	(*blank == DRM_PANEL_BLANK_LP)
-#endif
 
 #else /* CONFIG_DRM_PANEL_NOTIFICATIONS */
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(4,14,0)
@@ -286,7 +284,6 @@ enum ts_mmi_pm_mode {
 	TS_MMI_PM_DEEPSLEEP = 0,
 	TS_MMI_PM_GESTURE,
 	TS_MMI_PM_ACTIVE,
-#if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI)
 	TS_MMI_PM_GESTURE_SINGLE,
 	TS_MMI_PM_GESTURE_DOUBLE,
 	TS_MMI_PM_GESTURE_ZERO,
@@ -297,7 +294,6 @@ enum ts_mmi_gesture_bit {
 	TS_MMI_GESTURE_ZERO = BIT(0),
 	TS_MMI_GESTURE_SINGLE = BIT(1),
 	TS_MMI_GESTURE_DOUBLE = BIT(2),
-#endif
 };
 
 enum ts_mmi_panel_event {
@@ -309,7 +305,6 @@ enum ts_mmi_panel_event {
 	TS_MMI_EVENT_UNKNOWN
 };
 
-#if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI)
 enum ts_mmi_work {
 	TS_MMI_DO_POWER_ON,
 	TS_MMI_DO_RESUME,
@@ -321,7 +316,6 @@ enum ts_mmi_work {
 	TS_MMI_TASK_INIT,
 	TS_MMI_SET_GESTURES,
 };
-#endif
 
 #define TS_MMI_RESET_SOFT	0
 #define TS_MMI_RESET_HARD	1
@@ -396,9 +390,7 @@ enum ts_mmi_work {
 	int	(*poison_distance)(struct device *dev, int dis);
 	int	(*poison_trigger_distance)(struct device *dev, int dis);
 	int	(*update_baseline)(struct device *dev, int enable);
-#if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI)
 	int	(*update_fod_mode)(struct device *dev, int enable);
-#endif
 	/* Firmware */
 	int	(*firmware_update)(struct device *dev, char *fwname);
 	int	(*firmware_erase)(struct device *dev);
@@ -426,9 +418,7 @@ enum ts_mmi_work {
 struct ts_mmi_dev_pdata {
 	bool		power_off_suspend;
 	bool		fps_detection;
-#if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI)
 	bool		fod_detection;
-#endif
 	bool		usb_detection;
 	bool		update_refresh_rate;
 	bool		gestures_enabled;
@@ -442,10 +432,8 @@ struct ts_mmi_dev_pdata {
 	bool		poison_slot_ctrl;
 	int		max_x;
 	int		max_y;
-#if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI)
 	int		fod_x;
 	int		fod_y;
-#endif
 	int 		ctrl_dsi;
 	int		reset;
 	const char	*class_entry_name;
@@ -496,9 +484,6 @@ struct ts_mmi_dev {
 	atomic_t		touch_stopped;
 	enum ts_mmi_pm_mode	pm_mode;
 
-#if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI_V1)
-	atomic_t		resume_should_stop;
-#endif
 	struct delayed_work	work;
 	struct kfifo		cmd_pipe;
 
@@ -546,14 +531,8 @@ struct ts_mmi_dev {
 
 	ktime_t			single_tap_pressed_time;
 	bool			single_tap_pressed;
-#if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI_V1)
-	bool			double_tap_enabled_prev;
-	bool			double_tap_enabled;
-#endif
 	bool			double_tap_pressed;
-#if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI)
 	bool			udfps_pressed;
-#endif
 
 	/*
 	 * vendor provided
