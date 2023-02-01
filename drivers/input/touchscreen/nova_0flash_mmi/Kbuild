@@ -50,8 +50,8 @@ endif
 ifneq ($(filter m y,$(CONFIG_DRM_PANEL_NOTIFICATIONS)),)
     ccflags-y += -DCONFIG_DRM_PANEL_NOTIFICATIONS
 endif
-ifneq ($(filter m y,$(CONFIG_INPUT_TOUCHSCREEN_MMI)),)
-    ccflags-y += -DCONFIG_INPUT_TOUCHSCREEN_MMI
+ifneq ($(filter m y,$(CONFIG_INPUT_TOUCHSCREEN_MMI_V1)),)
+    ccflags-y += -DCONFIG_INPUT_TOUCHSCREEN_MMI_V1
     nova_0flash_mmi-objs += nt36xxx_mmi_class.o
 
     ifneq ($(filter m y, $(CONFIG_TOUCHCLASS_MMI_MULTIWAY_UPDATE_FW)),)
