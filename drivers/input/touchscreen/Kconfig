@@ -1337,8 +1337,6 @@ source "drivers/input/touchscreen/stmicro_mmi/Kconfig"
 
 source "drivers/input/touchscreen/touchscreen_mmi/Kconfig"
 
-source "drivers/input/touchscreen/touchscreen_mmi_v1/Kconfig"
-
 source "drivers/input/touchscreen/goodix_berlin_mmi/Kconfig"
 
 source "drivers/input/touchscreen/nova_0flash_mmi/Kconfig"
