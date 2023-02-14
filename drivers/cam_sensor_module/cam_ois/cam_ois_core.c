@@ -302,13 +302,6 @@ static int cam_ois_apply_settings(struct cam_ois_ctrl_t *o_ctrl,
 				else
 					o_ctrl->is_video_mode = false;
 			}
-			if (o_ctrl->ic_name != NULL && strstr(o_ctrl->ic_name, "dw9781c")) {
-				if (i2c_list->i2c_settings.reg_setting[0].reg_addr == 0x7014 &&
-					i2c_list->i2c_settings.reg_setting[0].reg_data == 0x00)
-					o_ctrl->is_video_mode = true;
-				else
-					o_ctrl->is_video_mode = false;
-			}
 		} else if (i2c_list->op_code == CAM_SENSOR_I2C_WRITE_SEQ) {
 			rc = camera_io_dev_write_continuous(
 				&(o_ctrl->io_master_info),
@@ -1247,8 +1240,6 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 		uint32_t read_length = 0;
 		uint32_t size;
 		unsigned long rem_jiffies = 0;
-
-		o_ctrl->is_need_eis_data  = true;
 
 		if (o_ctrl->cam_ois_state < CAM_OIS_CONFIG) {
 			rc = -EINVAL;

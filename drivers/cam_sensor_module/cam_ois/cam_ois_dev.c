@@ -403,6 +403,7 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 	struct timespec64 ts;
 	uint8_t *read_buff;
 	uint32_t k, read_len;
+	uint32_t mode_val = 0xFFFF, enable_val = 0xFFFF;
 	uint32_t data_ready = 0xFFFF;
 	int i = 0;
 
@@ -411,20 +412,43 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 		return IRQ_NONE;
 	}
 
+	if (!mutex_trylock(&o_ctrl->vsync_mutex)) {
+		CAM_ERR(CAM_OIS, "try lock fail, skip this irq");
+		return IRQ_NONE;
+	}
+
 	if (o_ctrl->cam_ois_state < CAM_OIS_CONFIG) {
 		CAM_WARN(CAM_OIS, "Not in right state to read OIS: %d", o_ctrl->cam_ois_state);
 		goto release_mutex;
 	}
 
-	if(o_ctrl->is_video_mode == false ||
-		o_ctrl->is_need_eis_data == false) {
-		CAM_WARN(CAM_OIS, "No need to read Eis data %d %d", o_ctrl->is_video_mode, o_ctrl->is_need_eis_data);
-		return IRQ_NONE;
+	rc = camera_io_dev_read(
+		&o_ctrl->io_master_info,
+		MODE_ADDR,
+		&mode_val,
+		CAMERA_SENSOR_I2C_TYPE_WORD,
+		CAMERA_SENSOR_I2C_TYPE_WORD);
+	if (rc < 0) {
+		CAM_ERR(CAM_OIS, "failed to read OIS 0x7014 reg rc: %d", rc);
+		goto release_mutex;
 	}
 
-	if (!mutex_trylock(&o_ctrl->vsync_mutex)) {
-		CAM_ERR(CAM_OIS, "try lock fail, skip this irq");
-		return IRQ_NONE;
+	rc = camera_io_dev_read(
+		&o_ctrl->io_master_info,
+		ENABLE_ADDR,
+		&enable_val,
+		CAMERA_SENSOR_I2C_TYPE_WORD,
+		CAMERA_SENSOR_I2C_TYPE_WORD);
+	if (rc < 0) {
+		CAM_ERR(CAM_OIS, "failed to read OIS 0x7015 reg rc: %d", rc);
+		goto release_mutex;
+	}
+
+	CAM_DBG(CAM_OIS, "mode_val = 0x%02x, enable_val = 0x%02x", mode_val, enable_val);
+
+	if (mode_val != 0 || enable_val != 0) {
+		CAM_DBG(CAM_OIS, "ois is not in move mode, skip this irq");
+		goto release_mutex;
 	}
 
 	ktime_get_boottime_ts64(&ts);
