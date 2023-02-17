@@ -588,6 +588,7 @@
 		rgltr-max-voltage = <1800000 2800000 2800000>;
 		rgltr-load-current = <14000 119000 119000>;
 		status = "ok";
+		ois-name = "mot_dw9781c";
 	};
 
 	sensor_main: qcom,cam-sensor@0 {
