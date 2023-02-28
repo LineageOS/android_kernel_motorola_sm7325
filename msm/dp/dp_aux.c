@@ -814,7 +814,8 @@ static int dp_aux_configure_aux_switch(struct dp_aux *dp_aux,
 				enable, orientation, switch_enable, switch_flip);
 	}
 
-	if (fsa4480_switch_event(aux->aux_switch_node, event))
+	rc = fsa4480_switch_event(aux->aux_switch_node, event);
+	if (rc)
 		DP_ERR("failed to configure fsa4480 i2c device (%d)\n", rc);
 end:
 	return rc;
