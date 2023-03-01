@@ -483,6 +483,7 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 		}
 		if (data_ready == DATA_READY) {
 			CAM_DBG(CAM_OIS, "data_ready == 0x0001 i = %d", i);
+			udelay(400);
 			break;
 		} else if (data_ready != DATA_READY && i < READ_COUNT - 1) {
 			CAM_ERR(CAM_OIS, "data_ready != 0x0001 i = %d", i);
