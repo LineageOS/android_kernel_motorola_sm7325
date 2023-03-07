@@ -35,7 +35,7 @@
 #include "aw_log.h"
 #include "aw_dsp.h"
 
-#define AW882XX_DRIVER_VERSION "v1.9.0.9"
+#define AW882XX_DRIVER_VERSION "v1.9.0.10"
 #define AW882XX_I2C_NAME "aw882xxacf_smartpa"
 
 #define AW_READ_CHIPID_RETRIES		5	/* 5 times */
@@ -1804,6 +1804,12 @@ static int aw882xx_update_algo_profile(struct aw882xx *aw882xx)
 			aw_dev_err(aw882xx->dev, "set algo prof failed");
 			return -1;
 		}
+		if (!g_algo_rx_en) {
+		  ret = aw_dev_set_afe_module_en(AW_RX_MODULE, 0); //bypass AW moudle
+		  if (ret)
+		    aw_dev_err(aw882xx->dev, "dsp_msg error, ret=%d", ret);
+		}
+		aw_dev_info(aw882xx->dev, "AW MODULE cur state: %s", g_algo_rx_en?"Enalbe" : "Bypass");
 	}
 	return 0;
 
