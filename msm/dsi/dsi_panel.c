@@ -961,45 +961,40 @@ static int dsi_panel_send_param_cmd(struct dsi_panel *panel,
 	if (param_info->value >= panel_param->val_max)
 		param_info->value = panel_param->val_max - 1;
 
-	if (panel_param->value == param_info->value)
-	{
-		DSI_INFO("(mode=%d): requested value=%d is same. Do nothing\n",
-			param_info->param_idx, param_info->value);
-		rc = 0;
-	} else {
-		DSI_DEBUG("%s: requested: old=%d new=%d.\n", __func__,
-			panel_param->value, param_info->value);
-		param_map = panel->param_cmds[param_info->param_idx].val_map;
-		param_map_state = &param_map[param_info->value];
 
-		if (!param_map_state->cmds || !param_map_state->cmds->cmds) {
-			DSI_ERR("Invalid cmds or cmds->cmds\n");
-			rc = -EINVAL;
+	DSI_DEBUG("%s: requested: old=%d new=%d.\n", __func__,
+		panel_param->value, param_info->value);
+	param_map = panel->param_cmds[param_info->param_idx].val_map;
+	param_map_state = &param_map[param_info->value];
+
+	if (!param_map_state->cmds || !param_map_state->cmds->cmds) {
+		DSI_ERR("Invalid cmds or cmds->cmds\n");
+		rc = -EINVAL;
+		goto end;
+	}
+
+	cmds = param_map_state->cmds->cmds;
+	count = param_map_state->cmds->count;
+
+	for (i =0; i < count; i++) {
+		if (param_map_state->cmds->state == DSI_CMD_SET_STATE_LP)
+			cmds->msg.flags |= MIPI_DSI_MSG_USE_LPM;
+		if (cmds->last_command)
+			cmds->msg.flags |= MIPI_DSI_MSG_LASTCOMMAND;
+		len = ops->transfer(panel->host, &cmds->msg);
+		if (len < 0) {
+			rc = len;
+			DSI_ERR("%s:failed to send param cmd, rc=%d\n",
+					__func__, rc);
 			goto end;
 		}
-
-		cmds = param_map_state->cmds->cmds;
-		count = param_map_state->cmds->count;
-
-		for (i =0; i < count; i++) {
-			if (param_map_state->cmds->state == DSI_CMD_SET_STATE_LP)
-				cmds->msg.flags |= MIPI_DSI_MSG_USE_LPM;
-			if (cmds->last_command)
-				cmds->msg.flags |= MIPI_DSI_MSG_LASTCOMMAND;
-			len = ops->transfer(panel->host, &cmds->msg);
-			if (len < 0) {
-				rc = len;
-				DSI_ERR("%s:failed to send param cmd, rc=%d\n",
-						__func__, rc);
-				goto end;
-			}
-			cmds++;
-		}
-		panel_param->value = param_info->value;
-		DSI_INFO("(%d) is setting new value %d\n",
-			param_info->param_idx, param_info->value);
-		rc = len;
+		cmds++;
 	}
+	panel_param->value = param_info->value;
+	DSI_INFO("(%d) is setting new value %d\n",
+		param_info->param_idx, param_info->value);
+	rc = len;
+
 
 end:
 	mutex_unlock(&panel->panel_lock);
