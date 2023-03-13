@@ -3236,7 +3236,7 @@ static int dsi_panel_parse_bl_config(struct dsi_panel *panel)
 
 	rc = dsi_panel_parse_fod_dim_lut(panel, utils);
 	if (rc)
-		DSI_ERR("[%s] failed to parse fod dim lut\n", panel->name);
+		DSI_INFO("[%s] failed to parse fod dim lut\n", panel->name);
 
 	if (panel->bl_config.type == DSI_BACKLIGHT_PWM) {
 		rc = dsi_panel_parse_bl_pwm_config(panel);
