@@ -1426,4 +1426,3 @@ int dsi_display_ext_init(struct dsi_display *display)
 
 	return rc;
 }
-

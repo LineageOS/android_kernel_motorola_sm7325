@@ -174,7 +174,7 @@ struct dsi_backlight_config {
 	struct led_trigger *wled;
 	struct backlight_device *raw_bd;
 	struct backlight_device *i2c_bd;
-	
+
 	/* DCS params */
 	bool lp_mode;
 };
