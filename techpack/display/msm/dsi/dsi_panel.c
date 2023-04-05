@@ -3117,6 +3117,9 @@ static int dsi_panel_parse_bl_config(struct dsi_panel *panel)
 	panel->bl_config.bl_inverted_dbv = utils->read_bool(utils->data,
 		"qcom,mdss-dsi-bl-inverted-dbv");
 
+	panel->bl_config.bl_remap = utils->read_bool(utils->data,
+		"qcom,mdss-dsi-bl-remap");
+
 	state = utils->get_property(utils->data, "qcom,bl-dsc-cmd-state", NULL);
 	if (!state || !strcmp(state, "dsi_hs_mode"))
 		panel->bl_config.lp_mode = false;
