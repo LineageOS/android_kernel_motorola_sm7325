@@ -180,9 +180,9 @@
 	qcom,mdss-dsi-bl-remap;
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
 	qcom,mdss-dsi-bl-min-level = <9>;
-	qcom,mdss-dsi-bl-max-level = <3514>;
+	qcom,mdss-dsi-bl-max-level = <4095>;
 	qcom,mdss-dsi-bl-default-level = <1757>;
-	qcom,mdss-brightness-max-level = <3514>;
+	qcom,mdss-brightness-max-level = <4095>;
 	qcom,fod-dim-lut = <
 		/* brightness, alpha */
 		0	255
@@ -321,9 +321,9 @@
 	qcom,mdss-dsi-no-panel-on-read-support;
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
 	qcom,mdss-dsi-bl-min-level = <9>;
-	qcom,mdss-dsi-bl-max-level = <3514>;
+	qcom,mdss-dsi-bl-max-level = <4095>;
 	qcom,mdss-dsi-bl-default-level = <1757>;
-	qcom,mdss-brightness-max-level = <3514>;
+	qcom,mdss-brightness-max-level = <4095>;
 	qcom,fod-dim-lut = <
 		/* brightness, alpha */
 		0	255
@@ -462,9 +462,9 @@
 	qcom,mdss-dsi-bl-remap;
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
 	qcom,mdss-dsi-bl-min-level = <9>;
-	qcom,mdss-dsi-bl-max-level = <3514>;
+	qcom,mdss-dsi-bl-max-level = <4095>;
 	qcom,mdss-dsi-bl-default-level = <1757>;
-	qcom,mdss-brightness-max-level = <3514>;
+	qcom,mdss-brightness-max-level = <4095>;
 	qcom,fod-dim-lut = <
 		/* brightness, alpha */
 		0	255
@@ -603,9 +603,9 @@
 	qcom,mdss-dsi-bl-remap;
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
 	qcom,mdss-dsi-bl-min-level = <9>;
-	qcom,mdss-dsi-bl-max-level = <3514>;
+	qcom,mdss-dsi-bl-max-level = <4095>;
 	qcom,mdss-dsi-bl-default-level = <1757>;
-	qcom,mdss-brightness-max-level = <3514>;
+	qcom,mdss-brightness-max-level = <4095>;
 	qcom,fod-dim-lut = <
 		/* brightness, alpha */
 		0	255
@@ -744,9 +744,9 @@
 	qcom,mdss-dsi-bl-remap;
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
 	qcom,mdss-dsi-bl-min-level = <9>;
-	qcom,mdss-dsi-bl-max-level = <3514>;
+	qcom,mdss-dsi-bl-max-level = <4095>;
 	qcom,mdss-dsi-bl-default-level = <1757>;
-	qcom,mdss-brightness-max-level = <3514>;
+	qcom,mdss-brightness-max-level = <4095>;
 	qcom,fod-dim-lut = <
 		/* brightness, alpha */
 		0	255
