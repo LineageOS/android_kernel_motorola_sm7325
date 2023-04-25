@@ -163,6 +163,7 @@ camera-$(CONFIG_SPECTRA_SENSOR) += \
 	cam_sensor_module/cam_ois/cam_ois_core.o \
 	cam_sensor_module/cam_ois/cam_ois_soc.o \
 	cam_sensor_module/cam_ois/cam_ois_dw9781.o \
+	cam_sensor_module/cam_ois/cam_ois_dw9784.o \
 	cam_sensor_module/cam_ois/cam_ois_aw86006.o \
 	cam_sensor_module/cam_sensor/cam_sensor_dev.o \
 	cam_sensor_module/cam_sensor/cam_sensor_core.o \

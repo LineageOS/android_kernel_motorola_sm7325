@@ -16,9 +16,14 @@
 #include "cam_common_util.h"
 #include "cam_packet_util.h"
 
+#define DW9784_IF_SIZE (512)
+
 extern int dw9781c_check_fw_download(struct camera_io_master * io_master_info, const uint8_t *fwData, uint32_t fwSize);
 extern void dw9781_post_firmware_download(struct camera_io_master * io_master_info, const uint8_t *fwData, uint32_t fwSize);
 extern int aw86006_firmware_update(struct cam_ois_ctrl_t *o_ctrl, const struct firmware *fw);
+extern int dw9784_check_fw_download(struct camera_io_master * io_master_info, const uint8_t *fwData, uint32_t fwSize);
+extern void dw9784_post_firmware_download(struct camera_io_master * io_master_info);
+extern int dw9784_check_if_download(struct camera_io_master * io_master_info);
 
 int32_t cam_ois_construct_default_power_setting(
 	struct cam_sensor_power_ctrl_t *power_info)
@@ -434,6 +439,13 @@ static int cam_ois_fw_prog_download(struct cam_ois_ctrl_t *o_ctrl)
 			return 0;
 		}
 		CAM_INFO(CAM_OIS, "Firmware download started.");
+	}else if (strstr(o_ctrl->ois_name, "dw9784")) {
+		if (!dw9784_check_fw_download(&(o_ctrl->io_master_info), fw->data, fw->size)) {
+			CAM_INFO(CAM_OIS, "Skip firmware download.");
+			release_firmware(fw);
+			return 0;
+		}
+		CAM_INFO(CAM_OIS, "Firmware download started.");
 	}
 	else if (strstr(o_ctrl->ois_name, "aw86006")) {
 		mutex_lock(&o_ctrl->aw_ois_mutex);
@@ -475,23 +487,40 @@ static int cam_ois_fw_prog_download(struct cam_ois_ctrl_t *o_ctrl)
 			int regAddrOffset = 0;
 			if(o_ctrl->ois_fw_inc_addr == 1)
 				regAddrOffset = total_idx/o_ctrl->ois_fw_data_type + packet_idx;
-
-			i2c_reg_setting.reg_setting[packet_idx].reg_addr =
-				o_ctrl->opcode.prog + regAddrOffset;
-			if (o_ctrl->ois_fw_data_type == CAMERA_SENSOR_I2C_TYPE_WORD) {
+			if (strstr(o_ctrl->ois_name, "dw9784") && total_idx >= total_bytes - DW9784_IF_SIZE) {
+				i2c_reg_setting.reg_setting[packet_idx].reg_addr = o_ctrl->opcode.prog + regAddrOffset - (total_bytes - DW9784_IF_SIZE)/2;
 				i2c_reg_setting.reg_setting[packet_idx].reg_data = (uint32_t)(*ptr << 8) | *(ptr+1);
+				i2c_reg_setting.reg_setting[packet_idx].delay = 0;
+				i2c_reg_setting.reg_setting[packet_idx].data_mask = 0;
+				CAM_DBG(CAM_OIS, "IF OIS_FW Reg:[0x%04x]: 0x%04x P:0x%x",
+				    i2c_reg_setting.reg_setting[packet_idx].reg_addr,
+				    i2c_reg_setting.reg_setting[packet_idx].reg_data,
+				    (ptr-(uint8_t *)fw->data));
 			} else {
-				i2c_reg_setting.reg_setting[packet_idx].reg_data = *ptr;
+				i2c_reg_setting.reg_setting[packet_idx].reg_addr =
+					o_ctrl->opcode.prog + regAddrOffset;
+				if (o_ctrl->ois_fw_data_type == CAMERA_SENSOR_I2C_TYPE_WORD) {
+					i2c_reg_setting.reg_setting[packet_idx].reg_data = (uint32_t)(*ptr << 8) | *(ptr+1);
+				} else {
+					i2c_reg_setting.reg_setting[packet_idx].reg_data = *ptr;
+				}
+				i2c_reg_setting.reg_setting[packet_idx].delay = 0;
+				i2c_reg_setting.reg_setting[packet_idx].data_mask = 0;
+				CAM_DBG(CAM_OIS, "OIS_FW Reg:[0x%04x]: 0x%04x P:0x%x",
+				    i2c_reg_setting.reg_setting[packet_idx].reg_addr,
+				    i2c_reg_setting.reg_setting[packet_idx].reg_data,
+				    (ptr-(uint8_t *)fw->data));
 			}
-			i2c_reg_setting.reg_setting[packet_idx].delay = 0;
-			i2c_reg_setting.reg_setting[packet_idx].data_mask = 0;
-			CAM_DBG(CAM_OIS, "OIS_FW Reg:[0x%04x]: 0x%04x P:0x%x",
-			    i2c_reg_setting.reg_setting[packet_idx].reg_addr,
-			    i2c_reg_setting.reg_setting[packet_idx].reg_data,
-			    (ptr-(uint8_t *)fw->data));
 		}
 		i2c_reg_setting.size = packet_idx;
 		if (o_ctrl->ois_fw_inc_addr == 1) {
+			if (strstr(o_ctrl->ois_name, "dw9784") && total_idx == total_bytes - DW9784_IF_SIZE){
+				rc = dw9784_check_if_download(&(o_ctrl->io_master_info));
+				if (rc < 0) {
+					CAM_ERR(CAM_OIS, "dw9784 check if download fail");
+					goto release_firmware;
+				}
+			}
 			rc = camera_io_dev_write_continuous(&(o_ctrl->io_master_info),
 				&i2c_reg_setting, 0);
 		} else {
@@ -508,6 +537,8 @@ static int cam_ois_fw_prog_download(struct cam_ois_ctrl_t *o_ctrl)
 
 	if (strstr(o_ctrl->ois_name, "dw9781")) {
 		dw9781_post_firmware_download(&(o_ctrl->io_master_info), fw->data, fw->size);
+	} else if (strstr(o_ctrl->ois_name, "dw9784")) {
+		dw9784_post_firmware_download(&(o_ctrl->io_master_info));
 	}
 
 release_firmware:
@@ -537,7 +568,8 @@ static int cam_ois_fw_coeff_download(struct cam_ois_ctrl_t *o_ctrl)
 		return -EINVAL;
 	}
 
-	if (strstr(o_ctrl->ois_name, "dw9781") || strstr(o_ctrl->ois_name, "aw86006")) {
+	if (strstr(o_ctrl->ois_name, "dw9781") || strstr(o_ctrl->ois_name, "aw86006") ||
+        strstr(o_ctrl->ois_name, "dw9784")) {
 		CAM_DBG(CAM_OIS, "not need download coeff fw for %s.", o_ctrl->ois_name);
 		return 0;
 	}
