@@ -172,14 +172,14 @@ static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 				CAM_ERR(CAM_FLASH, "Flash Fill Vreg Failed");
 				goto release_mutex;
 			}
+			if (cam_flash_fill_i2c_default_setting(fctrl, flash_iic_supplier[0])){
+				CAM_ERR(CAM_FLASH, "Failed Flash Fill I2C Setting rc =%d",rc);
+				goto release_mutex;
+			}
 			if (fctrl->func_tbl.power_ops(fctrl, true)){
 				CAM_ERR(CAM_FLASH, "Power Up Failed");
 				goto release_mutex;
 			}
-			/*if (cam_flash_fill_i2c_default_setting(fctrl, flash_iic_supplier[0])){
-				CAM_ERR(CAM_FLASH, "Failed Flash Fill I2C Setting rc =%d",rc);
-				goto release_mutex;
-			}*/
 			rc = camera_io_dev_read(&(fctrl->io_master_info),
 				flash_iic_supplier[1],&flashid,
 				CAMERA_SENSOR_I2C_TYPE_BYTE,

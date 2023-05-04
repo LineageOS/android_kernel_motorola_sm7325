@@ -2165,9 +2165,9 @@ static int cam_flash_construct_power_vio_setting(
 	power_info->power_down_setting[0].seq_type = SENSOR_CUSTOM_GPIO1;
 	power_info->power_down_setting[0].seq_val = 0;
 	power_info->power_down_setting[0].config_val = 0;
-	power_info->power_down_setting[0].seq_type = SENSOR_VIO;
-	power_info->power_down_setting[0].seq_val = CAM_VIO;
-	power_info->power_down_setting[0].config_val = 0;
+	power_info->power_down_setting[1].seq_type = SENSOR_VIO;
+	power_info->power_down_setting[1].seq_val = CAM_VIO;
+	power_info->power_down_setting[1].config_val = 0;
 
 	return rc;
 
