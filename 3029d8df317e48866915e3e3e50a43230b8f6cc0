@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "e0a433db_64bae5db",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 23878
+      },
+      "writtenOn": "2023-05-14T18:17:08Z",
+      "side": 1,
+      "message": "Nova Multi-Touch now working for berlna",
+      "revId": "3029d8df317e48866915e3e3e50a43230b8f6cc0",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
