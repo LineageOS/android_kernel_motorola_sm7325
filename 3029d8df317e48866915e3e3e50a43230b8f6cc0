@@ -16,6 +16,23 @@
       "message": "Nova Multi-Touch now working for berlna",
       "revId": "3029d8df317e48866915e3e3e50a43230b8f6cc0",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "a8b51cca_1d841d9b",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19252
+      },
+      "writtenOn": "2023-05-15T04:56:05Z",
+      "side": 1,
+      "message": "I know this is merged already, but my xpeng tester got back to me and this does fix multitouch on that device as well",
+      "revId": "3029d8df317e48866915e3e3e50a43230b8f6cc0",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ],
   "submitRequirementResults": []
