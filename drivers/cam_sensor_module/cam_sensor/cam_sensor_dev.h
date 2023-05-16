@@ -128,6 +128,9 @@ struct cam_sensor_ctrl_t {
 	uint16_t i2c_switch_reg_addr;
 	uint16_t i2c_switch_reg_data;
 	uint16_t i2c_switch_reg_delayMs;
+#ifdef CONFIG_MOT_SENSOR_PRE_POWERUP
+	bool    sensor_power_up_done;
+#endif
 };
 
 /**
