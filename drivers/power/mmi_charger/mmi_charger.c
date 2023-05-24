@@ -2614,6 +2614,7 @@ static enum power_supply_property mmi_props[] = {
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CHARGING_ENABLED,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
@@ -2663,6 +2664,9 @@ static int mmi_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = chip->combo_soc;
 		break;
+	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
+		val->intval = !get_effective_result(chip->chg_disable_votable);
+		break;
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
 		val->intval = chip->init_cycles + chip->combo_cycles / 100;
 		break;
@@ -2700,6 +2704,9 @@ static int mmi_set_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
 		chip->init_cycles = val->intval;
 		break;
+	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
+		vote(chip->chg_disable_votable, USER_VOTER, !!!val->intval, 0);
+		break;
 	default:
 		break;
 	}
@@ -2710,6 +2717,7 @@ static int mmi_prop_is_writeable(struct power_supply *psy,
 				  enum power_supply_property psp)
 {
 	switch (psp) {
+	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
 		return 1;
 	default:
