@@ -227,6 +227,8 @@ void sde_cp_crtc_enable(struct drm_crtc *crtc);
  */
 void sde_cp_crtc_disable(struct drm_crtc *crtc);
 
+#ifdef CONFIG_GTP_FOD
 const struct drm_msm_pcc *sde_cp_crtc_get_pcc_cfg(struct drm_crtc *crtc);
+#endif
 
 #endif /*_SDE_COLOR_PROCESSING_H */
