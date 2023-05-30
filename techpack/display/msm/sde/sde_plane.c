@@ -120,6 +120,7 @@ struct sde_plane {
 	bool revalidate;
 	bool xin_halt_forced_clk;
 
+#ifdef CONFIG_GTP_FOD
 	const struct drm_msm_pcc *pcc_cfg;
 	uint32_t pcc_coeff[9];
 	struct sde_csc_cfg csc_cfg;
@@ -127,6 +128,11 @@ struct sde_plane {
 	struct sde_csc_cfg *csc_usr_ptr;
 	struct sde_csc_cfg *csc_pcc_ptr;
 	struct sde_csc_cfg *csc_ptr;
+#else
+	struct sde_csc_cfg csc_cfg;
+	struct sde_csc_cfg *csc_usr_ptr;
+	struct sde_csc_cfg *csc_ptr;
+#endif
 
 	uint32_t cached_lut_flag;
 	struct sde_hw_scaler3_cfg scaler3_cfg;
@@ -1155,6 +1161,7 @@ static inline void _sde_plane_setup_csc(struct sde_plane *psde)
 			psde->csc_ptr->csc_mv[2]);
 }
 
+#ifdef CONFIG_GTP_FOD
 #define CSC_MASK			0x7fffff
 #define CSC_ONE				(1 << 16)
 #define CSC_DGM_ONE			(1 << 9)
@@ -1268,6 +1275,7 @@ static inline void _sde_plane_setup_csc_pcc(struct sde_plane *psde)
 
 	psde->csc_pcc_ptr = &psde->csc_pcc_cfg;
 }
+#endif
 
 static void sde_color_process_plane_setup(struct drm_plane *plane)
 {
@@ -1562,8 +1570,12 @@ static int _sde_plane_color_fill(struct sde_plane *psde,
 			psde->pipe_hw->ops.setup_format(psde->pipe_hw,
 					fmt, blend_enable,
 					SDE_SSPP_SOLID_FILL,
+				#ifdef CONFIG_GTP_FOD
 					pstate->multirect_index,
 					false);
+				#else
+					pstate->multirect_index);
+				#endif
 
 		if (psde->pipe_hw->ops.setup_rects)
 			psde->pipe_hw->ops.setup_rects(psde->pipe_hw,
@@ -2835,6 +2847,7 @@ exit:
 	return ret;
 }
 
+#ifdef CONFIG_GTP_FOD
 struct sde_csc_cfg *sde_plane_get_csc_cfg(struct drm_plane *plane)
 {
 	struct sde_plane_state *pstate;
@@ -2853,12 +2866,15 @@ struct sde_csc_cfg *sde_plane_get_csc_cfg(struct drm_plane *plane)
 
 	return csc_ptr;
 }
+#endif
 
 void sde_plane_flush(struct drm_plane *plane)
 {
 	struct sde_plane *psde;
 	struct sde_plane_state *pstate;
+#ifdef CONFIG_GTP_FOD
 	struct sde_csc_cfg *csc_ptr;
+#endif
 
 	if (!plane || !plane->state) {
 		SDE_ERROR("invalid plane\n");
@@ -2868,7 +2884,9 @@ void sde_plane_flush(struct drm_plane *plane)
 	psde = to_sde_plane(plane);
 	pstate = to_sde_plane_state(plane->state);
 
+#ifdef CONFIG_GTP_FOD
 	csc_ptr = sde_plane_get_csc_cfg(&psde->base);
+#endif
 
 	/*
 	 * These updates have to be done immediately before the plane flush
@@ -2880,8 +2898,13 @@ void sde_plane_flush(struct drm_plane *plane)
 	else if (psde->color_fill & SDE_PLANE_COLOR_FILL_FLAG)
 		/* force 100% alpha */
 		_sde_plane_color_fill(psde, psde->color_fill, 0xFF);
+#ifdef CONFIG_GTP_FOD
 	else if (psde->pipe_hw && csc_ptr && psde->pipe_hw->ops.setup_csc)
 		psde->pipe_hw->ops.setup_csc(psde->pipe_hw, csc_ptr);
+#else
+	else if (psde->pipe_hw && psde->csc_ptr && psde->pipe_hw->ops.setup_csc)
+		psde->pipe_hw->ops.setup_csc(psde->pipe_hw, psde->csc_ptr);
+#endif
 
 	/* flag h/w flush complete */
 	if (plane->state)
@@ -3227,7 +3250,9 @@ static void _sde_plane_update_roi_config(struct drm_plane *plane,
 static void _sde_plane_update_format_and_rects(struct sde_plane *psde,
 	struct sde_plane_state *pstate, const struct sde_format *fmt)
 {
+#ifdef CONFIG_GTP_FOD
 	struct sde_csc_cfg *csc_ptr;
+#endif
 	uint32_t src_flags = 0;
 
 	SDE_DEBUG_PLANE(psde, "rotation 0x%X\n", pstate->rotation);
@@ -3238,6 +3263,7 @@ static void _sde_plane_update_format_and_rects(struct sde_plane *psde,
 	if (pstate->rotation & DRM_MODE_ROTATE_90)
 		src_flags |= SDE_SSPP_ROT_90;
 
+#ifdef CONFIG_GTP_FOD
 	/* update csc */
 	if (SDE_FORMAT_IS_YUV(fmt))
 		_sde_plane_setup_csc(psde);
@@ -3247,12 +3273,16 @@ static void _sde_plane_update_format_and_rects(struct sde_plane *psde,
 	_sde_plane_setup_csc_pcc(psde);
 
 	csc_ptr = sde_plane_get_csc_cfg(&psde->base);
+#endif
 
 	/* update format */
 	psde->pipe_hw->ops.setup_format(psde->pipe_hw, fmt,
 	   pstate->const_alpha_en, src_flags,
+	#ifdef CONFIG_GTP_FOD
 	   pstate->multirect_index, !!csc_ptr);
-
+	#else
+	   pstate->multirect_index);
+	#endif
 	if (psde->pipe_hw->ops.setup_cdp) {
 		struct sde_hw_pipe_cdp_cfg *cdp_cfg = &pstate->cdp_cfg;
 
@@ -3274,6 +3304,14 @@ static void _sde_plane_update_format_and_rects(struct sde_plane *psde,
 	_sde_plane_sspp_setup_sys_cache(psde, pstate,
 			sde_format_is_tp10_ubwc(fmt));
 
+#ifndef CONFIG_GTP_FOD
+	/* update csc */
+	if (SDE_FORMAT_IS_YUV(fmt))
+		_sde_plane_setup_csc(psde);
+	else
+		psde->csc_ptr = 0;
+#endif
+
 	if (psde->pipe_hw->ops.setup_inverse_pma) {
 		uint32_t pma_mode = 0;
 
@@ -3286,7 +3324,11 @@ static void _sde_plane_update_format_and_rects(struct sde_plane *psde,
 
 	if (psde->pipe_hw->ops.setup_dgm_csc)
 		psde->pipe_hw->ops.setup_dgm_csc(psde->pipe_hw,
+	#ifdef CONFIG_GTP_FOD
 			pstate->multirect_index, csc_ptr);
+	#else
+			pstate->multirect_index, psde->csc_usr_ptr);
+	#endif
 }
 
 static void _sde_plane_update_sharpening(struct sde_plane *psde)
@@ -3393,6 +3435,7 @@ static inline void _sde_plane_set_fod_dim_alpha(struct sde_plane *psde,
 	pstate->dirty |= SDE_PLANE_DIRTY_RECTS;
 }
 
+#ifdef CONFIG_GTP_FOD
 static inline void _sde_plane_set_csc_pcc(struct sde_plane *psde,
 					  struct sde_plane_state *pstate,
 					  struct drm_crtc *crtc)
@@ -3426,6 +3469,7 @@ static inline void _sde_plane_set_csc_pcc(struct sde_plane *psde,
 
 	pstate->dirty |= SDE_PLANE_DIRTY_RECTS;
 }
+#endif
 
 static int sde_plane_sspp_atomic_update(struct drm_plane *plane,
 				struct drm_plane_state *old_state)
@@ -3513,7 +3557,9 @@ static int sde_plane_sspp_atomic_update(struct drm_plane *plane,
 								old_state);
 
 	_sde_plane_set_fod_dim_alpha(psde, pstate);
+#ifdef CONFIG_GTP_FOD
 	_sde_plane_set_csc_pcc(psde, pstate, crtc);
+#endif
 
 	/* re-program the output rects always if partial update roi changed */
 	if (sde_crtc_is_crtc_roi_dirty(crtc->state))
