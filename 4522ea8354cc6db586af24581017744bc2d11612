@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "9306d69e_5122f3bf",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 23878
+      },
+      "writtenOn": "2023-05-30T15:28:47Z",
+      "side": 1,
+      "message": "Works for berlna. Should also work for berlin and xpeng",
+      "revId": "4522ea8354cc6db586af24581017744bc2d11612",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
