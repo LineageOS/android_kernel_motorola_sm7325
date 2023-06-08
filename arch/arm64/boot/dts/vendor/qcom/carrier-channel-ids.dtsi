@@ -123,8 +123,8 @@
 		"veoneu",	/* 106 */
 		"openeu",	/* 107 */
 		"reteu2",	/* 108 */
-		"undefined",	/* 109 */
-		"undefined",	/* 110 */
+		"demogb",	/* 109 */
+		"retdemo",	/* 110 */
 		"undefined",	/* 111 */
 		"undefined",	/* 112 */
 		"undefined",	/* 113 */
@@ -230,7 +230,7 @@
 		"optus",	/* 213 */
 		"retkr",	/* 214 */
 		"retjio",	/* 215 */
-		"undefined",	/* 216 */
+		"ymobile",	/* 216 */
 		"undefined",	/* 217 */
 		"undefined",	/* 218 */
 		"undefined",	/* 219 */
