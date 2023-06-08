@@ -71,6 +71,7 @@
 		irq-gpio = <&tlmm 80 0x2008>;
 		dc-flag = <0>;
 		sync-flag = <0>;
+		fade-flag = <1>;
 		sound-channel = <0>;
 		aw-tx-topo-id = <0x1000ff00>;
 		aw-rx-topo-id = <0x1000ff01>;
@@ -79,6 +80,7 @@
 		aw-re-min = <4000>;
 		aw-re-max= <30000>;
 		aw-cali-mode = "aw_attr";
+                skt-prof-mode = <1>;
 	};
 
 	aw882xx_recv: aw882xx_recv_smartpa@35 {
@@ -88,6 +90,7 @@
                 irq-gpio = <&tlmm 99 0x2008>;
                 dc-flag = <0>;
                 sync-flag = <0>;
+		fade-flag = <1>;
                 sound-channel = <1>;
                 aw-tx-topo-id = <0x1000ff00>;
                 aw-rx-topo-id = <0x1000ff01>;
@@ -96,6 +99,7 @@
                 aw-re-min = <4000>;
                 aw-re-max= <30000>;
                 aw-cali-mode = "aw_attr";
+                skt-prof-mode = <1>;
         };
 };
 
@@ -117,19 +121,19 @@
 };
 
 &swr_dmic_01 {
-        status = "enabled";
+        status = "disabled";
 };
 
 &swr_dmic_02 {
-        status = "enabled";
+        status = "disabled";
 };
 
 &swr_dmic_03 {
-        status = "enabled";
+        status = "disabled";
 };
 
 &swr_dmic_04 {
-        status = "enabled";
+        status = "disabled";
 };
 
 &pcie1 {
@@ -181,10 +185,8 @@
 		"VA_AIF2 CAP", "VA_SWR_CLK",
 		"VA_AIF3 CAP", "VA_SWR_CLK";
 	asoc-codec  = <&stub_codec>, <&bolero>,
-		<&aw882xx>, <&aw882xx_recv>, <&ext_disp_audio_codec>, <&swr_haptics>,
-		<&swr_dmic_04>, <&swr_dmic_03>,<&swr_dmic_02>, <&swr_dmic_01>;
+		<&aw882xx>, <&aw882xx_recv>, <&ext_disp_audio_codec>, <&swr_haptics>;
 	asoc-codec-names = "msm-stub-codec.1", "bolero_codec",
-		"aw882xxacf_smartpa.3-0034", "aw882xxacf_smartpa.3-0035", "msm-ext-disp-audio-codec-rx", "swr-haptics",
-		"swr-dmic.04", "swr-dmic.03","swr-dmic.02", "swr-dmic.01";
+		"aw882xxacf_smartpa.3-0034", "aw882xxacf_smartpa.3-0035", "msm-ext-disp-audio-codec-rx", "swr-haptics";
 
 };

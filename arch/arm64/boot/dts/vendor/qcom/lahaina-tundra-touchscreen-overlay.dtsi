@@ -32,17 +32,21 @@
 		goodix,irq-gpio = <&tlmm 23 0x2002>;
 		goodix,irq-flags = <0x2002>; /* 1:trigger rising, 2:trigger falling;*/
 		goodix,panel-max-id = <10>;
-		goodix,panel-max-x = <1080>;
-		goodix,panel-max-y = <2400>;
+		goodix,panel-max-x = <17280>;
+		goodix,panel-max-y = <38400>;
 		goodix,panel-max-w = <255>;
 		goodix,panel-max-p = <4096>;
 		goodix,avdd-name = "pm8350c_l3";
 		goodix,iovdd-name = "pm8350c_l2";
 		goodix,gesture-wait-pm;
+		goodix,interpolation-ctrl;
+		goodix,sample-ctrl;
+		goodix,edge-ctrl;
 		panel = <&mot_csot_nt37701_c_655_1080x2400_dsc_cmd_v0
-                         &mot_csot_nt37701_655_1080x2400_dsc_cmd_v0
+                         &mot_csot_nt37701_c_655_1080x2400_dsc_cmd_v1
                          &mot_csot_nt37701_655_1080x2400_dsc_cmd_v1
-                         &mot_tm_nt37701_655_1080x2400_dsc_cmd_v0
+                         &mot_tm_nt37701_c_655_1080x2400_dsc_cmd_v0
+                         &mot_tm_nt37701_c_655_1080x2400_dsc_cmd_v1
                          &mot_tm_nt37701_655_1080x2400_dsc_cmd_v1
                          &mot_tm_nt37701_655_1080x2400_dsc_cmd_v2>;
 		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend", "pmx_ts_release";
@@ -52,6 +56,8 @@
 		mmi,enable-gestures;
 		mmi,power-off-suspend;
 		mmi,usb-charger-detection;
+		mmi,fod_coords = <540 2168>;
+		mmi,supported_gesture_type = <0x07>;
 	};
 };
 
