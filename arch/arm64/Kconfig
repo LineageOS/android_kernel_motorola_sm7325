@@ -184,7 +184,6 @@ config ARM64
 	select PCI_SYSCALL if PCI
 	select POWER_RESET
 	select POWER_SUPPLY
-	select REFCOUNT_FULL
 	select SPARSE_IRQ
 	select SWIOTLB
 	select SYSCTL_EXCEPTION_TRACE
@@ -1865,6 +1864,12 @@ config MULTI_CAM_FLASH_STATUS
 	help
 	Enable it only for multi camera flash turn to dark issue.
 
+config HDMI_YUV_TO_RGB
+	bool "For tundra to convert YUV to RGB when connected 4K TV with HDMI"
+	default n
+	help
+	Enable it only for 8350 tundra to fix can not select 4K when connect 4K TV.
+
 config CAMERA_VOLTAGE_COMPATIBLE
 	bool "For camera voltage compatible"
 	default n
@@ -1876,6 +1881,24 @@ config CAM_SENSOR_PROBE_RETRY
         default n
         help
         Add retries for sensor id matching.
+
+config CAMERA_DISABLE_VSYNC_IRQ
+	bool "For cam disable vsync irq"
+	default n
+	help
+	Enable it to disable cam vsync irq.
+
+config CAM_DISTINGUISH_SENSOR_VERSION
+        bool "For distinguish sensor version"
+        default n
+        help
+        Add for distinguish sensor version.
+
+config CAM_CTLE_ENABLE
+	bool "For cam enable ctle"
+	default n
+	help
+	Enable it to slove signal interference.
 
 config SND_PRI_MI2S_AW882XX
 	bool "For aw882xx smartpa pri mi2s config"

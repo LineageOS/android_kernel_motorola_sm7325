@@ -56,22 +56,6 @@
 	 (((drvstr) & 0xF) << 17))
 
 /**
- * extract GPIO pin from bit-field used for gpio_tlmm_config
- */
-#define GPIO_PIN(gpio_cfg)    (((gpio_cfg) >>  4) & 0x3ff)
-#define GPIO_FUNC(gpio_cfg)   (((gpio_cfg) >>  0) & 0xf)
-#define GPIO_DIR(gpio_cfg)    (((gpio_cfg) >> 14) & 0x1)
-#define GPIO_PULL(gpio_cfg)   (((gpio_cfg) >> 15) & 0x3)
-#define GPIO_DRVSTR(gpio_cfg) (((gpio_cfg) >> 17) & 0xf)
-
-#define GPIO_CFG(gpio, func, dir, pull, drvstr) \
-	((((gpio) & 0x3FF) << 4)        |	  \
-	 ((func) & 0xf)                  |	  \
-	 (((dir) & 0x1) << 14)           |	  \
-	 (((pull) & 0x3) << 15)          |	  \
-	 (((drvstr) & 0xF) << 17))
-
-/**
  * struct msm_pinctrl - state for a pinctrl-msm device
  * @dev:            device handle.
  * @pctrl:          pinctrl handle.
