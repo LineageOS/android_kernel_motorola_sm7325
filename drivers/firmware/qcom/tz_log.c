@@ -29,12 +29,6 @@ static struct proc_dir_entry *tzdbg_root;
 #define TZDBG_ROOT_DIR "tzdbg"
 #endif
 
-#ifndef CONFIG_DEBUG_FS
-#include <linux/proc_fs.h>
-static struct proc_dir_entry *tzdbg_root;
-#define TZDBG_ROOT_DIR "tzdbg"
-#endif
-
 /* QSEE_LOG_BUF_SIZE = 32K */
 #define QSEE_LOG_BUF_SIZE 0x8000
 

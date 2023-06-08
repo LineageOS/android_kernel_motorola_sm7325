@@ -458,7 +458,6 @@ int ufsf_query_ioctl(struct ufs_hba *hba, int lun, void __user *buffer,
 			index = lun;
 			INFO_MSG("read lu desc lun: %d", index);
 			break;
-
 		case QUERY_DESC_IDN_STRING:
 			if (!ufs_is_valid_unit_desc_lun(lun)) {
 				ERR_MSG("No unit descriptor for lun 0x%x", lun);
