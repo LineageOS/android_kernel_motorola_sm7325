@@ -35,7 +35,7 @@
 #include "aw_log.h"
 #include "aw_dsp.h"
 
-#define AW882XX_DRIVER_VERSION "v1.9.0.7"
+#define AW882XX_DRIVER_VERSION "v1.9.0.9"
 #define AW882XX_I2C_NAME "aw882xxacf_smartpa"
 
 #define AW_READ_CHIPID_RETRIES		5	/* 5 times */
@@ -797,9 +797,12 @@ static int aw882xx_dev_gain_ctl_set(struct snd_kcontrol *kcontrol,
 
 	int value = 0;
 	int aw882xx_volume = 0;
+	int useful_range = 0;
+
+	mutex_lock(&aw882xx->lock);
 
 	/* Note: The larger the volume value is, the smaller the actual volume */
-	int useful_range = desc->mute_volume - desc->init_volume;
+	useful_range = desc->mute_volume - desc->init_volume;
 
 	aw_dev_info(aw882xx->dev, "desc->init_volume = %d mute_volume = %d",
 								desc->init_volume, desc->mute_volume );
@@ -812,13 +815,24 @@ static int aw882xx_dev_gain_ctl_set(struct snd_kcontrol *kcontrol,
 
 	aw_dev->cur_gain = ucontrol->value.integer.value[0];
 
+	if (ucontrol->value.integer.value[0] <= 90) {
+		aw_dev_dbg(aw882xx->dev, "ramp started");
+		aw_dev->ramp_in_process = 1;
+	}
+
 	/* hal gain map to aw882xx valume value */
 	value = ucontrol->value.integer.value[0];
 	aw882xx_volume = ((AW882XX_MOTO_MAX_GAIN - value) * useful_range) / AW882XX_MOTO_MAX_GAIN
 					+ desc->init_volume;
 
-	mutex_lock(&aw882xx->lock);
 	aw_dev->ops.aw_set_volume(aw_dev, aw882xx_volume);
+
+	if (ucontrol->value.integer.value[0] >= 127) {
+                aw_dev_dbg(aw882xx->dev, "ramp ended");
+                aw_dev->ramp_in_process = 0;
+        }
+
+
 	mutex_unlock(&aw882xx->lock);
 	aw_dev_info(aw882xx->dev,"set value = %d, set aw882xx volume = %d", value, aw882xx_volume);
 
@@ -1315,6 +1329,7 @@ static int aw882xx_set_spin(struct snd_kcontrol *kcontrol,
 {
 	int ret = -EINVAL;
 	uint32_t ctrl_value = 0;
+	struct aw_device *aw_dev;
 	aw_snd_soc_codec_t *codec =
 		aw_componet_codec_ops.kcontrol_codec(kcontrol);
 	struct aw882xx *aw882xx =
@@ -1322,6 +1337,8 @@ static int aw882xx_set_spin(struct snd_kcontrol *kcontrol,
 
 	aw_dev_dbg(aw882xx->dev, "ucontrol->value.integer.value[0]=%ld",
 			ucontrol->value.integer.value[0]);
+
+	aw_dev = aw882xx->aw_pa;
 
 	ctrl_value = ucontrol->value.integer.value[0];
 	if (aw882xx->pstream) {
@@ -1339,12 +1356,15 @@ static int aw882xx_set_spin(struct snd_kcontrol *kcontrol,
 static int aw882xx_get_spin(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	struct aw_device *aw_dev;
 	aw_snd_soc_codec_t *codec =
 		aw_componet_codec_ops.kcontrol_codec(kcontrol);
 	struct aw882xx *aw882xx =
 		aw_componet_codec_ops.codec_get_drvdata(codec);
 	int ctrl_value;
 	int ret = -EINVAL;
+
+	aw_dev = aw882xx->aw_pa;
 
 	if (aw882xx->pstream) {
 		ret = aw_dev_get_spin(&ctrl_value);
