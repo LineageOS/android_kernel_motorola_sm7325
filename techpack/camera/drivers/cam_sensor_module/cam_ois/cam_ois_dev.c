@@ -10,6 +10,9 @@
 #include "cam_debug_util.h"
 #include "camera_main.h"
 
+extern int aw86006_ois_init(struct cam_ois_ctrl_t *o_ctrl); /* awinic add */
+extern int aw86006_ois_exit(struct cam_ois_ctrl_t *o_ctrl); /* awinic add */
+
 static int cam_ois_clear_data_ready(struct cam_ois_ctrl_t *o_ctrl)
 {
 	struct cam_sensor_i2c_reg_setting  i2c_reg_setting = {NULL,1,CAMERA_SENSOR_I2C_TYPE_WORD,CAMERA_SENSOR_I2C_TYPE_WORD,0};
@@ -28,7 +31,7 @@ static int cam_ois_clear_data_ready(struct cam_ois_ctrl_t *o_ctrl)
 		CAM_ERR(CAM_OIS, "Failed in Applying i2c wrt settings");
 	}
 
-	CAM_INFO(CAM_OIS,"Clear data-ready success");
+	CAM_DBG(CAM_OIS,"Clear data-ready success");
 	return rc;
 }
 
@@ -293,6 +296,105 @@ static int cam_ois_i2c_driver_remove(struct i2c_client *client)
 	return 0;
 }
 
+static irqreturn_t cam_aw86006_ois_vsync_irq_thread(int irq, void *data)
+{
+	struct cam_ois_ctrl_t *o_ctrl = data;
+	int rc = -EINVAL, handled = IRQ_NONE, sample_cnt = 0, delay_time = 0;
+	uint64_t mono_time_ns;
+	struct timespec64 ts;
+	uint8_t *read_buff;
+	uint32_t k, read_len;
+
+	if (!o_ctrl) {
+		CAM_ERR(CAM_OIS, "Invalid Args");
+		return IRQ_NONE;
+	}
+
+	if (o_ctrl->cam_ois_state < CAM_OIS_CONFIG) {
+		CAM_WARN(CAM_OIS, "Not in right state to read Eis data: %d", o_ctrl->cam_ois_state);
+		return IRQ_NONE;
+	}
+
+	if (o_ctrl->is_video_mode == false ||
+		o_ctrl->is_need_eis_data == false) {
+		CAM_DBG(CAM_OIS, "No need to read Eis data: %d %d", o_ctrl->is_video_mode, o_ctrl->is_need_eis_data);
+		return IRQ_NONE;
+	}
+
+	if (!mutex_trylock(&o_ctrl->vsync_mutex)) {
+		CAM_WARN(CAM_OIS, "try to get mutex fail, skip this irq");
+		return IRQ_NONE;
+	}
+
+	ktime_get_boottime_ts64(&ts);
+	mono_time_ns = (uint64_t)((ts.tv_sec * 1000000000) + ts.tv_nsec);
+
+	CAM_DBG(CAM_OIS, "aw86006 ois vsync sof mono timestamp is %lld", mono_time_ns);
+
+	o_ctrl->prev_timestamp = o_ctrl->curr_timestamp;
+	o_ctrl->curr_timestamp = mono_time_ns;
+
+	// when the first vsync arrived, return
+	if (o_ctrl->is_first_vsync) {
+		o_ctrl->is_first_vsync = 0;
+		rc = -EINVAL;
+		goto release_mutex;
+	}
+
+	memset(o_ctrl->ring_buff, 0, o_ctrl->ring_buff_size);
+	read_buff = o_ctrl->ring_buff;
+
+	for (k = 0; k < RING_BUFFER_LEN/READ_BYTE + 1; k++) {
+		if (k == RING_BUFFER_LEN/READ_BYTE)
+			read_len = RING_BUFFER_LEN%READ_BYTE;
+		else
+			read_len = READ_BYTE;
+
+		if (read_len == 0) {
+			CAM_WARN(CAM_OIS, "read length is 0, break loop read");
+			break;
+		}
+
+		rc = camera_io_dev_ois_read_seq(
+			&o_ctrl->io_master_info,
+			AW86006_PACKET_ADDR,
+			read_buff + k*READ_BYTE,
+			CAMERA_SENSOR_I2C_TYPE_WORD,
+			CAMERA_SENSOR_I2C_TYPE_BYTE,
+			read_len);
+
+		if (rc < 0) {
+			CAM_ERR(CAM_OIS, "failed to read ois data: %d", rc);
+			goto release_mutex;
+		}
+	}
+
+	sample_cnt = read_buff[0];
+	delay_time = read_buff[1];
+
+	CAM_DBG(CAM_OIS,"sample_cnt = %d, delay_time = %d (100 us)", sample_cnt, delay_time);
+
+	if (sample_cnt == 0 || sample_cnt > AW86006_MAX_SAMPLE) {
+		CAM_WARN(CAM_OIS,"sample_cnt %d is invalid, skip the data", sample_cnt);
+		rc = -EINVAL;
+		goto release_mutex;
+	}
+
+release_mutex:
+	if (rc < 0) {
+		memset(o_ctrl->ring_buff, 0, o_ctrl->ring_buff_size);
+		handled = IRQ_NONE;
+	} else
+		handled = IRQ_HANDLED;
+
+	mutex_unlock(&(o_ctrl->vsync_mutex));
+
+	if (rc >= 0)
+		complete(&o_ctrl->ois_data_complete);
+
+	return handled;
+}
+
 static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 {
 	struct cam_ois_ctrl_t *o_ctrl = data;
@@ -301,15 +403,11 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 	struct timespec64 ts;
 	uint8_t *read_buff;
 	uint32_t k, read_len;
-	uint32_t mode_val = 0xFFFF, enable_val = 0xFFFF;
+	uint32_t data_ready = 0xFFFF;
+	int i = 0;
 
 	if (!o_ctrl) {
 		CAM_ERR(CAM_OIS, "Invalid Args");
-		return IRQ_NONE;
-	}
-
-	if (!mutex_trylock(&o_ctrl->vsync_mutex)) {
-		CAM_ERR(CAM_OIS, "try lock fail, skip this irq");
 		return IRQ_NONE;
 	}
 
@@ -318,39 +416,21 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 		goto release_mutex;
 	}
 
-	rc = camera_io_dev_read(
-		&o_ctrl->io_master_info,
-		MODE_ADDR,
-		&mode_val,
-		CAMERA_SENSOR_I2C_TYPE_WORD,
-		CAMERA_SENSOR_I2C_TYPE_WORD);
-	if (rc < 0) {
-		CAM_ERR(CAM_OIS, "failed to read OIS 0x7014 reg rc: %d", rc);
-		goto release_mutex;
+	if(o_ctrl->is_video_mode == false ||
+		o_ctrl->is_need_eis_data == false) {
+		CAM_WARN(CAM_OIS, "No need to read Eis data %d %d", o_ctrl->is_video_mode, o_ctrl->is_need_eis_data);
+		return IRQ_NONE;
 	}
 
-	rc = camera_io_dev_read(
-		&o_ctrl->io_master_info,
-		ENABLE_ADDR,
-		&enable_val,
-		CAMERA_SENSOR_I2C_TYPE_WORD,
-		CAMERA_SENSOR_I2C_TYPE_WORD);
-	if (rc < 0) {
-		CAM_ERR(CAM_OIS, "failed to read OIS 0x7015 reg rc: %d", rc);
-		goto release_mutex;
-	}
-
-	CAM_INFO(CAM_OIS, "mode_val = 0x%02x, enable_val = 0x%02x", mode_val, enable_val);
-
-	if (mode_val != 0 || enable_val != 0) {
-		CAM_INFO(CAM_OIS, "ois is not in move mode, skip this irq");
-		goto release_mutex;
+	if (!mutex_trylock(&o_ctrl->vsync_mutex)) {
+		CAM_ERR(CAM_OIS, "try lock fail, skip this irq");
+		return IRQ_NONE;
 	}
 
 	ktime_get_boottime_ts64(&ts);
 	mono_time_ns = (uint64_t)((ts.tv_sec * 1000000000) + ts.tv_nsec);
 
-	CAM_INFO(CAM_OIS, "vsync sof mono timestamp is %lld", mono_time_ns);
+	CAM_DBG(CAM_OIS, "vsync sof mono timestamp is %lld", mono_time_ns);
 
 	o_ctrl->prev_timestamp = o_ctrl->curr_timestamp;
 	o_ctrl->curr_timestamp = mono_time_ns;
@@ -366,6 +446,29 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 	memset(o_ctrl->ois_data, 0, o_ctrl->ois_data_size);
 	read_buff = o_ctrl->ois_data;
 
+	for (i = 0; i < READ_COUNT; i++) {
+		rc = camera_io_dev_read(
+			&o_ctrl->io_master_info,
+			DATA_READY_ADDR,
+			&data_ready,
+			CAMERA_SENSOR_I2C_TYPE_WORD,
+			CAMERA_SENSOR_I2C_TYPE_WORD);
+		if (rc < 0) {
+			CAM_ERR(CAM_OIS, "failed to read OIS 0x70da reg rc: %d", rc);
+			goto release_mutex;
+		}
+		if (data_ready == DATA_READY) {
+			CAM_DBG(CAM_OIS, "data_ready == 0x0001 i = %d", i);
+			udelay(400);
+			break;
+		} else if (data_ready != DATA_READY && i < READ_COUNT - 1) {
+			CAM_ERR(CAM_OIS, "data_ready != 0x0001 i = %d", i);
+			udelay(1000);
+		} else {
+			CAM_ERR(CAM_OIS, "data_ready check fail i = %d", i);
+			goto release_mutex;
+		}
+	}
 	do {
 		if (packet_cnt > 0 && packet_cnt < MAX_PACKET)
 			read_buff += PACKET_BYTE;
@@ -399,7 +502,7 @@ static irqreturn_t cam_ois_vsync_irq_thread(int irq, void *data)
 				sample_cnt = read_buff[1];
 				if (sample_cnt != 0) {
 					packet_cnt = (sample_cnt + 9)/10;
-					CAM_INFO(CAM_OIS,"sample data = 0x%x, packet_cnt = %d", sample_cnt, packet_cnt);
+					CAM_DBG(CAM_OIS,"sample data = 0x%x, packet_cnt = %d", sample_cnt, packet_cnt);
 
 					// we only need max 30 sample.
 					if (packet_cnt > MAX_PACKET || sample_cnt > MAX_SAMPLE) {
@@ -462,9 +565,15 @@ static int cam_ois_component_bind(struct device *dev,
 	o_ctrl->ois_device_type = MSM_CAMERA_PLATFORM_DEVICE;
 	o_ctrl->ois_data_size = PACKET_BYTE*MAX_PACKET;
 
+	o_ctrl->ring_buff_size = RING_BUFFER_LEN;
+	o_ctrl->ring_buff = kzalloc(o_ctrl->ring_buff_size, GFP_KERNEL);
+	if (!o_ctrl->ring_buff)
+		goto free_o_ctrl;
+
+	o_ctrl->ois_data_size = PACKET_BYTE*MAX_PACKET;
 	o_ctrl->ois_data = kzalloc(o_ctrl->ois_data_size, GFP_KERNEL);
 	if (!o_ctrl->ois_data)
-		goto free_o_ctrl;
+		goto free_ring_buff;
 
 	o_ctrl->io_master_info.master_type = CCI_MASTER;
 	o_ctrl->io_master_info.cci_client = kzalloc(
@@ -487,6 +596,7 @@ static int cam_ois_component_bind(struct device *dev,
 	INIT_LIST_HEAD(&(o_ctrl->i2c_calib_data.list_head));
 	INIT_LIST_HEAD(&(o_ctrl->i2c_postcalib_data.list_head));
 	INIT_LIST_HEAD(&(o_ctrl->i2c_mode_data.list_head));
+	INIT_LIST_HEAD(&(o_ctrl->i2c_gyro_data.list_head));
 	mutex_init(&(o_ctrl->ois_mutex));
 	rc = cam_ois_driver_soc_init(o_ctrl);
 	if (rc) {
@@ -511,28 +621,42 @@ static int cam_ois_component_bind(struct device *dev,
 	mutex_init(&(o_ctrl->vsync_mutex));
 	init_completion(&o_ctrl->ois_data_complete);
 
+	if (o_ctrl->ic_name != NULL && strstr(o_ctrl->ic_name, "aw86006"))
+		aw86006_ois_init(o_ctrl);
+
 	if (o_ctrl->is_ois_vsync_irq_supported) {
 		o_ctrl->vsync_irq = platform_get_irq_optional(pdev, 0);
 
 		if (o_ctrl->vsync_irq > 0) {
-			CAM_INFO(CAM_OIS, "get ois-vsync irq: %d", o_ctrl->vsync_irq);
+			CAM_DBG(CAM_OIS, "get ois-vsync irq: %d", o_ctrl->vsync_irq);
 
-			rc = devm_request_threaded_irq(dev,
-							o_ctrl->vsync_irq,
-							NULL,
-							cam_ois_vsync_irq_thread,
-							(IRQF_TRIGGER_RISING | IRQF_ONESHOT),
-							"ois-vsync-irq",
-							o_ctrl);
+			if (o_ctrl->ic_name != NULL && strstr(o_ctrl->ic_name, "aw86006")) {
+				rc = devm_request_threaded_irq(dev,
+								o_ctrl->vsync_irq,
+								NULL,
+								cam_aw86006_ois_vsync_irq_thread,
+								(IRQF_TRIGGER_RISING | IRQF_ONESHOT),
+								"aw86006-vsync-irq",
+								o_ctrl);
+			} else {
+				rc = devm_request_threaded_irq(dev,
+								o_ctrl->vsync_irq,
+								NULL,
+								cam_ois_vsync_irq_thread,
+								(IRQF_TRIGGER_RISING | IRQF_ONESHOT),
+								"ois-vsync-irq",
+								o_ctrl);
+			}
+
 			if (rc != 0)
 				CAM_ERR(CAM_OIS, "failed: to request ois-vsync IRQ %d, rc %d", o_ctrl->vsync_irq, rc);
 			else
-				CAM_INFO(CAM_OIS, "request ois-vsync IRQ success");
+				CAM_DBG(CAM_OIS, "request ois-vsync IRQ success");
 		} else
 			CAM_ERR(CAM_OIS, "failed: to get ois-vsync IRQ");
 	}
 
-	CAM_INFO(CAM_OIS, "Component bound successfully");
+	CAM_DBG(CAM_OIS, "Component bound successfully");
 	return rc;
 unreg_subdev:
 	cam_unregister_subdev(&(o_ctrl->v4l2_dev_str));
@@ -542,6 +666,8 @@ free_cci_client:
 	kfree(o_ctrl->io_master_info.cci_client);
 free_ois_data:
 	kfree(o_ctrl->ois_data);
+free_ring_buff:
+	kfree(o_ctrl->ring_buff);
 free_o_ctrl:
 	kfree(o_ctrl);
 	return rc;
@@ -564,6 +690,9 @@ static void cam_ois_component_unbind(struct device *dev,
 	}
 
 	CAM_INFO(CAM_OIS, "platform driver remove invoked");
+	if (o_ctrl->ic_name != NULL && strstr(o_ctrl->ic_name, "aw86006"))
+		aw86006_ois_exit(o_ctrl);
+
 	soc_info = &o_ctrl->soc_info;
 	for (i = 0; i < soc_info->num_clk; i++)
 		devm_clk_put(soc_info->dev, soc_info->clk[i]);
@@ -580,6 +709,7 @@ static void cam_ois_component_unbind(struct device *dev,
 	kfree(o_ctrl->soc_info.soc_private);
 	kfree(o_ctrl->io_master_info.cci_client);
 	kfree(o_ctrl->ois_data);
+	kfree(o_ctrl->ring_buff);
 	platform_set_drvdata(pdev, NULL);
 	v4l2_set_subdevdata(&o_ctrl->v4l2_dev_str.sd, NULL);
 	kfree(o_ctrl);
