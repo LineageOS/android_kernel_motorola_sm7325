@@ -23,3 +23,8 @@
 	qcom,board-id = <0x41 0x9100>;
 };
 
+&qti_glink_charger {
+        mmi,df-serialnum = "SB18D47432";
+        profile-ids-map = "38000", "SB18D47432","38000","SB18D47433";
+};
+

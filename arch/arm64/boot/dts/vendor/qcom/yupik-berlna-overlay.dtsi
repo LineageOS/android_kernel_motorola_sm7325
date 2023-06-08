@@ -18,3 +18,8 @@
 #include "yupik-berlna-fingerprint.dtsi"
 #include "camera/yupik-camera-sensor-mot-berlna-overlay.dtsi"
 #include "yupik-berlna-charger-overlay.dtsi"
+
+
+&usb2_phy0 {
+	qcom,param-override-seq = <0xe9 0x70>;
+};

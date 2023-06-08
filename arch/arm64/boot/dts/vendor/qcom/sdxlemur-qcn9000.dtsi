@@ -24,6 +24,11 @@
 };
 
 &soc {
+	/* If QCN9000 is connected, LPM modes are disabled */
+	qcom,lpm-levels {
+		status = "disabled";
+	};
+
 	wifi0: qcom,cnss-qcn9000@a0000000 {
 		status = "disabled";
 		compatible = "qcom,cnss-qcn9000";
@@ -34,7 +39,6 @@
 		qrtr_node_id = <0x20>;
 		qca,auto-restart;
 		tgt-mem-mode = <0x1>;
-		board_id = <0xa4>;
 
 		mhi,max-channels = <30>;
 		mhi,timeout = <10000>;
@@ -158,7 +162,6 @@
 		qrtr_node_id = <0x21>;
 		qca,auto-restart;
 		tgt-mem-mode = <0x1>;
-		board_id = <0xa4>;
 
 		mhi,max-channels = <30>;
 		mhi,timeout = <10000>;

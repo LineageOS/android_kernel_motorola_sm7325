@@ -9,17 +9,18 @@
         mmi,dcp-power-max = <10000>;
         mmi,hvdcp-power-max = <20000>;
         mmi,pd-power-max = <30000>;
+	mmi,factory-kill-debounce-ms = <3000>;
 };
 
 &qti_glink_charger {
         compatible = "mmi,qti-glink-charger";
-        mmi,df-serialnum = "SB18D10749";
+        mmi,df-serialnum = "SB18D47432";
         mmi,demo-fv-mv = <4000>;
-        profile-ids-map = "107000", "SB18D10749","38000","SB18D22902","107000", "SB18D35140";
+        profile-ids-map = "107000", "SB18D47432","107000","SB18D47433";
 };
 
 &battery_charger {
-        qcom,thermal-mitigation = <6000000 5000000 4000000 3000000 1500000 1000000 500000>;
+        qcom,thermal-mitigation = <11000000 10000000 8500000  8000000 6500000 6000000 5000000 4000000 3000000 2500000 1000000 500000>;
 };
 
 &pmk8350_vadc {
@@ -89,6 +90,14 @@
 		qcom,pre-scaling = <1 1>;
 	};
 
+        pm8350b_wl_chg_therm {
+                reg = <PM8350B_ADC7_GPIO2_100K_PU>;
+                label = "pm8350b_wl_chg_therm";
+                qcom,ratiometric;
+                qcom,hw-settle-time = <200>;
+                qcom,pre-scaling = <1 1>;
+        };
+
 	pm8350b_chg_temp {
 		reg = <PM8350B_ADC7_AMUX_THM3_100K_PU>;
 		label = "pm8350b_chg_temp";
@@ -155,8 +164,8 @@
 			<&pmk8350_vadc PM8350_ADC7_AMUX_THM5_100K_PU>,
 			<&pmk8350_vadc PM8350B_ADC7_AMUX_THM3_100K_PU>,
 			<&pmk8350_vadc PM8350B_ADC7_AMUX_THM4_100K_PU>,
-//			<&pmk8350_vadc PM8350B_ADC7_GPIO2_100K_PU>,
-			<&pmk8350_vadc PMK8350_ADC7_AMUX_THM1_100K_PU>;
+			<&pmk8350_vadc PM8350B_ADC7_GPIO2_100K_PU>;/*
+			<&pmk8350_vadc PMK8350_ADC7_AMUX_THM1_100K_PU>;*/
 
 	/delete-node/ pm8350_msm_therm;
 	/delete-node/ pm8350_cam_flash_therm;
@@ -210,11 +219,17 @@
 		qcom,hw-settle-time = <200>;
 	};
 
+        pm8350b_wl_chg_therm {
+                reg = <PM8350B_ADC7_GPIO2_100K_PU>;
+                qcom,ratiometric;
+                qcom,hw-settle-time = <200>;
+        };
+/*
 	pmk8350_xo_therm {
 		reg = <PMK8350_ADC7_AMUX_THM1_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
-	};
+	};*/
 };
 
 &thermal_zones {
@@ -262,11 +277,11 @@
 		};
 	};
 */
-	chg_therm {
+	quiet_therm {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";
-		thermal-sensors = <&pmk8350_adc_tm PM8350_ADC7_AMUX_THM3_100K_PU>;
+		thermal-sensors = <&pmk8350_adc_tm PM8350B_ADC7_AMUX_THM4_100K_PU>;
 		wake-capable-sensor;
 		trips {
 			active-config0 {
@@ -298,7 +313,7 @@
 	rear-cam-therm-usr {
 		status = "disabled";
 	};
-	quiet_therm {
+	slave_cp_therm {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";
@@ -316,11 +331,14 @@
 	conn-therm-usr {
 		status = "disabled";
 	};
+	wlc-therm-usr {
+                status = "disabled";
+        };
 	usb_therm {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";
-		thermal-sensors = <&pmk8350_adc_tm PM8350B_ADC7_AMUX_THM4_100K_PU>;
+		thermal-sensors = <&pmk8350_adc_tm PM8350B_ADC7_GPIO2_100K_PU>;
 		wake-capable-sensor;
 		trips {
 			active-config0 {
@@ -328,6 +346,36 @@
 				hysteresis = <1000>;
 				type = "passive";
 			};
+		};
+	};
+	
+	socd {
+                cooling-maps {
+		       socd_cpu4 {
+                                trip = <&socd_trip>;
+                                cooling-device = <&cpu4_isolate 0 0>;
+                       };
+                       socd_cpu5 {
+                                trip = <&socd_trip>;
+                                cooling-device = <&cpu5_isolate 0 0>;
+                       };
+                       socd_cpu6 {
+                                trip = <&socd_trip>;
+                                cooling-device = <&cpu6_isolate 1 1>;
+                       };
+                       socd_cpu7 {
+                                trip = <&socd_trip>;
+                                cooling-device = <&cpu7_isolate 1 1>;
+                       };
+                };
+        };
+
+	pm8350b-bcl-lvl0 {
+                cooling-maps {
+                        vbat_modem_l3 {
+                                trip = <&b_bcl_lvl0>;
+                                cooling-device = <&modem_tj 1 1>;
+                        };
 		};
 	};
 /*
