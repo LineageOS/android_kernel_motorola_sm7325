@@ -1894,6 +1894,12 @@ config CAM_DISTINGUISH_SENSOR_VERSION
         help
         Add for distinguish sensor version.
 
+config CAMERA_CCI_MASTER_CHANGE
+	bool "For cam cci master change"
+	default n
+	help
+	Enable it to switch cci master i2c address.
+
 config CAM_CTLE_ENABLE
 	bool "For cam enable ctle"
 	default n
