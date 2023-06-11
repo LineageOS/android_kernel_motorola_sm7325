@@ -451,9 +451,11 @@ int32_t cam_sensor_update_slave_info(struct cam_cmd_probe *probe_info,
 	s_ctrl->sub_device_addr_type      =  probe_info->sub_device_addr_type;
 	s_ctrl->sub_device_id_addr        =  probe_info->sub_device_id_addr;
 	s_ctrl->expected_sub_device_id    =  probe_info->expected_sub_device_id;
+#ifdef CONFIG_CAMERA_CCI_MASTER_CHANGE
 	s_ctrl->sub_device_cci_master     =  probe_info->sub_device_cci_master;
 	s_ctrl->sub_device_cci_device     =  probe_info->sub_device_cci_device;
 	s_ctrl->sub_device_i2c_freq_mode  =  probe_info->sub_device_i2c_freq_mode;
+#endif
 #ifdef CONFIG_CAMERA_CCI_ADDR_SWITCH
 	s_ctrl->i2c_addr_switch           =  probe_info->i2c_addr_switch;
 	s_ctrl->second_i2c_address        =  probe_info->second_i2c_address;
@@ -811,13 +813,15 @@ int cam_sensor_match_sub_device_id(struct cam_sensor_ctrl_t *s_ctrl)
 	int ret = 0;
 	uint32_t sub_device_id = 0;
 	uint16_t sensor_address = 0;
+#ifdef CONFIG_CAMERA_CCI_MASTER_CHANGE
 	uint16_t sensor_freq_mode = 0;
 	uint8_t sensor_cci_master = 0;
 	uint8_t sensor_cci_device = 0;
+#endif
 
 	/* if hal doesn't config ProbeSubDevice parameter in sensor xml, return success immediately */
 	if (!s_ctrl->probe_sub_device) {
-		return 0;
+		return ret;
 	}
 
 	/* save sensor i2c address */
@@ -828,6 +832,7 @@ int cam_sensor_match_sub_device_id(struct cam_sensor_ctrl_t *s_ctrl)
 		s_ctrl->io_master_info.cci_client->sid = s_ctrl->sub_device_addr >> 1;
 	}
 
+#ifdef CONFIG_CAMERA_CCI_MASTER_CHANGE
 	/*if need change cci master*/
 	if (s_ctrl->need_change_cci_master) {
 		sensor_cci_master = s_ctrl->io_master_info.cci_client->cci_i2c_master;
@@ -858,6 +863,7 @@ int cam_sensor_match_sub_device_id(struct cam_sensor_ctrl_t *s_ctrl)
 			}
 		}
 	}
+#endif
 
 	rc = camera_io_dev_read(
 		&(s_ctrl->io_master_info),
@@ -872,6 +878,7 @@ int cam_sensor_match_sub_device_id(struct cam_sensor_ctrl_t *s_ctrl)
 	/* restore sensor i2c address */
 	s_ctrl->io_master_info.cci_client->sid = sensor_address;
 
+#ifdef CONFIG_CAMERA_CCI_MASTER_CHANGE
 	/* reset cci master */
 	if (s_ctrl->need_change_cci_master) {
 		ret = camera_io_release(&(s_ctrl->io_master_info));
@@ -895,6 +902,7 @@ int cam_sensor_match_sub_device_id(struct cam_sensor_ctrl_t *s_ctrl)
 			}
 		}
 	}
+#endif
 
 	if (sub_device_id == s_ctrl->expected_sub_device_id) {
 		CAM_INFO(CAM_SENSOR,

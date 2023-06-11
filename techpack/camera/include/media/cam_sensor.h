@@ -178,9 +178,12 @@ struct cam_cmd_probe {
 	__u8   sub_device_addr_type;
 	__u32  sub_device_id_addr;
 	__u32  expected_sub_device_id;
+#ifdef CONFIG_CAMERA_CCI_MASTER_CHANGE
 	__u8   sub_device_cci_master;
 	__u8   sub_device_cci_device;
 	__u8   sub_device_i2c_freq_mode;
+#endif
+#ifdef CONFIG_CAMERA_CCI_ADDR_SWITCH
 	__u8     i2c_addr_switch;
 	__u32    second_i2c_address;
 	__u8     i2c_switch_reg_addr_Type;
@@ -188,6 +191,7 @@ struct cam_cmd_probe {
 	__u32    i2c_switch_reg_addr;
 	__u32    i2c_switch_reg_data;
 	__u32    i2c_switch_reg_delayMs;
+#endif
 } __attribute__((packed));
 
 /**
