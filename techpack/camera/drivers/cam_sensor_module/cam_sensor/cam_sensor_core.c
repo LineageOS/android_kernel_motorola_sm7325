@@ -447,12 +447,14 @@ int32_t cam_sensor_update_slave_info(struct cam_cmd_probe *probe_info,
 	s_ctrl->sensor_probe_addr_type =  probe_info->addr_type;
 	s_ctrl->sensor_probe_data_type =  probe_info->data_type;
 
+#ifdef CONFIG_CAMERA_SUB_DEVICE_PROBE
 	s_ctrl->probe_sub_device          =  probe_info->probe_sub_device;
 	s_ctrl->sub_device_addr           =  probe_info->sub_device_addr;
 	s_ctrl->sub_device_data_type      =  probe_info->sub_device_data_type;
 	s_ctrl->sub_device_addr_type      =  probe_info->sub_device_addr_type;
 	s_ctrl->sub_device_id_addr        =  probe_info->sub_device_id_addr;
 	s_ctrl->expected_sub_device_id    =  probe_info->expected_sub_device_id;
+#endif
 #ifdef CONFIG_CAMERA_CCI_MASTER_CHANGE
 	s_ctrl->sub_device_cci_master     =  probe_info->sub_device_cci_master;
 	s_ctrl->sub_device_cci_device     =  probe_info->sub_device_cci_device;
@@ -818,6 +820,7 @@ int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 	return rc;
 }
 
+#ifdef CONFIG_CAMERA_SUB_DEVICE_PROBE
 int cam_sensor_match_sub_device_id(struct cam_sensor_ctrl_t *s_ctrl)
 {
 	int rc = 0;
@@ -930,6 +933,7 @@ int cam_sensor_match_sub_device_id(struct cam_sensor_ctrl_t *s_ctrl)
 
 	return rc;
 }
+#endif
 
 int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 	void *arg)
@@ -1027,6 +1031,7 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 			goto free_power_settings;
 		}
 
+#ifdef CONFIG_CAMERA_SUB_DEVICE_PROBE
 		/* Match sub-device ID */
 		rc = cam_sensor_match_sub_device_id(s_ctrl);
 		if (rc < 0) {
@@ -1034,6 +1039,7 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 			usleep_range(20000,20000);
 			goto free_power_settings;
 		}
+#endif
 
 		CAM_INFO(CAM_SENSOR,
 			"Probe success,slot:%d,slave_addr:0x%x,sensor_id:0x%x",
