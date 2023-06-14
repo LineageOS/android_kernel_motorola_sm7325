@@ -1210,8 +1210,6 @@ static int dsi_panel_set_dc(struct dsi_panel *panel,
 	int rc = 0;
 
 	pr_info("Set DC to (%d)\n", param_info->value);
-	panel->dc_state = param_info->value;
-	memcpy(&panel->curDCModeParaInfo, param_info, sizeof(struct msm_param_info));
 	rc = dsi_panel_send_param_cmd(panel, param_info);
 	if (rc < 0)
 		DSI_ERR("%s: failed to send param cmds. ret=%d\n", __func__, rc);
@@ -6132,20 +6130,6 @@ int dsi_panel_enable(struct dsi_panel *panel)
 err:
 
 	mutex_unlock(&panel->panel_lock);
-
-	//In normal case, when DC mode is enabled, it will be set to 0 before panel_disable
-	//and set to 1 after panel_enable. But in abnormal case, when user press power key
-	//Frequentlly for many times, it is set to 1 before panel_disable and then is not set
-	//to 1 after panel_enable. It results to failure DC mode issue. Seems kernel and user
-	//space is out of sync. Add this workaroud to ensure DC mode is set if it is set to 1
-	//before panel_disable.
-	if(panel->dc_state) {
-		DSI_INFO("-: ensure dc mode is set\n");
-		panel->curDCModeParaInfo.value = 0;
-		dsi_panel_send_param_cmd(panel, &panel->curDCModeParaInfo);
-		panel->curDCModeParaInfo.value = panel->dc_state;
-		dsi_panel_send_param_cmd(panel, &panel->curDCModeParaInfo);
-	}
 	return rc;
 }
 
