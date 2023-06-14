@@ -1094,7 +1094,6 @@ static ssize_t dsi_display_parse_para_update(struct device *dev,
 
 	return count;
 }
-
 static ssize_t dsi_display_hbm_get(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {

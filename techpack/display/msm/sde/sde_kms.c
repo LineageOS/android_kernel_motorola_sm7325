@@ -1246,12 +1246,14 @@ static void _sde_kms_release_splash_resource(struct sde_kms *sde_kms,
 {
 	struct msm_drm_private *priv;
 	struct sde_splash_display *splash_display;
+	struct sde_power_handle *phandle;
 	int i;
 
 	if (!sde_kms || !crtc)
 		return;
 
 	priv = sde_kms->dev->dev_private;
+	phandle = &priv->phandle;
 
 	if (!crtc->state->active || !sde_kms->splash_data.num_splash_displays)
 		return;
@@ -1278,9 +1280,9 @@ static void _sde_kms_release_splash_resource(struct sde_kms *sde_kms,
 	/* remove the votes if all displays are done with splash */
 	if (!sde_kms->splash_data.num_splash_displays) {
 		for (i = 0; i < SDE_POWER_HANDLE_DBUS_ID_MAX; i++)
-			sde_power_data_bus_set_quota(&priv->phandle, i,
+			sde_power_data_bus_set_quota(phandle, i,
 				SDE_POWER_HANDLE_ENABLE_BUS_AB_QUOTA,
-				SDE_POWER_HANDLE_ENABLE_BUS_IB_QUOTA);
+				phandle->ib_quota[i]);
 
 		pm_runtime_put_sync(sde_kms->dev->dev);
 	}
@@ -3655,6 +3657,31 @@ static int sde_kms_get_dsc_count(const struct msm_kms *kms,
 	return 0;
 }
 
+static int sde_kms_set_panel_feature(const struct msm_kms *kms,
+		struct panel_param_info param_info)
+{
+	struct sde_kms *sde_kms;
+	struct dsi_display *display;
+	struct msm_param_info param_info_msm;
+	int rc = 0;
+
+	if (!kms) {
+		SDE_ERROR("invalid input args\n");
+		return -EINVAL;
+	}
+
+	sde_kms = to_sde_kms(kms);
+	param_info_msm.param_idx = (enum msm_param_id)param_info.param_idx;
+	param_info_msm.value = param_info.value;
+	display = (struct dsi_display *)sde_kms->dsi_displays[0];
+	rc = dsi_display_set_param(display, &param_info_msm);
+	if (rc)
+		SDE_ERROR("set param %d value %d failed\n",
+			param_info_msm.param_idx, param_info_msm.value);
+
+	return rc;
+}
+
 static void _sde_kms_null_commit(struct drm_device *dev,
 		struct drm_encoder *enc)
 {
@@ -4075,6 +4102,7 @@ static const struct msm_kms_funcs kms_funcs = {
 	.check_for_splash = sde_kms_check_for_splash,
 	.get_mixer_count = sde_kms_get_mixer_count,
 	.get_dsc_count = sde_kms_get_dsc_count,
+	.set_panel_feature = sde_kms_set_panel_feature,
 };
 
 static int _sde_kms_mmu_destroy(struct sde_kms *sde_kms)
