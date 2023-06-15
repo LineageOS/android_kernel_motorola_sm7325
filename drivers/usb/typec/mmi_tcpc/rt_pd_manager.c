@@ -23,14 +23,19 @@
 #include <linux/version.h>
 #include <linux/iio/consumer.h>
 #include "inc/tcpci_typec.h"
-#include <linux/usb/mmi_discrete_typec.h>
+#include <linux/mmi_discrete_power_supply.h>
+#include <linux/mmi_discrete_charger_class.h>
 
 #define RT_PD_MANAGER_VERSION	"0.0.8_G"
 
 #define PROBE_CNT_MAX			3
 /* 10ms * 100 = 1000ms = 1s */
 #define USB_TYPE_POLLING_INTERVAL	10
+#ifdef CONFIG_TCPC_DEVON_POLLING_TIME
+#define USB_TYPE_POLLING_CNT_MAX	130
+#else
 #define USB_TYPE_POLLING_CNT_MAX	100
+#endif
 
 enum dr {
 	DR_IDLE,
@@ -64,6 +69,8 @@ struct rt_pd_manager_data {
 	struct typec_partner *partner;
 	struct typec_partner_desc partner_desc;
 	struct usb_pd_identity partner_identity;
+
+	struct charger_device	*master_chg_dev;
 };
 
 static const unsigned int rpm_extcon_cable[] = {
@@ -77,11 +84,13 @@ enum iio_psy_property {
        POWER_SUPPLY_IIO_OTG_ENABLE,
        POWER_SUPPLY_IIO_TYPEC_MODE,
        POWER_SUPPLY_IIO_PD_ACTIVE,
+       POWER_SUPPLY_IIO_MMI_PD_VDM_VERIFY,
        POWER_SUPPLY_IIO_PROP_MAX,
 };
 
 static const char * const iio_channel_map[] = {
 	"usb_real_type", "otg_enable", "typec_mode", "pd_active",
+	"mmi_pd_vdm_verify",
 };
 
 static int mmi_get_psy_iio_property(struct rt_pd_manager_data *rpmd,
@@ -157,9 +166,31 @@ out:
 	return ret;
 }
 
+static void mmi_ignore_require_dpdm(struct rt_pd_manager_data *rpmd, bool value)
+{
+	int rc = 0;
+
+	if (!rpmd->master_chg_dev)
+		rpmd->master_chg_dev = get_charger_by_name("master_chg");
+
+	if (!rpmd->master_chg_dev)
+		return;
+
+	if (value) {
+		rc = charger_dev_set_dp_dm(rpmd->master_chg_dev,
+				MMI_POWER_SUPPLY_IGNORE_REQUEST_DPDM);
+		dev_info(rpmd->dev, "%s ignore dp dm request rc=%d\n", rc? "Couldn't" : " ", rc);
+	} else {
+		rc = charger_dev_set_dp_dm(rpmd->master_chg_dev,
+				MMI_POWER_SUPPLY_DONOT_IGNORE_REQUEST_DPDM);
+		dev_info(rpmd->dev, "%s enable dp dm request rc=%d\n", rc? "Couldn't" : " ", rc);
+	}
+}
+
 static inline void stop_usb_host(struct rt_pd_manager_data *rpmd)
 {
 	extcon_set_state_sync(rpmd->extcon, EXTCON_USB_HOST, false);
+	mmi_ignore_require_dpdm(rpmd, false);
 }
 
 static inline void start_usb_host(struct rt_pd_manager_data *rpmd)
@@ -175,6 +206,7 @@ static inline void start_usb_host(struct rt_pd_manager_data *rpmd)
 			    EXTCON_PROP_USB_SS, val);
 
 	extcon_set_state_sync(rpmd->extcon, EXTCON_USB_HOST, true);
+	mmi_ignore_require_dpdm(rpmd, true);
 }
 
 static inline void stop_usb_peripheral(struct rt_pd_manager_data *rpmd)
@@ -630,6 +662,13 @@ static int pd_tcp_notifier_call(struct notifier_block *nb,
 		default:
 			break;
 		}
+		break;
+	case TCP_NOTIFY_PD_VDM_VERIFY:
+		dev_info(rpmd->dev, "%s mmi pd vdm verify state = %d\n",
+					__func__, noti->pd_state.vdm_verify);
+		val.intval = noti->pd_state.vdm_verify;
+		mmi_set_psy_iio_property(rpmd,
+				POWER_SUPPLY_IIO_MMI_PD_VDM_VERIFY, &val);
 		break;
 	default:
 		break;

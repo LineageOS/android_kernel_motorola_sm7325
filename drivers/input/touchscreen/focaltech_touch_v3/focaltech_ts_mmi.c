@@ -28,6 +28,24 @@
 		return -ENODEV; \
 	} \
 }
+
+#define MAX_ATTRS_ENTRIES 10
+
+#define ADD_ATTR(name) { \
+	if (idx < MAX_ATTRS_ENTRIES)  { \
+		dev_info(dev, "%s: [%d] adding %p\n", __func__, idx, &dev_attr_##name.attr); \
+		ext_attributes[idx] = &dev_attr_##name.attr; \
+		idx++; \
+	} else { \
+		dev_err(dev, "%s: cannot add attribute '%s'\n", __func__, #name); \
+	} \
+}
+
+static struct attribute *ext_attributes[MAX_ATTRS_ENTRIES];
+static struct attribute_group ext_attr_group = {
+	.attrs = ext_attributes,
+};
+
 static int fts_mmi_methods_get_vendor(struct device *dev, void *cdata)
 {
 	return scnprintf(TO_CHARP(cdata), TS_MMI_MAX_VENDOR_LEN, "%s", "focaltech");
@@ -38,7 +56,7 @@ static int fts_mmi_methods_get_productinfo(struct device *dev, void *cdata)
 	return scnprintf(TO_CHARP(cdata), TS_MMI_MAX_INFO_LEN, "%s", FTS_CHIP_NAME);
 }
 
-static int fts_mmi_methods_get_build_id(struct device *dev, void *cdata)
+static int fts_mmi_methods_get_config_id(struct device *dev, void *cdata)
 {
 	struct fts_ts_data *ts_data;
 	struct input_dev *input_dev;
@@ -63,7 +81,7 @@ static int fts_mmi_methods_get_build_id(struct device *dev, void *cdata)
 }
 
 /*return firmware version*/
-static int fts_mmi_methods_get_config_id(struct device *dev, void *cdata)
+static int fts_mmi_methods_get_build_id(struct device *dev, void *cdata)
 {
 	return scnprintf(TO_CHARP(cdata), TS_MMI_MAX_ID_LEN, "%04x", 0);
 }
@@ -178,23 +196,6 @@ static int fts_mmi_methods_reset(struct device *dev, int type)
 	return 0;
 }
 
-static int fts_mmi_methods_pinctrl(struct device *dev, int on)
-{
-	struct fts_ts_data *ts_data;
-	struct input_dev *input_dev;
-
-	GET_TS_DATA(dev);
-	input_dev = ts_data->input_dev;
-
-	if (on == TS_MMI_PINCTL_ON) {
-		mutex_lock(&input_dev->mutex);
-		fts_reset_proc(150);
-		mutex_unlock(&input_dev->mutex);
-	}
-
-	return 0;
-}
-
 static int fts_mmi_firmware_update(struct device *dev, char *fwname)
 {
 	struct fts_ts_data *ts_data;
@@ -205,10 +206,8 @@ static int fts_mmi_firmware_update(struct device *dev, char *fwname)
 
 	ts_data->force_reflash = true;
 
-	mutex_lock(&input_dev->mutex);
 	fts_fw_update_vendor_name(fwname);
 	fts_fwupg_bin();
-	mutex_unlock(&input_dev->mutex);
 
 	return 0;
 }
@@ -217,9 +216,15 @@ static int fts_mmi_firmware_update(struct device *dev, char *fwname)
 static int fts_mmi_charger_mode(struct device *dev, int mode)
 {
 	struct fts_ts_data *ts_data;
+	int ret = 0;
 
 	GET_TS_DATA(dev);
-	ts_data->usb_detect_flag = !!mode;
+	ret = fts_write_reg(FTS_REG_CHARGER_MODE_EN, mode);
+	if(ret < 0){
+		FTS_ERROR("Failed to set charger mode\n");
+	}
+
+	FTS_INFO("Success to %s charger mode\n", mode ? "Enable" : "Disable");
 
 	return 0;
 }
@@ -231,6 +236,10 @@ static int fts_mmi_panel_state(struct device *dev,
 	struct fts_ts_platform_data *pdata;
 	struct fts_ts_data *ts_data;
 	int ret = 0;
+#if defined(CONFIG_FTS_DOUBLE_TAP_CONTROL)
+	u8 gesture_command = 0;
+	unsigned char gesture_type = 0;
+#endif
 
 	GET_TS_DATA(dev);
 	pdata = ts_data->pdata;
@@ -244,6 +253,24 @@ static int fts_mmi_panel_state(struct device *dev,
 			break;
 
 		case TS_MMI_PM_GESTURE:
+#if defined(CONFIG_FTS_DOUBLE_TAP_CONTROL)
+			if (ts_data->imports && ts_data->imports->get_gesture_type) {
+				ret = ts_data->imports->get_gesture_type(ts_data->dev, &gesture_type);
+			}
+
+			if (gesture_type & TS_MMI_GESTURE_SINGLE) {
+				gesture_command |= (1 << 7);
+				FTS_INFO("Enable GESTURE_CLI_SINGLE command: %02x", gesture_command);
+			}
+			if (gesture_type & TS_MMI_GESTURE_DOUBLE) {
+				gesture_command |= (1 << 4);
+				FTS_INFO("Enable GESTURE_CLI_DOUBLE command: %02x", gesture_command);
+			}
+
+			FTS_INFO("CLI GESTURE SWITCH command: %02x", gesture_command);
+			ts_data->gsx_cmd = gesture_command;
+#endif
+
 #if FTS_GESTURE_EN
 			if (fts_gesture_suspend(ts_data) == 0) {
 			/* Enter into gesture mode(suspend) */
@@ -270,12 +297,21 @@ static int fts_mmi_panel_state(struct device *dev,
 static int fts_mmi_pre_resume(struct device *dev)
 {
 	struct fts_ts_data *ts_data;
+	struct input_dev *input_dev;
 
 	GET_TS_DATA(dev);
-
+	input_dev = ts_data->input_dev;
 	FTS_FUNC_ENTER();
 
 	fts_release_all_finger();
+
+	if (ts_data->gesture_support == false) {
+		mutex_lock(&input_dev->mutex);
+		fts_reset_proc(150);
+		FTS_INFO("Reset IC in %s for deep sleep", __func__);
+		mutex_unlock(&input_dev->mutex);
+	}
+
 
 	FTS_FUNC_EXIT();
 	return 0;
@@ -287,10 +323,10 @@ static int fts_mmi_post_resume(struct device *dev)
 
 	GET_TS_DATA(dev);
 
-/*	if (!ts_data->pdata->always_on_vio) {
+	if (ts_data->gesture_support == true) {
 		FTS_INFO("Reset IC in resume");
 		fts_reset_proc(200);
-    }*/
+	}
 
 	fts_tp_state_recovery(ts_data);
 
@@ -371,6 +407,51 @@ int fts_mmi_palm_set_enable(struct device *dev, unsigned int enable)
 }
 #endif
 
+#ifdef CONFIG_FTS_LAST_TIME
+static ssize_t fts_ts_timestamp_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct fts_ts_data *ts_data;
+	ktime_t last_ktime;
+	struct timespec64 last_ts;
+
+	dev = MMI_DEV_TO_TS_DEV(dev);
+	GET_TS_DATA(dev);
+
+	mutex_lock(&ts_data->mode_lock);
+	last_ktime = ts_data->last_event_time;
+	ts_data->last_event_time = 0;
+	mutex_unlock(&ts_data->mode_lock);
+
+	last_ts = ktime_to_timespec64(last_ktime);
+
+	return scnprintf(buf, PAGE_SIZE, "%lld.%ld\n", last_ts.tv_sec, last_ts.tv_nsec);
+}
+static DEVICE_ATTR(timestamp, S_IRUGO, fts_ts_timestamp_show, NULL);
+#endif
+
+static int fts_mmi_extend_attribute_group(struct device *dev, struct attribute_group **group)
+{
+	int idx = 0;
+	struct fts_ts_platform_data *pdata = NULL;
+	struct fts_ts_data *ts_data;
+
+	GET_TS_DATA(dev);
+	pdata = ts_data->pdata;
+
+#ifdef CONFIG_FTS_LAST_TIME
+	ADD_ATTR(timestamp);
+#endif
+
+	if (idx) {
+		ext_attributes[idx] = NULL;
+		*group = &ext_attr_group;
+	} else
+		*group = NULL;
+
+	return 0;
+}
+
 static struct ts_mmi_methods fts_mmi_methods = {
 	.get_vendor = fts_mmi_methods_get_vendor,
 	.get_productinfo = fts_mmi_methods_get_productinfo,
@@ -383,7 +464,6 @@ static struct ts_mmi_methods fts_mmi_methods = {
 	.get_poweron = fts_mmi_methods_get_poweron,
 	/* SET methods */
 	.reset =  fts_mmi_methods_reset,
-	.pinctrl =  fts_mmi_methods_pinctrl,
 	.drv_irq = fts_mmi_methods_drv_irq,
 #if FTS_POWER_SOURCE_CUST_EN
 	.power = fts_mmi_methods_power,
@@ -396,6 +476,8 @@ static struct ts_mmi_methods fts_mmi_methods = {
 #endif
 	/* Firmware */
 	.firmware_update = fts_mmi_firmware_update,
+	/* vendor specific attribute group */
+	.extend_attribute_group = fts_mmi_extend_attribute_group,
 	/* PM callback */
 	.panel_state = fts_mmi_panel_state,
 	.pre_resume = fts_mmi_pre_resume,
@@ -408,9 +490,11 @@ static struct ts_mmi_methods fts_mmi_methods = {
 int fts_mmi_dev_register(struct fts_ts_data *ts_data) {
 	int ret;
 
+	mutex_init(&ts_data->mode_lock);
 	ret = ts_mmi_dev_register(ts_data->dev, &fts_mmi_methods);
 	if (ret) {
 		dev_err(ts_data->dev, "Failed to register ts mmi\n");
+		mutex_destroy(&ts_data->mode_lock);
 		return ret;
 	}
 
@@ -421,6 +505,7 @@ int fts_mmi_dev_register(struct fts_ts_data *ts_data) {
 }
 
 void fts_mmi_dev_unregister(struct fts_ts_data *ts_data) {
+	mutex_destroy(&ts_data->mode_lock);
 	ts_mmi_dev_unregister(ts_data->dev);
 }
 

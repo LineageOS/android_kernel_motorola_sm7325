@@ -111,8 +111,10 @@ static unsigned char g_user_buf[USER_STR_BUFF] = {0};
 #define ILI_SPI_NAME_TM "ilitek_tm"
 #define ILI_SPI_NAME_CSOT "ilitek_csot"
 #define ILI_SPI_NAME_TXD "ilitek_txd"
+#ifndef CONFIG_INPUT_TOUCHSCREEN_MMI
 static struct class *touchscreen_class;
 static struct device *touchscreen_class_dev;
+#endif
 
 int ili_str2hex(char *str)
 {
@@ -222,13 +224,13 @@ static int file_write(struct file_buffer *file, bool new_open)
 		return -1;
 	}
 	pos = 0;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	kernel_write(f, file->ptr, file->wlen, &pos);
-#else
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 	vfs_write(f, file->ptr, file->flen, &pos);
 	set_fs(fs);
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+	kernel_write(f, file->ptr, file->wlen, &pos);
 #endif
 	filp_close(f, NULL);
 	return 0;
@@ -706,7 +708,75 @@ out:
 	mutex_unlock(&ilits->touch_mutex);
 	return size;
 }
+static ssize_t ilitek_proc_passive_pen_write(struct file *filp, const char *buff, size_t size, loff_t *pos)
+{
+	char cmd[256] = { 0 };
+	int  glove_value =0;
 
+	if ((size - 1) > sizeof(cmd)) {
+		ILI_ERR("ERROR! input length is larger than local buffer\n");
+		return -1;
+	}
+
+	mutex_lock(&ilits->touch_mutex);
+
+	if (buff != NULL) {
+		if (copy_from_user(cmd, buff, size - 1)) {
+			ILI_INFO("Failed to copy data from user space\n");
+			size = -1;
+			goto out;
+		}
+	}
+	sscanf(cmd, "%x", &glove_value);
+	ILI_INFO("glove status:%x\n",glove_value);
+	if (!glove_value) {
+		if (ili_ic_func_ctrl("passive_pen", DISABLE) < 0)
+			ILI_ERR("Write glove disable fail\n");
+	}
+	else {
+		if (ili_ic_func_ctrl("passive_pen", ENABLE) < 0)
+			ILI_ERR("Write glove enable fail\n");
+	}
+	
+out:
+	mutex_unlock(&ilits->touch_mutex);
+	return size;
+}
+
+static ssize_t ilitek_proc_canvas_write(struct file *filp, const char *buff, size_t size, loff_t *pos)
+{
+	char cmd[256] = { 0 };
+	int  stylus_value =0;
+
+	if ((size - 1) > sizeof(cmd)) {
+		ILI_ERR("ERROR! input length is larger than local buffer\n");
+		return -1;
+	}
+
+	mutex_lock(&ilits->touch_mutex);
+
+	if (buff != NULL) {
+		if (copy_from_user(cmd, buff, size - 1)) {
+			ILI_INFO("Failed to copy data from user space\n");
+			size = -1;
+			goto out;
+		}
+	}
+	sscanf(cmd, "%x", &stylus_value);
+	ILI_INFO("stylus status:%x\n",stylus_value);
+	if (!stylus_value) {
+		if (ili_ic_func_ctrl("canvas", DISABLE) < 0)
+			ILI_ERR("Write stylus disable fail\n");
+	}
+	else {
+		if (ili_ic_func_ctrl("canvas", ENABLE) < 0)
+			ILI_ERR("Write stylus enable fail\n");
+	}
+	
+out:
+	mutex_unlock(&ilits->touch_mutex);
+	return size;
+}
 static ssize_t ilitek_proc_debug_switch_read(struct file *pFile, char __user *buff, size_t size, loff_t *pos)
 {
 	bool open;
@@ -716,7 +786,7 @@ static ssize_t ilitek_proc_debug_switch_read(struct file *pFile, char __user *bu
 
 	memset(g_user_buf, 0, USER_STR_BUFF * sizeof(unsigned char));
 
-	mutex_lock(&ilits->debug_mutex);
+	mutex_lock(&ilits->debug_read_mutex);
 
 	open = !ilits->dnp;
 
@@ -728,7 +798,7 @@ static ssize_t ilitek_proc_debug_switch_read(struct file *pFile, char __user *bu
 	if (copy_to_user(buff, g_user_buf, size))
 		ILI_ERR("Failed to copy data to user space\n");
 
-	mutex_unlock(&ilits->debug_mutex);
+	mutex_unlock(&ilits->debug_read_mutex);
 	return size;
 }
 
@@ -775,6 +845,9 @@ static ssize_t ilitek_proc_debug_message_read(struct file *filp, char __user *bu
 	if (ilits->dbl[ilits->odi].mark) {
 		if (ilits->dbl[ilits->odi].data[0] == P5_X_DEMO_PACKET_ID) {
 			need_read_data_len = 43;
+		} else if (ilits->dbl[ilits->odi].data[0] == P5_X_DEMO_HIGH_RESOLUTION_PACKET_ID) {
+			need_read_data_len = P5_X_5B_LOW_RESOLUTION_LENGTH;
+			need_read_data_len += P5_X_CUSTOMER_LENGTH;
 		} else if (ilits->dbl[ilits->odi].data[0] == P5_X_I2CUART_PACKET_ID) {
 			type = ilits->dbl[ilits->odi].data[3] & 0x0F;
 
@@ -789,6 +862,11 @@ static ssize_t ilitek_proc_debug_message_read(struct file *filp, char __user *bu
 			}
 			need_read_data_len = data_count * one_data_bytes + 1 + 5;
 		} else if (ilits->dbl[ilits->odi].data[0] == P5_X_DEBUG_PACKET_ID || ilits->dbl[ilits->odi].data[0] == P5_X_DEBUG_LITE_PACKET_ID) {
+			send_data_len = 0;	/* ilits->dbl[0][1] - 2; */
+			need_read_data_len = TR_BUF_SIZE - 8;
+		} else if (ilits->dbl[ilits->odi].data[0] == P5_X_I2CUART_PACKET_ID) {
+			need_read_data_len = P5_X_DEMO_MODE_PACKET_LEN+P5_X_DEMO_MODE_AXIS_LEN+P5_X_DEMO_MODE_STATE_INFO;
+		}  else if (ilits->dbl[ilits->odi].data[0] == P5_X_DEBUG_HIGH_RESOLUTION_PACKET_ID) {
 			send_data_len = 0;	/* ilits->dbl[0][1] - 2; */
 			need_read_data_len = TR_BUF_SIZE - 8;
 		}
@@ -1605,9 +1683,11 @@ static ssize_t ilitek_node_ioctl_write(struct file *filp, const char *buff, size
 	} else if (strncmp(cmd, "gestureinfo", strlen(cmd)) == 0) {
 		ilits->gesture_mode = DATA_FORMAT_GESTURE_INFO;
 		ILI_INFO("gesture mode = %d\n", ilits->gesture_mode);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
 	} else if (strncmp(cmd, "netlink", strlen(cmd)) == 0) {
 		ilits->netlink = !ilits->netlink;
 		ILI_INFO("netlink flag= %d\n", ilits->netlink);
+#endif
 	} else if (strncmp(cmd, "switchtestmode", strlen(cmd)) == 0) {
 		ili_switch_tp_mode(P5_X_FW_TEST_MODE);
 	} else if (strncmp(cmd, "switchdebugmode", strlen(cmd)) == 0) {
@@ -1885,23 +1965,23 @@ static long ilitek_node_compat_ioctl(struct file *filp, unsigned int cmd, unsign
 		return ret;
 	case ILITEK_COMPAT_IOCTL_TP_PANEL_INFO:
 		ILI_DBG("compat_ioctl: convert resolution\n");
-		ret = filp->f_op->unlocked_ioctl(filp, ILITEK_COMPAT_IOCTL_TP_PANEL_INFO, (unsigned long)compat_ptr(arg));
+		ret = filp->f_op->unlocked_ioctl(filp, ILITEK_IOCTL_TP_PANEL_INFO, (unsigned long)compat_ptr(arg));
 		return ret;
 	case ILITEK_COMPAT_IOCTL_TP_INFO:
 		ILI_DBG("compat_ioctl: convert tp info\n");
-		ret = filp->f_op->unlocked_ioctl(filp, ILITEK_COMPAT_IOCTL_TP_INFO, (unsigned long)compat_ptr(arg));
+		ret = filp->f_op->unlocked_ioctl(filp, ILITEK_IOCTL_TP_INFO, (unsigned long)compat_ptr(arg));
 		return ret;
 	case ILITEK_COMPAT_IOCTL_WRAPPER_RW:
 		ILI_DBG("compat_ioctl: convert wrapper\n");
-		ret = filp->f_op->unlocked_ioctl(filp, ILITEK_COMPAT_IOCTL_WRAPPER_RW, (unsigned long)compat_ptr(arg));
+		ret = filp->f_op->unlocked_ioctl(filp, ILITEK_IOCTL_WRAPPER_RW, (unsigned long)compat_ptr(arg));
 		return ret;
 	case ILITEK_COMPAT_IOCTL_DDI_WRITE:
 		ILI_DBG("compat_ioctl: convert ddi write\n");
-		ret = filp->f_op->unlocked_ioctl(filp, ILITEK_COMPAT_IOCTL_DDI_WRITE, (unsigned long)compat_ptr(arg));
+		ret = filp->f_op->unlocked_ioctl(filp, ILITEK_IOCTL_DDI_WRITE, (unsigned long)compat_ptr(arg));
 		return ret;
 	case ILITEK_COMPAT_IOCTL_DDI_READ:
 		ILI_DBG("compat_ioctl: convert ddi read\n");
-		ret = filp->f_op->unlocked_ioctl(filp, ILITEK_COMPAT_IOCTL_DDI_READ, (unsigned long)compat_ptr(arg));
+		ret = filp->f_op->unlocked_ioctl(filp, ILITEK_IOCTL_DDI_READ, (unsigned long)compat_ptr(arg));
 		return ret;
 	default:
 		ILI_ERR("no ioctl cmd, return ilitek_node_ioctl\n");
@@ -2115,6 +2195,7 @@ static long ilitek_node_ioctl(struct file *filp, unsigned int cmd, unsigned long
 			ret = -ENOTTY;
 		}
 		break;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
 	case ILITEK_IOCTL_TP_NETLINK_CTRL:
 		if (copy_from_user(szBuf, (u8 *) arg, 1)) {
 			ILI_ERR("Failed to copy data from user space\n");
@@ -2137,6 +2218,7 @@ static long ilitek_node_ioctl(struct file *filp, unsigned int cmd, unsigned long
 			ret = -ENOTTY;
 		}
 		break;
+#endif
 	case ILITEK_IOCTL_TP_MODE_CTRL:
 		if (copy_from_user(szBuf, (u8 *) arg, 10)) {
 			ILI_ERR("Failed to copy data from user space\n");
@@ -2204,8 +2286,9 @@ static long ilitek_node_ioctl(struct file *filp, unsigned int cmd, unsigned long
 		ILI_DBG("ioctl: get panel resolution\n");
 		id_to_user[0] = ilits->panel_wid;
 		id_to_user[1] = ilits->panel_hei;
+		id_to_user[2] = (ilits->trans_xy) ? 0x1 : 0x0;
 
-		if (copy_to_user((u32 *) arg, id_to_user, sizeof(u32) * 2)) {
+		if (copy_to_user((u32 *) arg, id_to_user, sizeof(u32) * 3)) {
 			ILI_ERR("Failed to copy driver ver to user space\n");
 			ret = -ENOTTY;
 		}
@@ -2329,37 +2412,90 @@ out:
 
 static struct proc_dir_entry *proc_dir_ilitek;
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
+typedef struct {
+	char *name;
+	struct proc_dir_entry *node;
+	struct proc_ops *fops;
+	bool isCreated;
+} proc_node;
+#else
 typedef struct {
 	char *name;
 	struct proc_dir_entry *node;
 	struct file_operations *fops;
 	bool isCreated;
 } proc_node;
-
+#endif
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
+static struct proc_ops proc_mp_lcm_on_test_fops = {
+	.proc_read = ilitek_node_mp_lcm_on_test_read,
+};
+#else
 static struct file_operations proc_mp_lcm_on_test_fops = {
 	.read = ilitek_node_mp_lcm_on_test_read,
 };
+#endif
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
+static struct proc_ops proc_mp_lcm_off_test_fops = {
+	.proc_read = ilitek_node_mp_lcm_off_test_read,
+};
+#else
 static struct file_operations proc_mp_lcm_off_test_fops = {
 	.read = ilitek_node_mp_lcm_off_test_read,
 };
+#endif
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
+static struct proc_ops proc_ver_info_fops = {
+	.proc_read = ilitek_node_ver_info_read,
+};
+#else
 static struct file_operations proc_ver_info_fops = {
 	.read = ilitek_node_ver_info_read,
 };
+#endif
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
+static struct proc_ops proc_change_list_fops = {
+	.proc_read = ilitek_node_change_list_read,
+};
+#else
 static struct file_operations proc_change_list_fops = {
 	.read = ilitek_node_change_list_read,
 };
+#endif
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
+static struct proc_ops proc_debug_message_fops = {
+	.proc_read = ilitek_proc_debug_message_read,
+};
+#else
 static struct file_operations proc_debug_message_fops = {
 	.read = ilitek_proc_debug_message_read,
 };
+#endif
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
+static struct proc_ops proc_debug_message_switch_fops = {
+	.proc_read = ilitek_proc_debug_switch_read,
+};
+#else
 static struct file_operations proc_debug_message_switch_fops = {
 	.read = ilitek_proc_debug_switch_read,
 };
+#endif
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
+static struct proc_ops proc_ioctl_fops = {
+		.proc_ioctl = ilitek_node_ioctl,
+#ifdef CONFIG_COMPAT
+		.proc_compat_ioctl = ilitek_node_compat_ioctl,
+#endif
+		.proc_write = ilitek_node_ioctl_write,
+};
+#else
 static struct file_operations proc_ioctl_fops = {
 	.unlocked_ioctl = ilitek_node_ioctl,
 #ifdef CONFIG_COMPAT
@@ -2367,40 +2503,107 @@ static struct file_operations proc_ioctl_fops = {
 #endif
 	.write = ilitek_node_ioctl_write,
 };
+#endif
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
+static struct proc_ops proc_fw_upgrade_fops = {
+	.proc_read = ilitek_node_fw_upgrade_read,
+};
+#else
 static struct file_operations proc_fw_upgrade_fops = {
 	.read = ilitek_node_fw_upgrade_read,
 };
+#endif
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
+static struct proc_ops proc_fw_process_fops = {
+	.proc_read = ilitek_proc_fw_process_read,
+};
+#else
 static struct file_operations proc_fw_process_fops = {
 	.read = ilitek_proc_fw_process_read,
 };
+#endif
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
+static struct proc_ops proc_get_delta_data_fops = {
+	.proc_read = ilitek_proc_get_delta_data_read,
+};
+#else
 static struct file_operations proc_get_delta_data_fops = {
 	.read = ilitek_proc_get_delta_data_read,
 };
+#endif
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
+static struct proc_ops proc_get_raw_data_fops = {
+	.proc_read = ilitek_proc_fw_get_raw_data_read,
+};
+#else
 static struct file_operations proc_get_raw_data_fops = {
 	.read = ilitek_proc_fw_get_raw_data_read,
 };
+#endif
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
+static struct proc_ops proc_rw_tp_reg_fops = {
+	.proc_read = ilitek_proc_rw_tp_reg_read,
+	.proc_write = ilitek_proc_rw_tp_reg_write,
+};
+#else
 static struct file_operations proc_rw_tp_reg_fops = {
 	.read = ilitek_proc_rw_tp_reg_read,
 	.write = ilitek_proc_rw_tp_reg_write,
 };
+#endif
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
+static struct proc_ops proc_passive_pen_ctrl_fops = {
+	.proc_write = ilitek_proc_passive_pen_write,
+};
+static struct proc_ops proc_canvas_ctrl_fops = {
+	.proc_write = ilitek_proc_canvas_write,
+};
+#else
+static struct file_operations proc_passive_pen_ctrl_fops = {
+	.write = ilitek_proc_passive_pen_write,
+};
+static struct file_operations proc_canvas_ctrl_fops = {
+	.write = ilitek_proc_canvas_write,
+};
+#endif
+
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
+static struct proc_ops proc_fw_pc_counter_fops = {
+	.proc_read = ilitek_proc_fw_pc_counter_read,
+};
+#else
 static struct file_operations proc_fw_pc_counter_fops = {
 	.read = ilitek_proc_fw_pc_counter_read,
 };
+#endif
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
+static struct proc_ops proc_get_debug_mode_data_fops = {
+	.proc_read = ilitek_proc_get_debug_mode_data_read,
+	.proc_write = ilitek_proc_get_debug_mode_data_write,
+};
+#else
 static struct file_operations proc_get_debug_mode_data_fops = {
 	.read = ilitek_proc_get_debug_mode_data_read,
 	.write = ilitek_proc_get_debug_mode_data_write,
 };
+#endif
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
+static struct proc_ops proc_debug_level_fops = {
+	.proc_read = ilitek_proc_debug_level_read,
+};
+#else
 static struct file_operations proc_debug_level_fops = {
 	.read = ilitek_proc_debug_level_read,
 };
+#endif
 
 proc_node iliproc[] = {
 	{"ioctl", NULL, &proc_ioctl_fops, false},
@@ -2418,8 +2621,12 @@ proc_node iliproc[] = {
 	{"rw_tp_reg", NULL, &proc_rw_tp_reg_fops, false},
 	{"ver_info", NULL, &proc_ver_info_fops, false},
 	{"change_list", NULL, &proc_change_list_fops, false},
+	{"passive_pen_ctrl", NULL, &proc_passive_pen_ctrl_fops, false},
+	{"canvas_ctrl", NULL, &proc_canvas_ctrl_fops, false},
+
 };
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
 #define NETLINK_USER 21
 static struct sock *netlink_skb;
 static struct nlmsghdr *netlink_head;
@@ -2504,7 +2711,9 @@ static int netlink_init(void)
 	}
 	return ret;
 }
+#endif
 
+#ifndef CONFIG_INPUT_TOUCHSCREEN_MMI
 static ssize_t path_show(struct device *pDevice, struct device_attribute *pAttr, char *pBuf)
 {
 	ssize_t blen;
@@ -2602,6 +2811,7 @@ device_destroy:
 
 	return -ENODEV;
 }
+#endif
 
 void ili_node_init(void)
 {
@@ -2621,6 +2831,10 @@ void ili_node_init(void)
 			ILI_INFO("Succeed to create %s under /proc\n", iliproc[i].name);
 		}
 	}
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
 	netlink_init();
+#endif
+#ifndef CONFIG_INPUT_TOUCHSCREEN_MMI
 	ilitek_sys_init();
+#endif
 }

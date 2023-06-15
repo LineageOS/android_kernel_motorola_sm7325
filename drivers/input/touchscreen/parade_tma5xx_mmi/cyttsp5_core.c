@@ -118,6 +118,28 @@ struct cyttsp5_hid_output {
 	u16 timeout_ms;
 };
 
+#if defined (CYTTSP5_SENSOR_EN)
+static struct sensors_classdev __maybe_unused sensors_touch_cdev = {
+    .name = "s-dt-gesture",
+    .vendor = "Parade",
+    .version = 1,
+    .type = SENSOR_TYPE_MOTO_DOUBLE_TAP,
+    .max_range = "5.0",
+    .resolution = "5.0",
+    .sensor_power = "1",
+    .min_delay = 0,
+    .max_delay = 0,
+    /* WAKE_UP & SPECIAL_REPORT */
+    .flags = 1 | 6,
+    .fifo_reserved_event_count = 0,
+    .fifo_max_event_count = 0,
+    .enabled = 0,
+    .delay_msec = 200,
+    .sensors_enable = NULL,
+    .sensors_poll_delay = NULL,
+};
+#endif
+
 #define SET_CMD_OPCODE(byte, opcode) SET_CMD_LOW(byte, opcode)
 #define SET_CMD_REPORT_TYPE(byte, type) SET_CMD_HIGH(byte, ((type) << 4))
 #define SET_CMD_REPORT_ID(byte, id) SET_CMD_LOW(byte, id)
@@ -3707,6 +3729,23 @@ static void cyttsp5_queue_startup(struct cyttsp5_core_data *cd)
 	mutex_unlock(&cd->system_lock);
 }
 
+static void cyttsp5_queue_ez_recovery_(struct cyttsp5_core_data *cd)
+{
+	if (!work_pending(&cd->ez_recovery_work)) {
+		schedule_work(&cd->ez_recovery_work);
+		dev_info(cd->dev, "%s: ez_recovery_work queued\n", __func__);
+	} else {
+		dev_info(cd->dev, "%s: ez_recovery_work pending\n", __func__);
+	}
+}
+
+static void cyttsp5_queue_ez_recovery(struct cyttsp5_core_data *cd)
+{
+	mutex_lock(&cd->system_lock);
+	cyttsp5_queue_ez_recovery_(cd);
+	mutex_unlock(&cd->system_lock);
+}
+
 static void call_atten_cb(struct cyttsp5_core_data *cd,
 		enum cyttsp5_atten_type type, int mode)
 {
@@ -3769,7 +3808,7 @@ static void cyttsp5_watchdog_work(struct work_struct *work)
 	*if found the current sleep_state is SS_SLEEPING
 	*then no need to request_exclusive, directly return
 	*/
-	if (cd->sleep_state == SS_SLEEPING)
+	if (cd->sleep_state == SS_SLEEPING || cd->sleep_state == SS_SLEEP_ON)
 		return;
 
 	rc = request_exclusive(cd, cd->dev, CY_REQUEST_EXCLUSIVE_TIMEOUT);
@@ -3840,6 +3879,8 @@ static int cyttsp5_put_device_into_easy_wakeup_(struct cyttsp5_core_data *cd)
 	int rc;
 	u8 status = 0;
 
+	dev_info(cd->dev, "%s: put device into easy wakeup state\n", __func__);
+
 	mutex_lock(&cd->system_lock);
 	cd->wait_until_wake = 0;
 	mutex_unlock(&cd->system_lock);
@@ -3848,6 +3889,10 @@ static int cyttsp5_put_device_into_easy_wakeup_(struct cyttsp5_core_data *cd)
 			cd->easy_wakeup_gesture, &status);
 	if (rc || status == 0)
 		return -EBUSY;
+
+	mutex_lock(&cd->system_lock);
+	cd->pm_mode = CYTTSP5_PM_EASY_WAKEUP;
+	mutex_unlock(&cd->system_lock);
 
 	return rc;
 }
@@ -3859,6 +3904,12 @@ static int cyttsp5_put_device_into_deep_sleep_(struct cyttsp5_core_data *cd)
 	rc = cyttsp5_hid_cmd_set_power_(cd, HID_POWER_SLEEP);
 	if (rc)
 		rc = -EBUSY;
+	else {
+		mutex_lock(&cd->system_lock);
+		cd->pm_mode = CYTTSP5_PM_DEEPSLEEP;
+		mutex_unlock(&cd->system_lock);
+	}
+
 	return rc;
 }
 
@@ -3887,6 +3938,12 @@ static int cyttsp5_core_poweroff_device_(struct cyttsp5_core_data *cd)
 	if (rc < 0)
 		dev_err(cd->dev, "%s: HW Power down fails r=%d\n",
 				__func__, rc);
+	else {
+		mutex_lock(&cd->system_lock);
+		cd->pm_mode = CYTTSP5_PM_POWEROFF;
+		mutex_unlock(&cd->system_lock);
+	}
+
 	return rc;
 }
 
@@ -3906,9 +3963,13 @@ static int cyttsp5_core_sleep_(struct cyttsp5_core_data *cd)
 	/* Ensure watchdog and startup works stopped */
 	cyttsp5_stop_wd_timer(cd);
 	cancel_work_sync(&cd->startup_work);
+	cancel_work_sync(&cd->ez_recovery_work);
 	cyttsp5_stop_wd_timer(cd);
 
-	if (cd->cpdata->flags & CY_CORE_FLAG_POWEROFF_ON_SLEEP)
+	if (!IS_DEEP_SLEEP_CONFIGURED(cd->easy_wakeup_gesture) &&
+		(cd->should_enable_gesture ==1)) {
+		rc = cyttsp5_put_device_into_sleep_(cd);
+	} else if (cd->cpdata->flags & CY_CORE_FLAG_POWEROFF_ON_SLEEP)
 		rc = cyttsp5_core_poweroff_device_(cd);
 	else
 		rc = cyttsp5_put_device_into_sleep_(cd);
@@ -3979,7 +4040,9 @@ exit:
 	if (cd->input_buf[2] != 4)
 		rc = -EINVAL;
 
+#if 0
 	cd->wake_initiated_by_device = 1;
+#endif
 
 	parade_debug(cd->dev, DEBUG_LEVEL_1, "%s: rc=%d\n", __func__, rc);
 
@@ -4224,13 +4287,20 @@ static int cyttsp5_read_input(struct cyttsp5_core_data *cd)
 	if (!IS_DEEP_SLEEP_CONFIGURED(cd->easy_wakeup_gesture)) {
 		if (cd->sleep_state == SS_SLEEP_ON) {
 			mutex_unlock(&cd->system_lock);
+
+			dev_info(dev, "%s: is_suspended = %d, wait_until_wake = %d", __func__,
+				dev->power.is_suspended, cd->wait_until_wake);
+
+			PM_WAKEUP_EVENT(cd->gesture_wakelock, 500);
 			if (!dev->power.is_suspended)
 				goto read;
 			t = wait_event_timeout(cd->wait_q,
 					(cd->wait_until_wake == 1),
-					msecs_to_jiffies(2000));
-			if (IS_TMO(t))
-				cyttsp5_queue_startup(cd);
+					msecs_to_jiffies(4000));
+			if (IS_TMO(t)) {
+				dev_info(dev, "%s: wait event timeout", __func__);
+				cyttsp5_queue_ez_recovery(cd);
+			}
 			goto read;
 		}
 	}
@@ -4514,6 +4584,8 @@ static int cyttsp5_core_wake_device_from_deep_sleep_(
 {
 	int rc;
 
+	dev_info(cd->dev, "%s: wake device from deep sleep state\n", __func__);
+
 	rc = cyttsp5_hid_cmd_set_power_(cd, HID_POWER_ON);
 	if (rc)
 		rc =  -EAGAIN;
@@ -4533,10 +4605,12 @@ static int cyttsp5_core_wake_device_(struct cyttsp5_core_data *cd)
 		wake_up(&cd->wait_q);
 		msleep(20);
 
+#if 0
 		if (cd->wake_initiated_by_device) {
 			cd->wake_initiated_by_device = 0;
 			return 0;
 		}
+#endif
 	}
 
 	return cyttsp5_core_wake_device_from_deep_sleep_(cd);
@@ -4663,13 +4737,20 @@ static int cyttsp5_core_wake_(struct cyttsp5_core_data *cd)
 	}
 	mutex_unlock(&cd->system_lock);
 
-	if (cd->cpdata->flags & CY_CORE_FLAG_POWEROFF_ON_SLEEP)
+	if (!IS_DEEP_SLEEP_CONFIGURED(cd->easy_wakeup_gesture) &&
+		(cd->should_enable_gesture ==1) &&
+		(cd->pm_mode == CYTTSP5_PM_DEEPSLEEP ||
+		cd->pm_mode == CYTTSP5_PM_EASY_WAKEUP)) {
+		rc = cyttsp5_core_wake_device_(cd);
+	} else if ((cd->cpdata->flags & CY_CORE_FLAG_POWEROFF_ON_SLEEP) &&
+		(cd->pm_mode == CYTTSP5_PM_POWEROFF))
 		rc = cyttsp5_core_poweron_device_(cd);
 	else
 		rc = cyttsp5_core_wake_device_(cd);
 
 	mutex_lock(&cd->system_lock);
 	cd->sleep_state = SS_SLEEP_OFF;
+	cd->pm_mode = CYTTSP5_PM_ACTIVE;
 	mutex_unlock(&cd->system_lock);
 
 	cyttsp5_start_wd_timer(cd);
@@ -5012,12 +5093,45 @@ static void cyttsp5_startup_work_function(struct work_struct *work)
 			__func__, rc);
 }
 
+static void cyttsp5_ez_work_function(struct work_struct *work)
+{
+	struct cyttsp5_core_data *cd =
+	    container_of(work, struct cyttsp5_core_data, ez_recovery_work);
+	int rc, t;
+
+	rc = request_exclusive(cd, cd->dev, CY_REQUEST_EXCLUSIVE_TIMEOUT);
+	if (rc < 0) {
+		dev_err(cd->dev, "%s: fail get exclusive ex=%p own=%p\n",
+			__func__, cd->exclusive_dev, cd->dev);
+		return;
+	}
+
+	t = wait_event_timeout(cd->wait_q, (cd->wait_until_wake == 1),
+			       msecs_to_jiffies(2000));
+	if (IS_TMO(t)) {
+		dev_err(cd->dev, "%s: tmo waiting I2C master resume\n",
+			__func__);
+	} else {
+		rc = cyttsp5_check_and_deassert_int(cd);
+		if (rc < 0)
+			dev_err(cd->dev, "%s: Error on deassert INT r=%d\n",
+				__func__, rc);
+	}
+
+	if (release_exclusive(cd, cd->dev) < 0)
+		/* Don't return fail code, mode is already changed. */
+		dev_err(cd->dev, "%s: fail to release exclusive\n", __func__);
+	else
+		parade_debug(cd->dev, DEBUG_LEVEL_2,
+			     "%s: pass release exclusive\n", __func__);
+}
+
 /*
  * CONFIG_PM_RUNTIME option is removed in 3.19.0.
  */
 #if defined(CONFIG_PM_RUNTIME) || \
 		(KERNEL_VERSION(3, 19, 0) <= LINUX_VERSION_CODE)
-static int cyttsp5_core_rt_suspend(struct device *dev)
+static __maybe_unused int cyttsp5_core_rt_suspend(struct device *dev)
 {
 	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
 	int rc;
@@ -5030,7 +5144,7 @@ static int cyttsp5_core_rt_suspend(struct device *dev)
 	return 0;
 }
 
-static int cyttsp5_core_rt_resume(struct device *dev)
+static __maybe_unused int cyttsp5_core_rt_resume(struct device *dev)
 {
 	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
 	int rc;
@@ -5045,12 +5159,39 @@ static int cyttsp5_core_rt_resume(struct device *dev)
 }
 #endif
 
-#if defined(CONFIG_PM_SLEEP)
-static int cyttsp5_core_suspend(struct device *dev)
+#if defined(CONFIG_PM_SLEEP) || defined(CONFIG_INPUT_TOUCHSCREEN_MMI)
+int cyttsp5_core_mmi_suspend(struct device *dev)
+{
+	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "%s: system PM suspend\n", __func__);
+	mutex_lock(&cd->system_lock);
+	cd->wait_until_wake = 0;
+	mutex_unlock(&cd->system_lock);
+	return 0;
+}
+
+int cyttsp5_core_mmi_resume(struct device *dev)
+{
+	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "%s: system PM resume\n", __func__);
+	if (!IS_DEEP_SLEEP_CONFIGURED(cd->easy_wakeup_gesture)) {
+		mutex_lock(&cd->system_lock);
+		cd->wait_until_wake = 1;
+		mutex_unlock(&cd->system_lock);
+		wake_up(&cd->wait_q);
+		msleep(20);
+	}
+	return 0;
+}
+
+int cyttsp5_core_suspend(struct device *dev)
 {
 	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
 
 	cyttsp5_core_sleep(cd);
+	call_atten_cb(cd, CY_ATTEN_SUSPEND, 0);
 
 	if (IS_DEEP_SLEEP_CONFIGURED(cd->easy_wakeup_gesture))
 		return 0;
@@ -5059,23 +5200,31 @@ static int cyttsp5_core_suspend(struct device *dev)
 	 * This will not prevent resume
 	 * Required to prevent interrupts before i2c awake
 	 */
-	disable_irq(cd->irq);
-	cd->irq_disabled = 1;
-
-	if (device_may_wakeup(dev)) {
-		parade_debug(dev, DEBUG_LEVEL_2, "%s Device MAY wakeup\n",
-			__func__);
-		if (!enable_irq_wake(cd->irq))
-			cd->irq_wake = 1;
+	if (!cd->should_enable_gesture) {
+		disable_irq(cd->irq);
+		cd->irq_disabled = 1;
 	} else {
-		parade_debug(dev, DEBUG_LEVEL_1, "%s Device MAY NOT wakeup\n",
-			__func__);
+		if (device_may_wakeup(dev)) {
+			parade_debug(dev, DEBUG_LEVEL_2, "%s Device MAY wakeup\n",
+				__func__);
+			if (!enable_irq_wake(cd->irq))
+				cd->irq_wake = 1;
+		} else {
+			parade_debug(dev, DEBUG_LEVEL_1, "%s Device MAY NOT wakeup\n",
+				__func__);
+		}
 	}
+
+	dev_info(dev, "%s: suspend power state %s \n", __func__,
+		cd->pm_mode == CYTTSP5_PM_POWEROFF ? "CYTTSP5_PM_POWEROFF" :
+		(cd->pm_mode == CYTTSP5_PM_DEEPSLEEP ? "CYTTSP5_PM_DEEPSLEEP" :
+		(cd->pm_mode == CYTTSP5_PM_EASY_WAKEUP ?   "CYTTSP5_PM_EASY_WAKEUP" :
+		(cd->pm_mode == CYTTSP5_PM_ACTIVE ? "CYTTSP5_PM_ACTIVE" : "Unknown"))));
 
 	return 0;
 }
 
-static int cyttsp5_core_resume(struct device *dev)
+int cyttsp5_core_resume(struct device *dev)
 {
 	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
 
@@ -5091,20 +5240,28 @@ static int cyttsp5_core_resume(struct device *dev)
 		cd->irq_disabled = 0;
 	}
 
-	if (device_may_wakeup(dev)) {
-		parade_debug(dev, DEBUG_LEVEL_2, "%s Device MAY wakeup\n",
-			__func__);
-		if (cd->irq_wake) {
-			disable_irq_wake(cd->irq);
-			cd->irq_wake = 0;
+	if (cd->should_enable_gesture) {
+		if (device_may_wakeup(dev)) {
+			parade_debug(dev, DEBUG_LEVEL_2, "%s Device MAY wakeup\n",
+				__func__);
+			if (cd->irq_wake) {
+				disable_irq_wake(cd->irq);
+				cd->irq_wake = 0;
+			}
+		} else {
+			parade_debug(dev, DEBUG_LEVEL_1, "%s Device MAY NOT wakeup\n",
+				__func__);
 		}
-	} else {
-		parade_debug(dev, DEBUG_LEVEL_1, "%s Device MAY NOT wakeup\n",
-			__func__);
 	}
-
 exit:
+	call_atten_cb(cd, CY_ATTEN_RESUME, 0);
 	cyttsp5_core_wake(cd);
+
+	dev_info(dev, "%s: resume power state %s \n", __func__,
+		cd->pm_mode == CYTTSP5_PM_POWEROFF ? "CYTTSP5_PM_POWEROFF" :
+		(cd->pm_mode == CYTTSP5_PM_DEEPSLEEP ? "CYTTSP5_PM_DEEPSLEEP" :
+		(cd->pm_mode == CYTTSP5_PM_EASY_WAKEUP ?   "CYTTSP5_PM_EASY_WAKEUP" :
+		(cd->pm_mode == CYTTSP5_PM_ACTIVE ? "CYTTSP5_PM_ACTIVE" : "Unknown"))));
 
 	return 0;
 }
@@ -5136,9 +5293,13 @@ static int cyttsp5_pm_notifier(struct notifier_block *nb,
 #endif
 
 const struct dev_pm_ops cyttsp5_pm_ops = {
+#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+	SET_SYSTEM_SLEEP_PM_OPS(cyttsp5_core_mmi_suspend, cyttsp5_core_mmi_resume)
+#else
 	SET_SYSTEM_SLEEP_PM_OPS(cyttsp5_core_suspend, cyttsp5_core_resume)
 	SET_RUNTIME_PM_OPS(cyttsp5_core_rt_suspend, cyttsp5_core_rt_resume,
 			NULL)
+#endif
 };
 EXPORT_SYMBOL_GPL(cyttsp5_pm_ops);
 
@@ -5705,15 +5866,15 @@ static ssize_t cyttsp5_platform_data_show(struct device *dev,
  ***********************************************************************/
 #define PIP_CMD_MAX_LENGTH ((1 << 16) - 1)
 #define STATUS_SUCCESS	0
-#define STATUS_FAIL	-1
+#define STATUS_FAIL	1
 
-static int prepare_print_buffer(int status, u8 *in_buf, int length,
+static int prepare_print_buffer(u8 status, u8 *in_buf, int length,
 		u8 *out_buf, size_t out_buf_size)
 {
 	int index = 0;
 	int i;
 
-	index += scnprintf(out_buf, out_buf_size, "status %d\n", status);
+	index += scnprintf(out_buf, out_buf_size, "%02X\n", status);
 
 	for (i = 0; i < length; i++) {
 		index += scnprintf(&out_buf[index], out_buf_size - index,
@@ -5803,12 +5964,12 @@ put_pm_runtime:
 	pm_runtime_put(dev);
 
 	if (rc) {
-		cnt = sprintf(buf, "Status %d\n", rc);
+		cnt = sprintf(buf, "command_result:%d\n", rc);
 	} else if (!cd->calibrate_initialize_baselines) {
-		cnt = sprintf(buf, "Status %d\n%d\n", rc, status_cal);
+		cnt = sprintf(buf, "command_result:%d\nstatus_calibration:%d\n", rc, status_cal);
 	} else {
-		cnt = sprintf(buf, "Status %d\n%d\n%d\n", rc, status_cal,
-			      status_baseline);
+		cnt = sprintf(buf, "command_result:%d\nstatus_calibration:%d\nstatus_baseline:%d\n",
+			rc, status_cal, status_baseline);
 	}
 
 	return cnt;
@@ -5819,7 +5980,7 @@ static ssize_t cyttsp5_run_and_get_selftest_result(struct device *dev,
 		bool get_result_on_pass)
 {
 	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
-	int status = STATUS_FAIL;
+	u8 status = STATUS_FAIL;
 	u8 cmd_status = 0;
 	u8 summary_result = 0;
 	u16 act_length = 0;
@@ -5908,7 +6069,7 @@ static ssize_t auto_shorts_show(struct device *dev,
 	/* Set length to PIP_CMD_MAX_LENGTH to read all */
 	cyttsp5_run_and_get_selftest_result(
 		dev, cd->pr_buf, sizeof(cd->pr_buf),
-		CY_ST_ID_AUTOSHORTS, PIP_CMD_MAX_LENGTH, false);
+		CY_ST_ID_AUTOSHORTS, PIP_CMD_MAX_LENGTH, true);
 
 	return snprintf(buf, CY_MAX_PRBUF_SIZE, "%s", cd->pr_buf);
 }
@@ -5922,6 +6083,19 @@ static ssize_t cm_panel_show(struct device *dev,
 	cyttsp5_run_and_get_selftest_result(
 		dev, cd->pr_buf, sizeof(cd->pr_buf),
 		CY_ST_ID_CM_PANEL, PIP_CMD_MAX_LENGTH, true);
+
+	return snprintf(buf, CY_MAX_PRBUF_SIZE, "%s", cd->pr_buf);
+}
+
+static ssize_t cp_panel_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
+
+	/* Set length to PIP_CMD_MAX_LENGTH to read all */
+	cyttsp5_run_and_get_selftest_result(
+		dev, cd->pr_buf, sizeof(cd->pr_buf),
+		CY_ST_ID_CP_PANEL, PIP_CMD_MAX_LENGTH, true);
 
 	return snprintf(buf, CY_MAX_PRBUF_SIZE, "%s", cd->pr_buf);
 }
@@ -5951,6 +6125,7 @@ static struct device_attribute attributes[] = {
 	__ATTR(calibrate, S_IRUSR | S_IWUSR, cyttsp5_calibrate_show,
 		cyttsp5_calibrate_store),
 	__ATTR(cm_panel, S_IRUGO, cm_panel_show, NULL),
+	__ATTR(cp_panel, S_IRUGO, cp_panel_show, NULL),
 	__ATTR(auto_shorts, S_IRUGO, auto_shorts_show, NULL),
 };
 
@@ -6095,6 +6270,7 @@ static const struct file_operations tthe_debugfs_fops = {
 };
 #endif
 
+#ifdef CONFIG_CYTTSP5_CREATE_PT_BL_FROM_FILE
 /*******************************************************************************
  * FUNCTION: _pt_read_us_file
  *
@@ -6194,6 +6370,7 @@ err:
 #endif
 	return rc;
 }
+#endif
 
 static struct cyttsp5_core_nonhid_cmd _cyttsp5_core_nonhid_cmd = {
 	.start_bl = _cyttsp5_request_hid_output_start_bl,
@@ -6221,7 +6398,9 @@ static struct cyttsp5_core_nonhid_cmd _cyttsp5_core_nonhid_cmd = {
 	.verify_app_integrity =
 		_cyttsp5_request_hid_output_bl_verify_app_integrity,
 	.get_panel_id = _cyttsp5_request_hid_output_bl_get_panel_id,
+#ifdef CONFIG_CYTTSP5_CREATE_PT_BL_FROM_FILE
 	.read_us_file          = _pt_read_us_file,
+#endif
 };
 
 static struct cyttsp5_core_commands _cyttsp5_core_commands = {
@@ -6544,6 +6723,83 @@ static int cyttsp5_setup_irq_gpio(struct cyttsp5_core_data *cd)
 	return rc;
 }
 
+#ifdef CYTTSP5_SENSOR_EN
+static int cyttsp5_sensor_set_enable(struct sensors_classdev *sensors_cdev,
+		unsigned int enable)
+{
+	return 0;
+}
+
+static int cyttsp5_sensor_init(struct cyttsp5_core_data *data)
+{
+	struct cyttsp5_sensor_platform_data *sensor_pdata;
+	struct input_dev *sensor_input_dev;
+	int err;
+
+	mutex_init(&data->state_mutex);
+
+	sensor_input_dev = input_allocate_device();
+	if (!sensor_input_dev) {
+		pr_err("%s: Failed to allocate device", __func__);
+		goto exit;
+	}
+
+	sensor_pdata = devm_kzalloc(&sensor_input_dev->dev,
+			sizeof(struct cyttsp5_sensor_platform_data),
+			GFP_KERNEL);
+	if (!sensor_pdata) {
+		pr_err("%s: Failed to allocate memory", __func__);
+		goto free_sensor_pdata;
+	}
+	data->sensor_pdata = sensor_pdata;
+
+	__set_bit(EV_KEY, sensor_input_dev->evbit);
+	__set_bit(KEY_F1, sensor_input_dev->keybit);
+	__set_bit(EV_SYN, sensor_input_dev->evbit);
+
+	sensor_input_dev->name = "s-double-tap";
+	data->sensor_pdata->input_sensor_dev = sensor_input_dev;
+
+	err = input_register_device(sensor_input_dev);
+	if (err) {
+		pr_err("%s: Unable to register device, err=%d", __func__, err);
+		goto free_sensor_input_dev;
+	}
+
+	sensor_pdata->ps_cdev = sensors_touch_cdev;
+	sensor_pdata->ps_cdev.sensors_enable = cyttsp5_sensor_set_enable;
+	sensor_pdata->data = data;
+
+	err = sensors_classdev_register(&sensor_input_dev->dev,
+				&sensor_pdata->ps_cdev);
+	if (err)
+		goto unregister_sensor_input_device;
+
+	return 0;
+
+unregister_sensor_input_device:
+	input_unregister_device(data->sensor_pdata->input_sensor_dev);
+free_sensor_input_dev:
+	input_free_device(data->sensor_pdata->input_sensor_dev);
+free_sensor_pdata:
+	devm_kfree(&sensor_input_dev->dev, sensor_pdata);
+	data->sensor_pdata = NULL;
+exit:
+	return 1;
+}
+
+int cyttsp5_sensor_remove(struct cyttsp5_core_data *data)
+{
+	sensors_classdev_unregister(&data->sensor_pdata->ps_cdev);
+	input_unregister_device(data->sensor_pdata->input_sensor_dev);
+	devm_kfree(&data->sensor_pdata->input_sensor_dev->dev,
+		data->sensor_pdata);
+	data->sensor_pdata = NULL;
+	data->should_enable_gesture = false;
+	return 0;
+}
+#endif
+
 int cyttsp5_probe(const struct cyttsp5_bus_ops *ops, struct device *dev,
 		u16 irq, size_t xfer_buf_size)
 {
@@ -6551,6 +6807,9 @@ int cyttsp5_probe(const struct cyttsp5_bus_ops *ops, struct device *dev,
 	struct cyttsp5_platform_data *pdata = dev_get_platdata(dev);
 	enum cyttsp5_atten_type type;
 	int rc = 0;
+#ifdef CYTTSP5_SENSOR_EN
+    static bool initialized_sensor;
+#endif
 
 	/* Set default values on first probe */
 	if (cyttsp5_first_probe) {
@@ -6616,6 +6875,7 @@ int cyttsp5_probe(const struct cyttsp5_bus_ops *ops, struct device *dev,
 
 	/* Initialize works */
 	INIT_WORK(&cd->startup_work, cyttsp5_startup_work_function);
+	INIT_WORK(&cd->ez_recovery_work, cyttsp5_ez_work_function);
 	INIT_WORK(&cd->watchdog_work, cyttsp5_watchdog_work);
 
 	/* Initialize HID specific data */
@@ -6659,6 +6919,11 @@ int cyttsp5_probe(const struct cyttsp5_bus_ops *ops, struct device *dev,
 	}
 	if (rc < 0)
 		dev_err(cd->dev, "%s: HW Init fail r=%d\n", __func__, rc);
+	else {
+		mutex_lock(&cd->system_lock);
+		cd->pm_mode = CYTTSP5_PM_ACTIVE;
+		mutex_unlock(&cd->system_lock);
+	}
 
 	/* Call platform detect function */
 	if (cd->cpdata->detect) {
@@ -6743,15 +7008,32 @@ int cyttsp5_probe(const struct cyttsp5_bus_ops *ops, struct device *dev,
 		goto error_startup_btn;
 	}
 
-	/* Probe registered modules */
-	cyttsp5_probe_modules(cd);
-
 #ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
 	dev_info(dev, "%s:cyttsp5_ts_mmi_dev_register",__func__);
 	rc = cyttsp5_ts_mmi_dev_register(dev);
 	if (rc) {
 		dev_info(dev, "Failed register touchscreen mmi.");
 		goto error_startup_btn;
+	}
+#endif
+
+	PM_WAKEUP_REGISTER(dev, cd->gesture_wakelock,
+			"cyttsp5_gesture_wakelock");
+	if (!cd->gesture_wakelock) {
+		dev_info(dev, "%s: allocate gesture wakeup source err!\n", __func__);
+		rc = -ENOMEM;
+		goto err_register_gesture_wakelock;
+	}
+
+	/* Probe registered modules */
+	cyttsp5_probe_modules(cd);
+
+#if defined (CYTTSP5_SENSOR_EN)
+	if (!initialized_sensor) {
+		if (!cyttsp5_sensor_init(cd))
+			initialized_sensor = true;
+		else
+			dev_err(dev, "%s: cyttsp5 init sensor fail.\n", __func__);
 	}
 #endif
 
@@ -6768,6 +7050,8 @@ int cyttsp5_probe(const struct cyttsp5_bus_ops *ops, struct device *dev,
 	is_cyttsp5_probe_success = true;
 	return 0;
 
+err_register_gesture_wakelock:
+	PM_WAKEUP_UNREGISTER(cd->gesture_wakelock);
 error_startup_btn:
 	cyttsp5_btn_release(dev);
 error_startup_mt:
@@ -6779,6 +7063,7 @@ error_startup:
 #endif
 	device_init_wakeup(dev, 0);
 	cancel_work_sync(&cd->startup_work);
+	cancel_work_sync(&cd->ez_recovery_work);
 	cyttsp5_stop_wd_timer(cd);
 	cyttsp5_free_si_ptrs(cd);
 	remove_sysfs_interfaces(dev);
@@ -6829,6 +7114,7 @@ int cyttsp5_release(struct cyttsp5_core_data *cd)
 	pm_runtime_disable(dev);
 
 	cancel_work_sync(&cd->startup_work);
+	cancel_work_sync(&cd->ez_recovery_work);
 
 	cyttsp5_stop_wd_timer(cd);
 
@@ -6863,5 +7149,8 @@ int cyttsp5_release(struct cyttsp5_core_data *cd)
 EXPORT_SYMBOL_GPL(cyttsp5_release);
 
 MODULE_LICENSE("GPL");
+#if KERNEL_VERSION(5, 4, 0) <= LINUX_VERSION_CODE
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+#endif
 MODULE_DESCRIPTION("Parade TrueTouch(R) Standard Product Core Driver");
 MODULE_AUTHOR("Parade Technologies <ttdrivers@paradetech.com>");

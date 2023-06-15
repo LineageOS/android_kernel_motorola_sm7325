@@ -83,6 +83,7 @@ static int qc3p_chrg_cv_delta_volt = 0;
 static int qc3p_quit_slave_chrg_cnt = 0;
 static int qc3p_batt_curr_roof = 0;
 static int qc3p_constant_power_cnt = 0;
+static int qc3p_batt_ovp_cnt = 0;
 
 static void mmi_chrg_qc3p_sm_move_state(struct mmi_charger_manager *chip, pm_sm_qc3p_state_t state)
 {
@@ -225,6 +226,7 @@ void mmi_qc3p_chrg_enable_all_cp(struct mmi_charger_manager *chip, int val)
 #define QC3P_HEARTBEAT_SHORT_DELAY_MS 1000
 #define QC3P_HEARTBEAT_lOOP_WAIT_MS 3000
 #define QC3P_HEARTBEAT_TUNNING_MS 100
+#define QC3P_HEARTBEAT_SHORT_DELAY_MS 1000
 #define QC3P_HEARTBEAT_NEXT_STATE_MS 100
 #define QC3P_HEARTBEAT_CANCEL -1
 #define QC3P_CC_CURR_DEBOUNCE 100000
@@ -236,6 +238,8 @@ void mmi_qc3p_chrg_enable_all_cp(struct mmi_charger_manager *chip, int val)
 #define QC3P_DISABLE_CHRG_LIMIT -1
 #define QC3P_CP_CHRG_SOC_LIMIT 90
 #define QC3P_CONT_PWR_CNT 5
+#define CP_CV_VOLT_TOLERANCE 10000  //10mV
+#define QC3P_BATT_OVP_COUNT 5
 
 void qc3p_clear_chg_manager(struct mmi_charger_manager *chip)
 {
@@ -292,6 +296,7 @@ void mmi_qc3p_chrg_sm_work_func(struct work_struct *work)
 	struct mmi_chrg_step_info *chrg_step;
 	union power_supply_propval prop = {0,};
 	struct mmi_cp_policy_dev *chrg_list = &g_chrg_list;
+	int thermal_cooling_current = 0;
 
 	mmi_chrg_dbg(chip, PR_MOTO, "\n\n\n");
 
@@ -380,16 +385,25 @@ void mmi_qc3p_chrg_sm_work_func(struct work_struct *work)
 
 	if (chip->pres_temp_zone == ZONE_COLD
 		|| chip->pres_temp_zone == ZONE_HOT
-		|| !chrg_list->chrg_dev[PMIC_SW]->charger_enabled
-		|| vbatt_volt > chip->batt_ovp_lmt) {
+		|| !chrg_list->chrg_dev[PMIC_SW]->charger_enabled) {
 
 		mmi_chrg_info(chip, "Force stop charging, "
 						"pres_temp_zone %d, "
-						"pmic charger enabled %d, "
+						"pmic charger enabled %d\n",
+						chip->pres_temp_zone,
+						chrg_list->chrg_dev[PMIC_SW]->charger_enabled);
+		mmi_chrg_qc3p_sm_move_state(chip, PM_QC3P_STATE_STOP_CHARGE);
+	}
+
+	if (vbatt_volt > chip->batt_ovp_lmt)
+		qc3p_batt_ovp_cnt ++;
+	else
+		qc3p_batt_ovp_cnt = 0;
+
+	if (qc3p_batt_ovp_cnt >= QC3P_BATT_OVP_COUNT) {
+		mmi_chrg_info(chip, "Force stop charging, "
 						"vbatt_volt %dmv, "
 						"batt ovp limit %dmv\n",
-						chip->pres_temp_zone,
-						chrg_list->chrg_dev[PMIC_SW]->charger_enabled,
 						vbatt_volt, chip->batt_ovp_lmt);
 		mmi_chrg_qc3p_sm_move_state(chip, PM_QC3P_STATE_STOP_CHARGE);
 	}
@@ -793,7 +807,7 @@ void mmi_qc3p_chrg_sm_work_func(struct work_struct *work)
 			goto schedule;
 		}
 
-		if (vbatt_volt >= chrg_step->chrg_step_cv_volt
+		if (((vbatt_volt + CP_CV_VOLT_TOLERANCE) >= chrg_step->chrg_step_cv_volt)
 			&& ((!chrg_step->last_step &&
 				ibatt_curr < chrg_step->chrg_step_cv_tapper_curr)
 				|| ibatt_curr < chrg_list->chrg_dev[CP_MASTER]->charging_curr_min)) {
@@ -805,12 +819,12 @@ void mmi_qc3p_chrg_sm_work_func(struct work_struct *work)
 								"chrg step %d, ibatt %dmA\n",
 			  					chrg_step->pres_chrg_step, ibatt_curr);
 					mmi_find_chrg_step(chip,
-							chip->pres_temp_zone, vbatt_volt);
+							chip->pres_temp_zone, vbatt_volt + CP_CV_VOLT_TOLERANCE);
 					mmi_chrg_qc3p_sm_move_state(chip, PM_QC3P_STATE_CP_QUIT);
 					heartbeat_dely_ms = QC3P_HEARTBEAT_NEXT_STATE_MS;
 				} else {
 					if (mmi_find_chrg_step(chip,
-							chip->pres_temp_zone, vbatt_volt)) {
+							chip->pres_temp_zone, vbatt_volt + CP_CV_VOLT_TOLERANCE)) {
 						heartbeat_dely_ms = QC3P_HEARTBEAT_NEXT_STATE_MS;
 						mmi_chrg_info(chip,"Jump to next chrg step\n");
 						mmi_chrg_qc3p_sm_move_state(chip,
@@ -1008,17 +1022,18 @@ schedule:
 			chip->qc3p_sys_therm_volt = chip->qc3p_request_volt_prev;
 		}
 
+		thermal_cooling_current = min(chip->thermal_mitigation[chip->system_thermal_level],chrg_step->chrg_step_cc_curr);
 		if (ibatt_curr >
-			chip->thermal_mitigation[chip->system_thermal_level] + QC3P_CC_CURR_DEBOUNCE) {
-			if (ibatt_curr - chip->thermal_mitigation[chip->system_thermal_level] > 300000)
+			thermal_cooling_current + QC3P_CC_CURR_DEBOUNCE) {
+			if (ibatt_curr - thermal_cooling_current > 300000)
 			  chip->qc3p_sys_therm_volt -= chip->qc3p_volt_steps *3;
 			else
 				chip->qc3p_sys_therm_volt -= chip->qc3p_volt_steps;
 			mmi_chrg_dbg(chip, PR_MOTO, "For thermal, decrease qc3 volt %d\n",
 								chip->qc3p_sys_therm_volt);
 		} else if ((ibatt_curr <
-			chip->thermal_mitigation[chip->system_thermal_level])) {
-			if (chip->thermal_mitigation[chip->system_thermal_level] - ibatt_curr > 300000)
+			thermal_cooling_current)) {
+			if (thermal_cooling_current - ibatt_curr > 300000)
 				chip->qc3p_sys_therm_volt += chip->qc3p_volt_steps *3;
 			else
 				chip->qc3p_sys_therm_volt += chip->qc3p_volt_steps;
@@ -1036,8 +1051,20 @@ schedule:
 			mmi_chrg_qc3p_sm_move_state(chip, PM_QC3P_STATE_ENTRY);
 	}
 
-	if (chip->qc3p_sys_therm_cooling)
-		chip->qc3p_target_volt = min(chip->qc3p_target_volt, chip->qc3p_sys_therm_volt);
+
+	if (chip->qc3p_sys_therm_cooling){
+		mmi_chrg_dbg(chip, PR_MOTO, "at thermal cooling status ,judge  ibatt_curr:%d, thermal_current_limited:%d ,chrg_step_cc_curr:%d,thermal_cooling_curr:%d\n",
+						 ibatt_curr, chip->thermal_mitigation[chip->system_thermal_level],chrg_step->chrg_step_cc_curr,thermal_cooling_current);
+		mmi_chrg_dbg(chip, PR_MOTO, "at thermal cooling status ,qc3p_target_volt:%d, qc3p_sys_therm_volt:%d\n", chip->qc3p_target_volt, chip->qc3p_sys_therm_volt);
+		if(qc3p_sm_state == PM_QC3P_STATE_CP_CC_LOOP )
+			chip->qc3p_target_volt = chip->qc3p_sys_therm_volt ;
+		else
+			chip->qc3p_target_volt = min(chip->qc3p_target_volt, chip->qc3p_sys_therm_volt);
+
+		chip->qc3p_request_volt = chip->qc3p_target_volt;
+		chip->qc3p_sys_therm_volt = chip->qc3p_target_volt;
+		heartbeat_dely_ms = QC3P_HEARTBEAT_SHORT_DELAY_MS;
+	}
 
 	if (chip->qc3p_batt_therm_cooling && !chip->qc3p_sys_therm_force_pmic_chrg) {
 		if (batt_temp > chrg_step->temp_c + COOLING_HYSTERISIS_DEGC) {

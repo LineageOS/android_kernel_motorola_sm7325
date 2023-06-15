@@ -23,6 +23,25 @@
 		dev_err(dev, "Failed to get driver data"); \
 		return -ENODEV; \
 	}
+#define MAX_ATTRS_ENTRIES 10
+
+#define ADD_ATTR(name) { \
+	if (idx < MAX_ATTRS_ENTRIES)  { \
+		dev_info(dev, "%s: [%d] adding %p\n", __func__, idx, &dev_attr_##name.attr); \
+		ext_attributes[idx] = &dev_attr_##name.attr; \
+		idx++; \
+	} else { \
+		dev_err(dev, "%s: cannot add attribute '%s'\n", __func__, #name); \
+	} \
+}
+
+static struct attribute *ext_attributes[MAX_ATTRS_ENTRIES];
+static struct attribute_group ext_attr_group = {
+	.attrs = ext_attributes,
+};
+
+extern int cyttsp5_core_suspend(struct device *dev);
+extern int cyttsp5_core_resume(struct device *dev);
 
 static int cyttsp5_ts_mmi_methods_get_vendor(struct device *dev, void *cdata) {
 	return scnprintf(TO_CHARP(cdata), TS_MMI_MAX_VENDOR_LEN, "%s", "parade");
@@ -97,7 +116,11 @@ static int cyttsp5_ts_mmi_methods_get_config_id(struct device *dev, void *cdata)
 		"%s: img vers:0x%04X ,revctrl vers:0x%04X\n", __func__,
 			fw_ver_img, fw_revctrl_img);
 
-	return snprintf(TO_CHARP(cdata), TS_MMI_MAX_ID_LEN, "%04x", le32_to_cpu(fw_revctrl_img));
+	return snprintf(TO_CHARP(cdata), TS_MMI_MAX_ID_LEN, "%02d%02d%02d%02x",
+		(fw_revctrl_img>>24)&0xff,
+		(fw_revctrl_img>>16)&0xff,
+		(fw_revctrl_img>>8)&0xff,
+		(fw_revctrl_img)&0xff);
 }
 
 static int cyttsp5_ts_mmi_methods_get_bus_type(struct device *dev, void *idata) {
@@ -127,7 +150,12 @@ static int cyttsp5_ts_mmi_methods_get_drv_irq(struct device *dev, void *idata) {
 
 static int cyttsp5_ts_mmi_methods_get_poweron(struct device *dev, void *idata)
 {
-	TO_INT(idata) = 1;
+	struct cyttsp5_platform_data *pdata = dev_get_platdata(dev);
+	ASSERT_PTR(pdata);
+
+	TO_INT(idata) = (regulator_is_enabled(pdata->core_pdata->avdd) &&
+		regulator_is_enabled(pdata->core_pdata->iovdd)) ? 1 : 0;
+
 	return 0;
 }
 
@@ -173,7 +201,173 @@ static int cyttsp5_ts_firmware_update(struct device *dev, char *fwname) {
 	cd->force_fw_upgrade = 1;
 	snprintf(cd->firmware_name, CYTTSP5_FIRMWARE_NAME_MAX_LEN, "%s", fwname);
 
+	if(cd->sleep_state != SS_SLEEP_OFF) {
+		dev_err(dev, "%s: Error, touch IC is on sleep state, can not do upgrade\n",
+				__func__);
+		return -EINVAL;
+	}
+
 	return cd->firmware_update(dev, fwname);
+}
+
+static __maybe_unused int cyttsp5_ts_mmi_methods_drv_irq(struct device *dev, int state) {
+	int ret = -ENODEV;
+	struct cyttsp5_core_data *cd =  dev_get_drvdata(dev);
+	ASSERT_PTR(cd);
+
+	mutex_lock(&cd->system_lock);
+	switch (state) {
+	case 0:
+		if (cd->irq_enabled) {
+			cd->irq_enabled = false;
+			/* Disable IRQ */
+			disable_irq_nosync(cd->irq);
+			dev_info(dev, "%s: Driver IRQ now disabled\n",
+				__func__);
+		} else
+			dev_info(dev, "%s: Driver IRQ already disabled\n",
+				__func__);
+		ret = 0;
+		break;
+
+	case 1:
+		if (cd->irq_enabled == false) {
+			cd->irq_enabled = true;
+			/* Enable IRQ */
+			enable_irq(cd->irq);
+			dev_info(dev, "%s: Driver IRQ now enabled\n",
+				__func__);
+		} else
+			dev_info(dev, "%s: Driver IRQ already enabled\n",
+				__func__);
+		ret = 0;
+		break;
+
+	default:
+		dev_err(dev, "%s: Invalid value\n", __func__);
+	}
+	mutex_unlock(&(cd->system_lock));
+
+	return ret;
+}
+
+static int cyttsp5_ts_mmi_methods_power(struct device *dev, int on) {
+	int rc = 0;
+	atomic_t is_ignore;
+	struct cyttsp5_core_data *cd =  dev_get_drvdata(dev);
+	ASSERT_PTR(cd);
+
+	atomic_set(&is_ignore, 1);
+	/* Call platform power function */
+	if (cd->cpdata->power) {
+		dev_info(cd->dev, "%s: Touch IC power on/off \n", __func__);
+		if(on == TS_MMI_POWER_ON)
+		{
+			rc = cd->cpdata->power(cd->cpdata, TS_MMI_POWER_ON, cd->dev, &is_ignore);
+			if (rc) {
+				dev_info(cd->dev, "%s: Power on touch IC success\n", __func__);
+				rc = -ENODEV;
+			}
+		}
+		else if(on == TS_MMI_POWER_OFF)
+		{
+			rc = cd->cpdata->power(cd->cpdata, TS_MMI_POWER_OFF, cd->dev, &is_ignore);
+			if (rc) {
+				dev_info(cd->dev, "%s: Power on touch IC failed \n", __func__);
+				rc = -ENODEV;
+			}
+		}
+	}
+	else {
+		dev_info(cd->dev, "%s: No Power operation func\n", __func__);
+		rc = -ENODEV;
+	}
+
+	return rc;
+}
+
+static int cyttsp5_ts_mmi_post_suspend(struct device *dev) {
+	pr_info("%s: Post suspend end", __func__);
+	cyttsp5_core_suspend(dev);
+	return 0;
+}
+
+static int cyttsp5_ts_mmi_post_resume(struct device *dev) {
+	pr_info("%s: Post resume end", __func__);
+	cyttsp5_core_resume(dev);
+	return 0;
+}
+
+#ifdef CYTTSP5_SENSOR_EN
+/*
+ * cli_gesture value used to indicate which gesture mode type is enabled
+ */
+static ssize_t cyttsp5_ts_cli_gesture_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct cyttsp5_core_data *cd = NULL;
+
+	dev = MMI_DEV_TO_TS_DEV(dev);
+	cd =  dev_get_drvdata(dev);
+	ASSERT_PTR(cd);
+	return scnprintf(buf, PAGE_SIZE, "%02x\n", cd->pdata->core_pdata->cli_gesture_type);
+}
+
+static ssize_t cyttsp5_ts_cli_gesture_store(struct device *dev,
+			struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct cyttsp5_core_data *cd = NULL;
+	unsigned int value = 0;
+	int err = 0;
+
+	dev = MMI_DEV_TO_TS_DEV(dev);
+	cd =  dev_get_drvdata(dev);
+	ASSERT_PTR(cd);
+
+	mutex_lock(&cd->state_mutex);
+	err = sscanf(buf, "%d", &value);
+	if (err < 0) {
+		dev_err(dev, "%s: Failed to convert value\n", __func__);
+		return -EINVAL;
+	}
+	switch (value) {
+		case 0x20:
+			dev_info(dev, "%s: cli single tap disable\n", __func__);
+			cd->should_enable_gesture = 0;
+			break;
+		case 0x21:
+			dev_info(dev, "%s: cli single tap enable\n", __func__);
+			cd->should_enable_gesture = 1;
+			break;
+		default:
+			dev_info(dev, "%s: unsupport gesture mode type\n", __func__);
+			;
+	}
+	mutex_unlock(&cd->state_mutex);
+	dev_info(dev, "%s: cli_gesture = 0x%02x \n", __func__, cd->should_enable_gesture);
+
+	return size;
+}
+
+static DEVICE_ATTR(cli_gesture, (S_IRUGO | S_IWUSR | S_IWGRP),
+	cyttsp5_ts_cli_gesture_show, cyttsp5_ts_cli_gesture_store);
+#endif
+
+static int cyttsp5_ts_mmi_extend_attribute_group(struct device *dev, struct attribute_group **group)
+{
+	int idx = 0;
+
+#ifdef CYTTSP5_SENSOR_EN
+	ADD_ATTR(cli_gesture);
+#endif
+
+	if (idx) {
+		ext_attributes[idx] = NULL;
+		*group = &ext_attr_group;
+	} else
+		*group = NULL;
+
+	return 0;
 }
 
 static struct ts_mmi_methods cyttsp5_ts_mmi_methods = {
@@ -189,8 +383,14 @@ static struct ts_mmi_methods cyttsp5_ts_mmi_methods = {
 	.get_flashprog = cyttsp5_ts_mmi_methods_get_flashprog,
 	/* SET methods */
 	.reset =  cyttsp5_ts_mmi_methods_reset,
+	.power = cyttsp5_ts_mmi_methods_power,
 	/* Firmware */
 	.firmware_update = cyttsp5_ts_firmware_update,
+	/* vendor specific attribute group */
+	.extend_attribute_group = cyttsp5_ts_mmi_extend_attribute_group,
+	/* PM callback */
+	.post_resume = cyttsp5_ts_mmi_post_resume,
+	.post_suspend = cyttsp5_ts_mmi_post_suspend,
 };
 
 int cyttsp5_ts_mmi_dev_register(struct device *dev) {
@@ -206,6 +406,11 @@ int cyttsp5_ts_mmi_dev_register(struct device *dev) {
 
 	cd->imports = &cyttsp5_ts_mmi_methods.exports;
 
+#if defined(CONFIG_GTP_LIMIT_USE_SUPPLIER)
+	if (cd->imports && cd->imports->get_supplier) {
+		ret = cd->imports->get_supplier(cd->dev, &cd->supplier);
+	}
+#endif
 	return 0;
 }
 

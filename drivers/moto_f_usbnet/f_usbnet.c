@@ -50,10 +50,13 @@
 
 /* Linux Network Interface */
 #define USB_MTU                 15360
+#define CURRENT_MTU             15000
 #define MAX_BULK_TX_REQ_NUM	80
 #define MAX_BULK_RX_REQ_NUM	80
 #define MAX_INTR_RX_REQ_NUM	80
 #define INTERFACE_STRING_INDEX  0
+
+#define	WORK_RX_MEMORY		0
 
 struct usbnet_context {
 	spinlock_t lock;  /* For RX/TX list */
@@ -76,6 +79,8 @@ struct usbnet_context {
 	u32 router_ip;
 	u32 iff_flag;
 	struct socket *socket;
+	struct work_struct	work;
+	unsigned long		todo;
 };
 
 
@@ -252,6 +257,46 @@ static struct usb_descriptor_header *ss_function[] = {
 
 static const char *usb_description = "Motorola BLAN Interface";
 
+static int ether_queue_out(struct usb_request *req ,
+				struct usbnet_context *context);
+struct usb_request *usb_get_recv_request(struct usbnet_context *context);
+static void defer_kevent(struct usbnet_context *context, int flag);
+static void eth_work(struct work_struct *work);
+static void rx_fill(struct usbnet_context *context)
+{
+	struct usb_request	*req;
+
+	/* fill unused rxq slots with some skb */
+	while ((req = usb_get_recv_request(context))) {
+		if (ether_queue_out(req,context) < 0) {
+			defer_kevent(context, WORK_RX_MEMORY);
+			USBNETDBG(context,"rx_fill failed, defer_kevent\n");
+			break;
+		}
+	}
+}
+
+static void eth_work(struct work_struct *work)
+{
+	struct usbnet_context *context;
+
+	context= container_of(work, struct usbnet_context, work);
+	if (test_and_clear_bit(WORK_RX_MEMORY, &context->todo)) {
+		if (netif_running(context->dev))
+			rx_fill(context);
+	}
+	if (context->todo)
+		USBNETDBG(context,"work done, flags = 0x%lx\n", context->todo);
+}
+
+static void defer_kevent(struct usbnet_context *context, int flag)
+{
+	if (test_and_set_bit(flag, &context->todo))
+		return;
+	if (!schedule_work(&context->work))
+		USBNETDBG(context, "kevent %d may have been dropped\n", flag);
+	USBNETDBG(context, "kevent %d schedule done\n", flag);
+}
 static ssize_t usbnet_desc_show(struct device *dev,
 				 struct device_attribute *attr, char *buff)
 {
@@ -262,11 +307,67 @@ static ssize_t usbnet_desc_show(struct device *dev,
 
 static DEVICE_ATTR(description, S_IRUGO, usbnet_desc_show, NULL);
 
+static ssize_t usbnet_ip_addr_show(struct device *dev,
+				struct device_attribute *attr, char *buff)
+{
+	ssize_t status = 0;
+	struct net_device *ndev = to_net_dev(dev);
+	struct usbnet_context *context = netdev_priv(ndev);
+
+	status = snprintf(buff, 30, "0x%08x\n", context->ip_addr);
+	return status;
+};
+static DEVICE_ATTR(ip_addr, S_IRUGO, usbnet_ip_addr_show, NULL);
+
+static ssize_t usbnet_subnet_mask_show(struct device *dev,
+				struct device_attribute *attr, char *buff)
+{
+	ssize_t status = 0;
+	struct net_device *ndev = to_net_dev(dev);
+	struct usbnet_context *context = netdev_priv(ndev);
+
+	status = snprintf(buff, 30, "0x%08x\n", context->subnet_mask);
+	return status;
+};
+static DEVICE_ATTR(subnet_mask, S_IRUGO, usbnet_subnet_mask_show, NULL);
+
+static ssize_t usbnet_iff_flag_show(struct device *dev,
+				struct device_attribute *attr, char *buff)
+{
+	ssize_t status = 0;
+	struct net_device *ndev = to_net_dev(dev);
+	struct usbnet_context *context = netdev_priv(ndev);
+
+	status = snprintf(buff, 30, "0x%08x\n", context->iff_flag);
+	return status;
+};
+static DEVICE_ATTR(iff_flag, S_IRUGO, usbnet_iff_flag_show, NULL);
+
+static void usbnet_if_config_notify(struct usbnet_context *context)
+{
+	struct kobj_uevent_env *env;
+	struct net_device *net_dev = context->dev;
+
+	env = kzalloc(sizeof(*env), GFP_KERNEL);
+	if (!env) {
+		USBNETDBG(context, "%s: alloc uevent error\n", __func__);
+		return;
+	}
+
+	add_uevent_var(env, "USBNET_IF_CFG_IP_ADDR=0x%08x",
+				context->ip_addr);
+	add_uevent_var(env, "USBNET_IP_CFG_ROUTER_ADDR=0x%08x",
+				context->router_ip);
+	add_uevent_var(env, "USBNET_IP_CFG_SUBNET_MASK=0x%08x",
+				context->subnet_mask);
+	kobject_uevent_env(&net_dev->dev.kobj, KOBJ_CHANGE, env->envp);
+	kfree(env);
+}
+
 static inline struct usbnet_device *usbnet_func_to_dev(struct usb_function *f)
 {
 	return container_of(f, struct usbnet_device, function);
 }
-
 
 static int ether_queue_out(struct usb_request *req ,
 				struct usbnet_context *context)
@@ -293,9 +394,16 @@ static int ether_queue_out(struct usb_request *req ,
 	ret = usb_ep_queue(context->bulk_out, req, GFP_KERNEL);
 	if (ret == 0)
 		return 0;
-	else
-		kfree_skb(skb);
+	if (ret == -ENOMEM){
+		USBNETDBG(context, "%s: failed to enqueue nomem\n", __func__);
 fail:
+		defer_kevent(context, WORK_RX_MEMORY);
+	}
+	if (ret) {
+		USBNETDBG(context, "ether_queue_out --> %d\n", ret);
+		if (skb)
+			dev_kfree_skb_any(skb);
+	}
 	spin_lock_irqsave(&context->lock, flags);
 	list_add_tail(&req->list, &context->rx_reqs);
 	spin_unlock_irqrestore(&context->lock, flags);
@@ -407,6 +515,8 @@ static int usb_ether_open(struct net_device *dev)
 {
 	struct usbnet_context *context = netdev_priv(dev);
 	USBNETDBG(context, "%s\n", __func__);
+	defer_kevent(context, WORK_RX_MEMORY);
+	USBNETDBG(context, "restart rx work\n");
 	return 0;
 }
 
@@ -423,12 +533,16 @@ static struct net_device_stats *usb_ether_get_stats(struct net_device *dev)
 	return &context->stats;
 }
 
+static int usbnet_add_files(struct usbnet_context *context);
+static void usbnet_remove_files(struct usbnet_context *context);
 static void usbnet_if_config(struct work_struct *work)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0)
 	struct ifreq ifr;
 	mm_segment_t saved_fs;
-	unsigned err;
 	struct sockaddr_in *sin;
+	unsigned err;
+#endif
 	struct usbnet_context *context = container_of(work,
 				 struct usbnet_context, usbnet_config_wq);
 	struct socket *sock = context->socket;
@@ -443,6 +557,8 @@ static void usbnet_if_config(struct work_struct *work)
 		__func__, context->config, context->ip_addr);
 	pr_info("subnet = 0x%08x, router_ip = 0x%08x, flags = 0x%08x\n",
 		context->subnet_mask, context->router_ip, context->iff_flag);
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0)
 	memset(&ifr, 0, sizeof(ifr));
 	sin = (void *) &(ifr.ifr_ifru.ifru_addr);
 	strlcpy(ifr.ifr_ifrn.ifrn_name, context->dev->name,
@@ -452,6 +568,7 @@ static void usbnet_if_config(struct work_struct *work)
 	sin->sin_addr.s_addr = context->ip_addr;
 	saved_fs = get_fs();
 	set_fs(KERNEL_DS);
+
 	err = sock->ops->ioctl(sock, SIOCSIFADDR, (unsigned long)&ifr);
 	if (err)
 		USBNETDBG(context, "%s: Error in SIOCSIFADDR\n", __func__);
@@ -475,6 +592,12 @@ static void usbnet_if_config(struct work_struct *work)
 	if (err)
 		USBNETDBG(context, "%s: Error in SIOCSIFFLAGS\n", __func__);
 	set_fs(saved_fs);
+#endif
+	if (context->iff_flag)
+		usbnet_add_files(context);
+	else
+		usbnet_remove_files(context);
+	usbnet_if_config_notify(context);
 }
 
 static const struct net_device_ops usbnet_eth_netdev_ops = {
@@ -508,6 +631,7 @@ static void usbnet_cleanup(struct usbnet_device *dev)
 	if (context) {
 		device_remove_file(&(context->dev->dev), &dev_attr_description);
 		unregister_netdev(context->dev);
+		flush_work(&context->work);
 		free_netdev(context->dev);
 		dev->net_ctxt = NULL;
 	}
@@ -541,6 +665,7 @@ static void usbnet_unbind(struct usb_configuration *c, struct usb_function *f)
 		}
 	}
 
+	context->gadget = NULL;
 	context->bulk_in = NULL;
 	context->bulk_out = NULL;
 	context->config = 0;
@@ -550,13 +675,27 @@ static void ether_out_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	struct sk_buff *skb = req->context;
 	struct usbnet_context *context = ep->driver_data;
+	int		status;
 
 	if (req->status == 0) {
 		skb_put(skb, req->actual);
 		skb->protocol = eth_type_trans(skb, context->dev);
 		context->stats.rx_packets++;
 		context->stats.rx_bytes += req->actual;
-		netif_rx(skb);
+		if( ETH_HLEN > skb->len
+					|| skb->len > CURRENT_MTU) {
+				USBNETDBG(context, "rx length not right %d\n", skb->len);
+				context->stats.rx_errors++;
+				dev_kfree_skb_any(skb);
+		} else {
+			status = netif_rx(skb);
+			if (status < 0) {
+				USBNETDBG(context, "netif_rx failed  %d\n", status);
+				context->stats.rx_errors++;
+				dev_kfree_skb_any(skb);
+			}
+		}
+
 	} else {
 		dev_kfree_skb_any(skb);
 		context->stats.rx_errors++;
@@ -568,7 +707,7 @@ static void ether_out_complete(struct usb_ep *ep, struct usb_request *req)
 		spin_lock_irqsave(&context->lock, flags);
 		list_add_tail(&req->list, &context->rx_reqs);
 		spin_unlock_irqrestore(&context->lock, flags);
-	} else {
+	}else {
 		if (ether_queue_out(req, context))
 			USBNETDBG(context, "ether_out: cannot requeue\n");
 	}
@@ -710,19 +849,16 @@ autoconf_fail:
 	return rc;
 }
 
-
-
-
 static void do_set_config(struct usb_function *f, u16 new_config)
 {
 	struct usbnet_device  *dev = usbnet_func_to_dev(f);
 	struct usbnet_context *context = dev->net_ctxt;
 	struct usb_composite_dev *cdev = f->config->cdev;
 	int result = 0;
-	struct usb_request *req;
-		USBNETDBG(context,
-				"do_set_config ep %s\n",
+
+	USBNETDBG(context, "do_set_config ep %s\n",
 				context->bulk_in->name);
+
 	if (context->config == new_config) /* Config did not change */
 		return;
 
@@ -782,17 +918,7 @@ static void do_set_config(struct usb_function *f, u16 new_config)
 		}
 
 		context->intr_out->driver_data = context;
-
-		/* we're online -- get all rx requests queued */
-		while ((req = usb_get_recv_request(context))) {
-			if (ether_queue_out(req, context)) {
-				USBNETDBG(context,
-					  "%s: ether_queue_out failed\n",
-					  __func__);
-				break;
-			}
-		}
-
+		rx_fill(context);
 	} else {/* Disable Endpoints */
 		if (context->bulk_in)
 			usb_ep_disable(context->bulk_in);
@@ -931,6 +1057,42 @@ static int usbnet_set_inst_name(struct usb_function_instance *fi,
 	return 0;
 }
 
+static int usbnet_add_files(struct usbnet_context *context)
+{
+	int ret;
+	struct net_device *net_dev = context->dev;
+
+	ret = device_create_file(&net_dev->dev, &dev_attr_ip_addr);
+	if (ret < 0) {
+		pr_err("%s: ip_addr creation error=%d\n", __func__, ret);
+		return ret;
+	}
+	ret = device_create_file(&net_dev->dev, &dev_attr_subnet_mask);
+	if (ret < 0) {
+		pr_err("%s: subnet_mask creation error=%d\n", __func__, ret);
+		device_remove_file(&net_dev->dev, &dev_attr_ip_addr);
+		return ret;
+	}
+	ret = device_create_file(&net_dev->dev, &dev_attr_iff_flag);
+	if (ret < 0) {
+		pr_err("%s: iff_flag creation error=%d\n", __func__, ret);
+		device_remove_file(&net_dev->dev, &dev_attr_ip_addr);
+		device_remove_file(&net_dev->dev, &dev_attr_subnet_mask);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void usbnet_remove_files(struct usbnet_context *context)
+{
+	struct net_device *net_dev = context->dev;
+
+	device_remove_file(&net_dev->dev, &dev_attr_ip_addr);
+	device_remove_file(&net_dev->dev, &dev_attr_subnet_mask);
+	device_remove_file(&net_dev->dev, &dev_attr_iff_flag);
+}
+
 static void usbnet_free_inst(struct usb_function_instance *f)
 {
 	struct usbnet_opts *opts;
@@ -989,7 +1151,7 @@ static struct usb_function_instance *usbnet_alloc_inst(void)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	net_dev->mtu = 15000;
+	net_dev->mtu = CURRENT_MTU;
 	ret = register_netdev(net_dev);
 	if (ret) {
 		pr_err("%s: register_netdev error\n", __func__);
@@ -1024,6 +1186,7 @@ static struct usb_function_instance *usbnet_alloc_inst(void)
 	context->socket->sk->sk_user_data = context;
 
 	INIT_WORK(&context->usbnet_config_wq, usbnet_if_config);
+	INIT_WORK(&context->work, eth_work);
 	context->config = 0;
 	dev->net_ctxt = context;
 	spin_lock_init(&context->lock);

@@ -69,6 +69,9 @@
 #ifdef FTS_USB_DETECT_EN
 #include <linux/power_supply.h>
 #endif
+#ifdef CONFIG_FTS_LAST_TIME
+#include <linux/ktime.h>
+#endif
 
 /*****************************************************************************
 * Private constant and macro definitions using #define
@@ -121,7 +124,7 @@
 /*
  * For commnication error in PM(deep sleep) state
  */
-#define FTS_PATCH_COMERR_PM                 0
+#define FTS_PATCH_COMERR_PM                 1
 #define FTS_TIMEOUT_COMERR_PM               700
 
 /*****************************************************************************
@@ -199,6 +202,7 @@ struct fts_ts_data {
     wait_queue_head_t ts_waitqueue;
     struct ftxxxx_proc proc;
     struct ftxxxx_proc proc_ta;
+    struct ftxxxx_proc proc_raw;
     spinlock_t irq_lock;
     struct mutex report_mutex;
     struct mutex bus_lock;
@@ -265,6 +269,7 @@ struct fts_ts_data {
 #ifdef FOCALTECH_SENSOR_EN
     bool wakeable;
 #endif
+    u8 gsx_cmd;
 
 #ifdef FOCALTECH_PALM_SENSOR_EN
     bool palm_detection_enabled;
@@ -286,6 +291,10 @@ struct fts_ts_data {
 #if defined(CONFIG_INPUT_TOUCHSCREEN_MMI)
     struct ts_mmi_class_methods *imports;
 #endif
+#ifdef CONFIG_FTS_LAST_TIME
+    ktime_t last_event_time;
+#endif
+    struct mutex mode_lock;
 };
 
 enum _FTS_BUS_TYPE {

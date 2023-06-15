@@ -802,7 +802,9 @@ static int ilitek_tddi_mp_ini_parser(const char *path)
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	mm_segment_t old_fs;
 #endif
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
 	loff_t pos = 0;
+#endif
 
 	ILI_INFO("ini file path = %s\n", path);
 
@@ -849,13 +851,13 @@ static int ilitek_tddi_mp_ini_parser(const char *path)
 	}
 
 	if (f != NULL) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-		kernel_read(f, tmp, fsize, &pos);
-#else
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 		old_fs = get_fs();
 		set_fs(get_ds());
 		vfs_read(f, tmp, fsize, &pos);
 		set_fs(old_fs);
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+		kernel_read(f, tmp, fsize, &pos);
 #endif
 		tmp[fsize] = 0x0;
 	} else {
@@ -1040,9 +1042,11 @@ static void run_tx_rx_delta_test(int index)
 
 static char *get_date_time_str(void)
 {
+	static char time_data_buf[128] = { 0 };
+
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 14, 0)
 	struct timespec now_time;
 	struct rtc_time rtc_now_time;
-	static char time_data_buf[128] = { 0 };
 
 	getnstimeofday(&now_time);
 	rtc_time_to_tm(now_time.tv_sec, &rtc_now_time);
@@ -1050,6 +1054,15 @@ static char *get_date_time_str(void)
 		(rtc_now_time.tm_year + 1900), rtc_now_time.tm_mon + 1,
 		rtc_now_time.tm_mday, rtc_now_time.tm_hour, rtc_now_time.tm_min,
 		rtc_now_time.tm_sec);
+#else
+	struct tm tm;
+	time64_to_tm(ktime_get_real_seconds(), 0, &tm);
+
+	snprintf(time_data_buf, sizeof(time_data_buf), "%04d%02d%02d-%02d%02d%02d",
+		(int)(tm.tm_year + 1900), tm.tm_mon + 1,
+		tm.tm_mday, tm.tm_hour, tm.tm_min,
+		tm.tm_sec);
+#endif
 
 	return time_data_buf;
 }
@@ -3313,13 +3326,13 @@ static int mp_show_result(bool lcm_on)
 	}
 
 	pos = 0;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	kernel_write(f, csv, csv_len, &pos);
-#else
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 	vfs_write(f, csv, csv_len, &pos);
 	set_fs(fs);
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+	kernel_write(f, csv, csv_len, &pos);
 #endif
 	filp_close(f, NULL);
 

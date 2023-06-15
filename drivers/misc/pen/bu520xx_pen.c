@@ -297,6 +297,10 @@ static void pen_report_function(struct work_struct *dat)
 	int counter, status = 0, initial_status;
 
 	pen_dbg_func_in();
+	if (!hall_sensor_dev) {
+		pen_info("[%s] hall_sensor_dev isn't init.\n", DRIVER_NAME);
+		return;
+	}
 	initial_status = hall_sensor_dev->status;
 	for (counter = 0;counter < 3;counter++){
 		msleep(50);
@@ -317,6 +321,10 @@ static void pen_report_function(struct work_struct *dat)
 		return;
 	}
 
+	if (!hall_sensor_dev->pen_indev) {
+		pen_info("[%s] pen_indev isn't ready,don't report.\n", DRIVER_NAME);
+		return;
+	}
 	input_report_switch(hall_sensor_dev->pen_indev, SW_PEN_INSERTED, !hall_sensor_dev->status);
 	input_sync(hall_sensor_dev->pen_indev);
 #ifdef CONFIG_HAS_WAKELOCK
