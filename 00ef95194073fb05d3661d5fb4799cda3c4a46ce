@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "a037f48a_7e3a09b0",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 23878
+      },
+      "writtenOn": "2023-06-15T15:15:44Z",
+      "side": 1,
+      "message": "DNM|Squashed",
+      "revId": "00ef95194073fb05d3661d5fb4799cda3c4a46ce",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
