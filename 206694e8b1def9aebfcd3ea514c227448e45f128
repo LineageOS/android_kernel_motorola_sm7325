@@ -16,6 +16,23 @@
       "message": "DNM|Squashed",
       "revId": "206694e8b1def9aebfcd3ea514c227448e45f128",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "fd179bbc_acecf691",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19252
+      },
+      "writtenOn": "2023-06-16T05:44:34Z",
+      "side": 1,
+      "message": "We will need this\n\nhttps://github.com/LineageOS/android_kernel_motorola_sm7325/commit/9c68c6b61e65366e63e0b47c9f622773bd905ccd\n\n../../../../../../kernel/motorola/sm7325/techpack/audio/asoc/codecs/aw88261/aw882xx.c:1332:20: error: variable \u0027aw_dev\u0027 set but not used [-Werror,-Wunused-but-set-variable]\n        struct aw_device *aw_dev;\n                          ^",
+      "revId": "206694e8b1def9aebfcd3ea514c227448e45f128",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
