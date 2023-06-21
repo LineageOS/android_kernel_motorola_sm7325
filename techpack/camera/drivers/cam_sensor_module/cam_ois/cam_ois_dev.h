@@ -28,6 +28,9 @@
 #define MODE_ADDR 0x7014
 #define ENABLE_ADDR 0x7015
 #define PACKET_ADDR 0x70B0
+#define DATA_READY_ADDR 0x70DA
+#define DATA_READY 0x0001
+#define READ_COUNT 3
 #define PACKET_BYTE 62
 #define MAX_PACKET 5
 #define MAX_SAMPLE 30
@@ -36,6 +39,13 @@
 #define QTIMER_ADDR 0x70DB
 #define QTIMER_SAMPLE_TIME 2
 #define QTIMER_MAX_SAMPLE 20
+
+/* AW86006 EIS */
+#define RING_BUFFER_LEN 42
+#define AW86006_PACKET_ENABLE 0x0003
+#define AW86006_PACKET_ADDR 0x0006
+#define AW86006_MAX_SAMPLE 10
+
 
 enum cam_ois_state {
 	CAM_OIS_INIT,
@@ -94,6 +104,13 @@ struct cam_ois_intf_params {
 	struct cam_req_mgr_crm_cb *crm_cb;
 };
 
+struct awrw_ctrl {
+	uint32_t addr[4];
+	uint16_t reg_num;
+	uint8_t flag;
+	uint8_t *reg_data;
+};
+
 /**
  * struct cam_ois_ctrl_t - OIS ctrl private data
  * @device_name     :   ois device_name
@@ -141,6 +158,7 @@ struct cam_ois_ctrl_t {
 	struct i2c_settings_array i2c_calib_data;
 	struct i2c_settings_array i2c_postcalib_data;
 	struct i2c_settings_array i2c_mode_data;
+	struct i2c_settings_array i2c_gyro_data;
 	struct i2c_settings_array i2c_time_data;
 	enum msm_camera_device_type_t ois_device_type;
 	enum cam_ois_state cam_ois_state;
@@ -166,6 +184,15 @@ struct cam_ois_ctrl_t {
 	int ois_data_size;
 	uint16_t q_timer_cnt;
 	uint64_t mono_timestamp;
+	/* awinic_add */
+	const char *ic_name;
+	struct work_struct aw_fw_update_work;
+	struct mutex aw_ois_mutex;
+	struct awrw_ctrl *awrw_ctrl;
+	uint8_t *ring_buff;
+	int ring_buff_size;
+	bool is_video_mode;
+	bool is_need_eis_data;
 };
 
 /**
