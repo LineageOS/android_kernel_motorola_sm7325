@@ -866,6 +866,11 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 	if (panel->host_config.ext_bridge_mode)
 		return 0;
 
+	if(panel->lhbm_config.enable) {
+		panel->lhbm_config.dbv_level = bl_lvl;
+		DSI_INFO("backlight type:%d dbv lvl:%d\n", bl->type, bl_lvl);
+	}
+
 	if (dsi_panel_set_hbm_backlight(panel, &bl_lvl))
 		return 0;
 
@@ -998,7 +1003,7 @@ static int dsi_panel_send_param_cmd(struct dsi_panel *panel,
 	if (param_info->value >= panel_param->val_max)
 		param_info->value = panel_param->val_max - 1;
 
-	if (panel_param->value == param_info->value)
+	if (panel_param->value == param_info->value && param_info->param_idx != PARAM_DC_ID)
 	{
 		rc = 0;
 	} else {
@@ -1037,16 +1042,103 @@ end:
 	return rc;
 };
 
+static int dsi_panel_set_local_hbm_param(struct dsi_panel *panel,
+                        struct msm_param_info *param_info,
+                        struct dsi_panel_lhbm_config *lhbm_config)
+{
+	int rc = 0, count = 0, i;
+	int alpha = 0;
+	u8 *payload;
+	struct panel_param_val_map *param_map;
+	struct panel_param_val_map *param_map_state;
+	struct panel_param *panel_param;
+	struct dsi_cmd_desc *cmds;
+
+
+	panel_param = &panel->param_cmds[param_info->param_idx];
+	if (!panel_param) {
+		DSI_ERR("%s: invalid panel_param.\n", __func__);
+		return -EINVAL;
+	}
+
+        param_map = panel_param->val_map;
+
+	mutex_lock(&panel->panel_lock);
+
+	if (param_info->value >= panel_param->val_max)
+		param_info->value = panel_param->val_max - 1;
+
+	if (panel_param->value == param_info->value)
+	{
+		rc =  0;
+		goto end;
+	} else {
+		param_map = panel->param_cmds[param_info->param_idx].val_map;
+		param_map_state = &param_map[param_info->value];
+		if (!param_map_state->cmds || !param_map_state->cmds->cmds) {
+			DSI_ERR("Invalid cmds or cmds->cmds\n");
+			rc = -EINVAL;
+			goto end;
+		}
+
+		cmds = param_map_state->cmds->cmds;
+		count = param_map_state->cmds->count;
+
+		for (i =0; i < count; i++) {
+			payload = (u8 *)cmds->msg.tx_buf;
+			if(param_info->value == HBM_FOD_ON_STATE &&
+				payload[0] == lhbm_config->alpha_reg) {
+				if(lhbm_config->dbv_level >lhbm_config->alpha_size) {
+					DSI_ERR("unsupport dbv level %d on local hbm\n", lhbm_config->dbv_level);
+					rc = -EINVAL;
+					goto end;
+				}
+
+				alpha = lhbm_config->alpha[lhbm_config->dbv_level];
+				payload[1] = (alpha&0xff00)>>8;
+				payload[2] = alpha&0xff;
+				DSI_INFO("%s: alpha [%x]=%x%x\n",
+				        __func__, payload[0], payload[1], payload[2]);
+				rc =  0;
+				goto end;
+			} else if(param_info->value == HBM_OFF_STATE &&
+				payload[0] == 0x51) {
+				payload[1] = (lhbm_config->dbv_level&0xff00)>>8;
+				payload[2] = lhbm_config->dbv_level&0xff;
+				DSI_INFO("%s: restore backlight level=%d\n",
+				        __func__, lhbm_config->dbv_level);
+				rc =  0;
+				goto end;
+			}
+			cmds++;
+		}
+	}
+
+end:
+	mutex_unlock(&panel->panel_lock);
+	return rc;
+};
+
 static int dsi_panel_set_hbm(struct dsi_panel *panel,
                         struct msm_param_info *param_info)
 {
 	int rc = 0;
+	u32 bl_lvl;
+	struct dsi_panel_lhbm_config *lhbm_config = &panel->lhbm_config;
+
+	if(lhbm_config->enable && param_info->value != HBM_ON_STATE) {
+		dsi_panel_set_local_hbm_param(panel, param_info, lhbm_config);
+	}
 
 	rc = dsi_panel_send_param_cmd(panel, param_info);
 	if (rc < 0) {
 		DSI_ERR("%s: failed to send param cmds. ret=%d\n", __func__, rc);
 	} else {
-		rc = dsi_panel_set_backlight(panel, HBM_BRIGHTNESS(param_info->value));
+		if(lhbm_config->enable)
+			bl_lvl = lhbm_config->dbv_level;
+		else
+			bl_lvl = HBM_BRIGHTNESS(param_info->value);
+		rc = dsi_panel_set_backlight(panel, bl_lvl);
 		if (rc)
 			DSI_ERR("unable to set backlight\n");
 	}
@@ -1118,6 +1210,8 @@ static int dsi_panel_set_dc(struct dsi_panel *panel,
 	int rc = 0;
 
 	pr_info("Set DC to (%d)\n", param_info->value);
+	panel->dc_state = param_info->value;
+	memcpy(&panel->curDCModeParaInfo, param_info, sizeof(struct msm_param_info));
 	rc = dsi_panel_send_param_cmd(panel, param_info);
 	if (rc < 0)
 		DSI_ERR("%s: failed to send param cmds. ret=%d\n", __func__, rc);
@@ -1159,7 +1253,7 @@ int dsi_panel_set_param(struct dsi_panel *panel,
 		case PARAM_ACL_ID :
 			dsi_panel_set_acl(panel, param_info);
 		case PARAM_DC_ID :
-			dsi_panel_set_dc(panel, param_info);
+			rc = dsi_panel_set_dc(panel, param_info);
 			break;
 		case PARAM_COLOR_ID :
 			dsi_panel_set_color(panel, param_info);
@@ -1181,7 +1275,8 @@ void dsi_panel_reset_param(struct dsi_panel *panel)
 	for (i = 0; i < PARAM_ID_NUM; i++) {
 		/* Since only panel support for now */
 		param = &dsi_panel_param[0][i];
-		param->value = param->default_value;
+		if(i != PARAM_DC_ID)
+			param->value = param->default_value;
 	}
 }
 
@@ -4152,6 +4247,66 @@ error:
 	return rc;
 }
 
+static int dsi_panel_parse_local_hbm_config(struct dsi_panel *panel)
+{
+	int rc = 0;
+	u32 size;
+	struct dsi_panel_lhbm_config *lhbm_config;
+	struct dsi_parser_utils *utils = &panel->utils;
+
+	lhbm_config = &panel->lhbm_config;
+	lhbm_config->enable = utils->read_bool(utils->data,
+		"qcom,mdss-dsi-panel-local-hbm-enabled");
+
+	if (lhbm_config->enable) {
+		rc = utils->read_u32(utils->data,
+			"qcom,mdss-dsi-panel-local-hbm-alpha-size",
+			&(lhbm_config->alpha_size));
+		if (rc) {
+			DSI_ERR("%s:%d, Unable to read local hbm alpha size, rc:%u\n",
+				__func__, __LINE__, rc);
+			lhbm_config->enable = false;
+			return rc;
+		}
+
+		size = lhbm_config->alpha_size * sizeof(u32);
+
+		lhbm_config->alpha = kzalloc(size, GFP_KERNEL);
+		if (!lhbm_config->alpha) {
+			rc = -ENOMEM;
+			DSI_ERR("%s:%d, no memory for local hbm alpha table, rc:%u\n",
+				__func__, __LINE__, rc);
+			lhbm_config->enable = false;
+			return rc;
+		}
+
+		rc = utils->read_u32_array(utils->data,
+				"qcom,mdss-dsi-panel-local-hbm-alpha-table",
+				lhbm_config->alpha,
+				lhbm_config->alpha_size);
+		if (rc) {
+			DSI_ERR("%s:%d, Unable to read local hbm alpha table,rc:%u\n",
+					__func__, __LINE__, rc);
+			lhbm_config->enable = false;
+			return rc;
+		}
+
+		rc = utils->read_u32(utils->data,
+			"qcom,mdss-dsi-panel-local-hbm-alpha-register",
+			&(lhbm_config->alpha_reg));
+		if (rc) {
+			DSI_ERR("%s:%d, Unable to read local hbm register, rc:%u\n",
+				__func__, __LINE__, rc);
+			lhbm_config->enable = false;
+			return rc;
+		}
+	} else {
+		DSI_INFO("%s:%d, no local hbm config\n",
+				__func__, __LINE__);
+	}
+	return 0;
+}
+
 static void dsi_panel_update_util(struct dsi_panel *panel,
 				  struct device_node *parser_node)
 {
@@ -4625,6 +4780,10 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 	rc = dsi_panel_parse_esd_config(panel);
 	if (rc)
 		DSI_DEBUG("failed to parse esd config, rc=%d\n", rc);
+
+	rc = dsi_panel_parse_local_hbm_config(panel);
+	if (rc)
+		DSI_DEBUG("failed to parse local hbm config, rc=%d\n", rc);
 
 	rc = dsi_panel_vreg_get(panel);
 	if (rc) {
@@ -5973,6 +6132,20 @@ int dsi_panel_enable(struct dsi_panel *panel)
 err:
 
 	mutex_unlock(&panel->panel_lock);
+
+	//In normal case, when DC mode is enabled, it will be set to 0 before panel_disable
+	//and set to 1 after panel_enable. But in abnormal case, when user press power key
+	//Frequentlly for many times, it is set to 1 before panel_disable and then is not set
+	//to 1 after panel_enable. It results to failure DC mode issue. Seems kernel and user
+	//space is out of sync. Add this workaroud to ensure DC mode is set if it is set to 1
+	//before panel_disable.
+	if(panel->dc_state) {
+		DSI_INFO("-: ensure dc mode is set\n");
+		panel->curDCModeParaInfo.value = 0;
+		dsi_panel_send_param_cmd(panel, &panel->curDCModeParaInfo);
+		panel->curDCModeParaInfo.value = panel->dc_state;
+		dsi_panel_send_param_cmd(panel, &panel->curDCModeParaInfo);
+	}
 	return rc;
 }
 

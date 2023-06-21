@@ -133,6 +133,9 @@ struct msm_kms_funcs {
 	/* topology dsc information */
 	int (*get_dsc_count)(const struct msm_kms *kms,
 			u32 hdisplay, u32 *num_dsc);
+	/* set panel feature */
+	int (*set_panel_feature)(const struct msm_kms *kms,
+			struct panel_param_info param_info);
 };
 
 struct msm_kms {
