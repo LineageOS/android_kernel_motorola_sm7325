@@ -242,6 +242,8 @@ struct aw_device {
 	char algo_path[AW_ALGO_PATH_MAX];
 	int pre_prof_id;
 
+	int ramp_in_process;
+
 	struct aw_int_desc int_desc;
 	struct aw_pwd_desc pwd_desc;
 	struct aw_amppd_desc amppd_desc;

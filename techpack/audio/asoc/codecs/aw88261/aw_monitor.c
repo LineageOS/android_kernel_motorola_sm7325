@@ -390,13 +390,18 @@ static void aw_monitor_set_gain(struct aw_device *aw_dev, uint16_t gain)
 		return;
 	}
 
-	ret = aw_dev->ops.aw_set_volume(aw_dev, set_volume);
-	if (ret < 0) {
-		aw_dev_err(aw_dev->dev, "set gain failed");
-		return;
-	}
-	aw_dev_info(aw_dev->dev, "set reg val = 0x%x, gain = 0x%x",
+	if(aw_dev->ramp_in_process){
+		aw_dev_dbg(aw_dev->dev, "ramp now, don't set gain in monitor");
+	} else {
+		ret = aw_dev->ops.aw_set_volume(aw_dev, set_volume);
+		if (ret < 0) {
+			aw_dev_err(aw_dev->dev, "set gain failed");
+			return;
+		}
+
+		aw_dev_info(aw_dev->dev, "set reg val = 0x%x, gain = 0x%x",
 				set_volume, gain);
+	}
 
 }
 
