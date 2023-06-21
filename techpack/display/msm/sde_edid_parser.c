@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <drm/drm_edid.h>
@@ -101,7 +102,7 @@ static bool sde_cea_db_is_hdmi_hf_vsdb(const u8 *db)
 
 	return hdmi_id == HDMI_FORUM_IEEE_OUI;
 }
-
+#ifdef CONFIG_HDMI_YUV_TO_RGB
 static u8 *sde_edid_find_extended_tag_block(struct edid *edid, int blk_id)
 {
 	u8 *db = NULL;
@@ -157,7 +158,7 @@ sde_edid_find_block(struct edid *edid, int blk_id)
 	}
 	return NULL;
 }
-
+#endif
 
 static const u8 *_sde_edid_find_block(const u8 *in_buf, u32 start_offset,
 	u8 type, u8 *len)
@@ -218,7 +219,7 @@ static void sde_edid_extract_vendor_id(struct sde_edid_ctrl *edid_ctrl)
 	SDE_EDID_DEBUG("vendor id is %s ", vendor_id);
 	SDE_EDID_DEBUG("%s -", __func__);
 }
-
+#ifdef CONFIG_HDMI_YUV_TO_RGB
 static void sde_edid_set_y420_support(struct drm_connector *connector,
 u32 video_format)
 {
@@ -357,7 +358,7 @@ struct drm_connector *connector, struct sde_edid_ctrl *edid_ctrl)
 
 	SDE_EDID_DEBUG("%s -\n", __func__);
 }
-
+#endif
 static void _sde_edid_update_dc_modes(
 struct drm_connector *connector, struct sde_edid_ctrl *edid_ctrl)
 {
@@ -729,7 +730,9 @@ int _sde_edid_update_modes(struct drm_connector *connector,
 			edid_ctrl->edid);
 
 		rc = drm_add_edid_modes(connector, edid_ctrl->edid);
+#ifdef CONFIG_HDMI_YUV_TO_RGB
 		sde_edid_set_mode_format(connector, edid_ctrl);
+#endif
 		_sde_edid_update_dc_modes(connector, edid_ctrl);
 		sde_edid_parse_extended_blk_info(connector,
 				edid_ctrl->edid);
