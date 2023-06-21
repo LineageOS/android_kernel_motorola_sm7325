@@ -124,6 +124,10 @@ struct cyttsp5_core_platform_data {
 	u16 vendor_id;
 	u16 product_id;
 	const char *class_entry_name;
+	char avdd_name[CYTTSP5_MAX_STR_LABLE_LEN];
+	char iovdd_name[CYTTSP5_MAX_STR_LABLE_LEN];
+	struct regulator *avdd;
+	struct regulator *iovdd;
 
 	int (*xres)(struct cyttsp5_core_platform_data *pdata,
 		struct device *dev);
@@ -138,6 +142,9 @@ struct cyttsp5_core_platform_data {
 	struct touch_settings *sett[CY_TOUCH_SETTINGS_MAX];
 	u32 flags;
 	u8 easy_wakeup_gesture;
+#ifdef CYTTSP5_SENSOR_EN
+	int cli_gesture_type;
+ #endif
 };
 
 struct touch_framework {

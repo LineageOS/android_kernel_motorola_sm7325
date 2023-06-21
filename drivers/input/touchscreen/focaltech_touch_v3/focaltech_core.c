@@ -539,6 +539,12 @@ static int fts_input_report_b(struct fts_ts_data *ts_data, struct ts_event *even
                           events[i].id, events[i].x, events[i].y,
                           events[i].p, events[i].area);
             }
+#ifdef CONFIG_FTS_LAST_TIME
+            if (FTS_TOUCH_DOWN == events[i].flag) {
+                ts_data->last_event_time = ktime_get_boottime();
+                FTS_DEBUG("TOUCH: [%d] logged timestamp\n", i);
+            }
+#endif
         } else {
             input_mt_slot(input_dev, events[i].id);
             input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, false);
@@ -876,6 +882,42 @@ static int fts_irq_read_report(struct fts_ts_data *ts_data)
             return -EIO;
         }
 
+#ifdef CONFIG_FTS_SUPPORT_HIGH_RESOLUTION
+        for (i = 0; i < max_touch_num; i++) {
+            base = FTS_ONE_TCH_LEN * i + 2;
+            pointid = (touch_buf[FTS_TOUCH_OFF_ID_YH + base]) >> 4;
+            if (pointid >= FTS_MAX_ID)
+                break;
+            else if (pointid >= max_touch_num) {
+                FTS_ERROR("ID(%d) beyond max_touch_number", pointid);
+                return -EINVAL;
+            }
+
+            events[i].id = pointid;
+            events[i].flag = touch_buf[FTS_TOUCH_OFF_E_XH + base] >> 6;
+
+            //bit[15:12] | bit[11:4] | bit[3:0]
+            events[i].x = ((touch_buf[FTS_TOUCH_OFF_E_XH + base] & 0x0F) << 12) \
+                | ((touch_buf[FTS_TOUCH_OFF_XL + base] & 0xFF) << 4) \
+                | ((touch_buf[FTS_TOUCH_OFF_PRE + base] >> 4) & 0x0F);
+
+            //bit[15:12] | bit[11:4] | bit[3:0]
+            events[i].y = ((touch_buf[FTS_TOUCH_OFF_ID_YH + base] & 0x0F) << 12) \
+                | ((touch_buf[FTS_TOUCH_OFF_YL + base] & 0xFF) << 4) \
+                | (touch_buf[FTS_TOUCH_OFF_PRE + base] & 0x0F);
+
+            events[i].p =  touch_buf[FTS_TOUCH_OFF_PRE + base] & 0x0F;
+            events[i].area = touch_buf[FTS_TOUCH_OFF_AREA + base];
+            if (events[i].p <= 0) events[i].p = 0x3F;
+            if (events[i].area <= 0) events[i].area = 0x09;
+
+            event_num++;
+            if (EVENT_DOWN(events[i].flag) && (finger_num == 0)) {
+                FTS_INFO("abnormal touch data from fw");
+                return -EIO;
+            }
+        }
+#else
         for (i = 0; i < max_touch_num; i++) {
             base = FTS_ONE_TCH_LEN * i + 2;
             pointid = (touch_buf[FTS_TOUCH_OFF_ID_YH + base]) >> 4;
@@ -903,6 +945,7 @@ static int fts_irq_read_report(struct fts_ts_data *ts_data)
                 return -EIO;
             }
         }
+#endif
 
         if (event_num == 0) {
             FTS_INFO("no touch point information(%02x)", touch_buf[2]);
@@ -1346,24 +1389,34 @@ static int fts_pinctrl_init(struct fts_ts_data *ts)
 
     ts->pins_active = pinctrl_lookup_state(ts->pinctrl, "pmx_ts_active");
     if (IS_ERR_OR_NULL(ts->pins_active)) {
-        FTS_ERROR("Pin state[active] not found");
-        ret = PTR_ERR(ts->pins_active);
-        goto err_pinctrl_lookup;
+        ts->pins_active = pinctrl_lookup_state(ts->pinctrl, "cli_pmx_ts_active");
+        if (IS_ERR_OR_NULL(ts->pins_active)) {
+            FTS_ERROR("Pin state[active] not found");
+            ret = PTR_ERR(ts->pins_active);
+            goto err_pinctrl_lookup;
+        }
     }
 
     ts->pins_suspend = pinctrl_lookup_state(ts->pinctrl, "pmx_ts_suspend");
     if (IS_ERR_OR_NULL(ts->pins_suspend)) {
-        FTS_ERROR("Pin state[suspend] not found");
-        ret = PTR_ERR(ts->pins_suspend);
-        goto err_pinctrl_lookup;
+        ts->pins_suspend = pinctrl_lookup_state(ts->pinctrl, "cli_pmx_ts_suspend");
+        if (IS_ERR_OR_NULL(ts->pins_suspend)) {
+            FTS_ERROR("Pin state[suspend] not found");
+            ret = PTR_ERR(ts->pins_suspend);
+            goto err_pinctrl_lookup;
+        }
     }
 
     ts->pins_release = pinctrl_lookup_state(ts->pinctrl, "pmx_ts_release");
     if (IS_ERR_OR_NULL(ts->pins_release)) {
-        FTS_ERROR("Pin state[release] not found");
-        ret = PTR_ERR(ts->pins_release);
+        ts->pins_release = pinctrl_lookup_state(ts->pinctrl, "cli_pmx_ts_release");
+        if (IS_ERR_OR_NULL(ts->pins_release)) {
+            FTS_ERROR("Pin state[release] not found");
+            ret = PTR_ERR(ts->pins_release);
+        }
     }
 
+    FTS_INFO("Pinctrl init success");
     return 0;
 err_pinctrl_lookup:
     if (ts->pinctrl) {
@@ -1458,7 +1511,7 @@ int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
     } else {
         if (!ts_data->power_disabled) {
             FTS_DEBUG("regulator disable !");
-            gpio_direction_output(ts_data->pdata->reset_gpio, 0);
+            gpio_direction_output(ts_data->pdata->reset_gpio, 1);
             msleep(1);
             ret = regulator_disable(ts_data->vdd);
             if (ret) {
@@ -1471,7 +1524,9 @@ int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
                 }
             }
 #if FTS_PINCTRL_EN
+			if (ts_data->gesture_support == true) {
             fts_pinctrl_select_suspend(ts_data);
+			}
 #endif
             ts_data->power_disabled = true;
         }
@@ -2507,6 +2562,9 @@ static void __exit fts_ts_exit(void)
 module_init(fts_ts_init);
 module_exit(fts_ts_exit);
 
+#if KERNEL_VERSION(5, 4, 0) <= LINUX_VERSION_CODE
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+#endif
 MODULE_AUTHOR("FocalTech Driver Team");
 MODULE_DESCRIPTION("FocalTech Touchscreen Driver");
 MODULE_LICENSE("GPL v2");

@@ -15,12 +15,25 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/machine.h>
+#include <linux/time64.h>
 
 #include <linux/acpi.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 
 #include "sgm4154x_charger_lite.h"
+
+#define DEF_VBAT_OVP_MV (4600)
+#define DEF_IBAT_OCP_MA (1500)
+#define DEF_IBAT_OCCP_MA (1500)
+#define DEF_PROTECT_DURATION_MS (60000)
+#define DEF_USB_CURRENT_MA (500000)
+
+static bool paired_vbat_panic_enabled = false;
+module_param(paired_vbat_panic_enabled, bool, 0644);
+MODULE_PARM_DESC(paired_vbat_panic_enabled,
+	"Enable panic on abnormal paired vbat delta");
+
 static struct power_supply_desc sgm4154x_power_supply_desc;
 #ifdef SGM_BASE
 static struct reg_default sgm4154x_reg_defs[] = {
@@ -76,6 +89,13 @@ enum {
 	PAIRED_LOAD_OFF,
 	PAIRED_LOAD_LOW,
 	PAIRED_LOAD_HIGH,
+};
+
+enum {
+	BATT_PROTECT_TYPE_NONE,
+	BATT_PROTECT_TYPE_OVP,
+	BATT_PROTECT_TYPE_OCP,
+	BATT_PROTECT_TYPE_OCCP,
 };
 
 static enum power_supply_usb_type sgm4154x_usb_type[] = {
@@ -153,6 +173,7 @@ static int sgm4154x_get_prechrg_curr(struct sgm4154x_device *sgm)
 	reg_val = reg_val * SGM4154x_PRECHRG_CURRENT_STEP_uA + offset;
 	return reg_val;
 }
+#endif
 
 static int sgm4154x_get_ichg_curr(struct sgm4154x_device *sgm)
 {
@@ -167,7 +188,6 @@ static int sgm4154x_get_ichg_curr(struct sgm4154x_device *sgm)
 
 	return ichg * SGM4154x_ICHRG_CURRENT_STEP_uA;
 }
-#endif
 
 static int sgm4154x_set_term_curr(struct sgm4154x_device *sgm, int term_current)
 {
@@ -213,10 +233,58 @@ static int sgm4154x_set_ichrg_curr(struct sgm4154x_device *sgm, int chrg_curr)
 	else if ( chrg_curr > sgm->init_data.max_ichg)
 		chrg_curr = sgm->init_data.max_ichg;
 
+	reg_val = sgm->thermal_fcc_ua;
+	chrg_curr = min(chrg_curr, reg_val);
+	if (sgm->mmi_charger) {
+		reg_val = sgm->mmi_charger->paired_ichg;
+		chrg_curr = min(chrg_curr, reg_val);
+	}
+
+	if (sgm->user_ichg >= 0 && sgm->user_ichg != chrg_curr) {
+		chrg_curr = sgm->user_ichg;
+		pr_info("User request override ichg = %duA\n", chrg_curr);
+	}
+
+	sgm->ichg = chrg_curr;
+	pr_info("set ichg = %duA\n", chrg_curr);
 	reg_val = chrg_curr / SGM4154x_ICHRG_CURRENT_STEP_uA;
 
 	ret = regmap_update_bits(sgm->regmap, SGM4154x_CHRG_CTRL_2,
 				  SGM4154x_ICHRG_CUR_MASK, reg_val);
+
+	return ret;
+}
+
+
+static int sgm4154x_set_thermal_mitigation(struct sgm4154x_device *sgm, int val)
+{
+	int ret;
+	u32 prev_fcc_ua;
+
+	if (!sgm->num_thermal_levels)
+		return 0;
+
+	if (sgm->num_thermal_levels < 0) {
+		pr_err("Incorrect num_thermal_levels\n");
+		return -EINVAL;
+	}
+
+	if (val < 0 || val > sgm->num_thermal_levels) {
+		pr_err("Invalid thermal level: %d\n", val);
+		return -EINVAL;
+	}
+
+	prev_fcc_ua = sgm->thermal_fcc_ua;
+	sgm->thermal_fcc_ua = sgm->thermal_levels[val];
+	ret = sgm4154x_set_ichrg_curr(sgm, sgm->thermal_levels[val]);
+	if (ret) {
+		pr_err("Failed to set thermal mitigation val=%d, ret=%d\n",
+				sgm->thermal_levels[val], ret);
+		sgm->thermal_fcc_ua = prev_fcc_ua;
+	} else {
+		sgm->curr_thermal_level = val;
+	}
+	pr_info("thermal level: %d, thermal fcc: %d\n", sgm->curr_thermal_level, sgm->thermal_fcc_ua);
 
 	return ret;
 }
@@ -233,6 +301,7 @@ static int sgm4154x_set_chrg_volt(struct sgm4154x_device *sgm, int chrg_volt)
 	else if (chrg_volt > sgm->init_data.max_vreg)
 		chrg_volt = sgm->init_data.max_vreg;
 
+	sgm->vreg = chrg_volt;
 
 	reg_val = (chrg_volt-SGM4154x_VREG_V_MIN_uV) / SGM4154x_VREG_V_STEP_uV;
 
@@ -514,6 +583,8 @@ static int sgm4154x_set_input_volt_lim(struct sgm4154x_device *sgm, int vindpm)
 	    vindpm > SGM4154x_VINDPM_V_MAX_uV)
 		return -EINVAL;
 
+	sgm->vlim = vindpm;
+
 	temp = sgm4154x_get_vindpm_offset_os(sgm);
 	if (0 == temp)
 		offset = 3900000; //uv
@@ -566,6 +637,13 @@ static int sgm4154x_set_input_curr_lim(struct sgm4154x_device *sgm, int iindpm)
 
 	if (iindpm > sgm->init_data.ilim)
 		iindpm = sgm->init_data.ilim;
+
+	if (sgm->user_ilim >= 0 && sgm->user_ilim != iindpm) {
+		iindpm = sgm->user_ilim;
+		pr_info("User request override ilim = %duA\n", iindpm);
+	}
+
+	sgm->ilim = iindpm;
 
 	if (iindpm < SGM4154x_IINDPM_I_MIN_uA)
 		reg_val = 0;
@@ -630,12 +708,31 @@ static int sgm4154x_set_wdt_rst(struct sgm4154x_device *sgm, bool is_rst)
 }
 #endif
 
+static int is_wls_online(struct sgm4154x_device *sgm)
+{
+	int rc;
+	union power_supply_propval val;
+
+	if (!sgm->use_ext_wls_psy || !sgm->wls_psy)
+		return 0;
+
+	rc = power_supply_get_property(sgm->wls_psy,
+			POWER_SUPPLY_PROP_ONLINE, &val);
+	if (rc < 0) {
+		pr_err("Error wls online rc = %d\n", rc);
+		return 0;
+	}
+
+	pr_debug("wireless online is %d", val.intval);
+	return val.intval;
+}
+
 static int sgm4154x_get_state(struct sgm4154x_device *sgm,
 			     struct sgm4154x_state *state)
 {
 	int chrg_stat;
 	int fault;
-	int chrg_param_0,chrg_param_1,chrg_param_2;
+	int chrg_param_0,chrg_param_1,chrg_param_2,chrg_param_3;
 	int ret;
 	union power_supply_propval val = {0};
 
@@ -684,6 +781,7 @@ static int sgm4154x_get_state(struct sgm4154x_device *sgm,
 				POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT, &val);
 		if (!ret)
 			state->ibus_limit = val.intval;
+		state->chrg_stat = chrg_stat & SGM4154x_CHG_STAT_MASK;
 	} else if (sgm->use_ext_usb_psy) {
 		state->chrg_type = 0;
 		state->chrg_stat = 0;
@@ -695,11 +793,15 @@ static int sgm4154x_get_state(struct sgm4154x_device *sgm,
 		state->online = !!(chrg_stat & SGM4154x_PG_STAT);
 	};
 
+	if (!state->online && is_wls_online(sgm)) {
+		state->online = 1;
+		state->chrg_type = SGM4154x_WLS_TYPE;
+	}
+
 	state->therm_stat = !!(chrg_stat & SGM4154x_THERM_STAT);
 	state->vsys_stat = !!(chrg_stat & SGM4154x_VSYS_STAT);
 
 	pr_debug("chrg_stat =%d chrg_type =%d online = %d\n", state->chrg_stat, state->chrg_type, state->online);
-
 
 	ret = regmap_read(sgm->regmap, SGM4154x_CHRG_FAULT, &fault);
 	if (ret){
@@ -730,12 +832,25 @@ static int sgm4154x_get_state(struct sgm4154x_device *sgm,
 	}
 	state->vbus_gd = !!(chrg_param_2 & SGM4154x_VBUS_GOOD);
 
+	ret = regmap_read(sgm->regmap, SGM4154x_INPUT_DET, &chrg_param_3);
+	if (ret){
+		pr_err("read SGM4154x_INPT_DET fail\n");
+		return ret;
+	}
+	state->detect_done = !!(chrg_param_3 & SGM4154x_DPDM_ONGOING);
+
+	state->input_ready = state->online && state->vbus_gd && state->detect_done;
 	return 0;
 }
 
 static int sgm4154x_set_hiz_en(struct sgm4154x_device *sgm, bool hiz_en)
 {
 	int reg_val;
+
+	if (sgm->user_chg_susp >= 0 && sgm->user_chg_susp != hiz_en) {
+		hiz_en = !!sgm->user_chg_susp;
+		pr_info("User request override hiz_en = %d\n", hiz_en);
+	}
 
 	dev_notice(sgm->dev, "%s:%d", __func__, hiz_en);
 	reg_val = hiz_en ? SGM4154x_HIZ_EN : 0;
@@ -744,9 +859,38 @@ static int sgm4154x_set_hiz_en(struct sgm4154x_device *sgm, bool hiz_en)
 				  SGM4154x_HIZ_EN, reg_val);
 }
 
+static bool sgm4154x_is_enabled_charging(struct sgm4154x_device *sgm)
+{
+	int ret = 0;
+	int status = 0;
+	bool enabled = false;
+
+	ret = regmap_read(sgm->regmap, SGM4154x_CHRG_CTRL_1, &status);
+	if(ret)
+		return false;
+
+	enabled = (status & SGM4154x_CHRG_EN) ? true:false;
+
+	if (gpio_is_valid(sgm->chg_en_gpio) &&
+	    gpio_get_value(sgm->chg_en_gpio))
+		enabled = false;
+
+	return enabled;
+}
+
 int sgm4154x_enable_charger(struct sgm4154x_device *sgm)
 {
 	int ret;
+
+	if (sgm->user_chg_en == 0) {
+		pr_info("Skip enable charging for user request override\n");
+		return 0;
+	}
+
+	if (sgm->state.input_ready == 0) {
+		pr_info("Skip enable charging before input ready\n");
+		return 0;
+	}
 
 	pr_info("sgm4154x_enable_charger\n");
 	if (gpio_is_valid(sgm->chg_en_gpio)) {
@@ -762,6 +906,11 @@ int sgm4154x_enable_charger(struct sgm4154x_device *sgm)
 int sgm4154x_disable_charger(struct sgm4154x_device *sgm)
 {
 	int ret;
+
+	if (sgm->user_chg_en > 0) {
+		pr_info("Skip disable charging for user request override\n");
+		return 0;
+	}
 
 	pr_info("sgm4154x_disable_charger\n");
 	ret = regmap_update_bits(sgm->regmap, SGM4154x_CHRG_CTRL_1,
@@ -959,6 +1108,7 @@ static int sgm4154x_property_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
 	case POWER_SUPPLY_PROP_PRECHARGE_CURRENT:
 	case POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT:
 		return true;
@@ -975,10 +1125,34 @@ static int sgm4154x_charger_set_property(struct power_supply *psy,
 
 	switch (prop) {
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
-		ret = sgm4154x_set_input_curr_lim(sgm, val->intval);
+		if (val->intval < 0) {
+			sgm->update_pending = true;
+			sgm->user_ilim = -EINVAL;
+			ret = 0;
+			pr_info("Clear user input limit\n");
+		} else {
+			sgm->user_ilim = val->intval;
+			ret = sgm4154x_set_input_curr_lim(sgm, val->intval);
+			pr_info("Set user input limit: %duA\n", sgm->user_ilim);
+		}
 		break;
 	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT:
 		ret = sgm4154x_set_input_volt_lim(sgm, val->intval);
+		break;
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
+		if (val->intval < 0) {
+			sgm->update_pending = true;
+			sgm->user_ichg = -EINVAL;
+			ret = 0;
+			pr_info("Clear user charging current limit\n");
+		} else {
+			sgm->user_ichg = val->intval;
+			ret = sgm4154x_set_ichrg_curr(sgm, val->intval);
+			pr_info("Set user charging current limit: %duA\n", sgm->user_ichg);
+		}
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
+		ret = sgm4154x_set_thermal_mitigation(sgm, val->intval);
 		break;
 	default:
 		return -EINVAL;
@@ -1010,6 +1184,7 @@ static int sgm4154x_charger_get_property(struct power_supply *psy,
 	struct sgm4154x_device *sgm = power_supply_get_drvdata(psy);
 	struct sgm4154x_state state;
 	int chrg_status = 0;
+	int ibus_ua = 0;
 	int ret = 0;
 
 	mutex_lock(&sgm->lock);
@@ -1106,8 +1281,25 @@ static int sgm4154x_charger_get_property(struct power_supply *psy,
 		ret = 0;
 		break;
 
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
+		val->intval = sgm->curr_thermal_level;
+		break;
+
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX:
+		val->intval = sgm->num_thermal_levels;
+		break;
+
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
-		ret = sgm4154x_get_input_curr_lim(sgm);
+		val->intval = sgm->ilim;
+		if (sgm->init_data.vlim > 0 && state.vbus_adc >= sgm->init_data.vlim) {
+			ibus_ua = (sgm->ichg / 1000) * (sgm->vreg / 1000) / (state.vbus_adc / 1000) * 1000;
+			if (ibus_ua < sgm->ilim)
+				val->intval = ibus_ua;
+		}
+		ret = 0;
+		break;
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
+		ret = sgm4154x_get_ichg_curr(sgm);
 		if (ret < 0)
 			return ret;
 
@@ -1136,7 +1328,8 @@ static bool sgm4154x_state_changed(struct sgm4154x_device *sgm,
 		old_state.health != new_state->health ||
 		old_state.chrg_type != new_state->chrg_type ||
 		old_state.vbus_gd != new_state->vbus_gd ||
-		old_state.ibus_limit != new_state->ibus_limit
+		old_state.ibus_limit != new_state->ibus_limit ||
+		old_state.detect_done != new_state->detect_done
 		);
 }
 
@@ -1151,6 +1344,7 @@ static void sgm4154x_dump_register(struct sgm4154x_device * sgm)
 	}
 }
 
+#if 0
 static bool sgm4154x_dpdm_detect_is_done(struct sgm4154x_device * sgm)
 {
 	int chrg_stat;
@@ -1163,6 +1357,7 @@ static bool sgm4154x_dpdm_detect_is_done(struct sgm4154x_device * sgm)
 
 	return (chrg_stat&SGM4154x_DPDM_ONGOING)?true:false;
 }
+#endif
 
 static void charger_monitor_work_func(struct work_struct *work)
 {
@@ -1184,6 +1379,7 @@ static void charger_monitor_work_func(struct work_struct *work)
 		if (!sgm->state.chrg_type)
 			pr_info("No charger is present\n");
 		sgm4154x_dump_register(sgm);
+		cancel_delayed_work(&sgm->charge_detect_delayed_work);
 		schedule_delayed_work(&sgm->charge_detect_delayed_work, 0);
 		power_supply_changed(sgm->charger);
 	}
@@ -1197,6 +1393,8 @@ static void charger_detect_work_func(struct work_struct *work)
 	int ret;
 	//static int charge_type_old = 0;
 	int curr_in_limit = 0;
+	u32 volt_in_limit = 0;
+	static int prev_in_limit = 0;
 	bool state_changed = false;
 	struct sgm4154x_state state;
 	struct sgm4154x_device *sgm = container_of(work,
@@ -1219,9 +1417,29 @@ static void charger_detect_work_func(struct work_struct *work)
 				cancel_delayed_work(&sgm->charge_detect_delayed_work);
 				schedule_delayed_work(&sgm->charge_detect_delayed_work,
 							msecs_to_jiffies(1000));
-				return;
+				goto err;
 			} else {
 				pr_info("USB power supply is found\n");
+			}
+		}
+	}
+
+	if (sgm->use_ext_wls_psy) {
+		if (!sgm->wls_psy) {
+			const char *wls_psy_name = NULL;
+			ret = device_property_read_string(sgm->dev,
+						"mmi,ext-wls-psy-name",
+						&wls_psy_name);
+			if (!ret && wls_psy_name)
+				sgm->wls_psy = power_supply_get_by_name(wls_psy_name);
+			if (!sgm->wls_psy) {
+				pr_info("No Wireless power supply found, redetecting...\n");
+				cancel_delayed_work(&sgm->charge_detect_delayed_work);
+				schedule_delayed_work(&sgm->charge_detect_delayed_work,
+							msecs_to_jiffies(1000));
+				goto err;
+			} else {
+				pr_info("WLS power supply is found\n");
 			}
 		}
 	}
@@ -1238,21 +1456,22 @@ static void charger_detect_work_func(struct work_struct *work)
 	mutex_unlock(&sgm->lock);
 
 	if(!sgm->state.vbus_gd) {
+		if (sgm4154x_is_enabled_charging(sgm))
+			sgm4154x_disable_charger(sgm);
 		dev_err(sgm->dev, "Vbus not present, disable charge\n");
-		sgm4154x_disable_charger(sgm);
 		goto err;
 	}
 	if(!state.online)
 	{
 		dev_err(sgm->dev, "Vbus not online\n");
-		sgm4154x_disable_charger(sgm);
+		goto err;
+	}
+	if(!state.detect_done) {
+		dev_err(sgm->dev, "DPDM detecte not done\n");
 		goto err;
 	}
 
-	if(!sgm4154x_dpdm_detect_is_done(sgm)) {
-		dev_err(sgm->dev, "DPDM detecte not done, disable charge\n");
-		goto err;
-	}
+	volt_in_limit = sgm->init_data.vlim;
 #if defined(__SGM41542_CHIP_ID__)|| defined(__SGM41516D_CHIP_ID__)
 	switch(sgm->state.chrg_type) {
 		case SGM4154x_USB_SDP:
@@ -1284,26 +1503,39 @@ static void charger_detect_work_func(struct work_struct *work)
 			goto err;
 
 		default:
-			pr_err("SGM4154x charger type: default\n");
-			//curr_in_limit = 500000;
-			//break;
-			return;
+			if (is_wls_online(sgm)) {
+				pr_err("SGM4154x charger type: Wireless\n");
+				sgm->state.chrg_type = SGM4154x_WLS_TYPE;
+				curr_in_limit = sgm->init_data.wls_ilim;
+				volt_in_limit = sgm->init_data.wls_vlim;
+				break;
+			} else {
+				pr_err("SGM4154x charger type: default\n");
+				//curr_in_limit = 500000;
+				//break;
+				return;
+			}
 	}
 
-	if (sgm->use_ext_usb_psy && sgm->usb) {
-		curr_in_limit = sgm->state.ibus_limit;
-	}
-
-	//set charge parameters
-	dev_info(sgm->dev, "Update: curr_in_limit = %d\n", curr_in_limit);
-	sgm4154x_set_input_curr_lim(sgm, curr_in_limit);
-#endif
-	//enable charge
-	if (sgm->mmi_charger && sgm->mmi_charger->chg_cfg.charging_disable)
-		sgm4154x_disable_charger(sgm);
-	else
+	//Enable charge IC
+	if (!sgm->mmi_charger) {
 		sgm4154x_enable_charger(sgm);
+	}
 
+	if (volt_in_limit != sgm->vlim) {
+		dev_info(sgm->dev, "Update: volt_in_limit = %d\n",
+					volt_in_limit);
+		sgm4154x_set_input_volt_lim(sgm, volt_in_limit);
+	}
+
+	if ((!sgm->use_ext_usb_psy || !sgm->usb) &&
+	    prev_in_limit != curr_in_limit) {
+		dev_info(sgm->dev, "Update: curr_in_limit = %d\n",
+					curr_in_limit);
+		sgm4154x_set_input_curr_lim(sgm, curr_in_limit);
+		prev_in_limit = curr_in_limit;
+	}
+#endif
 	if (state_changed) {
 		sgm4154x_dump_register(sgm);
 		power_supply_changed(sgm->charger);
@@ -1323,8 +1555,11 @@ static irqreturn_t sgm4154x_irq_handler_thread(int irq, void *private)
 	struct sgm4154x_device *sgm = private;
 
 	//lock wakelock
-	pr_info("entry\n");
+	pr_info("entry irq handler\n");
+	sgm->update_pending = true;
+
 	#if defined(__SGM41542_CHIP_ID__)|| defined(__SGM41516D_CHIP_ID__)
+	cancel_delayed_work(&sgm->charge_detect_delayed_work);
 	schedule_delayed_work(&sgm->charge_detect_delayed_work, 100);
 	//power_supply_changed(sgm->charger);
 	#endif
@@ -1339,7 +1574,10 @@ static enum power_supply_property sgm4154x_power_supply_props[] = {
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT,
+	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
+	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_USB_TYPE,
 	POWER_SUPPLY_PROP_PRESENT
@@ -1456,10 +1694,13 @@ static int sgm4154x_hw_init(struct sgm4154x_device *sgm)
 	if (ret)
 		goto err_out;
 
-	if (sgm->init_data.charger_disabled)
+	if (sgm->init_data.charger_disabled) {
 		ret = sgm4154x_disable_charger(sgm);
-	else
+		ret |= sgm4154x_set_hiz_en(sgm, true);
+	} else {
+		ret |= sgm4154x_set_hiz_en(sgm, false);
 		ret = sgm4154x_enable_charger(sgm);
+	}
 	if (ret)
 		goto err_out;
 
@@ -1484,6 +1725,10 @@ static int sgm4154x_parse_dt(struct sgm4154x_device *sgm)
 	int irq_gpio = 0, irqn = 0;
 	enum of_gpio_flags flags;
 	const char *usb_psy_name = NULL;
+	const char *wls_psy_name = NULL;
+	int i, len;
+	u32 prev, val;
+	struct device_node *node = sgm->dev->of_node;
 
 	#if 0
 	ret = device_property_read_u32(sgm->dev, "watchdog-timer",
@@ -1495,6 +1740,30 @@ static int sgm4154x_parse_dt(struct sgm4154x_device *sgm)
 	    sgm->watchdog_timer < SGM4154x_WATCHDOG_DIS)
 		return -EINVAL;
 	#endif
+	ret = device_property_read_u32(sgm->dev,
+				       "mmi,batt-protect-duration",
+				       &sgm->batt_protect_duration);
+	if (ret)
+		sgm->batt_protect_duration = DEF_PROTECT_DURATION_MS;
+
+	ret = device_property_read_u32(sgm->dev,
+				       "mmi,vbat-ovp-threshold",
+				       &sgm->vbat_ovp_threshold);
+	if (ret)
+		sgm->vbat_ovp_threshold = DEF_VBAT_OVP_MV;
+
+	ret = device_property_read_u32(sgm->dev,
+				       "mmi,ibat-ocp-threshold",
+				       &sgm->ibat_ocp_threshold);
+	if (ret)
+		sgm->ibat_ocp_threshold = DEF_IBAT_OCP_MA;
+
+	ret = device_property_read_u32(sgm->dev,
+				       "mmi,ibat-occp-threshold",
+				       &sgm->ibat_occp_threshold);
+	if (ret)
+		sgm->ibat_occp_threshold = DEF_IBAT_OCCP_MA;
+
 	sgm->high_load_en_gpio = of_get_named_gpio_flags(sgm->dev->of_node,
 					"mmi,high-load-en-gpio", 0, &flags);
 	if (gpio_is_valid(sgm->high_load_en_gpio)) {
@@ -1536,6 +1805,14 @@ static int sgm4154x_parse_dt(struct sgm4154x_device *sgm)
 		sgm->use_ext_usb_psy = true;
 	else
 		sgm->use_ext_usb_psy = false;
+
+	ret = device_property_read_string(sgm->dev,
+					"mmi,ext-wls-psy-name",
+					&wls_psy_name);
+	if (!ret && wls_psy_name)
+		sgm->use_ext_wls_psy = true;
+	else
+		sgm->use_ext_wls_psy = false;
 
 	sgm->vdd_i2c_vreg = devm_regulator_get_optional(sgm->dev, "vdd-i2c");
 
@@ -1627,6 +1904,16 @@ static int sgm4154x_parse_dt(struct sgm4154x_device *sgm)
 		return -EINVAL;
 
 	ret = device_property_read_u32(sgm->dev,
+				       "wls-input-voltage-limit-microvolt",
+				       &sgm->init_data.wls_vlim);
+	if (ret)
+		sgm->init_data.wls_vlim = SGM4154x_VINDPM_DEF_uV;
+
+	if (sgm->init_data.wls_vlim > SGM4154x_VINDPM_V_MAX_uV ||
+	    sgm->init_data.wls_vlim < SGM4154x_VINDPM_V_MIN_uV)
+		return -EINVAL;
+
+	ret = device_property_read_u32(sgm->dev,
 				       "input-current-limit-microamp",
 				       &sgm->init_data.ilim);
 	if (ret)
@@ -1635,6 +1922,14 @@ static int sgm4154x_parse_dt(struct sgm4154x_device *sgm)
 	if (sgm->init_data.ilim > SGM4154x_IINDPM_I_MAX_uA ||
 	    sgm->init_data.ilim < SGM4154x_IINDPM_I_MIN_uA)
 		return -EINVAL;
+
+	ret = device_property_read_u32(sgm->dev,
+				       "wls-input-current-limit-microamp",
+				       &sgm->init_data.wls_ilim);
+	if (ret)
+		sgm->init_data.wls_ilim = SGM4154x_IINDPM_I_MIN_uA;
+
+	pr_info("wireless input current limit: %duA\n", sgm->init_data.wls_ilim);
 
 	irq_gpio = of_get_named_gpio(sgm->dev->of_node, "sgm,irq-gpio", 0);
 	if (!gpio_is_valid(irq_gpio))
@@ -1827,6 +2122,47 @@ static int sgm4154x_parse_dt(struct sgm4154x_device *sgm)
 			sgm->data.temp_t2_thres,sgm->data.temp_t1_thres,
 			sgm->data.temp_t0_thres);
 #endif
+	ret = of_property_count_elems_of_size(node, "mmi,thermal-mitigation",
+							sizeof(u32));
+	if (ret <= 0) {
+		return 0;
+	}
+
+	len = ret;
+	prev = sgm->init_data.max_ichg;
+	for (i = 0; i < len; i++) {
+		ret = of_property_read_u32_index(node,
+					"mmi,thermal-mitigation",
+					i, &val);
+		if (ret < 0) {
+			pr_err("failed to get thermal-mitigation[%d], ret=%d\n", i, ret);
+			return ret;
+		}
+		pr_info("thermal-mitigation[%d], val=%d, prev=%d\n", i, val, prev);
+		if (val > prev) {
+			pr_err("Thermal levels should be in descending order\n");
+			sgm->num_thermal_levels = -EINVAL;
+			return 0;
+		}
+		prev = val;
+	}
+
+	sgm->thermal_levels = devm_kcalloc(sgm->dev, len + 1,
+					sizeof(*sgm->thermal_levels),
+					GFP_KERNEL);
+	if (!sgm->thermal_levels)
+		return -ENOMEM;
+
+	sgm->thermal_levels[0] = sgm->init_data.max_ichg;
+	ret = of_property_read_u32_array(node, "mmi,thermal-mitigation",
+						&sgm->thermal_levels[1], len);
+	if (ret < 0) {
+		pr_err("Error in reading mmi,thermal-mitigation, rc=%d\n", ret);
+		return ret;
+	}
+	sgm->num_thermal_levels = len;
+	sgm->thermal_fcc_ua = sgm->init_data.max_ichg;
+
 	return 0;
 }
 
@@ -1969,6 +2305,7 @@ static int sgm4154x_hw_chipid_detect(struct sgm4154x_device *sgm)
 	return val;
 }
 
+#define EMPTY_BATTERY_VBAT 3200
 static int sgm4154x_charger_get_batt_info(void *data, struct mmi_battery_info *batt_info)
 {
 	int rc;
@@ -1996,11 +2333,25 @@ static int sgm4154x_charger_get_batt_info(void *data, struct mmi_battery_info *b
 	rc = power_supply_get_property(chg->fg_psy, POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN, &val);
 	if (!rc)
 		chg->batt_info.batt_design_uah = val.intval;
+	rc = power_supply_get_property(chg->fg_psy, POWER_SUPPLY_PROP_CHARGE_COUNTER, &val);
+	if (!rc)
+		chg->batt_info.batt_chg_counter = val.intval;
 
-        if (chg->chg_cfg.full_charged)
-                chg->batt_info.batt_status = POWER_SUPPLY_STATUS_FULL;
+	if (chg->chg_cfg.full_charged)
+		chg->batt_info.batt_status = POWER_SUPPLY_STATUS_FULL;
 
-        memcpy(batt_info, &chg->batt_info, sizeof(struct mmi_battery_info));
+	if (!chg->sgm->state.online) {
+		chg->batt_info.batt_status = POWER_SUPPLY_STATUS_DISCHARGING;
+	}
+
+	memcpy(batt_info, &chg->batt_info, sizeof(struct mmi_battery_info));
+	if (chg->paired_batt_info.batt_soc == 0 &&
+	    chg->paired_batt_info.batt_mv < EMPTY_BATTERY_VBAT) {
+		batt_info->batt_soc = 0;
+		pr_warn("Force %s to empty from %d for empty paired battery\n",
+					chg->fg_psy->desc->name,
+					chg->batt_info.batt_soc);
+	}
 
         return rc;
 }
@@ -2011,9 +2362,16 @@ static int sgm4154x_charger_get_chg_info(void *data, struct mmi_charger_info *ch
 	struct sgm_mmi_charger *chg = data;
 	struct sgm4154x_state state = chg->sgm->state;
 
+	sgm4154x_get_state(chg->sgm, &state);
+
 	chg->chg_info.chrg_mv = state.vbus_adc / 1000;
 	chg->chg_info.chrg_ma = state.ibus_adc / 1000;
 	chg->chg_info.chrg_type = get_charger_type(chg->sgm);
+	if (chg->chg_info.chrg_type == POWER_SUPPLY_USB_TYPE_UNKNOWN &&
+			is_wls_online(chg->sgm)) {
+		chg->chg_info.chrg_type = SGM4154x_WLS_TYPE;
+	}
+
 	chg->chg_info.chrg_present = state.online;
 	chg->chg_info.vbus_present = state.vbus_gd;
 
@@ -2038,11 +2396,137 @@ static int sgm4154x_charger_config_charge(void *data, struct mmi_charger_cfg *co
 {
 	int rc;
 	u32 value;
+	bool chg_en;
+	static bool prev_chg_en = false;
 	bool cfg_changed = false;
 	struct sgm_mmi_charger *chg = data;
+	struct sgm4154x_state state = chg->sgm->state;
+	struct timespec64 now;
+	static struct timespec64 start = {0};
+	uint32_t elapsed_ms;
+	bool high_load_en;
+	bool low_load_en;
+	static int prev_paired_load = PAIRED_LOAD_OFF;
+	int curr_in_limit = chg->sgm->ilim;
+	int volt_in_limit = chg->sgm->init_data.vlim;
+
+	/* Monitor vbat and ibat for OVP and OCP */
+	if (chg->batt_info.batt_mv >= chg->sgm->vbat_ovp_threshold) {
+		chg->paired_load = PAIRED_LOAD_HIGH;
+		chg->batt_protect_type = BATT_PROTECT_TYPE_OVP;
+		ktime_get_real_ts64(&start);
+		pr_err("ERROR: vbat OVP is triggered, batt_mv=%dmV, thre=%d\n",
+				chg->batt_info.batt_mv,
+				chg->sgm->vbat_ovp_threshold);
+	} else if (chg->batt_info.batt_ma >= chg->sgm->ibat_occp_threshold) {
+		chg->paired_load = PAIRED_LOAD_HIGH;
+		chg->batt_protect_type = BATT_PROTECT_TYPE_OCCP;
+		ktime_get_real_ts64(&start);
+		pr_err("ERROR: ibat OCCP is triggered, batt_ma=%dmA, thre=%d\n",
+				chg->batt_info.batt_ma,
+				chg->sgm->ibat_occp_threshold);
+	} else if (chg->batt_info.batt_ma <= -chg->sgm->ibat_ocp_threshold) {
+		chg->paired_load = PAIRED_LOAD_LOW;
+		chg->batt_protect_type = BATT_PROTECT_TYPE_OCP;
+		ktime_get_real_ts64(&start);
+		pr_err("ERROR: ibat OCP is triggered, batt_ma=%dmA, thre=%d\n",
+				chg->batt_info.batt_ma,
+				chg->sgm->ibat_ocp_threshold);
+	} else if (chg->batt_protect_type != BATT_PROTECT_TYPE_NONE) {
+		ktime_get_real_ts64(&now);
+		elapsed_ms = (now.tv_sec - start.tv_sec) * 1000;
+		elapsed_ms += (now.tv_nsec - start.tv_nsec) / 1000000;
+		if (elapsed_ms < chg->sgm->batt_protect_duration) {
+			if (!chg->chg_info.chrg_present &&
+			    chg->batt_protect_type == BATT_PROTECT_TYPE_OCP) {
+				chg->paired_load = PAIRED_LOAD_OFF;
+			} else if (chg->chg_info.chrg_present &&
+			  (chg->batt_protect_type == BATT_PROTECT_TYPE_OVP ||
+			   chg->batt_protect_type == BATT_PROTECT_TYPE_OCCP)) {
+				chg->paired_load = PAIRED_LOAD_HIGH;
+				sgm4154x_set_hiz_en(chg->sgm, true);
+			} else {
+				chg->batt_protect_type = BATT_PROTECT_TYPE_NONE;
+			}
+		} else {
+			chg->batt_protect_type = BATT_PROTECT_TYPE_NONE;
+		}
+		if (chg->batt_protect_type != BATT_PROTECT_TYPE_NONE) {
+			pr_warn("keep batt protection:%d, elapsed=%dms\n",
+					chg->batt_protect_type, elapsed_ms);
+		} else {
+			pr_warn("recover battery from protection\n");
+		}
+	}
+
+	switch (chg->paired_load) {
+	case PAIRED_LOAD_LOW:
+		high_load_en = false;
+		low_load_en = true;
+		break;
+	case PAIRED_LOAD_HIGH:
+		high_load_en = true;
+		low_load_en = true;
+		break;
+	case PAIRED_LOAD_OFF:
+	default:
+		high_load_en = false;
+		low_load_en = false;
+	}
+	if (chg->paired_load != prev_paired_load) {
+		if (gpio_is_valid(chg->sgm->high_load_en_gpio)) {
+			gpio_set_value(chg->sgm->high_load_en_gpio,
+				high_load_en ^ chg->sgm->high_load_active_low);
+		}
+		if (gpio_is_valid(chg->sgm->low_load_en_gpio)) {
+			gpio_set_value(chg->sgm->low_load_en_gpio,
+				low_load_en ^ chg->sgm->low_load_active_low);
+		}
+		prev_paired_load = chg->paired_load;
+	}
+
+	if (!chg->sgm->batt_present || chg->sgm->otg_enabled ||
+	    chg->batt_protect_type == BATT_PROTECT_TYPE_OVP ||
+	    chg->batt_protect_type == BATT_PROTECT_TYPE_OCCP) {
+		if (chg->sgm->client->irq && chg->sgm->irq_enabled) {
+			cfg_changed = true;
+			disable_irq_wake(chg->sgm->client->irq);
+			disable_irq(chg->sgm->client->irq);
+			chg->sgm->irq_enabled = false;
+			pr_warn("irq is disabled, bpd=%d, otg=%d, protect_type=%d\n",
+				chg->sgm->batt_present, chg->sgm->otg_enabled,
+				chg->batt_protect_type);
+		}
+		config->charging_disable = true;
+		config->charger_suspend = true;
+		chg->chg_cfg.charger_suspend = false;
+	} else {
+		if (!chg->sgm->irq_enabled && chg->sgm->client->irq) {
+			cfg_changed = true;
+			enable_irq_wake(chg->sgm->client->irq);
+			enable_irq(chg->sgm->client->irq);
+			chg->sgm->irq_enabled = true;
+			pr_warn("irq is enabled, bpd=%d, otg=%d, protect_type=%d\n",
+				chg->sgm->batt_present, chg->sgm->otg_enabled,
+				chg->batt_protect_type);
+		}
+	}
+
+	/* force to update charger configuration for user input or chip reset */
+	if (chg->sgm->update_pending && state.input_ready) {
+		chg->sgm->update_pending = false;
+		chg->sgm->ilim = UINT_MAX;
+		chg->chg_cfg.target_fv = -EINVAL;
+		chg->chg_cfg.target_fcc = -EINVAL;
+		chg->chg_cfg.chrg_iterm = -EINVAL;
+		chg->chg_cfg.charging_disable = !config->charging_disable;
+		chg->chg_cfg.charger_suspend = !config->charger_suspend;
+	}
 
 	/* configure the charger if changed */
-	if (config->target_fv != chg->chg_cfg.target_fv) {
+	if (!config->charging_disable &&
+	    !config->charger_suspend &&
+	    config->target_fv != chg->chg_cfg.target_fv) {
 		value = config->target_fv * 1000;
 		rc = sgm4154x_set_chrg_volt(chg->sgm, value);
 		if (!rc) {
@@ -2050,8 +2534,10 @@ static int sgm4154x_charger_config_charge(void *data, struct mmi_charger_cfg *co
 			chg->chg_cfg.target_fv = config->target_fv;
 		}
 	}
-	if (config->target_fcc != chg->chg_cfg.target_fcc) {
-		value = min(config->target_fcc * 1000, chg->paired_ichg);
+	if (!config->charging_disable &&
+	    !config->charger_suspend &&
+	    config->target_fcc != chg->chg_cfg.target_fcc) {
+		value = config->target_fcc * 1000;
 		rc = sgm4154x_set_ichrg_curr(chg->sgm, value);
 		if (!rc) {
 			cfg_changed = true;
@@ -2065,9 +2551,45 @@ static int sgm4154x_charger_config_charge(void *data, struct mmi_charger_cfg *co
 			chg->chg_cfg.charger_suspend = config->charger_suspend;
 		}
 	}
+
+	sgm4154x_get_state(chg->sgm, &state);
+
+	if (chg->chg_info.chrg_present && !state.hiz_en &&
+	    chg->sgm->use_ext_usb_psy && chg->sgm->usb &&
+		chg->chg_info.chrg_type != SGM4154x_WLS_TYPE) {
+		if (state.ibus_limit < DEF_USB_CURRENT_MA &&
+		    state.ibus_adc < DEF_USB_CURRENT_MA) {
+			curr_in_limit = DEF_USB_CURRENT_MA - state.ibus_adc;
+		} else if (state.ibus_limit > state.ibus_adc) {
+			curr_in_limit = state.ibus_limit - state.ibus_adc;
+		} else {
+			curr_in_limit = 0;
+		}
+		if (curr_in_limit > chg->sgm->init_data.ilim)
+			curr_in_limit = chg->sgm->init_data.ilim;
+	} else if (chg->chg_info.chrg_present && chg->chg_info.chrg_type == SGM4154x_WLS_TYPE) {
+			curr_in_limit = chg->sgm->init_data.wls_ilim;
+			volt_in_limit = chg->sgm->init_data.wls_vlim;
+			pr_debug("wireless is on, curr_in_limit=%d, volt_in_limit=%d\n",
+					curr_in_limit, volt_in_limit);
+	} else {
+			curr_in_limit = 0;
+	}
+
+	if (chg->sgm->vlim != volt_in_limit) {
+		pr_info("volt_in_limit=%d\n", volt_in_limit);
+		sgm4154x_set_input_volt_lim(chg->sgm, volt_in_limit);
+	}
+
+	if (chg->sgm->ilim != curr_in_limit) {
+		sgm4154x_set_input_curr_lim(chg->sgm, curr_in_limit);
+		pr_info("ibus_limit=%d, ibus_adc=%d, curr=%d\n",
+				state.ibus_limit, state.ibus_adc, curr_in_limit);
+	}
+
 	if (config->charging_disable != chg->chg_cfg.charging_disable) {
 		value = config->charging_disable;
-		if (value)
+		if (!value)
 			rc = sgm4154x_enable_charger(chg->sgm);
 		else
 			rc = sgm4154x_disable_charger(chg->sgm);
@@ -2086,7 +2608,9 @@ static int sgm4154x_charger_config_charge(void *data, struct mmi_charger_cfg *co
 		chg->chg_cfg.full_charged = config->full_charged;
 	}
 
-	if (config->chrg_iterm != chg->chg_cfg.chrg_iterm) {
+	if (!config->charging_disable &&
+	    !config->charger_suspend &&
+	    config->chrg_iterm != chg->chg_cfg.chrg_iterm) {
 		value = config->chrg_iterm * 1000;
 		rc = sgm4154x_set_term_curr(chg->sgm, value);
 		if (!rc) {
@@ -2095,7 +2619,9 @@ static int sgm4154x_charger_config_charge(void *data, struct mmi_charger_cfg *co
 		}
 	}
 
-	if (config->fg_iterm != chg->chg_cfg.fg_iterm) {
+	if (!config->charging_disable &&
+	    !config->charger_suspend &&
+	    config->fg_iterm != chg->chg_cfg.fg_iterm) {
 		if (chg->fg_psy) {
 			union power_supply_propval val = {0};
 			val.intval = config->fg_iterm * 1000;
@@ -2111,21 +2637,48 @@ static int sgm4154x_charger_config_charge(void *data, struct mmi_charger_cfg *co
 		}
 	}
 
-	if (config->charging_reset != chg->chg_cfg.charging_reset) {
+	if (!config->charging_disable &&
+	    !config->charger_suspend &&
+	    config->charging_reset != chg->chg_cfg.charging_reset) {
 		if (config->charging_reset) {
-			rc = sgm4154x_disable_charger(chg->sgm);
-			msleep(200);
-			rc = sgm4154x_enable_charger(chg->sgm);
+			sgm4154x_disable_charger(chg->sgm);
+			chg->chg_cfg.target_fv = -EINVAL;
+			chg->chg_cfg.target_fcc = -EINVAL;
+			chg->chg_cfg.charging_disable = true;
+			pr_info("Battery charging reset triggered\n");
 		}
 		cfg_changed = true;
 		chg->chg_cfg.charging_reset = config->charging_reset;
 	}
+
+	chg_en = sgm4154x_is_enabled_charging(chg->sgm);
+	if (!cfg_changed &&
+	    chg->chg_info.chrg_present && !state.hiz_en &&
+	    chg_en && prev_chg_en && chg->sgm->ichg > 0 &&
+	    ((chg->batt_info.batt_mv + 50) * 1000) <= chg->sgm->vreg &&
+	    state.chrg_stat != SGM4154x_FAST_CHRG &&
+	    state.chrg_stat != SGM4154x_PRECHRG) {
+		sgm4154x_disable_charger(chg->sgm);
+		chg->chg_cfg.target_fv = -EINVAL;
+		chg->chg_cfg.target_fcc = -EINVAL;
+		chg->chg_cfg.charging_disable = true;
+		pr_info("Battery charging reconfigure triggered\n");
+	}
+	prev_chg_en = chg_en;
 
 	if (cfg_changed) {
 		cancel_delayed_work(&chg->sgm->charge_monitor_work);
 		schedule_delayed_work(&chg->sgm->charge_monitor_work,
 						msecs_to_jiffies(200));
 	}
+
+	pr_info("cpd:%d, bpd:%d, otg:%d, protect:%d, load:%d, paired_ichg:%duA\n",
+			chg->chg_info.chrg_present, chg->sgm->batt_present,
+			chg->sgm->otg_enabled, chg->batt_protect_type,
+			chg->paired_load, chg->paired_ichg);
+	pr_info("chg_en:%d, ichg:%d, vchg:%d, ilim:%d, chg_st:0x%x, therm:%d, suspend:%d\n",
+			chg_en, chg->sgm->ichg, chg->sgm->vreg, chg->sgm->ilim,
+			state.chrg_stat, state.therm_stat, state.hiz_en);
 
 	return 0;
 }
@@ -2214,93 +2767,130 @@ static void sgm4154x_charger_set_constraint(void *data,
 	}
 }
 
+/* Battery presence detection threshold on battery temperature */
+#define BPD_TEMP_THRE (-30)
+#define PANIC_DEB_TIME_MAX (60000)
+#define OTG_VBUS_MIN_MV (4600)
+#define OTG_VBUS_MAX_MV (5600)
 static void sgm4154x_paired_battery_notify(void *data,
 			struct mmi_battery_info *batt_info)
 {
 	int i;
 	int rc;
-	u32 value;
-	int delta_vbat;
+	int batt_ocv;
+	int paired_ocv;
+	int delta_ocv;
 	int delta_soc;
-	bool high_load_en;
-	bool low_load_en;
+	bool batt_present;
+	union power_supply_propval val = {0};
 	struct sgm_mmi_charger *chg = data;
 	int paired_ichg = chg->paired_ichg;
 	int paired_load = chg->paired_load;
-	static bool initialized = false;
+	struct timespec64 now = {0};
+	static struct timespec64 start = {0};
+	uint32_t elapsed_ms;
 
-	if (!batt_info)
+	if (!batt_info || batt_info->batt_mv <= 0) {
+		pr_warn("Invalid paired battery info\n");
 		return;
+	}
 
-	delta_vbat = chg->batt_info.batt_mv - batt_info->batt_mv;
+	if (!chg->chg_info.chrg_present &&
+	    chg->chg_info.chrg_ma == 0 &&
+	    chg->chg_info.chrg_mv > OTG_VBUS_MIN_MV &&
+	    chg->chg_info.chrg_mv < OTG_VBUS_MAX_MV &&
+	    (chg->batt_info.batt_ma < 0 || batt_info->batt_ma < 0)) {
+		chg->sgm->otg_enabled = true;
+	} else {
+		chg->sgm->otg_enabled = false;
+	}
+
+	memcpy(&chg->paired_batt_info, batt_info, sizeof(struct mmi_battery_info));
+	batt_present = (chg->batt_info.batt_temp >= BPD_TEMP_THRE)? true : false;
+	if (batt_present) {
+		rc = power_supply_get_property(chg->fg_psy,
+				POWER_SUPPLY_PROP_PRESENT, &val);
+		if (!rc && !val.intval)
+			batt_present = false;
+	}
+	if (!batt_present) {
+		chg->paired_ichg = 0;
+		chg->paired_load = PAIRED_LOAD_OFF;
+		return;
+	} else if (!chg->sgm->batt_present) {
+		chg->paired_ichg = chg->sgm->init_data.max_ichg;
+		chg->sgm->batt_present = batt_present;
+		pr_info("Battery present!\n");
+	}
+
+	batt_ocv = chg->batt_info.batt_mv;
+	batt_ocv -= (chg->batt_info.batt_ma * chg->batt_esr) / 1000;
+	paired_ocv = batt_info->batt_mv;
+	paired_ocv -= (batt_info->batt_ma * chg->paired_esr) / 1000;
+
+	delta_ocv = batt_ocv - paired_ocv;
 	delta_soc = chg->batt_info.batt_soc - batt_info->batt_soc;
 
 	if (chg->paired_ichg_table && chg->paired_ichg_table_len) {
 		paired_ichg = 0;
 		for (i = 0; i < chg->paired_ichg_table_len; i++) {
-			if (delta_soc <= chg->paired_ichg_table[i * 2]) {
+			if (delta_ocv <= chg->paired_ichg_table[i * 2]) {
 				paired_ichg = chg->paired_ichg_table[i * 2 + 1];
 				break;
 			}
 		}
 		paired_ichg *= 1000;
-	}
-	if (paired_ichg != chg->paired_ichg) {
-		value = min(chg->chg_cfg.target_fcc * 1000, chg->paired_ichg);
-		rc = sgm4154x_set_ichrg_curr(chg->sgm, value);
-		if (!rc)
+		if (!chg->constraint.factory_mode &&
+		    chg->paired_ichg != paired_ichg) {
 			chg->paired_ichg = paired_ichg;
+			chg->chg_cfg.target_fcc = -EINVAL;
+		}
 	}
 
-	if (!initialized &&
-	    chg->paired_load_thres && chg->paired_load_thres_len) {
-		initialized = true;
+	if (chg->paired_load_thres && chg->paired_load_thres_len) {
 		paired_load = PAIRED_LOAD_HIGH;
 		for (i = 0; i < chg->paired_load_thres_len; i++) {
-			if (delta_vbat > chg->paired_load_thres[i]) {
+			if (delta_ocv > chg->paired_load_thres[i]) {
 				paired_load = i;
 				break;
 			}
 		}
-		WARN_ON(paired_load == PAIRED_LOAD_OFF);
-	}
-
-	if (initialized && paired_ichg > 0) {
-		if (paired_ichg < chg->sgm->init_data.max_ichg / 2)
-			paired_load = PAIRED_LOAD_LOW;
-		else
-			paired_load = PAIRED_LOAD_HIGH;
-	}
-
-	if (paired_load != chg->paired_load) {
+		if (paired_load == PAIRED_LOAD_OFF) {
+			if (start.tv_sec == 0 && start.tv_nsec == 0) {
+				ktime_get_real_ts64(&start);
+				elapsed_ms = 0;
+			} else {
+				ktime_get_real_ts64(&now);
+				if (now.tv_sec <= start.tv_sec)
+					start = now;
+				elapsed_ms = (now.tv_sec - start.tv_sec) * 1000;
+				elapsed_ms += (now.tv_nsec - start.tv_nsec) / 1000000;
+			}
+			if (paired_vbat_panic_enabled &&
+			    elapsed_ms >= PANIC_DEB_TIME_MAX) {
+				panic("ERROR: delta_ocv=%dmV, delta_soc=%d",
+						delta_ocv, delta_soc);
+			} else if (elapsed_ms >= PANIC_DEB_TIME_MAX) {
+				pr_err("ERROR: delta_ocv=%dmV, delta_soc=%d",
+						delta_ocv, delta_soc);
+			}
+		} else {
+			start.tv_sec = 0;
+			start.tv_nsec = 0;
+		}
 		chg->paired_load = paired_load;
-		switch (paired_load) {
-		case PAIRED_LOAD_OFF:
-			high_load_en = false;
-			low_load_en = false;
-			break;
-		case PAIRED_LOAD_LOW:
-			high_load_en = false;
-			low_load_en = true;
-			break;
-		case PAIRED_LOAD_HIGH:
-		default:
-			high_load_en = true;
-			low_load_en = false;
-		}
-		if (gpio_is_valid(chg->sgm->high_load_en_gpio)) {
-			gpio_set_value(chg->sgm->high_load_en_gpio,
-				high_load_en ^ chg->sgm->high_load_active_low);
-		}
-		if (gpio_is_valid(chg->sgm->low_load_en_gpio)) {
-			gpio_set_value(chg->sgm->low_load_en_gpio,
-				low_load_en ^ chg->sgm->low_load_active_low);
-		}
-		initialized = true;
 	}
 
-	pr_info("delta_vbat: %dmV, delta_soc: %d, paired_ichg: %duA, paired_load: %d\n",
-		delta_vbat, delta_soc, paired_ichg, paired_load);
+	 /* Turn off load switch to stop charging by paired battery */
+	if (delta_ocv < 0 ||
+	    (chg->chg_info.chrg_present &&
+	     chg->chg_info.chrg_ma > 0 &&
+	     batt_info->batt_ma >= 0)) {
+		chg->paired_load = PAIRED_LOAD_OFF;
+	}
+
+	pr_info("paired_ocv:%dmV, batt_ocv:%dmV, delta_ocv:%dmV, delta_soc:%d\n",
+				paired_ocv, batt_ocv, delta_ocv, delta_soc);
 }
 
 static int sgm4154x_mmi_charger_init(struct sgm_mmi_charger *chg)
@@ -2311,17 +2901,20 @@ static int sgm4154x_mmi_charger_init(struct sgm_mmi_charger *chg)
 	const char *df_sn = NULL;
 	struct mmi_charger_driver *driver;
 
-	if (!chg->fg_psy) {
-		const char *fg_psy_name = "fg_battery";
-		rc = device_property_read_string(chg->sgm->dev,
+	if (!chg->fg_psy && !chg->fg_psy_name) {
+		chg->fg_psy_name = "fg_battery";
+		device_property_read_string(chg->sgm->dev,
 					"mmi,fg-psy-name",
-					&fg_psy_name);
-		chg->fg_psy = power_supply_get_by_name(fg_psy_name);
+					&chg->fg_psy_name);
+	}
+
+	if (!chg->fg_psy) {
+		chg->fg_psy = power_supply_get_by_name(chg->fg_psy_name);
 		if (!chg->fg_psy) {
-			pr_err("No %s power supply found\n", fg_psy_name);
+			pr_err("No %s power supply found\n", chg->fg_psy_name);
 			return -ENODEV;
 		}
-		pr_info("%s power supply is found\n", fg_psy_name);
+		pr_info("%s power supply is found\n", chg->fg_psy_name);
 	}
 
 	if (chg->driver) {
@@ -2339,7 +2932,10 @@ static int sgm4154x_mmi_charger_init(struct sgm_mmi_charger *chg)
 		df_sn = "unknown-sn";
 	}
 	strcpy(chg->batt_info.batt_sn, df_sn);
+	chg->paired_batt_info.batt_soc = -EINVAL;
+	chg->chg_cfg.target_fcc = chg->sgm->init_data.ichg / 1000;
 	chg->chg_cfg.charging_disable = chg->sgm->init_data.charger_disabled;
+	chg->chg_cfg.charger_suspend = chg->sgm->init_data.charger_disabled;
 
 	if (of_property_read_bool(chg->sgm->dev->of_node, "mmi,ichg-invert-polority"))
 		chg->ichg_polority = -1;
@@ -2403,6 +2999,20 @@ static int sgm4154x_mmi_charger_init(struct sgm_mmi_charger *chg)
 		}
 	}
 
+	rc = of_property_read_u32(chg->sgm->dev->of_node,
+				"mmi,paired-esr",
+				&chg->paired_esr);
+	if (rc)
+		chg->paired_esr = 60;
+	pr_info("paired battery ESR: %d\n", chg->paired_esr);
+
+	rc = of_property_read_u32(chg->sgm->dev->of_node,
+				"mmi,batt-esr",
+				&chg->batt_esr);
+	if (rc)
+		chg->batt_esr = 40;
+	pr_info("battery ESR: %d\n", chg->batt_esr);
+
 	driver = devm_kzalloc(chg->sgm->dev,
 				sizeof(struct mmi_charger_driver),
 				GFP_KERNEL);
@@ -2463,6 +3073,7 @@ static int sgm4154x_psy_notifier_call(struct notifier_block *nb,
 	struct sgm4154x_device *sgm = container_of(nb,
 				struct sgm4154x_device, psy_nb);
 	struct power_supply *psy = v;
+	struct sgm_mmi_charger *chg = NULL;
 
 	if (!sgm) {
 		pr_err("called before sgm valid!\n");
@@ -2472,9 +3083,10 @@ static int sgm4154x_psy_notifier_call(struct notifier_block *nb,
 	if (!psy || val != PSY_EVENT_PROP_CHANGED)
 		return NOTIFY_OK;
 
+	chg = sgm->mmi_charger;
 	if ((sgm->usb && !strcmp(psy->desc->name, sgm->usb->desc->name)) ||
-	    (sgm->mmi_charger && sgm->mmi_charger->fg_psy &&
-	     !strcmp(psy->desc->name, sgm->mmi_charger->fg_psy->desc->name))) {
+	    (chg && chg->fg_psy_name && !strcmp(psy->desc->name, chg->fg_psy_name)) ||
+		(sgm->wls_psy && !strcmp(psy->desc->name, sgm->wls_psy->desc->name))) {
 		cancel_delayed_work(&sgm->charge_detect_delayed_work);
 		schedule_delayed_work(&sgm->charge_detect_delayed_work,
 						msecs_to_jiffies(0));
@@ -2532,7 +3144,7 @@ static ssize_t chg_en_store(struct device *dev,
 				const char *buf, size_t count)
 {
 	int ret;
-	bool enable;
+	int enable;
 	struct sgm4154x_device *sgm = dev_get_drvdata(dev);
 
 	if (!sgm) {
@@ -2540,18 +3152,27 @@ static ssize_t chg_en_store(struct device *dev,
 		return -ENODEV;
 	}
 
-	ret = kstrtobool(buf, &enable);
+	ret = kstrtoint(buf, 0, &enable);
 	if (ret) {
 		pr_err("Invalid chg_en value, ret = %d\n", ret);
 		return ret;
 	}
 
-	if (gpio_is_valid(sgm->chg_en_gpio)) {
-		gpio_set_value(sgm->chg_en_gpio, !enable);
-		cancel_delayed_work(&sgm->charge_monitor_work);
-		schedule_delayed_work(&sgm->charge_monitor_work,
-						msecs_to_jiffies(200));
+	if (enable < 0) {
+		sgm->update_pending = true;
+		sgm->user_chg_en = -EINVAL;
+		pr_info("Clear user enable charging setting\n");
+	} else {
+		sgm->user_chg_en = !!enable;
+		pr_info("Set user enable charging: %d\n", sgm->user_chg_en);
+		if (sgm->user_chg_en)
+			sgm4154x_enable_charger(sgm);
+		else
+			sgm4154x_disable_charger(sgm);
 	}
+	cancel_delayed_work(&sgm->charge_monitor_work);
+	schedule_delayed_work(&sgm->charge_monitor_work,
+					msecs_to_jiffies(200));
 
 	return count;
 }
@@ -2568,10 +3189,7 @@ static ssize_t chg_en_show(struct device *dev,
 		return -ENODEV;
 	}
 
-	if (gpio_is_valid(sgm->chg_en_gpio))
-		enable = !gpio_get_value(sgm->chg_en_gpio);
-	else
-		enable = true;
+	enable = sgm4154x_is_enabled_charging(sgm);
 
 	return sprintf(buf, "%d\n", enable);
 }
@@ -2686,7 +3304,7 @@ static ssize_t charger_suspend_store(struct device *dev,
 				const char *buf, size_t count)
 {
 	int ret;
-	bool chg_suspend;
+	int chg_suspend;
 	struct sgm4154x_device *sgm = dev_get_drvdata(dev);
 
 	if (!sgm) {
@@ -2694,18 +3312,24 @@ static ssize_t charger_suspend_store(struct device *dev,
 		return -ENODEV;
 	}
 
-	ret = kstrtobool(buf, &chg_suspend);
+	ret = kstrtoint(buf, 0, &chg_suspend);
 	if (ret) {
 		pr_err("Invalid chg_suspend value, ret = %d\n", ret);
 		return ret;
 	}
 
-	ret = sgm4154x_set_hiz_en(sgm, chg_suspend);
-	if (!ret) {
-		cancel_delayed_work(&sgm->charge_monitor_work);
-		schedule_delayed_work(&sgm->charge_monitor_work,
-						msecs_to_jiffies(200));
+	if (chg_suspend < 0) {
+		sgm->update_pending = true;
+		sgm->user_chg_susp = -EINVAL;
+		pr_info("Clear user suspend charger setting\n");
+	} else {
+		sgm->user_chg_susp = !!chg_suspend;
+		pr_info("Set user suspend charger: %d\n", sgm->user_chg_susp);
+		sgm4154x_set_hiz_en(sgm, sgm->user_chg_susp);
 	}
+	cancel_delayed_work(&sgm->charge_monitor_work);
+	schedule_delayed_work(&sgm->charge_monitor_work,
+					msecs_to_jiffies(200));
 
 	return count;
 }
@@ -2740,6 +3364,10 @@ static int sgm4154x_probe(struct i2c_client *client,
 
 	sgm->client = client;
 	sgm->dev = dev;
+	sgm->user_ilim = -EINVAL;
+	sgm->user_ichg = -EINVAL;
+	sgm->user_chg_en = -EINVAL;
+	sgm->user_chg_susp = -EINVAL;
 
 	mutex_init(&sgm->lock);
 
@@ -2794,6 +3422,9 @@ static int sgm4154x_probe(struct i2c_client *client,
 		otg_notify = usb_register_notifier(sgm->usb3_phy, &sgm->usb_nb);
 	}
 
+	INIT_DELAYED_WORK(&sgm->charge_detect_delayed_work, charger_detect_work_func);
+	INIT_DELAYED_WORK(&sgm->charge_monitor_work, charger_monitor_work_func);
+
 	if (client->irq) {
 		ret = devm_request_threaded_irq(dev, client->irq, NULL,
 						sgm4154x_irq_handler_thread,
@@ -2803,10 +3434,9 @@ static int sgm4154x_probe(struct i2c_client *client,
 		if (ret)
 			goto error_out;
 		enable_irq_wake(client->irq);
+		sgm->irq_enabled = true;
 	}
 
-	INIT_DELAYED_WORK(&sgm->charge_detect_delayed_work, charger_detect_work_func);
-	INIT_DELAYED_WORK(&sgm->charge_monitor_work, charger_monitor_work_func);
 	sgm->pm_nb.notifier_call = sgm4154x_suspend_notifier;
 	register_pm_notifier(&sgm->pm_nb);
 	sgm->psy_nb.notifier_call = sgm4154x_psy_notifier_call;

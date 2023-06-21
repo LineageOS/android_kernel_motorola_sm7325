@@ -22,6 +22,11 @@
 
 #include "ili9882.h"
 
+#ifdef CONFIG_MOTO_DDA_PASSIVESTYLUS
+#include "moto_ts_dda.h"
+#endif
+
+
 /*gesture info mode*/
 struct ili_demo_debug_info_id0 {
 	u32 id			: 8;
@@ -467,7 +472,7 @@ void ili_set_gesture_symbol(void)
 
 int ili_move_gesture_code_iram(int mode)
 {
-	int i, ret = 0, timeout = 10;
+	int i, ret = 0, timeout = 100;
 	u8 cmd[2] = {0};
 	u8 cmd_write[3] = {0x01,0x0A,0x05};
 
@@ -524,6 +529,7 @@ int ili_move_gesture_code_iram(int mode)
 			break;
 		}
 	}
+	mdelay(2);
 	ili_irq_disable();
 
 	if (i >= timeout) {
@@ -648,6 +654,9 @@ int ili_touch_esd_gesture_iram(void)
 	int ges_pwd = ESD_GESTURE_CORE146_PWD;
 	int ges_run = SPI_ESD_GESTURE_CORE146_RUN;
 	int pwd_len = 2;
+	
+	if (!ilits->gesture_load_code)
+		ges_run = I2C_ESD_GESTURE_CORE146_RUN;
 
 	if (ilits->chip->core_ver < CORE_VER_1460) {
 		if (ilits->chip->core_ver >= CORE_VER_1420)
@@ -750,6 +759,7 @@ out:
 	return ret;
 
 fail:
+	ilits->actual_tp_mode = P5_X_FW_GESTURE_MODE;
 	ili_ice_mode_ctrl(DISABLE, ON);
 	return ret;
 }
@@ -822,6 +832,7 @@ static void ilitek_tddi_touch_send_debug_data(u8 *buf, int len)
 
 	mutex_lock(&ilits->debug_mutex);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
 	if (!ilits->netlink && !ilits->dnp)
 		goto out;
 
@@ -830,6 +841,10 @@ static void ilitek_tddi_touch_send_debug_data(u8 *buf, int len)
 		ili_netlink_reply_msg(buf, len);
 		goto out;
 	}
+#else
+	if (!ilits->dnp)
+		goto out;
+#endif
 
 	/* Sending data to apk via the node of debug_message node */
 	if (ilits->dnp) {
@@ -856,6 +871,47 @@ out:
 	mutex_unlock(&ilits->debug_mutex);
 }
 
+void ili_touch_press_width(u16 x, u16 y, u16 pressure, u16 id, u16 width_major, u16 width_minor, s8 degree)
+{
+	ILI_DBG("Touch Press: id = %d, x = %d, y = %d, p = %d, width_major = %d, width_minor = %d, degree = %d\n",
+		id, x, y, pressure, width_major, width_minor, degree);
+
+	if (MT_B_TYPE) {
+		input_mt_slot(ilits->input, id);
+		input_mt_report_slot_state(ilits->input, MT_TOOL_FINGER, true);
+		input_report_abs(ilits->input, ABS_MT_POSITION_X, x);
+		input_report_abs(ilits->input, ABS_MT_POSITION_Y, y);
+		input_report_abs(ilits->input, ABS_MT_TOUCH_MAJOR, width_major);
+		input_report_abs(ilits->input, ABS_MT_TOUCH_MINOR, width_minor);
+		input_report_abs(ilits->input, ABS_MT_ORIENTATION, degree);
+		
+		if (MT_PRESSURE)
+			input_report_abs(ilits->input, ABS_MT_PRESSURE, pressure);
+	} else {
+		input_report_key(ilits->input, BTN_TOUCH, 1);
+		input_report_abs(ilits->input, ABS_MT_TRACKING_ID, id);
+		input_report_abs(ilits->input, ABS_MT_TOUCH_MAJOR, 1);
+		input_report_abs(ilits->input, ABS_MT_WIDTH_MAJOR, 1);
+		input_report_abs(ilits->input, ABS_MT_POSITION_X, x);
+		input_report_abs(ilits->input, ABS_MT_POSITION_Y, y);
+		if (MT_PRESSURE)
+			input_report_abs(ilits->input, ABS_MT_PRESSURE, pressure);
+
+		input_mt_sync(ilits->input);
+	}
+#ifdef CONFIG_MOTO_DDA_PASSIVESTYLUS
+	{
+		struct dda_finger_coords finger_data;
+		finger_data.x = x;
+		finger_data.y = y;
+		finger_data.p = pressure;
+		finger_data.minor = width_minor;
+		finger_data.major = width_major;
+		moto_dda_process_finger_press(id, &finger_data);
+	}
+#endif
+}
+
 void ili_touch_press(u16 x, u16 y, u16 pressure, u16 id)
 {
 	ILI_DBG("Touch Press: id = %d, x = %d, y = %d, p = %d\n", id, x, y, pressure);
@@ -879,6 +935,17 @@ void ili_touch_press(u16 x, u16 y, u16 pressure, u16 id)
 
 		input_mt_sync(ilits->input);
 	}
+#ifdef CONFIG_MOTO_DDA_PASSIVESTYLUS
+	{
+		struct dda_finger_coords finger_data;
+		finger_data.x = x;
+		finger_data.y = y;
+		finger_data.p = pressure;
+		finger_data.minor = 1;
+		finger_data.major = 1;
+		moto_dda_process_finger_press(id, &finger_data);
+	}
+#endif
 }
 
 void ili_touch_release(u16 x, u16 y, u16 id)
@@ -892,6 +959,9 @@ void ili_touch_release(u16 x, u16 y, u16 id)
 		input_report_key(ilits->input, BTN_TOUCH, 0);
 		input_mt_sync(ilits->input);
 	}
+#ifdef CONFIG_MOTO_DDA_PASSIVESTYLUS
+	moto_dda_process_finger_release(id);
+#endif
 }
 
 void ili_touch_release_all_point(void)
@@ -908,30 +978,56 @@ void ili_touch_release_all_point(void)
 		ili_touch_release(0, 0, 0);
 	}
 	input_sync(ilits->input);
+#ifdef CONFIG_MOTO_DDA_PASSIVESTYLUS
+	for (i = 0 ; i < MAX_TOUCH_NUM; i++){
+		moto_dda_process_finger_release(i);
+	}
+#endif
 }
 
 static struct ilitek_touch_info touch_info[MAX_TOUCH_NUM];
+#ifdef ILI_TOUCH_LAST_TIME
+static bool time_flag = 1;
+#endif
 
 void ili_report_ap_mode(u8 *buf, int len)
 {
 	int i = 0;
 	u32 xop = 0, yop = 0;
+	int index = 0;
+
+	if (TOUCH_WIDTH && ilits->tp_data_format == DATA_FORMAT_DEMO) {
+		index = 45;		
+	}
+
 
 	memset(touch_info, 0x0, sizeof(touch_info));
 
 	ilits->finger = 0;
 
 	for (i = 0; i < MAX_TOUCH_NUM; i++) {
-		if ((buf[(4 * i) + 1] == 0xFF) && (buf[(4 * i) + 2] == 0xFF)
-			&& (buf[(4 * i) + 3] == 0xFF)) {
-			if (MT_B_TYPE)
-				ilits->curt_touch[i] = 0;
-			continue;
+		if (TOUCH_WIDTH) {
+			if ((buf[(4 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF)
+				&& (buf[(4 * i) + 2 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF)
+				&& (buf[(4 * i) + 3 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF)) {
+				if (MT_B_TYPE)
+					ilits->curt_touch[i] = 0;
+				continue;
+			}
+
+			xop = (((buf[(4 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] & 0xF0) << 4) | (buf[(4 * i) + 2 + P5_X_DEMO_MODE_PACKET_INFO_LEN]));
+			yop = (((buf[(4 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] & 0x0F) << 8) | (buf[(4 * i) + 3 + P5_X_DEMO_MODE_PACKET_INFO_LEN]));
+		} else {
+			if ((buf[(4 * i) + 1] == 0xFF) && (buf[(4 * i) + 2] == 0xFF)
+				&& (buf[(4 * i) + 3] == 0xFF)) {
+				if (MT_B_TYPE)
+					ilits->curt_touch[i] = 0;
+				continue;
+			}
+
+			xop = (((buf[(4 * i) + 1] & 0xF0) << 4) | (buf[(4 * i) + 2]));
+			yop = (((buf[(4 * i) + 1] & 0x0F) << 8) | (buf[(4 * i) + 3]));
 		}
-
-		xop = (((buf[(4 * i) + 1] & 0xF0) << 4) | (buf[(4 * i) + 2]));
-		yop = (((buf[(4 * i) + 1] & 0x0F) << 8) | (buf[(4 * i) + 3]));
-
 		if (ilits->trans_xy) {
 			touch_info[ilits->finger].x = xop;
 			touch_info[ilits->finger].y = yop;
@@ -942,10 +1038,22 @@ void ili_report_ap_mode(u8 *buf, int len)
 
 		touch_info[ilits->finger].id = i;
 
-		if (MT_PRESSURE)
-			touch_info[ilits->finger].pressure = buf[(4 * i) + 4];
-		else
+		if (MT_PRESSURE) {
+			if (TOUCH_WIDTH) {
+				touch_info[ilits->finger].pressure =(buf[(4 * i) + 4 + P5_X_DEMO_MODE_PACKET_INFO_LEN])<<2;
+			} else {
+				touch_info[ilits->finger].pressure = buf[(4 * i) + 4];
+			}
+		} else {
 			touch_info[ilits->finger].pressure = 1;
+		}
+
+		if (TOUCH_WIDTH && ilits->tp_data_format == DATA_FORMAT_DEMO) {
+			touch_info[ilits->finger].degree = buf[(5 * i) + index];
+			touch_info[ilits->finger].width_major = (((buf[(5 * i) + 1 + index]) << 8) | (buf[(5 * i) + 2 + index]));
+			touch_info[ilits->finger].width_minor = (((buf[(5 * i) + 3 + index]) << 8) | (buf[(5 * i) + 4 + index]));
+		}
+
 
 		ILI_DBG("original x = %d, y = %d\n", xop, yop);
 		ilits->finger++;
@@ -956,10 +1064,22 @@ void ili_report_ap_mode(u8 *buf, int len)
 	ILI_DBG("figner number = %d, LastTouch = %d\n", ilits->finger, ilits->last_touch);
 
 	if (ilits->finger) {
+#ifdef ILI_TOUCH_LAST_TIME
+		if (time_flag) {
+			ilits->last_event_time = ktime_get_boottime();
+			time_flag = 0;
+			ILI_DBG("set last_event_time\n");
+		}
+#endif
 		if (MT_B_TYPE) {
 			for (i = 0; i < ilits->finger; i++) {
 				input_report_key(ilits->input, BTN_TOUCH, 1);
-				ili_touch_press(touch_info[i].x, touch_info[i].y, touch_info[i].pressure, touch_info[i].id);
+				if (TOUCH_WIDTH && ilits->tp_data_format == DATA_FORMAT_DEMO) {
+					ili_touch_press_width(touch_info[i].x, touch_info[i].y, touch_info[i].pressure, touch_info[i].id,
+					touch_info[i].width_major, touch_info[i].width_minor, touch_info[i].degree);
+				} else {
+					ili_touch_press(touch_info[i].x, touch_info[i].y, touch_info[i].pressure, touch_info[i].id);
+				}
 				input_report_key(ilits->input, BTN_TOOL_FINGER, 1);
 			}
 			for (i = 0; i < MAX_TOUCH_NUM; i++) {
@@ -975,6 +1095,10 @@ void ili_report_ap_mode(u8 *buf, int len)
 		ilits->last_touch = ilits->finger;
 	} else {
 		if (ilits->last_touch) {
+#ifdef ILI_TOUCH_LAST_TIME
+			time_flag = 1;
+			ILI_DBG("last touch, reset time_flag\n");
+#endif
 			if (MT_B_TYPE) {
 				for (i = 0; i < MAX_TOUCH_NUM; i++) {
 					if (ilits->curt_touch[i] == 0 && ilits->prev_touch[i] == 1)
@@ -998,6 +1122,11 @@ void ili_debug_mode_report_point(u8 *buf, int len)
 	int i = 0;
 	u32 xop = 0, yop = 0;
 	static u8 p[MAX_TOUCH_NUM];
+	int index = 0;
+
+ 	if (TOUCH_WIDTH && ilits->tp_data_format == DATA_FORMAT_DEBUG) {
+			index = 35 + (2 * ilits->xch_num * ilits->ych_num) + (ilits->stx * 2) + (ilits->srx * 2) + (2 * 2) - 5;
+	}		
 
 	memset(touch_info, 0x0, sizeof(touch_info));
 
@@ -1037,6 +1166,12 @@ void ili_debug_mode_report_point(u8 *buf, int len)
 			touch_info[ilits->finger].pressure = 1;
 		}
 
+		if (TOUCH_WIDTH && ilits->tp_data_format == DATA_FORMAT_DEBUG) {
+			touch_info[ilits->finger].degree = buf[(5 * i) + index];
+			touch_info[ilits->finger].width_major = (((buf[(5 * i) + 1 + index]) << 8) | (buf[(5 * i) + 2 + index]));
+			touch_info[ilits->finger].width_minor = (((buf[(5 * i) + 3 + index]) << 8) | (buf[(5 * i) + 4 + index]));
+		}
+
 		ILI_DBG("original x = %d, y = %d\n", xop, yop);
 		ilits->finger++;
 		if (MT_B_TYPE)
@@ -1049,7 +1184,12 @@ void ili_debug_mode_report_point(u8 *buf, int len)
 		if (MT_B_TYPE) {
 			for (i = 0; i < ilits->finger; i++) {
 				input_report_key(ilits->input, BTN_TOUCH, 1);
-				ili_touch_press(touch_info[i].x, touch_info[i].y, touch_info[i].pressure, touch_info[i].id);
+ 				if (TOUCH_WIDTH && ilits->tp_data_format == DATA_FORMAT_DEBUG) {
+					ili_touch_press_width(touch_info[i].x, touch_info[i].y, touch_info[i].pressure, touch_info[i].id,
+					touch_info[i].width_major, touch_info[i].width_minor, touch_info[i].degree);
+				} else {
+					ili_touch_press(touch_info[i].x, touch_info[i].y, touch_info[i].pressure, touch_info[i].id);
+				}
 				input_report_key(ilits->input, BTN_TOOL_FINGER, 1);
 			}
 			for (i = 0; i < MAX_TOUCH_NUM; i++) {
@@ -1101,7 +1241,7 @@ void ili_report_gesture_mode(u8 *buf, int len)
 	int lu_x = 0, lu_y = 0, rd_x = 0, rd_y = 0, score = 0;
 	u8 ges[P5_X_GESTURE_INFO_LENGTH] = {0};
 	struct gesture_coordinate *gc = ilits->gcoord;
-#ifndef ILI_SENSOR_EN
+#if !defined(ILI_SENSOR_EN) && !defined(CONFIG_INPUT_TOUCHSCREEN_MMI)
 	struct input_dev *input = ilits->input;
 #endif
 	bool transfer = ilits->trans_xy;
@@ -1131,8 +1271,9 @@ void ili_report_gesture_mode(u8 *buf, int len)
 	gc->pos_4th.y   = ((ges[25] & 0x0F) << 8) | ges[27];
 
 	switch (gc->code) {
+	case GESTURE_SINGLECLICK:
 	case GESTURE_DOUBLECLICK:
-		ILI_INFO("Double Click key event\n");
+		ILI_INFO("Click key event 0x%x\n", gc->code);
 #ifdef ILI_SENSOR_EN
 		if (!(ilits->wakeable && ilits->should_enable_gesture)) {
 			ILI_INFO("Gesture got but wakeable not set. Skip this gesture.");
@@ -1159,6 +1300,24 @@ void ili_report_gesture_mode(u8 *buf, int len)
 #else
 		PM_WAKEUP_EVENT(ilits->gesture_wakelock, 5000);
 #endif
+#elif CONFIG_INPUT_TOUCHSCREEN_MMI
+		if (ilits->imports && ilits->imports->report_gesture) {
+			struct gesture_event_data event;
+			int ret = 0;
+
+			if(gc->code == GESTURE_SINGLECLICK) {
+				event.evcode = 1;
+			} else if(gc->code == GESTURE_DOUBLECLICK) {
+				event.evcode =4;
+			}
+			/* call class method */
+			ret = ilits->imports->report_gesture(&event);
+#ifdef CONFIG_HAS_WAKELOCK
+			wake_lock_timeout(&(ilits->gesture_wakelock), msecs_to_jiffies(5000));
+#else
+			PM_WAKEUP_EVENT(ilits->gesture_wakelock, 5000);
+#endif
+		}
 #else
 		input_report_key(input, KEY_GESTURE_POWER, 1);
 		input_sync(input);

@@ -30,6 +30,10 @@ enum touch_state {
 	TOUCH_LOW_POWER_STATE,
 };
 
+#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+extern int ili_mmi_init(struct ilitek_ts_data *ts_data, bool enable);
+#endif
+
 #ifdef ILI_SENSOR_EN
 static struct sensors_classdev __maybe_unused sensors_touch_cdev = {
 
@@ -93,11 +97,18 @@ void ili_input_register(void)
 
 	input_set_abs_params(ilits->input, ABS_MT_POSITION_X, TOUCH_SCREEN_X_MIN, ilits->panel_wid - 1, 0, 0);
 	input_set_abs_params(ilits->input, ABS_MT_POSITION_Y, TOUCH_SCREEN_Y_MIN, ilits->panel_hei - 1, 0, 0);
-	input_set_abs_params(ilits->input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-	input_set_abs_params(ilits->input, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
+	if (!TOUCH_WIDTH) {
+		input_set_abs_params(ilits->input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+		input_set_abs_params(ilits->input, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
+	} else {
+		input_set_abs_params(ilits->input, ABS_MT_TOUCH_MAJOR, 0, ilits->panel_hei - 1, 0, 0);
+		input_set_abs_params(ilits->input, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
+		input_set_abs_params(ilits->input, ABS_MT_TOUCH_MINOR, 0, ilits->panel_wid - 1, 0, 0);
+		input_set_abs_params(ilits->input, ABS_MT_ORIENTATION, -90, 90, 0, 0);
+	}
 
 	if (MT_PRESSURE)
-		input_set_abs_params(ilits->input, ABS_MT_PRESSURE, 0, 255, 0, 0);
+		input_set_abs_params(ilits->input, ABS_MT_PRESSURE, 0, 1000, 0, 0);
 
 	if (MT_B_TYPE) {
 #if KERNEL_VERSION(3, 7, 0) <= LINUX_VERSION_CODE
@@ -441,12 +452,12 @@ int ili_sysfs_remove_device(struct device *dev) {
 }
 #else
 
-#ifdef CONFIG_DRM
+#if (defined(CONFIG_DRM) && (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)))
 static int ilitek_plat_notifier_fb(struct notifier_block *self, unsigned long event, void *data)
 {
 	int *blank;
 	struct drm_panel_notifier *evdata = data;
-#if defined(ILI_SENSOR_EN) && defined(ILI_SET_TOUCH_STATE)
+#if defined(ILI_SENSOR_EN) && (defined(ILI_SET_TOUCH_STATE) || defined(ILI_CONFIG_PANEL_NOTIFICATIONS))
 	struct ilitek_ts_data *ts =
 		container_of(self, struct ilitek_ts_data, notifier_fb);
 #endif
@@ -485,7 +496,7 @@ static int ilitek_plat_notifier_fb(struct notifier_block *self, unsigned long ev
 				else
 					ILI_INFO("TP in deep sleep!\n");
 			}
-#elif defined(ILI_SENSOR_EN) && defined(ILI_SET_TOUCH_STATE)
+#elif defined(ILI_SENSOR_EN) && (defined(ILI_SET_TOUCH_STATE) || defined(ILI_CONFIG_PANEL_NOTIFICATIONS))
 			if (ts->should_enable_gesture) {
 				ILI_INFO("double tap gesture suspend\n");
 				if (ili_sleep_handler(TP_SUSPEND) < 0)
@@ -718,8 +729,8 @@ int ili_sensor_remove(struct ilitek_ts_data *data)
 static void ilitek_plat_sleep_init(void)
 {
 	ILI_INFO("Init notifier_fb struct\n");
+#if (defined(CONFIG_DRM) && (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)))
 	ilits->notifier_fb.notifier_call = ilitek_plat_notifier_fb;
-#if defined(CONFIG_DRM)
 {
     int ret = 0;
     extern struct drm_panel *ili_active_panel;
@@ -841,6 +852,26 @@ void ilitek_plat_charger_init(void)
 /* add_for_charger_end */
 #endif
 #endif
+
+#ifdef ILITEK_PEN_NOTIFIER
+#define ENABLE_PASSIVE_PEN_MODE_CMD 0x01
+#define DISABLE_PASSIVE_PEN_MODE_CMD 0x00
+static int pen_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data)
+{
+	ILI_INFO("Received event(%lu) for pen detection\n", event);
+
+	mutex_lock(&ilits->touch_mutex);
+	if (event == PEN_DETECTION_PULL)
+		ili_ic_func_ctrl("passive_pen", ENABLE_PASSIVE_PEN_MODE_CMD);
+	else if (event == PEN_DETECTION_INSERT)
+		ili_ic_func_ctrl("passive_pen", DISABLE_PASSIVE_PEN_MODE_CMD);
+	mutex_unlock(&ilits->touch_mutex);
+
+    	return 0;
+}
+#endif
+
 static int ilitek_plat_probe(void)
 {
 #ifdef ILI_SENSOR_EN
@@ -896,6 +927,15 @@ static int ilitek_plat_probe(void)
 		if (!ili_sensor_init(ilits))
 			initialized_sensor = true;
 	}
+#endif
+
+#ifdef ILITEK_PEN_NOTIFIER
+	ilits->pen_notif.notifier_call = pen_notifier_callback;
+	pen_detection_register_client(&ilits->pen_notif);
+#endif
+
+#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+	ili_mmi_init(ilits, true);
 #endif
 
 	ILI_INFO("ILITEK Driver loaded successfully!");

@@ -59,15 +59,20 @@
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
 #include <linux/version.h>
-#include <linux/cyttsp5_core.h>
+#include "cyttsp5_core.h"
 
 #include <linux/timer.h>
 #include <linux/timex.h>
 #include <linux/rtc.h>
+#include <linux/regulator/consumer.h>
+
+#ifdef CYTTSP5_SENSOR_EN
+#include <linux/sensors.h>
+#endif
 
 //#define PT_PANEL_ID_FROM_MFG
 
-/* #define EASYWAKE_TSG6 */
+#define EASYWAKE_TSG6
 #define PT_PIP2_MAX_FILE_SIZE           0x18000
 #define CY_FW_FILE_PREFIX	"cyttsp5_fw"
 #define CY_FW_FILE_SUFFIX	".bin"
@@ -941,6 +946,23 @@ struct cyttsp5_module {
 	void (*release)(struct device *dev, void *data);
 };
 
+#ifdef CYTTSP5_SENSOR_EN
+struct cyttsp5_sensor_platform_data {
+    struct input_dev *input_sensor_dev;
+    struct sensors_classdev ps_cdev;
+    int sensor_opened;
+    char sensor_data; /* 0 near, 1 far */
+    struct cyttsp5_core_data *data;
+};
+#endif
+
+enum cyttsp5_pm_mode {
+	CYTTSP5_PM_POWEROFF = 0,
+	CYTTSP5_PM_DEEPSLEEP,
+	CYTTSP5_PM_EASY_WAKEUP,
+	CYTTSP5_PM_ACTIVE,
+};
+
 struct cyttsp5_core_data {
 	struct list_head node;
 	struct list_head module_list; /* List of probed modules */
@@ -991,6 +1013,7 @@ struct cyttsp5_core_data {
 	struct notifier_block pm_notifier;
 #endif
 	struct work_struct startup_work;
+	struct work_struct ez_recovery_work;
 	struct cyttsp5_sysinfo sysinfo;
 	void *exclusive_dev;
 	int exclusive_waits;
@@ -1021,6 +1044,13 @@ struct cyttsp5_core_data {
 	struct mutex tthe_lock;
 	u8 tthe_exit;
 #endif
+	struct wakeup_source *gesture_wakelock;
+	enum cyttsp5_pm_mode pm_mode;
+	bool should_enable_gesture;
+#ifdef CYTTSP5_SENSOR_EN
+	struct mutex state_mutex;
+	struct cyttsp5_sensor_platform_data *sensor_pdata;
+ #endif
 	u8 pr_buf[CY_MAX_PRBUF_SIZE];
 	u8 debug_level;
 	u32 watchdog_interval;
@@ -1035,6 +1065,7 @@ struct cyttsp5_core_data {
 	int (*firmware_update)(struct device *dev, char *fwname);
 	char firmware_name[CYTTSP5_FIRMWARE_NAME_MAX_LEN];
 	bool force_fw_upgrade;
+	const char *supplier;
 };
 struct gd_sensor {
 	int32_t cm_min;

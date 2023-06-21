@@ -34,6 +34,9 @@ ifeq ($(USB_POWER_DELIVERY),true)
 	KERNEL_CFLAGS += CONFIG_USB_POWER_DELIVERY=y
 endif
 
+ifeq ($(TCPC_DEVON_POLLING_TIME),true)
+	KERNEL_CFLAGS += CONFIG_TCPC_DEVON_POLLING_TIME=y
+endif
 
 
 include $(CLEAR_VARS)
@@ -47,4 +50,5 @@ include $(CLEAR_VARS)
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := rt_pd_manager.ko
 LOCAL_MODULE_PATH := $(KERNEL_MODULES_OUT)
+LOCAL_ADDITIONAL_DEPENDENCIES := $(KERNEL_MODULES_OUT)/mmi_discrete_charger_class.ko
 include $(DLKM_DIR)/AndroidKernelModule.mk

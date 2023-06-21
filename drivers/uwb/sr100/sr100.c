@@ -60,17 +60,18 @@ extern int ese_cold_reset(ese_cold_reset_origin_t src);
 #endif
 static bool read_abort_requested = false;
 static bool is_fw_dwnld_enabled = false;
-#define SR100_TXBUF_SIZE 4096
-#define SR100_RXBUF_SIZE 4096
-#define SR100_MAX_TX_BUF_SIZE 2053
+#define SR100_TXBUF_SIZE 4200
+#define SR100_RXBUF_SIZE 4200
+#define SR100_MAX_TX_BUF_SIZE 4200
 #define MAX_READ_RETRY_COUNT 10
+#define UCI_MT_MASK 0xE0
 /* Macro to define SPI clock frequency */
 
 #define SR100_SPI_CLOCK 16000000L;
 #define ENABLE_THROUGHPUT_MEASUREMENT 0
 
 /* Maximum UCI packet size supported from the driver */
-#define MAX_UCI_PKT_SIZE 2048
+#define MAX_UCI_PKT_SIZE 4200
 
 /* Different driver debug lever */
 enum SR100_DEBUG_LEVEL { SR100_DEBUG_OFF, SR100_FULL_DEBUG };
@@ -391,8 +392,6 @@ static int sr100_dev_transceive(struct sr100_dev* sr100_dev, int op_mode, int co
   sr100_dev->IsExtndLenIndication = 0;
   ret = -1;
   retry_count = 0;
-  /*500ms timeout in jiffies*/
-  sr100_dev->timeOutInMs = ((500*HZ)/1000);
 
   switch(sr100_dev->mode){
     case SR100_WRITE_MODE:
@@ -472,13 +471,19 @@ static int sr100_dev_transceive(struct sr100_dev* sr100_dev, int op_mode, int co
         pr_info("sr100_dev_read: spi read error %d\n ", ret);
         goto transcive_end;
       }
-      sr100_dev->IsExtndLenIndication = (sr100_dev->rx_buffer[EXTND_LEN_INDICATOR_OFFSET] & EXTND_LEN_INDICATOR_OFFSET_MASK);
-      sr100_dev->totalBtyesToRead = sr100_dev->rx_buffer[NORMAL_MODE_LEN_OFFSET];
-      if(sr100_dev->IsExtndLenIndication){
+
+      if ((sr100_dev->rx_buffer[0] & UCI_MT_MASK) == 0) {
+        sr100_dev->totalBtyesToRead = sr100_dev->rx_buffer[NORMAL_MODE_LEN_OFFSET];
         sr100_dev->totalBtyesToRead = ((sr100_dev->totalBtyesToRead << 8) | sr100_dev->rx_buffer[EXTENDED_LENGTH_OFFSET]);
+      } else {
+        sr100_dev->IsExtndLenIndication = (sr100_dev->rx_buffer[EXTND_LEN_INDICATOR_OFFSET] & EXTND_LEN_INDICATOR_OFFSET_MASK);
+        sr100_dev->totalBtyesToRead = sr100_dev->rx_buffer[NORMAL_MODE_LEN_OFFSET];
+        if (sr100_dev->IsExtndLenIndication) {
+          sr100_dev->totalBtyesToRead = ((sr100_dev->totalBtyesToRead << 8) | sr100_dev->rx_buffer[EXTENDED_LENGTH_OFFSET]);
+        }
       }
-      if(sr100_dev->totalBtyesToRead > MAX_UCI_PKT_SIZE) {
-        printk("Length %d  exceeds the max limit %d....",(int)sr100_dev->totalBtyesToRead,(int)SR100_RXBUF_SIZE);
+      if(sr100_dev->totalBtyesToRead > (MAX_UCI_PKT_SIZE - NORMAL_MODE_HEADER_LEN)) {
+        printk("Length %d  exceeds the max limit %d....",(int)sr100_dev->totalBtyesToRead,(int)MAX_UCI_PKT_SIZE);
         ret = -1;
         goto transcive_end;
       }
@@ -495,7 +500,7 @@ static int sr100_dev_transceive(struct sr100_dev* sr100_dev, int op_mode, int co
         usleep_range(10,15);
         retry_count++;
         if(retry_count == 1000){
-          printk("Slave not released the IRQ even after 1ms");
+          printk("Slave not released the IRQ even after 10ms");
           break;
         }
       }while(gpio_get_value(sr100_dev->irq_gpio));
@@ -605,10 +610,25 @@ write_end:
  ****************************************************************************/
 static ssize_t sr100_hbci_read(struct sr100_dev *sr100_dev,char* buf, size_t count){
   int ret = -EIO;
-  ret = wait_event_interruptible(sr100_dev->read_wq, sr100_dev->irq_received);
-  if (ret) {
-    printk("wait_event_interruptible() : Failed.\n");
+
+  if(count > SR100_RXBUF_SIZE) {
+    SR100_ERR_MSG("count(%lu) out of range(0-%d)\n", count, SR100_RXBUF_SIZE);
+    ret = -EINVAL;
     goto hbci_fail;
+  }
+
+  /* wait for inetrrupt upto 500ms after that timeout will happen and returns read fail */
+  ret = wait_event_interruptible_timeout(sr100_dev->read_wq, sr100_dev->irq_received, sr100_dev->timeOutInMs);
+  if (ret == 0) {
+    printk("wait_event_interruptible() : Failed.\n");
+    ret = -1;
+    goto hbci_fail;
+  }
+
+  if (read_abort_requested) {
+    read_abort_requested = false;
+    printk("HBCI Abort Read pending......");
+    return ret;
   }
   if(!gpio_get_value(sr100_dev->irq_gpio)){
    printk("IRQ is low during firmware download");
@@ -653,7 +673,8 @@ static ssize_t sr100_dev_read(struct file* filp, char* buf, size_t count,
                               loff_t* offset) {
   struct sr100_dev* sr100_dev = filp->private_data;
   int ret = -EIO;
-  int retry_count = 0;
+  /*500ms timeout in jiffies*/
+  sr100_dev->timeOutInMs = ((500*HZ)/1000);
   memset(sr100_dev->rx_buffer, 0x00, SR100_RXBUF_SIZE);
   if (!gpio_get_value(sr100_dev->irq_gpio)) {
     if (filp->f_flags & O_NONBLOCK) {
@@ -699,7 +720,6 @@ first_irq_wait:
     ret = -1;
   }
 read_end:
-  retry_count = 0;
   return ret;
 }
 
@@ -1048,13 +1068,15 @@ exit_free_dev:
     if (sr100_dev->rx_buffer) {
       kfree(sr100_dev->rx_buffer);
     }
-    kfree(sr100_dev);
+    misc_deregister(&sr100_dev->sr100_device);
   }
-  misc_deregister(&sr100_dev->sr100_device);
 err_exit0:
-  mutex_destroy(&sr100_dev->sr100_access_lock);
   if (sr100_dev != NULL) kfree(sr100_dev);
+  if (sr100_dev != NULL) {
+    mutex_destroy(&sr100_dev->sr100_access_lock);
+  }
 err_exit:
+  if (sr100_dev != NULL) kfree(sr100_dev);
   SR100_DBG_MSG("ERROR: Exit : %s ret %d\n", __FUNCTION__, ret);
   return ret;
 }
@@ -1084,9 +1106,11 @@ static int sr100_remove(struct spi_device* spi) {
   gpio_free(sr100_dev->vbat_3v6_gpio);
 #endif
   misc_deregister(&sr100_dev->sr100_device);
-  if (sr100_dev->tx_buffer != NULL) kfree(sr100_dev->tx_buffer);
-  if (sr100_dev->rx_buffer != NULL) kfree(sr100_dev->rx_buffer);
-  if (sr100_dev != NULL) kfree(sr100_dev);
+  if (sr100_dev != NULL) {
+    if (sr100_dev->tx_buffer != NULL) kfree(sr100_dev->tx_buffer);
+    if (sr100_dev->rx_buffer != NULL) kfree(sr100_dev->rx_buffer);
+    if (sr100_dev != NULL) kfree(sr100_dev);
+  }
   SR100_DBG_MSG("Exit : %s\n", __FUNCTION__);
   return 0;
 }

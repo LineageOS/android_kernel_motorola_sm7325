@@ -239,14 +239,15 @@ int ili_fw_dump_iram_data(u32 start, u32 end, bool save)
 		}
 
 		pos = 0;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-		kernel_write(f, ilits->update_buf, len, &pos);
-#else
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 		old_fs = get_fs();
 		set_fs(get_ds());
 		set_fs(KERNEL_DS);
 		vfs_write(f, ilits->update_buf, len, &pos);
 		set_fs(old_fs);
+
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+		kernel_write(f, ilits->update_buf, len, &pos);
 #endif
 		filp_close(f, NULL);
 		ILI_INFO("Save iram data to %s\n", DUMP_IRAM_PATH);
@@ -427,6 +428,8 @@ static int ilitek_tddi_fw_iram_upgrade(u8 *pfw)
 	/* Waiting for fw ready sending first cmd */
 	if (!ilits->info_from_hex || (ilits->chip->core_ver < CORE_VER_1410))
 		mdelay(100);
+        else
+                mdelay(20);
 
 	return ret;
 }
@@ -794,14 +797,14 @@ static int ilitek_tdd_fw_hex_open(u8 op, u8 *pfw)
 
 		/* ready to map user's memory to obtain data by reading files */
 		pos = 0;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-		kernel_read(f, (u8 *)ilits->tp_fw.data, fsize, &pos);
-#else
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 		old_fs = get_fs();
 		set_fs(get_ds());
 		set_fs(KERNEL_DS);
 		vfs_read(f, (u8 *)ilits->tp_fw.data, fsize, &pos);
 		set_fs(old_fs);
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+		kernel_read(f, (u8 *)ilits->tp_fw.data, fsize, &pos);
 #endif
 		filp_close(f, NULL);
 		ilits->tp_fw.size = fsize;

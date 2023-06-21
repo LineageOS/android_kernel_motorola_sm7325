@@ -71,6 +71,16 @@ int charger_dev_enable_charging(struct charger_device *chg_dev, bool en)
 }
 EXPORT_SYMBOL(charger_dev_enable_charging);
 
+int charger_dev_enable_hz(struct charger_device *chg_dev, bool en)
+{
+	if (chg_dev != NULL && chg_dev->ops != NULL &&
+	    chg_dev->ops->enable_hz)
+		return chg_dev->ops->enable_hz(chg_dev, en);
+
+	return -ENOTSUPP;
+}
+EXPORT_SYMBOL(charger_dev_enable_hz);
+
 int charger_dev_enable_termination(struct charger_device *chg_dev, bool en)
 {
 	if (chg_dev != NULL && chg_dev->ops != NULL &&
@@ -230,6 +240,16 @@ int charger_dev_get_qc3p_power(struct charger_device *chg_dev, int *qc3p_power)
 	return -ENOTSUPP;
 }
 EXPORT_SYMBOL(charger_dev_get_qc3p_power);
+
+int charger_dev_config_pd_active(struct charger_device *chg_dev, int val)
+{
+	if (chg_dev != NULL && chg_dev->ops != NULL &&
+	    chg_dev->ops->config_pd_active)
+		return chg_dev->ops->config_pd_active(chg_dev, val);
+
+	return -ENOTSUPP;
+}
+EXPORT_SYMBOL(charger_dev_config_pd_active);
 
 int charger_dev_notify(struct charger_device *chg_dev)
 {

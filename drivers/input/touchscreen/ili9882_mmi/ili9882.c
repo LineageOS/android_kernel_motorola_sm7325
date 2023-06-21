@@ -21,6 +21,10 @@
  */
 #include "firmware/ili9882_fw.h"
 #include "ili9882.h"
+#ifdef CONFIG_MOTO_DDA_PASSIVESTYLUS
+#include "moto_ts_dda.h"
+#endif
+
 
 /* Debug level */
 bool debug_en = DEBUG_OUTPUT;
@@ -264,26 +268,7 @@ static void ilitek_tddi_wq_esd_check(struct work_struct *work)
 	complete_all(&ilits->esd_done);
 	ili_wq_ctrl(WQ_ESD, ENABLE);
 }
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-static int read_power_status(u8 *buf)
-{
-	struct file *f = NULL;
-	ssize_t byte = 0;
-	loff_t pos = 0;
-
-	f = filp_open(POWER_STATUS_PATH, O_RDONLY, 0);
-	if (ERR_ALLOC_MEM(f)) {
-		ILI_ERR("Failed to open %s\n", POWER_STATUS_PATH);
-		return -1;
-	}
-
-	kernel_read(f, buf, 20, &pos);
-	ILI_DBG("Read %d bytes\n", (int)byte);
-
-	filp_close(f, NULL);
-	return 0;
-}
-#else
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 static int read_power_status(u8 *buf)
 {
 	struct file *f = NULL;
@@ -308,6 +293,25 @@ static int read_power_status(u8 *buf)
 	filp_close(f, NULL);
 	return 0;
 }
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+static int read_power_status(u8 *buf)
+{
+	struct file *f = NULL;
+	ssize_t byte = 0;
+	loff_t pos = 0;
+
+	f = filp_open(POWER_STATUS_PATH, O_RDONLY, 0);
+	if (ERR_ALLOC_MEM(f)) {
+		ILI_ERR("Failed to open %s\n", POWER_STATUS_PATH);
+		return -1;
+	}
+
+	kernel_read(f, buf, 20, &pos);
+	ILI_DBG("Read %d bytes\n", (int)byte);
+
+	filp_close(f, NULL);
+	return 0;
+}
 #endif
 
 static void ilitek_tddi_wq_bat_check(struct work_struct *work)
@@ -315,8 +319,10 @@ static void ilitek_tddi_wq_bat_check(struct work_struct *work)
 	u8 str[20] = {0};
 	static int charge_mode;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
 	if (read_power_status(str) < 0)
 		ILI_ERR("Read power status failed\n");
+#endif
 
 	ILI_DBG("Batter Status: %s\n", str);
 
@@ -505,7 +511,7 @@ int ili_sleep_handler(int mode)
 				ILI_ERR("Check busy timeout during suspend\n");
 		}
 
-#ifdef  ILI_SENSOR_EN
+#if defined(ILI_SENSOR_EN) || defined(CONFIG_INPUT_TOUCHSCREEN_MMI)
 		if (ilits->should_enable_gesture) {
 			ili_switch_tp_mode(P5_X_FW_GESTURE_MODE);
 			enable_irq_wake(ilits->irq_num);
@@ -658,11 +664,26 @@ int ili_set_tp_data_len(int format, bool send, u8* data)
 
 	switch (format) {
 	case DATA_FORMAT_DEMO:
+		if (TOUCH_WIDTH)
+			len = P5_X_5B_LOW_RESOLUTION_LENGTH + P5_X_CUSTOMER_LENGTH;
+		else
+			len = P5_X_DEMO_MODE_PACKET_LEN;
+
+		ctrl = DATA_FORMAT_DEMO_CMD;
+		break;
 	case DATA_FORMAT_GESTURE_DEMO:
 		len = P5_X_DEMO_MODE_PACKET_LEN;
 		ctrl = DATA_FORMAT_DEMO_CMD;
 		break;
 	case DATA_FORMAT_DEBUG:
+		len = (2 * ilits->xch_num * ilits->ych_num) + (ilits->stx * 2) + (ilits->srx * 2);
+		len += 2 * self_key + (8 * 2) + 1 + 35;
+		if (TOUCH_WIDTH)
+			len += P5_X_CUSTOMER_LENGTH;
+
+		ctrl = DATA_FORMAT_DEBUG_CMD;
+		break;
+
 	case DATA_FORMAT_GESTURE_DEBUG:
 		len = (2 * ilits->xch_num * ilits->ych_num) + (ilits->stx * 2) + (ilits->srx * 2);
 		len += 2 * self_key + (8 * 2) + 1 + 35;
@@ -776,7 +797,7 @@ int ili_report_handler(void)
 	int tmp = debug_en;
 
 	/* Just in case these stats couldn't be blocked in top half context */
-	if (!ilits->report || atomic_read(&ilits->tp_reset) ||
+	if (!ilits->boot || !ilits->report || atomic_read(&ilits->tp_reset) ||
 		atomic_read(&ilits->fw_stat) || atomic_read(&ilits->tp_sw_mode) ||
 		atomic_read(&ilits->mp_stat) || atomic_read(&ilits->tp_sleep)) {
 		ILI_INFO("ignore report request\n");
@@ -862,6 +883,12 @@ int ili_report_handler(void)
 	case P5_X_DEBUG_PACKET_ID:
 		ili_report_debug_mode(trdata, rlen);
 		break;
+	case P5_X_DEMO_HIGH_RESOLUTION_PACKET_ID:
+		ili_report_ap_mode(trdata, rlen);
+		break;
+	case P5_X_DEBUG_HIGH_RESOLUTION_PACKET_ID:
+		ili_report_debug_mode(trdata, rlen);
+		break;
 	case P5_X_DEBUG_LITE_PACKET_ID:
 		ili_report_debug_lite_mode(trdata, rlen);
 		break;
@@ -943,7 +970,11 @@ int ili_reset_ctrl(int mode)
 		atomic_set(&ilits->ice_stat, DISABLE);
 
 	ilits->tp_data_format = DATA_FORMAT_DEMO;
-	ilits->tp_data_len = P5_X_DEMO_MODE_PACKET_LEN;
+	if (TOUCH_WIDTH)
+		ilits->tp_data_len = P5_X_5B_LOW_RESOLUTION_LENGTH + P5_X_CUSTOMER_LENGTH;
+	else
+		ilits->tp_data_len = P5_X_DEMO_MODE_PACKET_LEN;
+
 	ilits->pll_clk_wakeup = true;
 	atomic_set(&ilits->tp_reset, END);
 	return ret;
@@ -1233,6 +1264,15 @@ int ili_tddi_init(void)
 	ili_wq_ctrl(WQ_BAT, ENABLE);
 	ilits->boot = true;
 #endif
+#ifdef CONFIG_MOTO_DDA_PASSIVESTYLUS
+	{
+		int err;
+		moto_dda_init("ilitek-ts for Geneva5G");
+		err = moto_dda_register_cdevice();
+        	if (err)
+                	ILI_ERR("Failed register stylus dda device, %d", err);
+	}
+#endif
 
 	PM_WAKEUP_REGISTER(NULL, ilits->ws, "ili_wakelock");
 	if (!ilits->ws) {
@@ -1270,6 +1310,11 @@ void ili_dev_remove(void)
 	kfree(ilits->tr_buf);
 	kfree(ilits->gcoord);
 	ili_interface_dev_exit(ilits);
+
+#ifdef CONFIG_MOTO_DDA_PASSIVESTYLUS
+        moto_dda_exit();
+#endif
+
 }
 
 int ili_dev_init(struct ilitek_hwif_info *hwif)
