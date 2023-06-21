@@ -275,6 +275,31 @@
 			drive-strength = <2>; /* 2 MA */
 		};
 	};
+
+	cam_ois_vsync_irq_default: cam_ois_vsync_irq_default {
+		mux {
+			pins = "gpio14";
+			function = "gpio";
+		};
+		config {
+		        pins = "gpio14";
+			drive-strength = <2>;
+			input-enable;
+		};
+	};
+};
+
+&pm8350c_flash0 {
+    qcom,duration-ms = <400>;
+};
+&pm8350c_flash1 {
+    qcom,duration-ms = <400>;
+};
+&pm8350c_flash2 {
+    qcom,duration-ms = <400>;
+};
+&pm8350c_flash3 {
+    qcom,duration-ms = <400>;
 };
 
 &soc {
@@ -486,12 +511,13 @@
 		cam_vana-supply = <&cam_avdd_wide>;
 		cam_vdig-supply = <&cam_ldo2>;
 		cam_clk-supply = <&cam_cc_titan_top_gdsc>;
+		cam_vaf-supply = <&cam_ldo4>;
 		regulator-names = "cam_vio", "cam_vana", "cam_vdig",
-			"cam_clk";
+			"cam_clk", "cam_vaf";
 		rgltr-cntrl-support;
-		rgltr-min-voltage = <1800000 2800000 1100000 0>;
-		rgltr-max-voltage = <1800000 2800000 1100000 0>;
-		rgltr-load-current = <3000 132000 405000 0>;
+		rgltr-min-voltage = <1800000 2800000 1100000 0 2800000>;
+		rgltr-max-voltage = <1800000 2800000 1100000 0 2800000>;
+		rgltr-load-current = <3000 132000 405000 0 105000>;
 		gpio-no-mux = <0>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		pinctrl-0 = <&cam_sensor_mclk1_active
@@ -547,6 +573,11 @@
 		cell-index = <0>;
 		reg = <0x0>;
 		compatible = "qcom,ois";
+		interrupt-parent = <&tlmm>;
+		interrupts = <14 IRQ_TYPE_EDGE_RISING>;
+		vsync-irq-support;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_ois_vsync_irq_default>;
 		cci-master = <0>;
 		cam_vio-supply = <&cam_ldo7>;
 		cam_vaf-supply = <&cam_ldo5>;
@@ -557,6 +588,7 @@
 		rgltr-max-voltage = <1800000 2800000 2800000>;
 		rgltr-load-current = <14000 119000 119000>;
 		status = "ok";
+		ois-name = "mot_dw9781c";
 	};
 
 	sensor_main: qcom,cam-sensor@0 {
