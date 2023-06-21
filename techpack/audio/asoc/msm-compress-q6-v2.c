@@ -2950,7 +2950,7 @@ static int msm_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 		}
 #else
 		if ((prtd->bytes_received > prtd->copied_total) &&
-			(prtd->bytes_received < runtime->fragment_size)) {
+			((prtd->bytes_received - prtd->copied_total)< runtime->fragment_size)) {
 			pr_debug("%s: send the only partial buffer to dsp\n",
 					__func__);
 			bytes_to_write = prtd->bytes_received
