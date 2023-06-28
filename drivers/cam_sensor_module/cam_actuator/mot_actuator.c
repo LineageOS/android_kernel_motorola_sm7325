@@ -41,6 +41,7 @@ typedef enum {
 	MOT_ACTUATOR_INVALID,
 	MOT_ACTUATOR_FIRST,
 	MOT_ACTUATOR_GT9767 = MOT_ACTUATOR_FIRST,
+	MOT_ACTUATOR_GT9764,
 	MOT_ACTUATOR_GT9772,
 	MOT_ACTUATOR_DW9714,
 	MOT_ACTUATOR_DW9800V,
@@ -66,6 +67,7 @@ typedef enum {
 	MOT_DEVICE_RHODEC,
 	MOT_DEVICE_RHODEI,
 	MOT_DEVICE_PENANG,
+	MOT_DEVICE_FOGOR,
 	MOT_DEVICE_NUM,
 } mot_dev_type;
 
@@ -138,6 +140,31 @@ static struct cam_sensor_i2c_reg_setting mot_gt9767_init_settings = {
 static struct cam_sensor_i2c_reg_setting mot_gt9767_dac_settings = {
 	.reg_setting = mot_gt9767_dac_setting,
 	.size = ARRAY_SIZE(mot_gt9767_dac_setting),
+	.addr_type = CAMERA_SENSOR_I2C_TYPE_BYTE,
+	.data_type = CAMERA_SENSOR_I2C_TYPE_WORD,
+};
+
+/*Register settings of GT9764*/
+static struct cam_sensor_i2c_reg_array mot_gt9764_init_setting[] ={
+	{0x02, 0x00, 1000},
+	{0x02, 0x02, 0},
+	{0x06, 0x40, 0},
+	{0x07, 0x08, 0},
+};
+
+static struct cam_sensor_i2c_reg_array mot_gt9764_dac_setting[] ={
+	{0x03, 0x3ff, 0}
+};
+static struct cam_sensor_i2c_reg_setting mot_gt9764_init_settings = {
+	.reg_setting = mot_gt9764_init_setting,
+	.size = ARRAY_SIZE(mot_gt9764_init_setting),
+	.addr_type = CAMERA_SENSOR_I2C_TYPE_BYTE,
+	.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE,
+};
+
+static struct cam_sensor_i2c_reg_setting mot_gt9764_dac_settings = {
+	.reg_setting = mot_gt9764_dac_setting,
+	.size = ARRAY_SIZE(mot_gt9764_dac_setting),
 	.addr_type = CAMERA_SENSOR_I2C_TYPE_BYTE,
 	.data_type = CAMERA_SENSOR_I2C_TYPE_WORD,
 };
@@ -227,6 +254,7 @@ static struct cam_sensor_i2c_reg_setting mot_dw9800v_dac_settings = {
 static mot_actuator_settings mot_actuator_list[MOT_ACTUATOR_NUM-1] = {
 	//MUST be sorted as definition order in above structure: mot_actuator_type
 	{&mot_gt9767_init_settings, &mot_gt9767_dac_settings},
+	{&mot_gt9764_init_settings, &mot_gt9764_dac_settings},
 	{&mot_gt9772_init_settings, &mot_gt9772_dac_settings},
 	{&mot_dw9714_init_settings, &mot_dw9714_dac_settings},
 	{&mot_dw9800v_init_settings, &mot_dw9800v_dac_settings},
@@ -515,6 +543,34 @@ static const mot_dev_info mot_dev_list[MOT_DEVICE_NUM] = {
 				.cci_dev = 0x00,
 				.cci_master = 0x1,
 				.regulator_list = {"camera_ldo_dovdd", "pm6125_l21"},
+				.regulator_volt_uv = {1800000, 2800000},
+				.launch_lens = {
+						.launch_lens_needed = true,
+						.launch_lens_step = {
+									{200, 100},
+									{100, 60},
+									{50, 30},
+						},
+				},
+				.pmic_load_needed = true,
+				.regulator_load_ua = {120000, 120000},
+			},
+		},
+	},
+
+  {
+		.dev_type = MOT_DEVICE_FOGOR,
+		.actuator_num = 1,
+		.dev_name = "fogor",
+		.actuator_info = {
+			[0] = {
+				.actuator_type = MOT_ACTUATOR_GT9764,
+				.dac_pos = 0,
+				.init_pos = 512,
+				.cci_addr = 0x0c,
+				.cci_dev = 0x00,
+				.cci_master = 0x0,
+				.regulator_list = {"pm6125_l13", "camera_ldo_50m_afvdd"},
 				.regulator_volt_uv = {1800000, 2800000},
 				.launch_lens = {
 						.launch_lens_needed = true,
