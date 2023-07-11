@@ -1198,6 +1198,7 @@ static void goodix_ts_report_finger(struct input_dev *dev,
 #endif
 #ifdef CONFIG_GTP_FOD
 	struct goodix_ts_event *ts_event = &goodix_modules.core_data->ts_event;
+	struct gesture_event_data udfps_dummy_event_data;
 #endif
 	mutex_lock(&dev->mutex);
 	for (i = 0; i < GOODIX_MAX_TOUCH; i++) {
@@ -1240,12 +1241,24 @@ static void goodix_ts_report_finger(struct input_dev *dev,
 				input_report_key(dev, BTN_TRIGGER_HAPPY1, 0);
 				input_sync(dev);
 				ts_info("report BTN_TRIGGER_HAPPY1");
+				if ( core_data->imports && core_data->imports->report_gesture) {
+					udfps_dummy_event_data.evcode = 2;
+					udfps_dummy_event_data.evdata.x = 0;
+					udfps_dummy_event_data.evdata.y = 0;
+					core_data->imports->report_gesture(&udfps_dummy_event_data);
+				}
 			}else if(ts_event->gesture_type == GOODIX_GESTURE_FOD_UP) {
 				input_report_key(dev, BTN_TRIGGER_HAPPY2, 1);
 				input_sync(dev);
 				input_report_key(dev, BTN_TRIGGER_HAPPY2, 0);
 				input_sync(dev);
 				ts_info("report BTN_TRIGGER_HAPPY2");
+				if ( core_data->imports && core_data->imports->report_gesture) {
+					udfps_dummy_event_data.evcode = 3;
+					udfps_dummy_event_data.evdata.x = 0;
+					udfps_dummy_event_data.evdata.y = 0;
+					core_data->imports->report_gesture(&udfps_dummy_event_data);
+				}
 			}
 		}
 		ts_debug("fod_enable= %d, gesture_type =%x, touch_num= %d", core_data->fod_enable,
