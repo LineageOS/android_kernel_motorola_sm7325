@@ -35,6 +35,9 @@
  */
 #include <linux/uaccess.h>
 #include <linux/module.h>
+#include <linux/kdev_t.h>
+#include <linux/cdev.h>
+#include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
@@ -53,6 +56,7 @@
 #include <linux/kthread.h>
 #include <linux/jhash.h>
 #include <linux/ctype.h>
+#include <linux/version.h>
 
 /*
  * API includes
@@ -4182,7 +4186,11 @@ static void stmvl53l1_input_push_data_multiobject(struct stmvl53l1_data *data)
 	//ABS_HAT0X  -	Time in Sec(32)
 
 	input_report_abs(input, ABS_HAT0X, tv.tv_sec);
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 5, 0)
+	vl53l1_dbgmsg("ABS_HAT0X : %lld, %zu\n", tv.tv_sec, sizeof(tv.tv_sec));
+#else
 	vl53l1_dbgmsg("ABS_HAT0X : %ld, %zu\n", tv.tv_sec, sizeof(tv.tv_sec));
+#endif
 	//ABS_HAT0Y   - Time in uSec(32)
 	//REVISIT : The following code may cause loss of data due to
 	//8 bytes to 32 bits conversion
@@ -4689,10 +4697,19 @@ int stmvl53l1_sysfs_laser(struct stmvl53l1_data *data, bool create)
 	}
 
 	if (create) {
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 5, 0)
+		dev_t devid;
+		error = alloc_chrdev_region(&devid, 0, 1, "laser");
+		vl53l1_errmsg("MAJOR = %d MINOR = %d\n", MAJOR(devid),MINOR(devid));
+		minor = MINOR(devid);
+		if (minor < 0)
+			vl53l1_errmsg("alloc_chrdev_region error\n");
+#else
 		minor = input_get_new_minor(data->sysfs_base, 1, false);
 		if (minor < 0)
 			minor = input_get_new_minor(LASERDEV_MINOR_BASE,
 					LASERDEV_MINOR_MAX, true);
+#endif
 		vl53l1_info("assigned minor %d\n", minor);
 
 		laser_class = class_create(THIS_MODULE, "laser");

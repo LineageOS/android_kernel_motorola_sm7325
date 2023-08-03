@@ -2,4 +2,8 @@ ifneq ($(filter m y,$(CONFIG_AF_NOISE_ELIMINATION)),)
 	ccflags-y += -DCONFIG_AF_NOISE_ELIMINATION
 endif
 
+ifneq ($(filter y,$(CONFIG_AW8965_VIBRATOR_SHORT_WAV_ENABLE)),)
+	ccflags-y += -DCONFIG_AW8965_VIBRATOR_SHORT_WAV_ENABLE
+endif
+
 obj-$(CONFIG_AW8695_HAPTIC) += aw8695.o

@@ -122,6 +122,8 @@
 #define SGM4154x_NON_STANDARD	(BIT(7) | BIT(6))
 #define SGM4154x_OTG_MODE	    (BIT(7) | BIT(6) | BIT(5))
 
+#define SGM4154x_WLS_TYPE	    0xFF
+
 /* TEMP Status  */
 #define SGM4154x_TEMP_MASK	    GENMASK(2, 0)
 #define SGM4154x_TEMP_NORMAL	BIT(0)
@@ -221,10 +223,12 @@
 struct sgm4154x_init_data {
 	u32 ichg;	/* charge current		*/
 	u32 ilim;	/* input current		*/
+	u32 wls_ilim;	/* wireless input current	*/
 	u32 vreg;	/* regulation voltage		*/
 	u32 iterm;	/* termination current		*/
 	u32 iprechg;	/* precharge current		*/
-	u32 vlim;	/* minimum system voltage limit */
+	u32 vlim;	/* minimum input voltage limit for wired charger*/
+	u32 wls_vlim;   /* minimum input voltage limit for wireless charger*/
 	u32 max_ichg;
 	u32 max_vreg;
 	u32 vrechg;
@@ -232,6 +236,7 @@ struct sgm4154x_init_data {
 };
 
 struct sgm4154x_state {
+	bool input_ready;
 	bool vsys_stat;
 	bool therm_stat;
 	bool online;
@@ -242,6 +247,7 @@ struct sgm4154x_state {
 	bool hiz_en;
 	bool term_en;
 	bool vbus_gd;
+	bool detect_done;
 	u8 chrg_type;
 	u8 health;
 	u8 chrg_fault;
@@ -285,6 +291,7 @@ struct sgm_mmi_charger {
 	struct mmi_charger_constraint	constraint;
 	struct mmi_charger_driver	*driver;
 	u32				chrg_taper_cnt;
+	const char			*fg_psy_name;
 	struct power_supply		*fg_psy;
 	int ichg_polority;
 
@@ -294,12 +301,17 @@ struct sgm_mmi_charger {
 	int paired_load;
 	int paired_load_thres_len;
 	int *paired_load_thres;
+	int paired_esr;
+	int batt_esr;
+	int batt_protect_type;
+	struct mmi_battery_info		paired_batt_info;
 };
 
 struct sgm4154x_device {
 	struct i2c_client *client;
 	struct device *dev;
 	struct power_supply *charger;
+	struct power_supply *wls_psy;
 	struct power_supply *usb;
 	struct power_supply *ac;
 	struct mutex lock;
@@ -335,13 +347,36 @@ struct sgm4154x_device {
 
 	struct dentry *debug_root;
 
+	u32 *thermal_levels;
+	u32 thermal_fcc_ua;
+	int curr_thermal_level;
+	int num_thermal_levels;
+
+	u32 ichg;	/* charge current		*/
+	u32 ilim;	/* input current		*/
+	u32 vlim;	/* input voltage		*/
+	u32 vreg;	/* regulation voltage		*/
+	int user_ichg; /* user charge current		*/
+	int user_ilim; /* user input current		*/
+	int user_chg_en; /* user charging enable	*/
+	int user_chg_susp; /* user charger suspend	*/
+
+	bool batt_present;
+	bool otg_enabled;
+	bool irq_enabled;
+	u32 batt_protect_duration;
+	int vbat_ovp_threshold;
+	int ibat_ocp_threshold;
+	int ibat_occp_threshold;
 	int high_load_en_gpio;
 	int low_load_en_gpio;
 	bool high_load_active_low;
 	bool low_load_active_low;
+	bool update_pending;
 
 	int chg_en_gpio;
 	bool use_ext_usb_psy;
+	bool use_ext_wls_psy;
 	struct regulator *vdd_i2c_vreg;
 	struct notifier_block psy_nb;
 	struct sgm_mmi_charger *mmi_charger;

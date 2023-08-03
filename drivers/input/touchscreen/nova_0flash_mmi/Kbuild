@@ -10,6 +10,11 @@ endif
 ifneq ($(filter m y,$(CONFIG_INPUT_NOVA_0FLASH_MMI_NOTIFY_TOUCH_STATE)),)
 	ccflags-y += -DNVT_SET_TOUCH_STATE
 endif
+
+ifneq ($(filter m y,$(CONFIG_NOVA_TOUCH_LAST_TIME)),)
+	ccflags-y += -DNVT_TOUCH_LAST_TIME
+endif
+
 ifneq ($(filter m y,$(CONFIG_INPUT_NOVA_PANEL_NOTIFICATIONS)),)
 	ccflags-y += -DNVT_CONFIG_PANEL_NOTIFICATIONS
 endif
@@ -47,8 +52,19 @@ ifneq ($(filter m y,$(CONFIG_INPUT_NOVA_EDGE_SUPPRESSION)),)
 	ccflags-y += -DEDGE_SUPPRESSION
 endif
 
+ifneq ($(filter m y, $(CONFIG_BOARD_USES_DOUBLE_TAP_CTRL)),)
+	ccflags-y += -DCONFIG_BOARD_USES_DOUBLE_TAP_CTRL
+endif
+
+ifneq ($(filter m y, $(CONFIG_SPI_SM8450)),)
+	ccflags-y += -DCONFIG_SPI_SM8450
+endif
+
 ifneq ($(filter m y,$(CONFIG_DRM_PANEL_NOTIFICATIONS)),)
     ccflags-y += -DCONFIG_DRM_PANEL_NOTIFICATIONS
+endif
+ifneq ($(filter m y,$(CONFIG_DRM_PANEL_EVENT_NOTIFICATIONS)),)
+    ccflags-y += -DCONFIG_DRM_PANEL_EVENT_NOTIFICATIONS
 endif
 ifneq ($(filter m y,$(CONFIG_INPUT_TOUCHSCREEN_MMI)),)
     ccflags-y += -DCONFIG_INPUT_TOUCHSCREEN_MMI
@@ -57,4 +73,9 @@ ifneq ($(filter m y,$(CONFIG_INPUT_TOUCHSCREEN_MMI)),)
     ifneq ($(filter m y, $(CONFIG_TOUCHCLASS_MMI_MULTIWAY_UPDATE_FW)),)
         ccflags-y += -DTS_MMI_TOUCH_MULTIWAY_UPDATE_FW
     endif
+endif
+
+ifneq ($(filter m y,$(CONFIG_GTP_DDA_STYLUS)),)
+    ccflags-y += -DCONFIG_MOTO_DDA_PASSIVESTYLUS
+    nova_0flash_mmi-objs += moto_ts_dda.o
 endif

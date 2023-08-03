@@ -40,7 +40,7 @@
 *****************************************************************************/
 #define FTS_FW_REQUEST_SUPPORT                      1
 /* Example: focaltech_ts_fw_tianma.bin */
-#define FTS_FW_NAME_PREX_WITH_REQUEST               "focaltech_ts_fw_"
+#define FTS_FW_NAME_PREX_WITH_REQUEST               ""
 
 /*****************************************************************************
 * Global variable or extern global variabls/functions
@@ -1133,13 +1133,15 @@ read_flash_err:
     return ret;
 }
 
-static int fts_read_file_default(char *file_name, u8 **file_buf)
+static int __maybe_unused fts_read_file_default(char *file_name, u8 **file_buf)
 {
     int ret = 0;
     char file_path[FILE_NAME_LENGTH] = { 0 };
     struct file *filp = NULL;
     struct inode *inode;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
     mm_segment_t old_fs;
+#endif
     loff_t pos;
     loff_t file_len = 0;
 
@@ -1169,15 +1171,23 @@ static int fts_read_file_default(char *file_name, u8 **file_buf)
         filp_close(filp, NULL);
         return -ENOMEM;
     }
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
     old_fs = get_fs();
     set_fs(KERNEL_DS);
+#endif
     pos = 0;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
     ret = vfs_read(filp, *file_buf, file_len , &pos);
+#else
+    ret = kernel_read(filp, *file_buf, file_len , &pos);
+#endif
     if (ret < 0)
         FTS_ERROR("read file fail");
     FTS_INFO("file len:%d read len:%d pos:%d", (u32)file_len, ret, (u32)pos);
     filp_close(filp, NULL);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
     set_fs(old_fs);
+#endif
 
     return ret;
 }
@@ -1224,7 +1234,11 @@ static int fts_read_file(char *file_name, u8 **file_buf)
 
     ret = fts_read_file_request_firmware(file_name, file_buf);
     if (ret < 0) {
+#ifdef CONFIG_FTS_COMPATIBLE_WITH_GKI
+        ret = fts_read_file_request_firmware(file_name, file_buf);
+#else
         ret = fts_read_file_default(file_name, file_buf);
+#endif
         if (ret < 0) {
             FTS_ERROR("get fw file(default) fail");
             return ret;

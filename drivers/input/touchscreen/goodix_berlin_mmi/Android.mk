@@ -10,7 +10,11 @@ ifeq ($(DRM_PANEL_NOTIFICATIONS),true)
 endif
 
 ifeq ($(TOUCHSCREEN_GOODIX_BRL_SPI),true)
+ifeq ($(call is-board-platform-in-list,taro kalama parrot), true)
+	KBUILD_OPTIONS += CONFIG_TOUCHSCREEN_GOODIX_BRL_SPI=y
+else
 	KERNEL_CFLAGS += CONFIG_TOUCHSCREEN_GOODIX_BRL_SPI=y
+endif
 endif
 
 ifeq ($(GTP_LIMIT_USE_SUPPLIER),true)
@@ -31,6 +35,18 @@ endif
 
 ifeq ($(TOUCHSCREEN_FOD),true)
 	KBUILD_OPTIONS += CONFIG_GTP_FOD=y
+endif
+
+ifeq ($(TOUCHSCREEN_LAST_TIME),true)
+	KBUILD_OPTIONS += CONFIG_GTP_LAST_TIME=y
+endif
+
+ifeq ($(GTP_ENABLE_DDA_STYLUS),true)
+	KBUILD_OPTIONS += CONFIG_GTP_DDA_STYLUS=y
+endif
+
+ifeq ($(BOARD_USES_DOUBLE_TAP_CTRL),true)
+	KBUILD_OPTIONS += CONFIG_BOARD_USES_DOUBLE_TAP_CTRL=y
 endif
 
 include $(CLEAR_VARS)

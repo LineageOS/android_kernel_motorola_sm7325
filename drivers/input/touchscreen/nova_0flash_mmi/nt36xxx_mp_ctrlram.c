@@ -414,10 +414,10 @@ static int32_t nvt_save_rawdata_to_csv(int32_t *rawdata, uint8_t x_ch, uint8_t y
 	output_len = y_ch * x_ch * 7 + y_ch * 2;
 #endif /* #if TOUCH_KEY_NUM > 0 */
 	pos = offset;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	write_ret = kernel_write(fp, (char __user *)fbufp, output_len, &pos);
-#else
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	write_ret = vfs_write(fp, (char __user *)fbufp, output_len, &pos);
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+	write_ret = kernel_write(fp, (char __user *)fbufp, output_len, &pos);
 #endif
 	if (write_ret <= 0) {
 		NVT_ERR("write %s failed\n", file_path);
@@ -1363,6 +1363,14 @@ static int32_t nvt_selftest_open(struct inode *inode, struct file *file)
 	return seq_open(file, &nvt_selftest_seq_ops);
 }
 
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
+static const struct proc_ops nvt_selftest_fops = {
+	.proc_open = nvt_selftest_open,
+	.proc_read = seq_read,
+	.proc_lseek = seq_lseek,
+	.proc_release = single_release,
+};
+#else
 static const struct file_operations nvt_selftest_fops = {
 	.owner = THIS_MODULE,
 	.open = nvt_selftest_open,
@@ -1370,6 +1378,7 @@ static const struct file_operations nvt_selftest_fops = {
 	.llseek = seq_lseek,
 	.release = seq_release,
 };
+#endif
 
 #ifdef CONFIG_OF
 /*******************************************************

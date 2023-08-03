@@ -958,7 +958,9 @@ static int rt1711_get_cc(struct tcpc_device *tcpc, int *cc1, int *cc2)
 static int rt1711_enable_vsafe0v_detect(
 	struct tcpc_device *tcpc, bool enable)
 {
-	int ret = rt1711_i2c_read8(tcpc, RT1711H_REG_RT_MASK);
+	int ret = 0;
+
+	ret = rt1711_i2c_read8(tcpc, RT1711H_REG_RT_MASK);
 
 	if (ret < 0)
 		return ret;

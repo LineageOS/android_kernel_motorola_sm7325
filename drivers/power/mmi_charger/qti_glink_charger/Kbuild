@@ -1,4 +1,17 @@
 # add -Wall to try to catch everything we can.
 ccflags-y += -I$(srctree)/$(src)/..
 
+ifneq ($(filter m y,$(CONFIG_WIRELESS_CPS4035B)),)
+	ccflags-y += -DWIRELESS_CPS4035B
+endif
+
+ifneq ($(filter m y,$(CONFIG_WIRELESS_CPS4019)),)
+	ccflags-y += -DWIRELESS_CPS4019
+endif
+
+ifneq ($(filter m y,$(CONFIG_SKIP_QTI_CHARGER_CONFIRMAION)),)
+	ccflags-y += -DSKIP_QTI_CHARGER_CONFIRMAION
+endif
+
+
 obj-$(CONFIG_QTI_GLINK_CHARGER) += qti_glink_charger.o

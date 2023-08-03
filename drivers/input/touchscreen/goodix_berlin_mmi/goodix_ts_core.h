@@ -63,6 +63,7 @@
 #define GOODIX_GESTURE_SINGLE_TAP		0x4C
 #define GOODIX_GESTURE_FOD_DOWN			0x46
 #define GOODIX_GESTURE_FOD_UP			0x55
+#define GOODIX_GESTURE_UNDER_WATER		0x20
 
 enum GOODIX_GESTURE_TYP {
 	GESTURE_SINGLE_TAP = (1 << 0),
@@ -300,6 +301,7 @@ struct goodix_ts_board_data {
 	bool film_mode_ctrl;
 	bool leather_mode_ctrl;
 	bool interpolation_ctrl;
+	bool sample_ctrl;
 	bool report_rate_ctrl;
 	bool edge_ctrl;
 	bool gesture_wait_pm;
@@ -406,6 +408,7 @@ struct goodix_ts_event {
 	enum ts_event_type event_type;
 	u8 request_code; /* represent the request type */
 	u8 gesture_type;
+	u8 gesture_report_info;
 	struct goodix_touch_data touch_data;
 	struct goodix_pen_data pen_data;
 #ifdef CONFIG_GTP_FOD
@@ -450,6 +453,7 @@ struct goodix_ts_hw_ops {
 	int (*event_handler)(struct goodix_ts_core *cd, struct goodix_ts_event *ts_event);
 	int (*after_event_handler)(struct goodix_ts_core *cd); /* clean sync flag */
 	int (*get_capacitance_data)(struct goodix_ts_core *cd, struct ts_rawdata_info *info);
+	int (*display_mode)(struct goodix_ts_core *cd, int mode);
 };
 
 /*
@@ -483,8 +487,10 @@ struct goodix_mode_info {
 	int leather_mode;
 	int stylus_mode;
 	int interpolation;
+	int sample;
 	int report_rate_mode;
 	int edge_mode[2];
+	int liquid_detection;
 };
 
 struct goodix_ts_core {
@@ -513,6 +519,7 @@ struct goodix_ts_core {
 	int power_on;
 	int irq;
 	size_t irq_trig_cnt;
+	int liquid_status;
 
 	atomic_t irq_enabled;
 	atomic_t suspended;
@@ -551,6 +558,7 @@ struct goodix_ts_core {
 #ifdef CONFIG_GTP_LAST_TIME
 	ktime_t last_event_time;
 #endif
+	unsigned short gesture_cmd;
 	atomic_t pm_resume;
 	wait_queue_head_t pm_wq;
 };
@@ -712,5 +720,12 @@ void goodix_ts_release_connects(struct goodix_ts_core *core_data);
 
 int goodix_ts_power_on(struct goodix_ts_core *cd);
 int goodix_ts_power_off(struct goodix_ts_core *cd);
+
+#ifdef CONFIG_GTP_DDA_STYLUS
+void goodix_stylus_dda_init(void);
+void goodix_stylus_dda_exit(void);
+int goodix_stylus_dda_register_cdevice(void);
+void goodix_dda_process_pen_report(struct goodix_pen_data *pen_data);
+#endif
 
 #endif

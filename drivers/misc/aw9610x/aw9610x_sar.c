@@ -702,9 +702,15 @@ static int32_t aw9610x_cfg_update(struct aw9610x *aw9610x)
 	LOG_DBG("enter");
 
 	if (aw9610x->firmware_flag == true) {
+#ifdef  CONFIG_USE_HARDWARE_VERSION
+                snprintf(aw9610x->cfg_name, sizeof(aw9610x->cfg_name),
+					"aw9610x_%d.bin", aw9610x->hw_version);
+#else
 		snprintf(aw9610x->cfg_name, sizeof(aw9610x->cfg_name),
 					"aw9610x_%d.bin", aw9610x->sar_num);
+#endif
 
+                LOG_INFO("aw9610x_cfg_update cfg_name = %s", aw9610x->cfg_name);
 		request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
 							aw9610x->cfg_name,
 							aw9610x->dev,
@@ -1395,7 +1401,7 @@ static int capsensor_set_enable(struct sensors_classdev *sensors_cdev, unsigned 
 
         for (i = 0; i < aw9610x->aw_channel_number; i++)
         {
-		if (aw9610x->aw_ref_channel == i) continue;
+		if ((aw9610x->aw_ref_channel >> i) & 0x1) continue;
                 if (!strcmp(sensors_cdev->name, aw9610x->aw_ch_name[aw9610x->sar_num * AW_CHANNEL_MAX + i])) {
                         if (enable == 1){
                                 input_report_abs(aw9610x->aw_pad[i].input, ABS_DISTANCE, 0);
@@ -1774,6 +1780,17 @@ static int32_t aw9610x_parse_dt(struct device *dev, struct aw9610x *aw9610x,
 	} else {
 		LOG_INFO("sar num = %d", aw9610x->sar_num);
 	}
+
+#ifdef  CONFIG_USE_HARDWARE_VERSION
+	val = of_property_read_u32(np, "hardware_version", &aw9610x->hw_version);
+	if (val != 0) {
+		LOG_ERR("hardware_version failed!");
+		return -AW_MULTIPLE_SAR_FAILED;
+	} else {
+		LOG_INFO("hardware version = %d", aw9610x->hw_version);
+	}
+#endif
+
 	val = of_property_read_u32(np, "aw9610x,channel_number", &aw9610x->aw_channel_number);
 	if (val != 0) {
 		LOG_ERR("aw_channel_number failed!");
@@ -1979,14 +1996,38 @@ aw9610x_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 
 	aw9610x_i2c_set(i2c, aw9610x);
 
+	aw9610x->pwr_by_gpio = of_property_read_bool(np, "sar-gpio-vcc-enable");
+	if (aw9610x->pwr_by_gpio)
+	{
+		aw9610x->vcc_3v0_Pin = of_get_named_gpio(np, "sar-gpio_3v0_en", 0);
+		if (!gpio_is_valid(aw9610x->vcc_3v0_Pin))
+		{
+			LOG_ERR("vcc_3v0_Pin gpio is invalid.");
+			return -ENODEV;
+		}
+		ret = gpio_request(aw9610x->vcc_3v0_Pin, "vcc_3v0_Pin");
+		if (ret < 0)
+		{
+			LOG_ERR("vcc_3v0_Pin Request gpio fail ret = %d", ret);
+			return ret;
+		}
+		ret = gpio_direction_output(aw9610x->vcc_3v0_Pin, 1);
+		if(ret < 0){
+			LOG_ERR("vcc_3v0_Pin gpio direction set fail ret = %d", ret);
+			return ret;
+		}
+		LOG_ERR("vcc_3v0_Pin gpio num is %d", aw9610x->vcc_3v0_Pin);
+		msleep(20);
+	}else{
 #ifdef AW_POWER_ON
-	/* aw9610x power init */
-	ret = aw9610x_power_init(aw9610x);
-	if (ret)
-		LOG_ERR("aw9610x power init failed");
-	else
-		aw9610x_power_enable(aw9610x, true);
+		/* aw9610x power init */
+		ret = aw9610x_power_init(aw9610x);
+		if (ret)
+			LOG_ERR("aw9610x power init failed");
+		else
+			aw9610x_power_enable(aw9610x, true);
 #endif
+	}
 
 	/* aw9610x chip id */
 	ret = aw9610x_read_chipid(aw9610x);
@@ -2086,7 +2127,7 @@ aw9610x_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 
 #ifdef USE_SENSORS_CLASS
 	for (i = 0; i < aw9610x->aw_channel_number; i++){
-		if (aw9610x->aw_ref_channel == i) continue;
+		if ((aw9610x->aw_ref_channel >> i) & 0x1) continue;
 		sensors_capsensor_chs[i].sensors_enable = capsensor_set_enable;
 		sensors_capsensor_chs[i].sensors_poll_delay = NULL;
 		sensors_capsensor_chs[i].name = aw9610x->aw_ch_name[aw9610x->sar_num * AW_CHANNEL_MAX + i];
@@ -2145,9 +2186,13 @@ err_first_irq:
 err_pase_dt:
 err_vers_load:
 err_chipid:
-	if (aw9610x->power_enable) {
-		regulator_disable(aw9610x->vcc);
-		regulator_put(aw9610x->vcc);
+	if (aw9610x->pwr_by_gpio){
+		gpio_free(aw9610x->vcc_3v0_Pin);
+	}else{
+		if (aw9610x->power_enable) {
+			regulator_disable(aw9610x->vcc);
+			regulator_put(aw9610x->vcc);
+		}
 	}
 err_malloc:
 	return ret;
@@ -2159,14 +2204,19 @@ static int32_t aw9610x_i2c_remove(struct i2c_client *i2c)
 	uint32_t i = 0;
 	uint32_t j = aw9610x->sar_num;
 
-	if (aw9610x->power_enable) {
-		regulator_disable(aw9610x->vcc);
-		regulator_put(aw9610x->vcc);
+	if (aw9610x->pwr_by_gpio){
+		gpio_free(aw9610x->vcc_3v0_Pin);
+	}else{
+		if (aw9610x->power_enable) {
+			regulator_disable(aw9610x->vcc);
+			regulator_put(aw9610x->vcc);
+		}
 	}
+
 #ifdef USE_SENSORS_CLASS
 	for (i = 0; i < aw9610x->aw_channel_number; i++)
 	{
-		if (aw9610x->aw_ref_channel == i) continue;
+		if ((aw9610x->aw_ref_channel >> i) & 0x1) continue;
 		sensors_classdev_unregister(&sensors_capsensor_chs[i]);
 	}
 #endif

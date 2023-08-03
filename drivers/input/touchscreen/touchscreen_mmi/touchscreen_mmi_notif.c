@@ -17,7 +17,6 @@
 #include <linux/usb.h>
 #include <linux/power_supply.h>
 #include <linux/touchscreen_mmi.h>
-#include <linux/mmi_relay.h>
 
 #if defined(CONFIG_DRM_DYNAMIC_REFRESH_RATE)
 extern struct blocking_notifier_head dsi_freq_head;
@@ -49,25 +48,12 @@ static int ts_mmi_queued_stop(struct ts_mmi_dev *touch_cdev) {
 		return 0;
 
 	TRY_TO_CALL(pre_suspend);
-	if (touch_cdev->pdata.gestures_enabled) {
-#ifdef CONFIG_BOARD_USES_DOUBLE_TAP_CTRL
-		if(touch_cdev->gesture_mode_type != 0) {
-			if(touch_cdev->gesture_mode_type & 0x01) {
-				dev_info(DEV_MMI, "%s: try to enter zero Gesture mode\n", __func__);
-				TRY_TO_CALL(panel_state, touch_cdev->pm_mode, TS_MMI_PM_GESTURE_ZERO);
-			}
-			if(touch_cdev->gesture_mode_type & 0x02) {
-				dev_info(DEV_MMI, "%s: try to enter single Gesture mode\n", __func__);
-				TRY_TO_CALL(panel_state, touch_cdev->pm_mode, TS_MMI_PM_GESTURE_SINGLE);
-			}
-			if(touch_cdev->gesture_mode_type & 0x04) {
-				dev_info(DEV_MMI, "%s: try to enter double Gesture mode\n", __func__);
-				TRY_TO_CALL(panel_state, touch_cdev->pm_mode, TS_MMI_PM_GESTURE_DOUBLE);
-			}
-
-			dev_info(DEV_MMI, "%s: notify touch driver to switch gesture mode\n", __func__);
-			TRY_TO_CALL(panel_state, touch_cdev->pm_mode, TS_MMI_PM_GESTURE_SWITCH);
-
+	if (touch_cdev->pdata.gestures_enabled || touch_cdev->pdata.cli_gestures_enabled ||
+		touch_cdev->pdata.support_liquid_detection) {
+#if defined(CONFIG_BOARD_USES_DOUBLE_TAP_CTRL)
+		if(touch_cdev->gesture_mode_type != 0 || touch_cdev->pdata.support_liquid_detection != 0) {
+			dev_info(DEV_MMI, "%s: try to enter Gesture mode\n", __func__);
+			TRY_TO_CALL(panel_state, touch_cdev->pm_mode, TS_MMI_PM_GESTURE);
 			touch_cdev->pm_mode = TS_MMI_PM_GESTURE;
 		}
 #else
@@ -181,7 +167,7 @@ static void ts_mmi_panel_cb(enum panel_event_notifier_tag tag,
 	event = notification->notif_type;
 	evdata = notification->notif_data;
 
-	dev_dbg(DEV_MMI, "%s: %s Notify_type=%d, early=%d\n", __func__,
+	dev_dbg(DEV_MMI, "%s: %s Notify_type=%d, early=%d, ctrl_dsi=%d\n", __func__,
 		EVENT_PRE_DISPLAY_OFF ? "EVENT_PRE_DISPLAY_OFF" :
 		(EVENT_DISPLAY_LP ? "EVENT_DISPLAY_LP" :
 		(EVENT_DISPLAY_OFF ?     "EVENT_DISPLAY_OFF" :
@@ -253,6 +239,8 @@ static inline void ts_mmi_restore_settings(struct ts_mmi_dev *touch_cdev)
 		TRY_TO_CALL(hold_distance, (int)touch_cdev->hold_distance);
 	if (touch_cdev->pdata.gs_distance_ctrl)
 		TRY_TO_CALL(gs_distance, (int)touch_cdev->gs_distance);
+	if (touch_cdev->pdata.active_region_ctrl)
+		TRY_TO_CALL(active_region, (unsigned int *)touch_cdev->active_region);
 
 	dev_dbg(DEV_MMI, "%s: done\n", __func__);
 }
@@ -375,6 +363,9 @@ static void ts_mmi_worker_func(struct work_struct *w)
 	struct ts_mmi_dev *touch_cdev =
 		container_of(dw, struct ts_mmi_dev, work);
 	int ret, cmd = 0;
+#if defined (CONFIG_DRM_PANEL_NOTIFICATIONS) || defined (CONFIG_DRM_PANEL_EVENT_NOTIFICATIONS)
+	static DEFINE_RATELIMIT_STATE(register_panel, HZ, 1);
+#endif
 
 	while (kfifo_get(&touch_cdev->cmd_pipe, &cmd)) {
 		switch (cmd) {
@@ -421,9 +412,11 @@ static void ts_mmi_worker_func(struct work_struct *w)
 
 		case TS_MMI_TASK_INIT:
 #if defined (CONFIG_DRM_PANEL_NOTIFICATIONS) || defined (CONFIG_DRM_PANEL_EVENT_NOTIFICATIONS)
-			ret = ts_mmi_check_drm_panel(DEV_TS->of_node);
+			ret = ts_mmi_check_drm_panel(touch_cdev, DEV_TS->of_node);
 			if (ret < 0) {
-				dev_err(DEV_TS, "%s: check drm panel failed. %d\n", __func__, ret);
+				/* 1 error message for every 1 sec */
+				if (__ratelimit(&register_panel))
+					dev_err(DEV_TS, "%s: check drm panel failed. %d\n", __func__, ret);
 				touch_cdev->panel_status = -1;
 			} else
 				touch_cdev->panel_status = 0;
@@ -432,6 +425,10 @@ static void ts_mmi_worker_func(struct work_struct *w)
 				REGISTER_PANEL_NOTIFIER;
 				dev_info(DEV_MMI, "%s: register panel notifier\n", __func__);
 			}
+				break;
+
+		case TS_MMI_DO_LIQUID_DETECTION:
+				TRY_TO_CALL(update_liquid_detect_mode, touch_cdev->lpd_state);
 				break;
 
 		case TS_MMI_SET_GESTURES:
@@ -576,6 +573,50 @@ static int ts_mmi_fps_notifier_register(struct ts_mmi_dev *touch_cdev, bool enab
 	return 0;
 }
 
+static int ts_mmi_lpd_cb(struct notifier_block *self,
+				unsigned long event, void *p)
+{
+	int lpd_state = *(int *)p;
+	struct ts_mmi_dev *touch_cdev = container_of(
+					self, struct ts_mmi_dev, lpd_notif);
+
+	if (touch_cdev && event == NOTIFY_EVENT_LPD_STATUS &&
+		lpd_state != touch_cdev->lpd_state) {
+		touch_cdev->lpd_state = lpd_state;
+		kfifo_put(&touch_cdev->cmd_pipe, TS_MMI_DO_LIQUID_DETECTION);
+		schedule_delayed_work(&touch_cdev->work, 0);
+		dev_info(DEV_MMI, "LPD state is %d\n", touch_cdev->lpd_state);
+	}
+
+	return 0;
+}
+
+static int ts_mmi_lpd_notifier_register(struct ts_mmi_dev *touch_cdev, bool enable) {
+	int ret;
+
+	if (enable) {
+		touch_cdev->lpd_notif.notifier_call = ts_mmi_lpd_cb;
+		/*register a blocking notification to receive LPD events*/
+		ret = relay_register_action(BLOCKING, LPD, &touch_cdev->lpd_notif);
+		if (ret < 0) {
+			dev_err(DEV_TS,
+				"Failed to register lpd_notifier: %d\n", ret);
+			return ret;
+		}
+		touch_cdev->is_lpd_registered = true;
+		dev_info(DEV_TS, "Register lpd_notifier OK\n");
+	} else if (touch_cdev->is_lpd_registered){
+		ret = relay_unregister_action(BLOCKING, LPD, &touch_cdev->lpd_notif);
+		if (ret < 0) {
+			dev_err(DEV_TS,
+				"Failed to unregister lpd_notifier: %d\n", ret);
+		}
+		touch_cdev->is_lpd_registered = false;
+		dev_info(DEV_TS, "Unregister lpd_notifier OK\n");
+	}
+	return 0;
+}
+
 int ts_mmi_notifiers_register(struct ts_mmi_dev *touch_cdev)
 {
 	int ret = 0;
@@ -638,6 +679,13 @@ int ts_mmi_notifiers_register(struct ts_mmi_dev *touch_cdev)
 				"Failed to register fps_notifier: %d\n", ret);
 	}
 
+	if (touch_cdev->pdata.support_liquid_detection) {
+		ret = ts_mmi_lpd_notifier_register(touch_cdev, true);
+		if (ret < 0)
+			dev_err(DEV_TS,
+				"Failed to register lpd_notifier: %d\n", ret);
+	}
+
 	dev_info(DEV_TS, "%s: Notifiers init OK.\n", __func__);
 	return 0;
 
@@ -667,6 +715,9 @@ void ts_mmi_notifiers_unregister(struct ts_mmi_dev *touch_cdev)
 
 	if (!touch_cdev->panel_status)
 		UNREGISTER_PANEL_NOTIFIER;
+
+	if (touch_cdev->pdata.support_liquid_detection)
+		ts_mmi_lpd_notifier_register(touch_cdev, false);
 
 	cancel_delayed_work(&touch_cdev->work);
 	kfifo_free(&touch_cdev->cmd_pipe);

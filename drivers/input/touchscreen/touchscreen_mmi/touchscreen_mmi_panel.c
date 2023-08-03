@@ -90,6 +90,11 @@ int ts_mmi_parse_dt(struct ts_mmi_dev *touch_cdev,
 		ppdata->gestures_enabled = true;
 	}
 
+	if (of_property_read_bool(of_node, "mmi,cli-enable-gestures")) {
+		dev_info(DEV_TS, "%s: using enable cli gestures\n", __func__);
+		ppdata->cli_gestures_enabled = true;
+	}
+
 	if (of_property_read_bool(of_node, "mmi,enable-palm")) {
 		dev_info(DEV_TS, "%s: using enable palm\n", __func__);
 		ppdata->palm_enabled = true;
@@ -108,6 +113,11 @@ int ts_mmi_parse_dt(struct ts_mmi_dev *touch_cdev,
 	if (of_property_read_bool(of_node, "mmi,pill-region-control")) {
 		dev_info(DEV_TS, "%s: using pill region\n", __func__);
 		ppdata->pill_region_ctrl = true;
+	}
+
+	if (of_property_read_bool(of_node, "mmi,active-region-control")) {
+		dev_info(DEV_TS, "%s: using active region\n", __func__);
+		ppdata->active_region_ctrl = true;
 	}
 
 	if (of_property_read_bool(of_node, "mmi,hold-distance-control")) {
@@ -156,6 +166,11 @@ int ts_mmi_parse_dt(struct ts_mmi_dev *touch_cdev,
 		dev_info(DEV_TS, "%s: supported_gesture_type property %02x\n",
 				__func__, ppdata->supported_gesture_type);
 #endif
+
+	if (of_property_read_bool(of_node, "mmi,support-liquid-detection")) {
+		dev_info(DEV_TS, "%s: support liquid detection\n", __func__);
+		ppdata->support_liquid_detection = true;
+	}
 
 	chosen = of_find_node_by_name(NULL, "chosen");
 	if (chosen) {
@@ -252,9 +267,8 @@ done:
 }
 
 #if defined(CONFIG_DRM_PANEL_NOTIFICATIONS) || defined (CONFIG_DRM_PANEL_EVENT_NOTIFICATIONS)
-struct drm_panel *active_panel;
 
-static int ts_mmi_check_dt(struct device_node *np)
+static int ts_mmi_check_dt(struct ts_mmi_dev *touch_cdev, struct device_node *np)
 {
 
 	int i = 0;
@@ -264,7 +278,7 @@ static int ts_mmi_check_dt(struct device_node *np)
 
 	count = of_count_phandle_with_args(np, "panel", NULL);
 	if (count <= 0) {
-		pr_err("%s: find drm_panel count(%d) fail", __func__, count);
+		dev_dbg(DEV_TS, "%s: find drm_panel count(%d) fail", __func__, count);
 		return -ENODEV;
 	}
 
@@ -273,12 +287,12 @@ static int ts_mmi_check_dt(struct device_node *np)
 		panel = of_drm_find_panel(node);
 		of_node_put(node);
 		if (!IS_ERR(panel)) {
-			pr_info("%s: find drm_panel successfully", __func__);
-			active_panel = panel;
+			dev_info(DEV_TS, "%s: find drm_panel successfully", __func__);
+			touch_cdev->active_panel = panel;
 			return 0;
 		}
 	}
-	pr_err("%s: No find drm_panel", __func__);
+	dev_dbg(DEV_TS, "%s: No find drm_panel", __func__);
 	return -ENODEV;
 }
 
@@ -327,13 +341,13 @@ out:
 	return ret;
 }
 
-int ts_mmi_check_drm_panel(struct device_node *of_node)
+int ts_mmi_check_drm_panel(struct ts_mmi_dev* touch_cdev, struct device_node *of_node)
 {
 	int ret;
 
-	ret = ts_mmi_check_dt(of_node);
+	ret = ts_mmi_check_dt(touch_cdev, of_node);
 	if (ret) {
-		pr_err( "%s: parse drm-panel fail\n", __func__);
+		dev_dbg(DEV_TS, "%s: parse drm-panel fail\n", __func__);
 		if (!ts_mmi_check_default_tp(of_node, "qcom,mmi-touch-active"))
 			ret = -EPROBE_DEFER;
 		else

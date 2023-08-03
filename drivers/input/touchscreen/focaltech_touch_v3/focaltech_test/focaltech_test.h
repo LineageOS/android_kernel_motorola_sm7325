@@ -34,10 +34,13 @@
 /*****************************************************************************
 * Macro definitions using #define
 *****************************************************************************/
-#define FTS_INI_FILE_PATH                       "/vendor/firmware"
+#define FTS_INI_FILE_PATH                       "/vendor/firmware/"
 #define FTS_OUT_FILE_PATH                       "/data/vendor/touchrec/"
 #define FTS_CSV_FILE_NAME                       "testdata.csv"
 #define FTS_TXT_FILE_NAME                       "testresult.txt"
+#define FTS_LIMIT_FILE_NAME                     "csot_focal_test_limits.ini"
+#define FTS_TEST_RESULT_PASS                    "PASS"
+#define FTS_TEST_RESULT_FAIL                    "FAIL"
 #define false 0
 #define true  1
 #define TEST_ICSERIES_LEN                       (8)
@@ -50,7 +53,7 @@
 #define CSV_BUFFER_LEN                          (1024*80*5)
 #define TXT_BUFFER_LEN                          (1024*80*5)
 
-#define TEST_SAVE_FAIL_RESULT                   0
+#define TEST_SAVE_FAIL_RESULT                   1
 
 /*-----------------------------------------------------------
 Test Status
@@ -190,6 +193,13 @@ Test Status
 
 #define FTS_MAX_SORT_SC                         32768
 #define FTS_MIN_SORT_SC                         0
+
+#ifdef CONFIG_FTS_COMPATIBLE_WITH_GKI
+#define FTS_PROC_TP_DIFFER "fts_tp_test"
+#define PROC_READ_CSV_DATA                          1
+#define PROC_READ_TXT_DATA                          2
+#define PROC_BUF_SIZE                           256
+#endif
 
 /*****************************************************************************
 * enumerations, structures and unions
@@ -379,6 +389,10 @@ struct mc_sc_threshold {
     int *scap_rawdata_hov_max;
     int *panel_differ_min;
     int *panel_differ_max;
+#if defined(CONFIG_FTS_NOISE_TEST_P2P)
+    int *noise_min;
+    int *noise_max;
+#endif
 
     int *scap_cb_on_cf_min;
     int *scap_cb_on_cf_max;
@@ -482,6 +496,12 @@ struct fts_test {
     u8 normalize;
     u8 fre_num;
     int test_num;
+#ifdef CONFIG_FTS_COMPATIBLE_WITH_GKI
+    char *csv_buffer;
+    int csv_result_len;
+    char *txt_buffer;
+    int txt_result_len;
+#endif
     int *item1_data;
     int *item2_data;
     int *item3_data;
@@ -512,7 +532,11 @@ struct fts_test {
     int testresult_len;
     int result;
 #if defined(TEST_SAVE_FAIL_RESULT) && TEST_SAVE_FAIL_RESULT
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+    struct timespec64 tv;
+#else
     struct timeval tv;
+#endif
 #endif
     struct ini_data ini;
 };
