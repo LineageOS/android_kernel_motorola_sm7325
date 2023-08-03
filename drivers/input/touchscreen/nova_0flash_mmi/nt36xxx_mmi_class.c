@@ -41,6 +41,10 @@ static ssize_t nvt_mmi_edge_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size);
 static ssize_t nvt_mmi_edge_show(struct device *dev,
 		struct device_attribute *attr, char *buf);
+#ifdef NVT_TOUCH_LAST_TIME
+static ssize_t nvt_mmi_timestamp_show(struct device *dev,
+		struct device_attribute *attr, char *buf);
+#endif
 
 static DEVICE_ATTR(interpolation, (S_IRUGO | S_IWUSR | S_IWGRP),
 	nvt_mmi_interpolation_show, nvt_mmi_interpolation_store);
@@ -50,6 +54,9 @@ static DEVICE_ATTR(jitter, (S_IRUGO | S_IWUSR | S_IWGRP),
 	nvt_mmi_jitter_show, nvt_mmi_jitter_store);
 static DEVICE_ATTR(edge, (S_IRUGO | S_IWUSR | S_IWGRP),
 	nvt_mmi_edge_show, nvt_mmi_edge_store);
+#ifdef NVT_TOUCH_LAST_TIME
+static DEVICE_ATTR(timestamp, S_IRUGO, nvt_mmi_timestamp_show, NULL);
+#endif
 
 #define MAX_ATTRS_ENTRIES 10
 #define UI_FEATURE_ENABLE   1
@@ -84,6 +91,50 @@ static struct attribute_group ext_attr_group = {
 	.attrs = ext_attributes,
 };
 
+#ifdef PALM_GESTURE
+static ssize_t nvt_palm_settings_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%d", ts->palm_enabled);
+}
+
+static ssize_t nvt_palm_settings_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+
+{
+	int value;
+	int err = 0;
+
+	if (count > 2)
+		return -EINVAL;
+
+	if (sscanf(buf, "%d", &value) != 1)
+		return -EINVAL;
+
+	err = count;
+
+	switch (value) {
+		case 0:
+			ts->palm_enabled = false;
+			break;
+		case 1:
+			ts->palm_enabled = true;
+			break;
+		default:
+			err = -EINVAL;
+			ts->palm_enabled = false;
+			NVT_ERR("Invalid Value! %d\n", value);
+			break;
+	}
+
+	nvt_palm_set(ts->palm_enabled);
+
+	return err;
+}
+
+static DEVICE_ATTR(palm_settings, S_IRUGO | S_IWUSR | S_IWGRP, nvt_palm_settings_show, nvt_palm_settings_store);
+#endif
+
 static int nvt_mmi_extend_attribute_group(struct device *dev, struct attribute_group **group)
 {
 	int idx = 0;
@@ -99,6 +150,14 @@ static int nvt_mmi_extend_attribute_group(struct device *dev, struct attribute_g
 
 	if (ts->edge_ctrl)
 		ADD_ATTR(edge);
+
+#ifdef PALM_GESTURE
+	ADD_ATTR(palm_settings);
+#endif
+
+#ifdef NVT_TOUCH_LAST_TIME
+	ADD_ATTR(timestamp);
+#endif
 
 	if (idx) {
 		ext_attributes[idx] = NULL;
@@ -315,6 +374,24 @@ static ssize_t nvt_mmi_edge_show(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "0x%02x 0x%02x\n", ts->edge_cmd[2], ts->rotate_cmd);
 }
 
+#ifdef NVT_TOUCH_LAST_TIME
+static ssize_t nvt_mmi_timestamp_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ktime_t last_ktime;
+	struct timespec64 last_ts;
+
+	mutex_lock(&ts->lock);
+	last_ktime = ts->last_event_time;
+	ts->last_event_time = 0;
+	mutex_unlock(&ts->lock);
+
+	last_ts = ktime_to_timespec64(last_ktime);
+
+	return scnprintf(buf, PAGE_SIZE, "%lld.%ld\n", last_ts.tv_sec, last_ts.tv_nsec);
+}
+#endif
+
 static int nvt_mmi_methods_get_vendor(struct device *dev, void *cdata)
 {
 	return scnprintf(TO_CHARP(cdata), TS_MMI_MAX_VENDOR_LEN, "%s", "novatek_ts");
@@ -488,6 +565,12 @@ static int nvt_mmi_firmware_update(struct device *dev, char *fwname)
 	nvt_update_firmware(nvt_boot_firmware_name);
 	mutex_unlock(&ts->lock);
 
+#ifdef NOVATECH_PEN_NOTIFIER
+	if(!ts->fw_ready_flag)
+		ts->fw_ready_flag = true;
+	nvt_mcu_pen_detect_set(ts->nvt_pen_detect_flag);
+#endif
+
 	return 0;
 }
 
@@ -495,19 +578,44 @@ static int nvt_mmi_panel_state(struct device *dev,
 	enum ts_mmi_pm_mode from, enum ts_mmi_pm_mode to)
 {
 	struct nvt_ts_data *ts_data;
+#if defined(CONFIG_BOARD_USES_DOUBLE_TAP_CTRL)
+	static uint8_t gesture_cmd = 0x00;
+	unsigned char gesture_type = 0;
+#endif
 
 	GET_TS_DATA(dev);
 	dev_dbg(dev, "%s: panel state change: %d->%d\n", __func__, from, to);
 	NVT_LOG("panel state change: %d->%d\n", from, to);
+	mutex_lock(&ts->lock);
 	switch (to) {
 		case TS_MMI_PM_GESTURE:
 #ifdef NVT_SET_TOUCH_STATE
-			ts->gesture_enabled = true;
-			touch_set_state(TS_MMI_PM_GESTURE, TOUCH_PANEL_IDX_PRIMARY);
+		        ts->gesture_enabled = true;
+		        touch_set_state(TS_MMI_PM_GESTURE, TOUCH_PANEL_IDX_PRIMARY);
 #else
-			ts->gesture_enabled = false;
+		        ts->gesture_enabled = false;
 #endif
-			break;
+
+#if defined(CONFIG_BOARD_USES_DOUBLE_TAP_CTRL)
+                        if (ts_data->imports && ts_data->imports->get_gesture_type) {
+                                ts_data->imports->get_gesture_type(dev, &gesture_type);
+		        }
+
+		        if (gesture_type & TS_MMI_GESTURE_SINGLE) {
+                                gesture_cmd |= 0x02;
+                                NVT_LOG("enable single gesture mode cmd 0x%04x\n", gesture_cmd);
+		        }
+
+		        if (gesture_type & TS_MMI_GESTURE_DOUBLE) {
+			        gesture_cmd |= 0x04;
+			        NVT_LOG("enable double gesture mode cmd 0x%04x\n", gesture_cmd);
+		        }
+
+                        //---write command to enter "wakeup gesture mode"---
+                        nvt_cmd_ext_store(DOUBLE_TAP_GESTURE_MODE_CMD, gesture_cmd);
+                        gesture_cmd = 0x00;
+#endif
+                        break;
 
 		case TS_MMI_PM_DEEPSLEEP:
 			ts->gesture_enabled = false;
@@ -519,9 +627,11 @@ static int nvt_mmi_panel_state(struct device *dev,
 		case TS_MMI_PM_ACTIVE:
 			break;
 		default:
+			mutex_unlock(&ts->lock);
 			dev_warn(dev, "panel mode %d is invalid.\n", to);
 			return -EINVAL;
 	}
+	mutex_unlock(&ts->lock);
 	NVT_LOG("IRQ is %s\n", ts_data->irq_enabled ? "EN" : "DIS");
 	return 0;
 }
@@ -583,6 +693,12 @@ static int nvt_mmi_pre_resume(struct device *dev)
 	nvt_update_firmware(nvt_boot_firmware_name);
 
 	mutex_unlock(&ts->lock);
+
+#ifdef NOVATECH_PEN_NOTIFIER
+	if(!ts->fw_ready_flag)
+		ts->fw_ready_flag = true;
+	nvt_mcu_pen_detect_set(ts->nvt_pen_detect_flag);
+#endif
 
 	return 0;
 }

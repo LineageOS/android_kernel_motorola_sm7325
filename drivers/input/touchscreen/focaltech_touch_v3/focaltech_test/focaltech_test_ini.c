@@ -15,7 +15,7 @@
 /*****************************************************************************
 * Private constant and macro definitions using #define
 *****************************************************************************/
-#define FTS_INI_REQUEST_SUPPORT              0
+#define FTS_INI_REQUEST_SUPPORT              1
 
 struct ini_ic_type ic_types[] = {
     {"FT5X46",  0x54000002},
@@ -266,7 +266,9 @@ static int fts_test_read_ini_data(char *config_name, char *config_buf)
     off_t fsize = 0;
     char filepath[FILE_NAME_LENGTH] = { 0 };
     loff_t pos = 0;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
     mm_segment_t old_fs;
+#endif
 
     FTS_TEST_FUNC_ENTER();
 
@@ -288,18 +290,26 @@ static int fts_test_read_ini_data(char *config_name, char *config_buf)
     inode = pfile->f_dentry->d_inode;
 #endif
     fsize = inode->i_size;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
     old_fs = get_fs();
     set_fs(KERNEL_DS);
+#endif
     pos = 0;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
     vfs_read(pfile, config_buf, fsize, &pos);
+#else
+    kernel_read(pfile, config_buf, fsize, &pos);
+#endif
     filp_close(pfile, NULL);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
     set_fs(old_fs);
+#endif
 
     FTS_TEST_FUNC_EXIT();
     return 0;
 }
 
-static int fts_test_get_ini_default(struct ini_data *ini, char *fwname)
+static int __maybe_unused fts_test_get_ini_default(struct ini_data *ini, char *fwname)
 {
     int ret = 0;
     int inisize = 0;
@@ -1038,7 +1048,10 @@ static int get_test_threshold_mc_sc(void)
     fts_init_buffer(thr->scap_rawdata_hov_max, thr->basic.scap_rawdata_hov_max, sc_num, false, 0, 0);
     fts_init_buffer(thr->panel_differ_min, thr->basic.panel_differ_min, node_num, false, 0, 0);
     fts_init_buffer(thr->panel_differ_max, thr->basic.panel_differ_max, node_num, false, 0, 0);
-
+#if defined(CONFIG_FTS_NOISE_TEST_P2P)
+    fts_init_buffer(thr->noise_min, 0, node_num, false, 0, 0);
+    fts_init_buffer(thr->noise_max, thr->basic.noise_max, node_num, false, 0, 0);
+#endif
     /* detail threshold */
     get_detail_threshold("RawData_Min_High_Tx", true, thr->rawdata_h_min, node_num);
     get_detail_threshold("RawData_Max_High_Tx", true, thr->rawdata_h_max, node_num);
@@ -1068,6 +1081,9 @@ static int get_test_threshold_mc_sc(void)
     get_detail_threshold("ScapRawData_Hov_Max_", true, thr->scap_rawdata_hov_max, sc_num);
     get_detail_threshold("Panel_Differ_Min_Tx", true, thr->panel_differ_min, node_num);
     get_detail_threshold("Panel_Differ_Max_Tx", true, thr->panel_differ_max, node_num);
+#if defined(CONFIG_FTS_NOISE_TEST_P2P)
+    get_detail_threshold("NoistTestCoefficient_Tx", true, thr->noise_max, node_num);
+#endif
 
     return 0;
 }
@@ -1142,6 +1158,9 @@ static void print_thr_mc_sc(void)
     print_buffer(thr->scap_rawdata_hov_max, tdata->sc_node.node_num, tdata->sc_node.rx_num);
     print_buffer(thr->panel_differ_min, tdata->node.node_num, tdata->node.rx_num);
     print_buffer(thr->panel_differ_max, tdata->node.node_num, tdata->node.rx_num);
+#if defined(CONFIG_FTS_NOISE_TEST_P2P)
+    print_buffer(thr->noise_max, tdata->node.node_num, tdata->node.rx_num);
+#endif
 }
 
 static int ini_init_test_mc_sc(void)
@@ -1376,7 +1395,11 @@ int fts_test_get_testparam_from_ini(char *config_name)
 
     ret = fts_test_get_ini_via_request_firmware(ini, config_name);
     if (ret != 0) {
+#ifdef CONFIG_FTS_COMPATIBLE_WITH_GKI
+        ret = fts_test_get_ini_via_request_firmware(ini, config_name);
+#else
         ret = fts_test_get_ini_default(ini, config_name);
+#endif
         if (ret < 0) {
             FTS_TEST_ERROR("get ini(default) fail");
             goto get_ini_err;

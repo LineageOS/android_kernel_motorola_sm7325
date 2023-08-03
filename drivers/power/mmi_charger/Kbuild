@@ -1,2 +1,6 @@
 obj-$(CONFIG_USE_MMI_CHARGER) += mmi_charger.o
 
+ifneq ($(filter m y,$(CONFIG_MMI_RECHARGER_HAWAO_MODE)),)
+        ccflags-y += -DCONFIG_MMI_RECHARGER_HAWAO_MODE
+endif
+

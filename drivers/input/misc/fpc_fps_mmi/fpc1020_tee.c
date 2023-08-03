@@ -150,7 +150,9 @@ static int fpc1020_power_on(struct fpc1020_data *fpc1020)
 		}
 		fpc1020->power_enabled = 1;
 		if(fpc1020->rgltr_ctrl_support ||gpio_is_valid(fpc1020->pwr_gpio)){
-			usleep_range(11000,12000);
+			if (!of_property_read_bool(fpc1020->dev->of_node, "delay-ctrl-support")) {
+				usleep_range(11000,12000);
+			}
 		}
 	}
 	return rc;
@@ -205,7 +207,31 @@ static int hw_reset(struct fpc1020_data *fpc1020)
 exit:
 	return rc;
 }
+#ifdef SUPPORT_PIN_CTRL
+static void fpc_pinctrl_on(struct device *dev)
+{
+	struct pinctrl *ptl = NULL;
+	struct pinctrl_state *ptl_state = NULL;
 
+        pr_info("fpc fpc_pinctrl_on begin\n");
+    	ptl = devm_pinctrl_get(dev);
+	ptl_state = pinctrl_lookup_state(ptl, "fpc_irq_en");
+	pinctrl_select_state(ptl, ptl_state);
+        ptl_state = pinctrl_lookup_state(ptl, "fpc_vdd_on");
+        pinctrl_select_state(ptl, ptl_state);
+        ptl_state = pinctrl_lookup_state(ptl, "fpc_rst_hi");
+        pinctrl_select_state(ptl, ptl_state);
+        msleep(10);
+        ptl_state = pinctrl_lookup_state(ptl, "fpc_rst_lo");
+        pinctrl_select_state(ptl, ptl_state);
+        msleep(5);
+        ptl_state = pinctrl_lookup_state(ptl, "fpc_rst_hi");
+        pinctrl_select_state(ptl, ptl_state);
+        msleep(3);
+    	devm_pinctrl_put(ptl);
+        pr_info("fpc fpc_pinctrl_on end\n");
+}
+#endif
 static ssize_t hw_reset_set(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -218,7 +244,15 @@ static ssize_t hw_reset_set(struct device *dev,
 		rc = fpc1020_power_off(fpc1020);
 	} else if (!strncmp(buf, "poweron", strlen("poweron"))) {
 		rc = fpc1020_power_on(fpc1020);
-	} else {
+	}
+  #ifdef SUPPORT_PIN_CTRL
+  	  else if (!strncmp(buf, "pinctrl", strlen("pinctrl"))) {
+		fpc_pinctrl_on(dev);
+		pr_info("fpc IRQ after reset %d\n", gpio_get_value(fpc1020->irq_gpio));
+                rc = count;
+	}
+  #endif
+  	  else {
 		return -EINVAL;
 	}
 	return rc ? rc : count;
@@ -396,7 +430,11 @@ static int fpc1020_probe(struct platform_device *pdev)
 		rc = -ENOMEM;
 		goto exit;
 	}
-
+  #ifdef SUPPORT_PIN_CTRL
+	if(of_property_read_bool(np,"fpc_pinctrl_on")) {
+            fpc_pinctrl_on(dev);
+	}
+  #endif
 	fpsData = FPS_init(dev);
 
 	fpc1020->dev = dev;
@@ -452,6 +490,7 @@ static int fpc1020_probe(struct platform_device *pdev)
 	}
 
 	fpc1020_power_on(fpc1020);
+
 	rc = fpc1020_request_named_gpio(fpc1020, "irq",
 			&fpc1020->irq_gpio);
 	gpio_direction_input(fpc1020->irq_gpio);
@@ -464,7 +503,9 @@ static int fpc1020_probe(struct platform_device *pdev)
 		fpc1020->rst_gpio = -EINVAL;
 
 	if (gpio_is_valid(fpc1020->rst_gpio)) {
-		usleep_range(RESET_LOW_SLEEP_MIN_US, RESET_LOW_SLEEP_MAX_US);
+		if (!of_property_read_bool(np, "delay-ctrl-support")) {
+			usleep_range(RESET_LOW_SLEEP_MIN_US, RESET_LOW_SLEEP_MAX_US);
+		}
 		rc = gpio_direction_output(fpc1020->rst_gpio, 1);
 		if (rc) {
 			dev_err(dev, "cannot set reset pin direction\n");
