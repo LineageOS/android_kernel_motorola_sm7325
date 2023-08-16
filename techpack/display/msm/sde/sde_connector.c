@@ -907,12 +907,11 @@ struct sde_connector_dyn_hdr_metadata *sde_connector_get_dyn_hdr_meta(
 
 static bool sde_connector_is_fod_enabled(struct sde_connector *c_conn)
 {
-	struct drm_connector *connector = &c_conn->base;
-
-	if (!connector->state || !connector->state->crtc)
+	if (!c_conn->encoder || !c_conn->encoder->crtc ||
+	    !c_conn->encoder->crtc->state)
 		return false;
 
-	return sde_crtc_is_fod_enabled(connector->state->crtc->state);
+	return !!to_sde_crtc_state(c_conn->encoder->crtc->state)->fod_dim_layer;
 }
 
 struct dsi_panel *sde_connector_panel(struct sde_connector *c_conn)

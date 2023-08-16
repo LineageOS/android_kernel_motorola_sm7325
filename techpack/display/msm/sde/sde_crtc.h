@@ -457,13 +457,13 @@ struct sde_crtc_state {
 	uint32_t num_dim_layers;
 	uint32_t cwb_enc_mask;
 	struct sde_hw_dim_layer dim_layer[SDE_MAX_DIM_LAYERS];
+	struct sde_hw_dim_layer *fod_dim_layer;
 	uint32_t num_ds;
 	uint32_t num_ds_enabled;
 	struct sde_hw_ds_cfg ds_cfg[SDE_MAX_DS_COUNT];
 	struct sde_hw_scaler3_lut_cfg scl3_lut_cfg;
 
 	struct sde_core_perf_params new_perf;
-	u8 fod_dim_alpha;
 	bool color_invert_on;
 };
 
@@ -974,7 +974,5 @@ void _sde_crtc_clear_dim_layers_v1(struct drm_crtc_state *state);
  * @crtc: Pointer to DRM crtc object
  */
 void sde_crtc_cancel_delayed_work(struct drm_crtc *crtc);
-
-bool sde_crtc_is_fod_enabled(struct drm_crtc_state *state);
 
 #endif /* _SDE_CRTC_H_ */
