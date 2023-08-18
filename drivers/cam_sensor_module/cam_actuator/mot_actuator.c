@@ -67,7 +67,7 @@ typedef enum {
 	MOT_DEVICE_RHODEC,
 	MOT_DEVICE_RHODEI,
 	MOT_DEVICE_PENANG,
-	MOT_DEVICE_FOGOR,
+	MOT_DEVICE_FOGOS,
 	MOT_DEVICE_NUM,
 } mot_dev_type;
 
@@ -148,8 +148,8 @@ static struct cam_sensor_i2c_reg_setting mot_gt9767_dac_settings = {
 static struct cam_sensor_i2c_reg_array mot_gt9764_init_setting[] ={
 	{0x02, 0x00, 1000},
 	{0x02, 0x02, 0},
-	{0x06, 0x40, 0},
-	{0x07, 0x08, 0},
+	{0x06, 0x80, 0},
+	{0x07, 0x62, 0},
 };
 
 static struct cam_sensor_i2c_reg_array mot_gt9764_dac_setting[] ={
@@ -559,9 +559,9 @@ static const mot_dev_info mot_dev_list[MOT_DEVICE_NUM] = {
 	},
 
   {
-		.dev_type = MOT_DEVICE_FOGOR,
+		.dev_type = MOT_DEVICE_FOGOS,
 		.actuator_num = 1,
-		.dev_name = "fogor",
+		.dev_name = "fogos",
 		.actuator_info = {
 			[0] = {
 				.actuator_type = MOT_ACTUATOR_GT9764,
