@@ -1559,6 +1559,10 @@ static void sde_cp_crtc_setfeature(struct sde_cp_node *prop_node,
 	int i = 0, ret = 0;
 	bool feature_enabled = false;
 	struct sde_mdss_cfg *catalog = NULL;
+	struct drm_crtc *drm_crtc = &sde_crtc->base;
+	struct sde_crtc_state *cstate = to_sde_crtc_state(drm_crtc->state);
+	struct drm_property_blob *blob;
+	struct drm_msm_pcc *pcc_cfg;
 
 	memset(&hw_cfg, 0, sizeof(hw_cfg));
 	sde_cp_get_hw_payload(prop_node, &hw_cfg, &feature_enabled);
@@ -1573,8 +1577,18 @@ static void sde_cp_crtc_setfeature(struct sde_cp_node *prop_node,
 	}
 
 #ifdef CONFIG_GTP_FOD
-	if (prop_node->feature == SDE_CP_CRTC_DSPP_PCC)
-		return;
+	if (prop_node->feature == SDE_CP_CRTC_DSPP_PCC) {
+		blob = prop_node->blob_ptr;
+		if (blob != NULL) {
+			pcc_cfg = blob->data;
+			if (pcc_cfg->r.c == 0 && pcc_cfg->b.c == 0 && pcc_cfg->g.c == 0) {
+				cstate->color_invert_on = false;
+				hw_cfg.payload = NULL;
+				hw_cfg.len = 0;
+			} else
+				cstate->color_invert_on = true;
+		}
+	}
 #endif
 
 	if ((prop_node->feature >= SDE_CP_CRTC_MAX_FEATURES) ||

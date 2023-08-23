@@ -464,6 +464,7 @@ struct sde_crtc_state {
 
 	struct sde_core_perf_params new_perf;
 	u8 fod_dim_alpha;
+	bool color_invert_on;
 };
 
 enum sde_crtc_irq_state {
