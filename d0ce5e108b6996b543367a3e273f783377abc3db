@@ -33,6 +33,24 @@
       "message": "eh - I\u0027m not opposed, this was obscure, I\u0027ll say +1 and won\u0027t block it, but will leave +2 approval to one of y\u0027all.\n\nWorks on Berlin.",
       "revId": "d0ce5e108b6996b543367a3e273f783377abc3db",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "e54fbb34_2d8ac01b",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 23878
+      },
+      "writtenOn": "2023-09-01T22:21:20Z",
+      "side": 1,
+      "message": "I\u0027m sure there\u0027s a proper way to fix this but not really an wizard in this area.\n\nAt this point I\u0027d rather leave the driver here and not worry about it in future or add any more guards to existing drivers.\n\nIf Marc is on board he can +2/push",
+      "parentUuid": "937b1e67_375b3776",
+      "revId": "d0ce5e108b6996b543367a3e273f783377abc3db",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
