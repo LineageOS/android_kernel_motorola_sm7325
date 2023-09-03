@@ -16,6 +16,23 @@
       "message": "same comment as base of chain",
       "revId": "ba4ddf90e06302b6a687a372a2298a577ba1cdb9",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "3d59ff52_9b7fd76c",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19252
+      },
+      "writtenOn": "2023-09-03T22:10:18Z",
+      "side": 1,
+      "message": "works on xpeng",
+      "revId": "ba4ddf90e06302b6a687a372a2298a577ba1cdb9",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
