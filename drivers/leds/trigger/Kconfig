@@ -144,4 +144,11 @@ config LEDS_TRIGGER_AUDIO
 	  the audio mute and mic-mute changes.
 	  If unsure, say N
 
+config LEDS_TRIGGER_SOL
+	tristate "Sign of Life LED Trigger"
+	help
+	  Configurable LED trigger that alters the LED blink
+	  pattern based on power supply status.
+	  If unsure, say N
+
 endif # LEDS_TRIGGERS
