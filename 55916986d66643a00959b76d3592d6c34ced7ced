@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "db6c7903_947a3126",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 23878
+      },
+      "writtenOn": "2023-09-07T15:29:34Z",
+      "side": 1,
+      "message": "Fixes notification LED for berlna.\nNot sure if its causing issues with the other family devices but I don\u0027t see this module in any of the dumps for SOC so I\u0027d say its safe to not build.",
+      "revId": "55916986d66643a00959b76d3592d6c34ced7ced",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
