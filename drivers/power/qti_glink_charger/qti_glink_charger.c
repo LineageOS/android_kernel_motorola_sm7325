@@ -754,6 +754,19 @@ void qti_switched_dump_info(struct qti_charger *chg, struct switched_dev_info sw
 }
 #endif
 
+#if defined(FUELGUAGE_DUMP)
+void qti_fg_charge_dump_info(struct qti_charger *chg, struct fg_dump fg_info)
+{
+
+	mmi_info(chg, "FG dump info: WORK_MODE: 0x%x, SOC: %d, VOLTAGE_MV: %dmV, CURRENT_MA: %dmA, "
+		"TEMP: %d, CYCLE_COUNT: %d, REMAINING_CAPACITY: %d, FULL_CAPACITY: %d",
+		fg_info.work_mode, fg_info.current_ma, fg_info.voltage_mv, fg_info.soc,
+		fg_info.temperature, fg_info.cycle_count,
+		fg_info.remaining_capacity, fg_info.full_capacity);
+
+}
+#endif
+
 static int qti_charger_get_chg_info(void *data, struct mmi_charger_info *chg_info)
 {
 	int rc;
@@ -767,6 +780,10 @@ static int qti_charger_get_chg_info(void *data, struct mmi_charger_info *chg_inf
 	struct switched_dev_info master_switched_info;
 	int i = 0;
 #endif
+#if defined(FUELGUAGE_DUMP)
+	struct fg_dump fg_info;
+#endif
+
 	rc = qti_charger_read(chg, OEM_PROP_CHG_INFO,
 				&info,
 				sizeof(struct charger_info));
@@ -830,6 +847,13 @@ static int qti_charger_get_chg_info(void *data, struct mmi_charger_info *chg_inf
 							sizeof(struct switched_dev_info));
 		qti_switched_dump_info(chg, master_switched_info);
 	}
+#endif
+
+#if defined(FUELGUAGE_DUMP)
+	qti_charger_read(chg, OEM_PROP_FG_DUMP_INFO,
+				&fg_info,
+				sizeof(struct fg_dump));
+	qti_fg_charge_dump_info(chg, fg_info);
 #endif
 
 	bm_ulog_print_log(OEM_BM_ULOG_SIZE);

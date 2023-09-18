@@ -77,6 +77,7 @@ enum oem_property_type {
 	OEM_PROP_WLS_WEAK_CHARGE_CTRL,
 	OEM_PROP_THERM_PRIMARY_CHG_CONTROL,
 	OEM_PROP_THERM_SECONDARY_CHG_CONTROL,
+	OEM_PROP_FG_DUMP_INFO,
 	OEM_PROP_MAX,
 };
 
@@ -120,6 +121,17 @@ struct switched_dev_info
 struct qti_charger_notify_data {
 	u32 receiver;
 	u32 data[MAX_OEM_NOTIFY_DATA_LEN];
+};
+
+struct fg_dump {
+	u8 work_mode;
+	u16 soc;
+	u16 voltage_mv;
+	s16 current_ma;
+	s16 temperature;
+	u16 cycle_count;
+	u32 remaining_capacity;
+	u32 full_capacity;
 };
 
 extern int qti_charger_set_property(u32 property, const void *val, size_t val_len);
