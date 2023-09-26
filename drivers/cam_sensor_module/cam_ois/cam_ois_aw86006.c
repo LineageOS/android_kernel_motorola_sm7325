@@ -1173,6 +1173,7 @@ int aw86006_firmware_update(struct cam_ois_ctrl_t *o_ctrl,
 {
 	int ret = OIS_ERROR;
 	int i = 0;
+	int j = 0;
 	uint8_t standby_flag = 0;
 
 	AW_LOGI("enter");
@@ -1192,11 +1193,20 @@ int aw86006_firmware_update(struct cam_ois_ctrl_t *o_ctrl,
 	}
 	mdelay(AW_RESET_DELAY); /* run app after reset */
 	/* Get standby flag */
-	for (i = 0; i < AW_ERROR_LOOP; i++) {
-		aw86006_get_standby_flag(o_ctrl, &standby_flag);
+	for (j = 0; j < AW_ERROR_LOOP; j++) {
+		for (i = 0; i < AW_ERROR_LOOP; i++) {
+			aw86006_get_standby_flag(o_ctrl, &standby_flag);
+			if (standby_flag == AW_IC_STANDBY)
+				break;
+			mdelay(AW_RESET_DELAY);
+		}
+		//Retry reset
+		if((i == AW_ERROR_LOOP) && (standby_flag != AW_IC_STANDBY)){
+			aw86006_reset(o_ctrl);
+			mdelay(AW_RESET_DELAY);
+		}
 		if (standby_flag == AW_IC_STANDBY)
 			break;
-		mdelay(AW_RESET_DELAY);
 	}
 
 	if (standby_flag == AW_IC_STANDBY) {
