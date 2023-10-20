@@ -37,6 +37,10 @@
 /* Mask to enable skew calibration registers */
 #define SKEW_CAL_MASK 0x2
 
+#ifdef CONFIG_MOT_SECURE_CAMERA
+#define QCOM_SCM_EBUSY_MAX_RETRY  5
+#endif
+
 static DEFINE_MUTEX(active_csiphy_cnt_mutex);
 
 static int csiphy_dump;
@@ -1095,6 +1099,10 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 	struct cam_control   *cmd = (struct cam_control *)arg;
 	int32_t              rc = 0;
 
+#ifdef CONFIG_MOT_SECURE_CAMERA
+	int32_t              retry_count = 0;
+#endif
+
 	if (!csiphy_dev || !cmd) {
 		CAM_ERR(CAM_CSIPHY, "Invalid input args");
 		return -EINVAL;
@@ -1291,7 +1299,7 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 			cam_csiphy_update_lane(csiphy_dev, offset, false);
 			goto release_mutex;
 		}
-
+#ifndef CONFIG_MOT_SECURE_CAMERA
 		if (csiphy_dev->csiphy_info[offset].secure_mode)
 			cam_csiphy_notify_secure_mode(
 				csiphy_dev,
@@ -1299,6 +1307,29 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 
 		csiphy_dev->csiphy_info[offset].secure_mode =
 			CAM_SECURE_MODE_NON_SECURE;
+#else
+		retry_count = 0;
+retry_a:
+		retry_count++;
+
+		if (csiphy_dev->csiphy_info[offset].secure_mode) {
+			rc = cam_csiphy_notify_secure_mode(
+				csiphy_dev,
+				CAM_SECURE_MODE_NON_SECURE, offset);
+			if (rc <0 && retry_count <= QCOM_SCM_EBUSY_MAX_RETRY) {
+				CAM_INFO(CAM_CSIPHY, "CAM_STOP_PHYDEV: scm call with count: %d,",retry_count);
+				goto retry_a;
+			} else if (rc <0 && retry_count > QCOM_SCM_EBUSY_MAX_RETRY){
+				CAM_INFO(CAM_CSIPHY, "CAM_STOP_PHYDEV: notify secure mode finally failed scm call with count: %d,",retry_count);
+				goto release_mutex;
+
+			} else {
+				csiphy_dev->csiphy_info[offset].secure_mode =
+					CAM_SECURE_MODE_NON_SECURE;
+			}
+		}
+
+#endif
 
 		csiphy_dev->csiphy_info[offset].csiphy_cpas_cp_reg_mask = 0x0;
 
@@ -1354,6 +1385,7 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 			goto release_mutex;
 		}
 
+#ifndef CONFIG_MOT_SECURE_CAMERA
 		if (csiphy_dev->csiphy_info[offset].secure_mode)
 			cam_csiphy_notify_secure_mode(
 				csiphy_dev,
@@ -1361,6 +1393,28 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 
 		csiphy_dev->csiphy_info[offset].secure_mode =
 			CAM_SECURE_MODE_NON_SECURE;
+#else
+		retry_count = 0;
+retry_b:
+		retry_count++;
+
+		if (csiphy_dev->csiphy_info[offset].secure_mode) {
+			rc = cam_csiphy_notify_secure_mode(
+				csiphy_dev,
+				CAM_SECURE_MODE_NON_SECURE, offset);
+			if (rc <0 && retry_count <= QCOM_SCM_EBUSY_MAX_RETRY) {
+				CAM_INFO(CAM_CSIPHY, "CAM_RELEASE_PHYDEV: zhp scm call with count: %d,",retry_count);
+				goto retry_b;
+			} else if (rc <0 && retry_count > QCOM_SCM_EBUSY_MAX_RETRY){
+				CAM_INFO(CAM_CSIPHY, "CAM_RELEASE_PHYDEV: zhp notify secure mode finally failed scm call with count: %d,",retry_count);
+				goto release_mutex;
+
+			} else {
+				csiphy_dev->csiphy_info[offset].secure_mode =
+					CAM_SECURE_MODE_NON_SECURE;
+			}
+		}
+#endif
 
 		csiphy_dev->csiphy_cpas_cp_reg_mask[offset] = 0x0;
 
