@@ -1321,13 +1321,12 @@ retry_a:
 				goto retry_a;
 			} else if (rc <0 && retry_count > QCOM_SCM_EBUSY_MAX_RETRY){
 				CAM_INFO(CAM_CSIPHY, "CAM_STOP_PHYDEV: notify secure mode finally failed scm call with count: %d,",retry_count);
-				goto release_mutex;
-
-			} else {
-				csiphy_dev->csiphy_info[offset].secure_mode =
-					CAM_SECURE_MODE_NON_SECURE;
 			}
+
 		}
+
+		csiphy_dev->csiphy_info[offset].secure_mode =
+			CAM_SECURE_MODE_NON_SECURE;
 
 #endif
 
@@ -1403,17 +1402,15 @@ retry_b:
 				csiphy_dev,
 				CAM_SECURE_MODE_NON_SECURE, offset);
 			if (rc <0 && retry_count <= QCOM_SCM_EBUSY_MAX_RETRY) {
-				CAM_INFO(CAM_CSIPHY, "CAM_RELEASE_PHYDEV: zhp scm call with count: %d,",retry_count);
+				CAM_INFO(CAM_CSIPHY, "CAM_RELEASE_PHYDEV: scm call with count: %d,",retry_count);
 				goto retry_b;
 			} else if (rc <0 && retry_count > QCOM_SCM_EBUSY_MAX_RETRY){
-				CAM_INFO(CAM_CSIPHY, "CAM_RELEASE_PHYDEV: zhp notify secure mode finally failed scm call with count: %d,",retry_count);
-				goto release_mutex;
-
-			} else {
-				csiphy_dev->csiphy_info[offset].secure_mode =
-					CAM_SECURE_MODE_NON_SECURE;
+				CAM_INFO(CAM_CSIPHY, "CAM_RELEASE_PHYDEV: notify secure mode finally failed scm call with count: %d,",retry_count);
 			}
 		}
+
+		csiphy_dev->csiphy_info[offset].secure_mode =
+			CAM_SECURE_MODE_NON_SECURE;
 #endif
 
 		csiphy_dev->csiphy_cpas_cp_reg_mask[offset] = 0x0;
