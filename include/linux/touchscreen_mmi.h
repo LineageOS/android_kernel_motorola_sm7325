@@ -80,11 +80,11 @@
 }
 
 #define EVENT_PRE_DISPLAY_OFF \
-	((event == DRM_PANEL_EVENT_BLANK) && \
+	(((event == DRM_PANEL_EVENT_BLANK) || (event == DRM_PANEL_EVENT_BLANK_LP)) && \
 	 (evdata.early_trigger))
 
 #define EVENT_DISPLAY_OFF \
-	((event == DRM_PANEL_EVENT_BLANK) && \
+	(((event == DRM_PANEL_EVENT_BLANK || (event == DRM_PANEL_EVENT_BLANK_LP))) && \
 	 (!evdata.early_trigger))
 
 #define EVENT_PRE_DISPLAY_ON \
