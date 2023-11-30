@@ -213,9 +213,14 @@ int ts_mmi_parse_dt(struct ts_mmi_dev *touch_cdev,
 
 		rc = of_property_read_string(chosen, panel_name_prop,
 					(const char **)&supplier);
-		if (rc) {
+		if (rc || !strncmp(supplier, "none", 4)) {
 			dev_err(DEV_TS, "%s: cannot read %s %d\n",
 					__func__, panel_name_prop, rc);
+			if (strncmp(panel_name_prop, PRIM_PANEL_NAME, strlen(panel_name_prop)) == 0) {
+				strncpy(touch_cdev->panel_supplier, "dummy", sizeof(touch_cdev->panel_supplier));
+			} else {
+				strncpy(touch_cdev->panel_supplier, "dummy_s", sizeof(touch_cdev->panel_supplier));
+			}
 			goto done;
 		}
 		dev_info(DEV_TS, "%s: %s %s\n",
