@@ -1,5 +1,5 @@
-#ifndef __JIIOV_CONFIG_H__
-#define __JIIOV_CONFIG_H__
+#ifndef JIIOV_CONFIG_H
+#define JIIOV_CONFIG_H
 
 /*Define the macro when using ree spi*/
 // #define ANC_USE_REE_SPI

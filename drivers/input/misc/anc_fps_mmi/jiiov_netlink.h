@@ -1,5 +1,5 @@
-#ifndef __JIIOV_NETLINK_H__
-#define __JIIOV_NETLINK_H__
+#ifndef JIIOV_NETLINK_H
+#define JIIOV_NETLINK_H
 
 typedef enum {
     ANC_NETLINK_EVENT_TEST = 0,

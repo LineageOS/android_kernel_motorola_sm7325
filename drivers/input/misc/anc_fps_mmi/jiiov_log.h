@@ -1,5 +1,5 @@
-#ifndef __JIIOV_LOG_H__
-#define __JIIOV_LOG_H__
+#ifndef JIIOV_LOG_H
+#define JIIOV_LOG_H
 
 #define ANC_LOGD(format, ...) \
     printk(KERN_DEBUG "[D][ANC_DRIVER][%s] " format "\n", __func__, ##__VA_ARGS__)

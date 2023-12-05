@@ -14,8 +14,8 @@
  * Public License for more details.
  **/
 
-#ifndef __JIIOV_PLATFORM_H__
-#define __JIIOV_PLATFORM_H__
+#ifndef JIIOV_PLATFORM_H
+#define JIIOV_PLATFORM_H
 
 #define ANC_WAKELOCK_HOLD_TIME 500 /* ms */
 typedef enum {
@@ -27,4 +27,4 @@ typedef enum {
 
 int custom_send_command(CUSTOM_COMMAND cmd, void *p_param);
 
-#endif /* __JIIOV_PLATFORM_H__ */
+#endif /* JIIOV_PLATFORM_H */
