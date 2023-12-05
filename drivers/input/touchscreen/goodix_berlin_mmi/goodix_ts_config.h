@@ -20,6 +20,7 @@
 #define REPORT_RATE_CMD_180HZ 0x9D00
 #define REPORT_RATE_CMD_240HZ 0x9D01
 #define REPORT_RATE_CMD_360HZ 0x9D02
+#define REPORT_RATE_CMD_120HZ 0x9D03
 #define REPORT_RATE_CMD_LOW 0x9D
 #define REPORT_RATE_CMD_480HZ 0xC102
 #define REPORT_RATE_CMD_576HZ 0xC103
@@ -27,7 +28,7 @@
 #define REPORT_RATE_CMD_HIGH 0xC1
 
 struct report_rate_config {
-	bool interpolation_flag; //if enable interpolation report rate
+	u8 interpolation_flag; //if enable interpolation report rate
 	u16 refresh_rate[2]; //display refresh rate
 	u16 report_rate; //touch report rate
 	u16 command; //report rate switch command
