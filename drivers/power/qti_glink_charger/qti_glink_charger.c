@@ -259,6 +259,17 @@ struct qti_charger {
 	int				rx_connected;
 	u32				weak_charge_disable;
 	u32				switched_nums;
+
+	u32 *thermal_primary_levels;
+	u32 thermal_primary_fcc_ua;
+	int curr_thermal_primary_level;
+	int num_thermal_primary_levels;
+
+	u32 *thermal_secondary_levels;
+	u32 thermal_secondary_fcc_ua;
+	int curr_thermal_secondary_level;
+	int num_thermal_secondary_levels;
+
 	struct notifier_block		wls_nb;
 	struct dentry		*debug_root;
 	struct power_supply		*batt_psy;
@@ -2080,6 +2091,153 @@ static ssize_t folio_mode_show(struct device *dev,
 }
 static DEVICE_ATTR(folio_mode, S_IRUGO|S_IWUSR, folio_mode_show, folio_mode_store);
 
+static ssize_t thermal_primary_charge_control_limit_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	unsigned long r;
+	unsigned long charge_primary_limit_level;
+	struct qti_charger *chg = this_chip;
+
+	if (!chg) {
+		pr_err("QTI: chip not valid\n");
+		return -ENODEV;
+	}
+
+	if (!chg->num_thermal_primary_levels)
+		return 0;
+
+	if (chg->num_thermal_primary_levels < 0) {
+		pr_err("Incorrect num_thermal_primary_levels\n");
+		return -EINVAL;
+	}
+
+	r = kstrtoul(buf, 0, &charge_primary_limit_level);
+	if (r) {
+		pr_err("Invalid charge_primary_limit_level = %lu\n", charge_primary_limit_level);
+		return -EINVAL;
+	}
+
+	if (charge_primary_limit_level < 0 || charge_primary_limit_level > chg->num_thermal_primary_levels) {
+		pr_err("Invalid charge_primary_limit_level: %lu\n", charge_primary_limit_level);
+		return -EINVAL;
+	}
+
+	chg->thermal_primary_fcc_ua = chg->thermal_primary_levels[charge_primary_limit_level];
+	chg->curr_thermal_primary_level = charge_primary_limit_level;
+
+
+	r = qti_charger_write(chg, OEM_PROP_THERM_PRIMARY_CHG_CONTROL,
+				&chg->thermal_primary_fcc_ua,
+				sizeof(chg->thermal_primary_fcc_ua));
+
+	return r ? r : count;
+}
+
+static ssize_t thermal_primary_charge_control_limit_show(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct qti_charger *chg = this_chip;
+
+	if (!chg) {
+		pr_err("PEN: chip not valid\n");
+		return -ENODEV;
+	}
+
+	return scnprintf(buf, CHG_SHOW_MAX_SIZE, "%d\n", chg->curr_thermal_primary_level );
+}
+static DEVICE_ATTR(thermal_primary_charge_control_limit, S_IRUGO|S_IWUSR, thermal_primary_charge_control_limit_show, thermal_primary_charge_control_limit_store);
+
+static ssize_t thermal_primary_charge_control_limit_max_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct qti_charger *chg = this_chip;
+
+	if (!chg) {
+		pr_err("QTI: chip not valid\n");
+		return -ENODEV;
+	}
+
+	return scnprintf(buf, CHG_SHOW_MAX_SIZE, "%d\n", chg->num_thermal_primary_levels);
+}
+static DEVICE_ATTR(thermal_primary_charge_control_limit_max, S_IRUGO, thermal_primary_charge_control_limit_max_show, NULL);
+
+
+static ssize_t thermal_secondary_charge_control_limit_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	unsigned long r;
+	unsigned long charge_secondary_limit_level;
+	struct qti_charger *chg = this_chip;
+
+	if (!chg) {
+		pr_err("QTI: chip not valid\n");
+		return -ENODEV;
+	}
+
+	if (!chg->num_thermal_secondary_levels)
+		return 0;
+
+	if (chg->num_thermal_secondary_levels < 0) {
+		pr_err("Incorrect num_thermal_psecondary_levels\n");
+		return -EINVAL;
+	}
+
+	r = kstrtoul(buf, 0, &charge_secondary_limit_level);
+	if (r) {
+		pr_err("Invalid charge_secondary_limit_level = %lu\n", charge_secondary_limit_level);
+		return -EINVAL;
+	}
+
+	if (charge_secondary_limit_level < 0 || charge_secondary_limit_level > chg->num_thermal_secondary_levels) {
+		pr_err("Invalid charge_secondary_limit_level: %lu\n", charge_secondary_limit_level);
+		return -EINVAL;
+	}
+
+	chg->thermal_secondary_fcc_ua = chg->thermal_secondary_levels[charge_secondary_limit_level];
+	chg->curr_thermal_secondary_level = charge_secondary_limit_level;
+
+
+	r = qti_charger_write(chg, OEM_PROP_THERM_SECONDARY_CHG_CONTROL,
+				&chg->thermal_secondary_fcc_ua,
+				sizeof(chg->thermal_secondary_fcc_ua));
+
+	return r ? r : count;
+}
+
+static ssize_t thermal_secondary_charge_control_limit_show(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct qti_charger *chg = this_chip;
+
+	if (!chg) {
+		pr_err("PEN: chip not valid\n");
+		return -ENODEV;
+	}
+
+	return scnprintf(buf, CHG_SHOW_MAX_SIZE, "%d\n", chg->curr_thermal_secondary_level );
+}
+static DEVICE_ATTR(thermal_secondary_charge_control_limit, S_IRUGO|S_IWUSR, thermal_secondary_charge_control_limit_show, thermal_secondary_charge_control_limit_store);
+
+static ssize_t thermal_secondary_charge_control_limit_max_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct qti_charger *chg = this_chip;
+
+	if (!chg) {
+		pr_err("QTI: chip not valid\n");
+		return -ENODEV;
+	}
+
+	return scnprintf(buf, CHG_SHOW_MAX_SIZE, "%d\n", chg->num_thermal_secondary_levels);
+}
+static DEVICE_ATTR(thermal_secondary_charge_control_limit_max, S_IRUGO, thermal_secondary_charge_control_limit_max_show, NULL);
+
 static ssize_t cid_status_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
@@ -2664,6 +2822,77 @@ static int mmi_get_hw_revision(struct qti_charger *chg, u16 *hw_rev)
 	}
 }
 
+static void thermal_charge_control_init(struct qti_charger *chg)
+{
+	struct power_supply		*battery_psy;
+	int rc;
+
+	if (!chg) {
+		pr_err("QTI: chip not valid\n");
+		return;
+	}
+
+	battery_psy = power_supply_get_by_name("battery");
+	if (!battery_psy) {
+		pr_err("No battery power supply found\n");
+		return;
+	}
+
+	rc = device_create_file(battery_psy->dev.parent,
+				&dev_attr_thermal_primary_charge_control_limit);
+	if (rc) {
+		pr_err("couldn't create thermal_primary_charge_control_limit\n");
+	}
+
+	rc = device_create_file(battery_psy->dev.parent,
+				&dev_attr_thermal_primary_charge_control_limit_max);
+	if (rc) {
+		pr_err("couldn't create thermal_primary_charge_control_limit_max\n");
+	}
+
+	rc = device_create_file(battery_psy->dev.parent,
+				&dev_attr_thermal_secondary_charge_control_limit);
+	if (rc) {
+		pr_err("couldn't create thermal_secondary_charge_control_limit\n");
+	}
+
+	rc = device_create_file(battery_psy->dev.parent,
+				&dev_attr_thermal_secondary_charge_control_limit_max);
+	if (rc) {
+		pr_err("couldn't create thermal_secondary_charge_control_limit_max\n");
+	}
+
+}
+
+static void thermal_charge_control_deinit(struct qti_charger *chg)
+{
+	struct power_supply		*battery_psy;
+
+	if (!chg) {
+		pr_err("QTI: chip not valid\n");
+		return;
+	}
+
+	battery_psy = power_supply_get_by_name("battery");
+	if (!battery_psy) {
+		pr_err("No battery power supply found\n");
+		return;
+	}
+
+	device_remove_file(battery_psy->dev.parent,
+				&dev_attr_thermal_primary_charge_control_limit);
+
+	device_remove_file(battery_psy->dev.parent,
+				&dev_attr_thermal_primary_charge_control_limit_max);
+
+	device_remove_file(battery_psy->dev.parent,
+				&dev_attr_thermal_secondary_charge_control_limit);
+
+	device_remove_file(battery_psy->dev.parent,
+				&dev_attr_thermal_secondary_charge_control_limit_max);
+
+}
+
 static int qti_charger_init(struct qti_charger *chg)
 {
 	int rc;
@@ -2857,6 +3086,7 @@ static int qti_charger_init(struct qti_charger *chg)
 	bm_ulog_print_mask_log(BM_ALL, BM_LOG_LEVEL_INFO, OEM_BM_ULOG_SIZE);
 
 	wireless_psy_init(chg);
+	thermal_charge_control_init(chg);
 
 	create_debugfs_entries(chg);
 	return 0;
@@ -2915,6 +3145,7 @@ static void qti_charger_deinit(struct qti_charger *chg)
 	device_remove_file(chg->dev, &dev_attr_data);
 
 	wireless_psy_deinit(chg);
+	thermal_charge_control_deinit(chg);
 
 	if (chg->debug_root)
 		debugfs_remove_recursive(chg->debug_root);
@@ -2974,6 +3205,8 @@ static int qti_charger_parse_dt(struct qti_charger *chg)
 	int byte_len;
 	const char *df_sn = NULL, *dev_sn = NULL;
 	struct device_node *node;
+	int len;
+	u32 prev, val;
 
 	node = chg->dev->of_node;
 	dev_sn = mmi_get_battery_serialnumber();
@@ -3089,6 +3322,93 @@ static int qti_charger_parse_dt(struct qti_charger *chg)
 		chg->switched_nums = 1;
 	}
 
+	rc = of_property_count_elems_of_size(node, "mmi,thermal-primary-mitigation",
+							sizeof(u32));
+	if (rc <= 0) {
+		return 0;
+	}
+
+	len = rc;
+	prev = chg->profile_info.max_fcc_ua;
+
+	for (i = 0; i < len; i++) {
+		rc = of_property_read_u32_index(node,
+					"mmi,thermal-primary-mitigation",
+					i, &val);
+		if (rc < 0) {
+			pr_err("failed to get thermal-primary-mitigation[%d], ret=%d\n", i, rc);
+			return rc;
+		}
+		pr_info("thermal-primary-mitigation[%d], val=%d, prev=%d\n", i, val, prev);
+		if (val > prev) {
+			pr_err("Thermal primary levels should be in descending order\n");
+			chg->num_thermal_primary_levels = -EINVAL;
+			return 0;
+		}
+		prev = val;
+	}
+
+	chg->thermal_primary_levels = devm_kcalloc(chg->dev, len + 1,
+					sizeof(*chg->thermal_primary_levels),
+					GFP_KERNEL);
+	if (!chg->thermal_primary_levels)
+		return -ENOMEM;
+
+	chg->thermal_primary_levels[0] = chg->profile_info.max_fcc_ua;
+	rc = of_property_read_u32_array(node, "mmi,thermal-primary-mitigation",
+						&chg->thermal_primary_levels[1], len);
+	if (rc < 0) {
+		pr_err("Error in reading mmi,thermal-primary-mitigation, rc=%d\n", rc);
+		return rc;
+	}
+	chg->num_thermal_primary_levels = len;
+	chg->thermal_primary_fcc_ua = chg->profile_info.max_fcc_ua;
+
+	pr_info("Parse mmi,thermal-primary-mitigation successfully, num_primary_levels %d\n", chg->num_thermal_primary_levels);
+
+	rc = of_property_count_elems_of_size(node, "mmi,thermal-secondary-mitigation",
+							sizeof(u32));
+	if (rc <= 0) {
+		return 0;
+	}
+
+	len = rc;
+	prev = chg->profile_info.max_fcc_ua;
+
+	for (i = 0; i < len; i++) {
+		rc = of_property_read_u32_index(node,
+					"mmi,thermal-secondary-mitigation",
+					i, &val);
+		if (rc < 0) {
+			pr_err("failed to get thermal-secondary-mitigation[%d], ret=%d\n", i, rc);
+			return rc;
+		}
+		pr_info("thermal-secondary-mitigation[%d], val=%d, prev=%d\n", i, val, prev);
+		if (val > prev) {
+			pr_err("Thermal secondary levels should be in descending order\n");
+			chg->num_thermal_secondary_levels = -EINVAL;
+			return 0;
+		}
+		prev = val;
+	}
+
+	chg->thermal_secondary_levels = devm_kcalloc(chg->dev, len + 1,
+					sizeof(*chg->thermal_secondary_levels),
+					GFP_KERNEL);
+	if (!chg->thermal_secondary_levels)
+		return -ENOMEM;
+
+	chg->thermal_secondary_levels[0] = chg->profile_info.max_fcc_ua;
+	rc = of_property_read_u32_array(node, "mmi,thermal-secondary-mitigation",
+						&chg->thermal_secondary_levels[1], len);
+	if (rc < 0) {
+		pr_err("Error in reading mmi,thermal-secondary-mitigation, rc=%d\n", rc);
+		return rc;
+	}
+	chg->num_thermal_secondary_levels = len;
+	chg->thermal_secondary_fcc_ua = chg->profile_info.max_fcc_ua;
+
+	pr_info("Parse mmi,thermal-secondary-mitigation successfully, num_secondary_levels %d\n", chg->num_thermal_secondary_levels);
 	return 0;
 }
 
