@@ -1737,7 +1737,11 @@ FREE_PMIC:
  * \param client Pointer to i2c_client struct
  * \return Value 0
  */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,1,0)
+static void sx937x_remove(struct i2c_client *client)
+#else
 static int sx937x_remove(struct i2c_client *client)
+#endif
 {
 	psx937x_platform_data_t pplatData =0;
 	psx937x_t pDevice = 0;
@@ -1775,7 +1779,9 @@ static int sx937x_remove(struct i2c_client *client)
 			}
 		}
 	}
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,1,0)
 	return 0;
+#endif
 }
 
 
