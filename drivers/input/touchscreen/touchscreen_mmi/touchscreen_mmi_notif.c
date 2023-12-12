@@ -443,7 +443,8 @@ static int ts_mmi_charger_cb(struct notifier_block *self,
 
 	if (!((event == PSY_EVENT_PROP_CHANGED) && psy &&
 			psy->desc->get_property && psy->desc->name &&
-			!strncmp(psy->desc->name, "usb", sizeof("usb"))))
+			(!strncmp(psy->desc->name, "usb", sizeof("usb")) ||
+			!strncmp(psy->desc->name, "wireless", sizeof("wireless")))))
 		return 0;
 
 	ret = ts_mmi_ps_get_state(psy, &present);
@@ -574,7 +575,7 @@ int ts_mmi_notifiers_register(struct ts_mmi_dev *touch_cdev)
 
 	if (touch_cdev->pdata.usb_detection) {
 		struct power_supply *psy = NULL;
-		bool present;
+		bool present = 0;
 		touch_cdev->ps_notif.notifier_call = ts_mmi_charger_cb;
 		ret = power_supply_reg_notifier(&touch_cdev->ps_notif);
 		if (ret)
@@ -583,15 +584,25 @@ int ts_mmi_notifiers_register(struct ts_mmi_dev *touch_cdev)
 		psy = power_supply_get_by_name("usb");
 		if (psy) {
 			ret = ts_mmi_ps_get_state(psy, &present);
-			if (!ret) {
-				touch_cdev->ps_is_present = present;
-				kfifo_put(&touch_cdev->cmd_pipe, TS_MMI_DO_PS);
-				schedule_delayed_work(&touch_cdev->work, 0);
-			}
+			if (!ret)
+				touch_cdev->ps_is_present |= present;
 			power_supply_put(psy);
-			dev_info(DEV_MMI, "%s: USB initial status=%d\n",
-				__func__, touch_cdev->ps_is_present);
+			psy = NULL;
 		}
+
+		psy = power_supply_get_by_name("wireless");
+		if (psy) {
+			ret = ts_mmi_ps_get_state(psy, &present);
+			if (!ret)
+				touch_cdev->ps_is_present |= present;
+			power_supply_put(psy);
+			psy = NULL;
+		}
+
+		kfifo_put(&touch_cdev->cmd_pipe, TS_MMI_DO_PS);
+		schedule_delayed_work(&touch_cdev->work, 0);
+		dev_info(DEV_MMI, "%s: USB initial status=%d\n",
+			__func__, touch_cdev->ps_is_present);
 	}
 
 	/*
