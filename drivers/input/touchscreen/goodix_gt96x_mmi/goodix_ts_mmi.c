@@ -29,7 +29,7 @@
 }
 
 static int goodix_ts_mmi_methods_get_vendor(struct device *dev, void *cdata) {
-	return scnprintf(TO_CHARP(cdata), TS_MMI_MAX_VENDOR_LEN, "%s", "goodix");
+	return scnprintf(TO_CHARP(cdata), TS_MMI_MAX_VENDOR_LEN, "%s", "gdx");
 }
 
 static int goodix_ts_mmi_methods_get_productinfo(struct device *dev, void *cdata) {
@@ -270,6 +270,39 @@ static int goodix_ts_mmi_post_resume(struct device *dev) {
 	ts_info("Resume end");
 	return 0;
 }
+
+static int goodix_ts_firmware_update(struct device *dev, char *fwname) {
+	int ret = -ENODEV;
+	struct platform_device *pdev;
+	struct goodix_ts_core *core_data;
+	int update_flag = UPDATE_MODE_BLOCK | UPDATE_MODE_SRC_REQUEST | UPDATE_MODE_FORCE;
+
+	GET_GOODIX_DATA(dev);
+
+	ts_info("HW request update fw, %s", fwname);
+	/* set firmware image name */
+	if (core_data->set_fw_name)
+		core_data->set_fw_name(core_data, fwname);
+
+	/* do upgrade */
+	ret = goodix_do_fw_update(core_data, update_flag);
+	if (ret)
+		ts_err("failed do fw update");
+
+	/* read ic info */
+	ret = core_data->hw_ops->get_ic_info(core_data, &core_data->ic_info);
+	if (ret < 0) {
+		ts_err("failed to get ic info");
+	}
+	print_ic_info(&core_data->ic_info);
+
+	/* the recomend way to update ic config is throuth ISP,
+	 * if not we will send config with interactive mode
+	 */
+	goodix_send_ic_config(core_data, CONFIG_TYPE_NORMAL);
+	return 0;
+}
+
 static struct ts_mmi_methods goodix_ts_mmi_methods = {
 	.get_vendor = goodix_ts_mmi_methods_get_vendor,
 	.get_productinfo = goodix_ts_mmi_methods_get_productinfo,
@@ -284,6 +317,8 @@ static struct ts_mmi_methods goodix_ts_mmi_methods = {
 	.reset =  goodix_ts_mmi_methods_reset,
 	.drv_irq = goodix_ts_mmi_methods_drv_irq,
 	.power = goodix_ts_mmi_methods_power,
+	/* Firmware */
+	.firmware_update = goodix_ts_firmware_update,
 	/* PM callback */
 	.pre_suspend = goodix_ts_mmi_pre_suspend,
 	.panel_state = goodix_ts_mmi_panel_state,
@@ -306,6 +341,14 @@ int goodix_ts_mmi_dev_register(struct platform_device *pdev) {
 		dev_err(&pdev->dev, "Failed to register ts mmi\n");
 		return ret;
 	}
+
+	core_data->imports = &goodix_ts_mmi_methods.exports;
+
+#if defined(CONFIG_GTP_LIMIT_USE_SUPPLIER)
+	if (core_data->imports && core_data->imports->get_supplier) {
+		ret = core_data->imports->get_supplier(core_data->bus->dev, &core_data->supplier);
+	}
+#endif
 
 	return 0;
 }

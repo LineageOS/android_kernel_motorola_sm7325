@@ -57,7 +57,7 @@
 #define GOODIX_PEN_MAX_TILT				90
 #define GOODIX_CFG_MAX_SIZE				4096
 #define GOODIX_FW_MAX_SIEZE				(300 * 1024)
-#define GOODIX_MAX_STR_LABLE_LEN		32
+#define GOODIX_MAX_STR_LABLE_LEN		64
 #define GOODIX_MAX_FRAMEDATA_LEN		2000
 #define GOODIX_GESTURE_DATA_LEN			16
 
@@ -69,7 +69,7 @@
 #define GOODIX_RETRY_10					10
 
 #define TS_DEFAULT_FIRMWARE				"goodix_firmware.bin"
-#define TS_DEFAULT_CFG_BIN				"goodix_cfg_group.bin"
+#define TS_DEFAULT_CFG_BIN				"gdx_cfg_group.bin"
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 0))
 #define PDE_DATA(x) pde_data(x)
@@ -759,6 +759,10 @@ struct goodix_ts_core {
 #if IS_ENABLED(CONFIG_FB)
 	struct notifier_block fb_notifier;
 #endif
+	/* touchscreen_mmi */
+	int (*set_fw_name)(struct goodix_ts_core *cd, char* fw_name);
+	const char *supplier;
+	struct ts_mmi_class_methods *imports;
 };
 
 struct goodix_device_resource {
@@ -833,5 +837,6 @@ int goodix_ts_report_gesture(struct goodix_ts_core *cd, struct goodix_ts_event *
 int goodix_ts_power_on(struct goodix_ts_core *cd);
 int goodix_ts_power_off(struct goodix_ts_core *cd);
 void goodix_ts_release_connects(struct goodix_ts_core *core_data);
+int goodix_send_ic_config(struct goodix_ts_core *cd, int type);
 
 #endif

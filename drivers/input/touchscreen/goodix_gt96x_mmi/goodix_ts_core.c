@@ -66,8 +66,6 @@ int goodix_device_register(struct goodix_device_resource *device)
 	return 0;
 }
 
-static int goodix_send_ic_config(struct goodix_ts_core *cd, int type);
-
 /* show driver infomation */
 static ssize_t driver_info_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -1695,6 +1693,7 @@ static const struct dev_pm_ops dev_pm_ops = {
 };
 #endif
 
+#ifndef CONFIG_INPUT_TOUCHSCREEN_MMI
 static void goodix_self_check(struct work_struct *work)
 {
 	struct goodix_ts_core *cd =
@@ -1718,6 +1717,7 @@ static void goodix_self_check(struct work_struct *work)
 		goodix_do_fw_update(cd, update_flag);
 	}
 }
+#endif
 
 int goodix_ts_stage2_init(struct goodix_ts_core *cd)
 {
@@ -1767,11 +1767,11 @@ int goodix_ts_stage2_init(struct goodix_ts_core *cd)
 
 #ifndef CONFIG_INPUT_TOUCHSCREEN_MMI
 	INIT_WORK(&cd->resume_work, goodix_ts_resume_work);
-#endif
 
 	/* Do self check on first boot */
 	INIT_WORK(&cd->self_check_work, goodix_self_check);
 	schedule_work(&cd->self_check_work);
+#endif
 
 	return 0;
 exit:
@@ -1782,7 +1782,7 @@ err_finger:
 }
 
 /* try send the config specified with type */
-static int goodix_send_ic_config(struct goodix_ts_core *cd, int type)
+int goodix_send_ic_config(struct goodix_ts_core *cd, int type)
 {
 	u32 config_id;
 	struct goodix_ic_config *cfg;
@@ -1838,6 +1838,7 @@ static int goodix_later_init_thread(void *data)
 
 	/* step 3: do upgrade */
 	ts_info("update flag: 0x%X", update_flag);
+#ifndef CONFIG_INPUT_TOUCHSCREEN_MMI
 	goodix_do_fw_update(cd, update_flag);
 
 	print_ic_info(&cd->ic_info);
@@ -1846,6 +1847,8 @@ static int goodix_later_init_thread(void *data)
 	 * if not we will send config with interactive mode
 	 */
 	goodix_send_ic_config(cd, CONFIG_TYPE_NORMAL);
+#endif
+	print_ic_info(&cd->ic_info);
 
 	/* init other resources */
 	ret = goodix_ts_stage2_init(cd);
