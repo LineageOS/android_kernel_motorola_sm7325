@@ -63,7 +63,7 @@ static struct class *capsense_class;
 
 static void sx937x_reinitialize(psx93XX_t this);
 static void sx937x_i2c_watchdog_work(struct work_struct *work);
-
+static int MotoTopApproach_ENABLE_FLAG = 0;
 //irq use
 static int sx937x_get_nirq_low(psx93XX_t this)
 {
@@ -666,7 +666,7 @@ static ssize_t sx937x_fac_enable_store(struct device *dev,
 	if ( !strncmp(buf, "1", 1)) {
 		LOG_INFO("enable cap sensor\n");
 		sx937x_i2c_read_16bit(this->bus, SX937X_GENERAL_SETUP, &temp);
-		temp = temp | 0x0000007F;
+		temp = temp | 0x000000FF;
 		LOG_INFO("set reg 0x%x val 0x%x\n", SX937X_GENERAL_SETUP, temp);
 		sx937x_i2c_write_16bit(this->bus, SX937X_GENERAL_SETUP, temp);
 		if(ret <0){
@@ -1238,7 +1238,13 @@ static int capsensor_set_enable(struct sensors_classdev *sensors_cdev,
 			if (enable == 1) {
 				LOG_INFO("enable cap sensor : %s\n", sensors_cdev->name);
 				sx937x_i2c_read_16bit(this->bus, SX937X_GENERAL_SETUP, &temp);
-				temp = temp | 0x0000007F;
+				temp = temp | 0x000000FF;
+				if (!strncmp(sensors_cdev->name, "Moto_Top_Approach_Det", 21))
+				{
+					LOG_INFO("MotoTopApproach_ENABLE_FLAG is true and calibrate MotoTopApproach channel");
+					MotoTopApproach_ENABLE_FLAG = 1;
+					temp = temp | 0x80FF;
+				}
 				LOG_DBG("set reg 0x%x val 0x%x\n", SX937X_GENERAL_SETUP, temp);
 				sx937x_i2c_write_16bit(this->bus, SX937X_GENERAL_SETUP, temp);
 				buttons[i].enabled = true;
@@ -1251,6 +1257,11 @@ static int capsensor_set_enable(struct sensors_classdev *sensors_cdev,
 				buttons[i].enabled = false;
 				input_report_abs(buttons[i].input_dev, ABS_DISTANCE, -1);
 				input_sync(buttons[i].input_dev);
+				if (!strncmp(sensors_cdev->name, "Moto_Top_Approach_Det", 21))
+				{
+					LOG_INFO("MotoTopApproach_ENABLE_FLAG is false");
+					MotoTopApproach_ENABLE_FLAG = 0;
+				}
 			} else {
 				LOG_ERR("unknown enable symbol\n");
 			}
@@ -1576,42 +1587,47 @@ static void sx937x_remove(struct i2c_client *client)
 /***** Kernel Suspend *****/
 static int sx937x_suspend(struct device *dev)
 {
-	psx93XX_t this = dev_get_drvdata(dev);
-	psx937x_platform_data_t pdata = 0;
 
-	if (this) {
-		/* If we happen to reinitialize during suspend we might fail so wait for it to end */
-		if ((pdata = this->hw)) {
-			if (pdata->reinit_on_i2c_failure)
-				cancel_delayed_work_sync(&this->i2c_watchdog_work);
+	LOG_INFO("sx937x_suspend enter");
+	if (!MotoTopApproach_ENABLE_FLAG){
+		psx93XX_t this = dev_get_drvdata(dev);
+		psx937x_platform_data_t pdata = 0;
+		if (this) {
+			/* If we happen to reinitialize during suspend we might fail so wait for it to end */
+			if ((pdata = this->hw)) {
+				if (pdata->reinit_on_i2c_failure)
+					cancel_delayed_work_sync(&this->i2c_watchdog_work);
+			}
+
+			sx937x_i2c_write_16bit(this->bus,SX937X_COMMAND,0xD);//make sx937x in Sleep mode
+			LOG_INFO(LOG_TAG "sx937x suspend:disable irq!\n");
+			disable_irq(this->irq);
+			this->suspended = 1;
 		}
-
-		sx937x_i2c_write_16bit(this->bus,SX937X_COMMAND,0xD);//make sx937x in Sleep mode
-		LOG_DBG(LOG_TAG "sx937x suspend:disable irq!\n");
-		disable_irq(this->irq);
-		this->suspended = 1;
 	}
 	return 0;
 }
 /***** Kernel Resume *****/
 static int sx937x_resume(struct device *dev)
 {
-	psx93XX_t this = dev_get_drvdata(dev);
-	psx937x_platform_data_t pdata = 0;
+	LOG_INFO("sx937x_resume enter");
+	if (!MotoTopApproach_ENABLE_FLAG){
+		psx93XX_t this = dev_get_drvdata(dev);
+		psx937x_platform_data_t pdata = 0;
+		if (this) {
+			sx93XX_schedule_work(this,0);
+			enable_irq(this->irq);
+			sx937x_i2c_write_16bit(this->bus,SX937X_COMMAND,0xC);//Exit from Sleep mode
+			this->suspended = 0;
+			LOG_INFO(LOG_TAG "sx937x resume enableable irq!\n");
+			/* Restart the watchdog in 2 seconds */
+			if ((pdata = this->hw)) {
+				if (pdata->reinit_on_i2c_failure)
+					schedule_delayed_work(&this->i2c_watchdog_work,
+						msecs_to_jiffies(SX937X_I2C_WATCHDOG_TIME_ERR));
+			}
 
-	if (this) {
-		sx93XX_schedule_work(this,0);
-		enable_irq(this->irq);
-		sx937x_i2c_write_16bit(this->bus,SX937X_COMMAND,0xC);//Exit from Sleep mode
-		this->suspended = 0;
-
-		/* Restart the watchdog in 2 seconds */
-		if ((pdata = this->hw)) {
-			if (pdata->reinit_on_i2c_failure)
-				schedule_delayed_work(&this->i2c_watchdog_work,
-					msecs_to_jiffies(SX937X_I2C_WATCHDOG_TIME_ERR));
 		}
-
 	}
 	return 0;
 }
@@ -1745,7 +1761,7 @@ static void sx937x_reinitialize(psx93XX_t this)
 		for (i=0; i < pdata->buttonSize; i++) {
 			pCurrentbutton = &(pdata->buttons[i]);
 			if (pCurrentbutton->enabled) {
-				sx937x_i2c_write_16bit(this->bus, SX937X_GENERAL_SETUP, temp | 0x0000007F);
+				sx937x_i2c_write_16bit(this->bus, SX937X_GENERAL_SETUP, temp | 0x000000FF);
 				break;
 			}
 		}
