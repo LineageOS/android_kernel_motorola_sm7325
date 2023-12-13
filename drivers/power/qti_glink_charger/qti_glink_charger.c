@@ -257,6 +257,7 @@ struct qti_charger {
 	bool				*debug_enabled;
 	u32				wls_curr_max;
 	int				rx_connected;
+	u32				weak_charge_disable;
 	u32				switched_nums;
 	struct notifier_block		wls_nb;
 	struct dentry		*debug_root;
@@ -1994,6 +1995,49 @@ static ssize_t wls_input_current_limit_show(struct device *dev,
 }
 static DEVICE_ATTR(wls_input_current_limit, S_IRUGO|S_IWUSR, wls_input_current_limit_show, wls_input_current_limit_store);
 
+static ssize_t wls_weak_charge_disable_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	unsigned long r;
+	unsigned long weak_charge_disable;
+	struct qti_charger *chg = this_chip;
+
+	if (!chg) {
+		pr_err("QTI: chip not valid\n");
+		return -ENODEV;
+	}
+
+	r = kstrtoul(buf, 0, &weak_charge_disable);
+	if (r) {
+		mmi_err(chg, "Invalid TCMD = %lu\n", weak_charge_disable);
+		return -EINVAL;
+	}
+
+	r = qti_charger_write(chg, OEM_PROP_WLS_WEAK_CHARGE_CTRL,
+				&weak_charge_disable,
+				sizeof(weak_charge_disable));
+
+	chg->weak_charge_disable = weak_charge_disable;
+	return r ? r : count;
+}
+
+static ssize_t wls_weak_charge_disable_show(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct qti_charger *chg = this_chip;
+
+	if (!chg) {
+		pr_err("PEN: chip not valid\n");
+		return -ENODEV;
+	}
+
+	return scnprintf(buf, CHG_SHOW_MAX_SIZE, "%d\n", chg->weak_charge_disable);
+}
+
+static DEVICE_ATTR(wls_weak_charge_disable, S_IRUGO|S_IWUSR, wls_weak_charge_disable_show, wls_weak_charge_disable_store);
+
 static ssize_t folio_mode_store(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf, size_t count)
@@ -2354,6 +2398,10 @@ static void wireless_psy_init(struct qti_charger *chg)
         if (rc)
 		pr_err("couldn't create wireless wlc status changed error\n");
 
+	rc = device_create_file(chg->wls_psy->dev.parent,
+				&dev_attr_wls_weak_charge_disable);
+        if (rc)
+		pr_err("couldn't create wireless wlc weak charge disable error\n");
 	chg->wls_nb.notifier_call = wireless_charger_notify_callback;
 	rc = qti_charger_register_notifier(&chg->wls_nb);
 	if (rc)
