@@ -361,6 +361,47 @@ static int goodix_ts_firmware_update(struct device *dev, char *fwname) {
 	return 0;
 }
 
+int goodix_ts_send_cmd(struct goodix_ts_core *core_data,
+		u8 cmd, u8 len, u8 subCmd, u8 subCmd2)
+{
+	int ret = 0;
+	struct goodix_ts_cmd ts_cmd;
+
+	ts_cmd.cmd = cmd;
+	ts_cmd.len = len;
+	ts_cmd.data[0] = subCmd;
+	ts_cmd.data[1] = subCmd2;
+
+	ret = core_data->hw_ops->send_cmd(core_data, &ts_cmd);
+	return ret;
+}
+
+#define CHARGER_MODE_CMD    0xAF
+static int goodix_ts_mmi_charger_mode(struct device *dev, int mode)
+{
+	int ret = 0;
+	int timeout = 50;
+	struct platform_device *pdev;
+	struct goodix_ts_core *core_data;
+
+	GET_GOODIX_DATA(dev);
+
+	/* 5000ms timeout */
+	while (core_data->init_stage < CORE_INIT_STAGE2 && timeout--)
+		msleep(100);
+
+	mutex_lock(&core_data->mode_lock);
+	ret = goodix_ts_send_cmd(core_data, CHARGER_MODE_CMD, 5, mode, 0x00);
+	if (ret < 0) {
+		ts_err("Failed to set charger mode\n");
+	}
+	msleep(20);
+	ts_info("Success to %s charger mode\n", mode ? "Enable" : "Disable");
+	mutex_unlock(&core_data->mode_lock);
+
+	return 0;
+}
+
 static struct ts_mmi_methods goodix_ts_mmi_methods = {
 	.get_vendor = goodix_ts_mmi_methods_get_vendor,
 	.get_productinfo = goodix_ts_mmi_methods_get_productinfo,
@@ -375,6 +416,7 @@ static struct ts_mmi_methods goodix_ts_mmi_methods = {
 	.reset =  goodix_ts_mmi_methods_reset,
 	.drv_irq = goodix_ts_mmi_methods_drv_irq,
 	.power = goodix_ts_mmi_methods_power,
+	.charger_mode = goodix_ts_mmi_charger_mode,
 	/* Firmware */
 	.firmware_update = goodix_ts_firmware_update,
 	/* PM callback */
@@ -394,9 +436,11 @@ int goodix_ts_mmi_dev_register(struct platform_device *pdev) {
 		ts_err("Failed to get driver data");
 		return -ENODEV;
 	}
+	mutex_init(&core_data->mode_lock);
 	ret = ts_mmi_dev_register(core_data->bus->dev, &goodix_ts_mmi_methods);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register ts mmi\n");
+		mutex_destroy(&core_data->mode_lock);
 		return ret;
 	}
 
@@ -417,5 +461,6 @@ void goodix_ts_mmi_dev_unregister(struct platform_device *pdev) {
 	core_data = platform_get_drvdata(pdev);
 	if (!core_data)
 		ts_err("Failed to get driver data");
+	mutex_destroy(&core_data->mode_lock);
 	ts_mmi_dev_unregister(core_data->bus->dev);
 }

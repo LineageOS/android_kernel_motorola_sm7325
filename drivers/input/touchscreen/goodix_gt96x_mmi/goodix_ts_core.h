@@ -769,6 +769,7 @@ struct goodix_ts_core {
 	struct wakeup_source *gesture_wakelock;
 	wait_queue_head_t pm_wq;
 	atomic_t pm_resume;
+	struct mutex mode_lock;
 };
 
 struct goodix_device_resource {
