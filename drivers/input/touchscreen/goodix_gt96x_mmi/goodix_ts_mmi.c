@@ -213,20 +213,73 @@ static int goodix_ts_mmi_pre_suspend(struct device *dev) {
 	return 0;
 }
 
+static unsigned int clear_bit_in_pos(unsigned int val, int bit_pos)
+{
+	return val &= ~(1 << bit_pos);
+}
+
+static int goodix_berlin_gesture_setup(struct goodix_ts_core *core_data)
+{
+	const struct goodix_ts_hw_ops *hw_ops = core_data->hw_ops;
+	unsigned int gesture_cmd = 0xFFFF;
+	int ret = 0;
+	unsigned char gesture_type = 0;
+	unsigned int (*mod_func)(unsigned int, int) = clear_bit_in_pos;
+
+	if (core_data->imports && core_data->imports->get_gesture_type) {
+		ret = core_data->imports->get_gesture_type(core_data->bus->dev, &gesture_type);
+		ts_info("Provisioned gestures 0x%02x; rc = %d\n", gesture_type, ret);
+	}
+	core_data->gesture_type = gesture_type;
+
+	if (gesture_type & TS_MMI_GESTURE_ZERO) {
+		gesture_cmd = mod_func(gesture_cmd, 13);
+		ts_info("enable zero gesture mode cmd 0x%04x\n", gesture_cmd);
+	}
+	if (gesture_type & TS_MMI_GESTURE_SINGLE) {
+		gesture_cmd = mod_func(gesture_cmd, 12);
+		ts_info("enable single gesture mode cmd 0x%04x\n", gesture_cmd);
+	}
+	if (gesture_type & TS_MMI_GESTURE_DOUBLE) {
+		gesture_cmd = mod_func(gesture_cmd, 7);
+		ts_info("enable double gesture mode cmd 0x%04x\n", gesture_cmd);
+	}
+
+	hw_ops->gesture(core_data, gesture_cmd);
+	ts_info("Send enable gesture mode 0x%x\n", gesture_cmd);
+
+	return 0;
+}
+
 static int goodix_ts_mmi_panel_state(struct device *dev,
 	enum ts_mmi_pm_mode from, enum ts_mmi_pm_mode to)
 {
 	struct platform_device *pdev;
 	struct goodix_ts_core *core_data;
+	const struct goodix_ts_hw_ops *hw_ops;
 
 	GET_GOODIX_DATA(dev);
+	hw_ops = core_data->hw_ops;
 
 	switch (to) {
 	case TS_MMI_PM_GESTURE:
+		hw_ops->irq_enable(core_data, false);
+		goodix_berlin_gesture_setup(core_data);
+		msleep(16);
+		hw_ops->irq_enable(core_data, true);
+		enable_irq_wake(core_data->irq);
+		core_data->gesture_enabled = true;
 		break;
 	case TS_MMI_PM_DEEPSLEEP:
+		core_data->gesture_enabled = false;
 		break;
 	case TS_MMI_PM_ACTIVE:
+		if (hw_ops->resume)
+			hw_ops->resume(core_data);
+		if (core_data->gesture_enabled) {
+			core_data->gesture_enabled = false;
+			hw_ops->irq_enable(core_data, true);
+		}
 		break;
 	default:
 		ts_err("Invalid power state parameter %d.\n", to);
@@ -256,6 +309,11 @@ static int goodix_ts_mmi_pre_resume(struct device *dev) {
 	GET_GOODIX_DATA(dev);
 
 	atomic_set(&core_data->suspended, 0);
+	if (core_data->gesture_enabled) {
+		core_data->hw_ops->irq_enable(core_data, false);
+		disable_irq_wake(core_data->irq);
+	}
+
 	return 0;
 }
 

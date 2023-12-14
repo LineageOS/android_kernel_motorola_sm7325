@@ -459,6 +459,8 @@ struct goodix_ts_board_data {
 	bool sleep_enable;
 	char fw_name[GOODIX_MAX_STR_LABLE_LEN];
 	char cfg_bin_name[GOODIX_MAX_STR_LABLE_LEN];
+
+	bool gesture_wait_pm;
 };
 
 enum goodix_fw_update_mode {
@@ -763,6 +765,10 @@ struct goodix_ts_core {
 	int (*set_fw_name)(struct goodix_ts_core *cd, char* fw_name);
 	const char *supplier;
 	struct ts_mmi_class_methods *imports;
+	bool gesture_enabled;
+	struct wakeup_source *gesture_wakelock;
+	wait_queue_head_t pm_wq;
+	atomic_t pm_resume;
 };
 
 struct goodix_device_resource {
