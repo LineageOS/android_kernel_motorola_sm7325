@@ -28,7 +28,15 @@
 #define DTS_INT_GPIO	"touch,irq-gpio"
 #define DTS_RESET_GPIO	"touch,reset-gpio"
 #define DTS_OF_NAME	"tchip,ilitek"
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
+#if defined(CONFIG_DRM_MSM)
+static int drm_notifier_callback(struct notifier_block *self, unsigned long event, void *data);
+#endif
 
+#ifdef ILI_DRM_PANEL_EVENT_NOTIFICATIONS
+static void ili_drm_notifier_callback(enum panel_event_notifier_tag tag,struct panel_event_notification *notification, void *client_data);
+#endif
+#endif/*kernel 5.15*/
 #if IS_ENABLED(CONFIG_DRM_MEDIATEK)
 static int ili_disp_notifier_callback(struct notifier_block *nb, unsigned long value, void *v);
 
@@ -560,7 +568,6 @@ int ili_sysfs_remove_device(struct device *dev)
 #elif SUSPEND_RESUME_SUPPORT
 
 #if defined(CONFIG_FB) || defined(CONFIG_DRM)
-#if defined(__DRM_PANEL_H__) && defined(DRM_PANEL_EARLY_EVENT_BLANK)
 static struct drm_panel *active_panel;
 
 static int ili_v3_drm_check_dt(struct device_node *np)
@@ -578,9 +585,14 @@ static int ili_v3_drm_check_dt(struct device_node *np)
 	ILI_INFO("find drm_panel count(%d) ", count);
 	for (i = 0; i < count; i++) {
 		node = of_parse_phandle(np, "panel", i);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
+		ILI_INFO("node->name %s ", node->name);
+		panel = of_drm_find_panel(node);
+#else
 		ILI_INFO("node%p", node);
 		panel = of_drm_find_panel(node);
 		ILI_INFO("panel%p ", panel);
+#endif
 
 		of_node_put(node);
 		if (!IS_ERR(panel)) {
@@ -593,7 +605,8 @@ static int ili_v3_drm_check_dt(struct device_node *np)
 	ILI_ERR("no find drm_panel");
 	return -ENODEV;
 }
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
+#if defined(CONFIG_DRM_MSM)
 static int drm_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
 	struct drm_panel_notifier *evdata = data;
@@ -659,14 +672,150 @@ static int drm_notifier_callback(struct notifier_block *self, unsigned long even
 
 	return 0;
 }
-#else
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
-static int ilitek_plat_notifier_fb(struct notifier_block *self, unsigned long event, void *data)
+#endif/*defined(CONFIG_DRM_MSM)*/
+#else/*kernel 5.15*/
+static int drm_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
-	ILI_INFO("Notifier's event = %ld\n", event);
-	return NOTIFY_OK;
+	struct drm_panel_notifier *evdata = data;
+	int *blank = NULL;
+
+	if (!evdata) {
+		ILI_ERR("evdata is null");
+		return 0;
+	}
+
+	if (!((event == DRM_PANEL_EARLY_EVENT_BLANK)
+			|| (event == DRM_PANEL_EVENT_BLANK))) {
+		ILI_INFO("event(%lu) do not need process\n", event);
+		return 0;
+	}
+
+	blank = evdata->data;
+	ILI_DBG("DRM event:%lu,blank:%d", event, *blank);
+	switch (*blank) {
+	case DRM_PANEL_BLANK_UNBLANK:
+		if (DRM_PANEL_EARLY_EVENT_BLANK == event) {
+			ILI_INFO("resume: event = %lu, not care\n", event);
+		} else if (DRM_PANEL_EVENT_BLANK == event) {
+			ILI_INFO("resume: event = %lu, TP_RESUME\n", event);
+		if (ili_sleep_handler(TP_RESUME) < 0)
+			ILI_ERR("TP resume failed\n");
+		}
+		break;
+	case DRM_PANEL_BLANK_POWERDOWN:
+		if (DRM_PANEL_EARLY_EVENT_BLANK == event) {
+#ifdef ILI_DOUBLE_TAP_CTRL
+			if (ilits->should_enable_gesture) {
+				ILI_INFO("TP suspend: tap gesture suspend\n");
+				if (ili_sleep_handler(TP_SUSPEND) < 0)
+					ILI_ERR("TP suspend failed\n");
+#ifdef ILI_SET_TOUCH_STATE
+				touch_set_state(TOUCH_LOW_POWER_STATE, TOUCH_PANEL_IDX_PRIMARY);
+#endif
+			}
+			else {
+				ILI_INFO("TP suspend: TP_DEEP_SLEEP event = %lu\n", event);
+				if (ili_sleep_handler(TP_DEEP_SLEEP) < 0)
+					ILI_ERR("TP suspend deep sleep fail\n");
+#ifdef ILI_SET_TOUCH_STATE
+				touch_set_state(TOUCH_DEEP_SLEEP_STATE, TOUCH_PANEL_IDX_PRIMARY);
+#endif
+				if (ilits->rst_pull_flag && gpio_get_value(ilits->tp_rst))
+					gpio_set_value(ilits->tp_rst, 0);
+			}
+#else //ILI_DOUBLE_TAP_CTRL
+			ILI_INFO("TP suspend: event = %lu, TP_DEEP_SLEEP\n", event);
+			if (ili_sleep_handler(TP_DEEP_SLEEP) < 0)
+				ILI_ERR("TP suspend deep sleep failed\n");
+#endif //ILI_DOUBLE_TAP_CTRL
+		} else if (DRM_PANEL_EVENT_BLANK == event) {
+			ILI_INFO("suspend: event = %lu, not care\n", event);
+		}
+		break;
+	default:
+		ILI_DBG("DRM BLANK(%d) do not need process\n", *blank);
+		break;
+	}
+
+	return 0;
 }
+#endif/*kernel 5.15*/
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
+#ifdef  ILI_DRM_PANEL_EVENT_NOTIFICATIONS
+static void ili_drm_notifier_callback(enum panel_event_notifier_tag tag,
+		 struct panel_event_notification *notification, void *client_data)
+{
+	if (!notification) {
+		ILI_ERR("Invalid notification\n");
+		return;
+	}
+
+	ILI_DBG("Notification type:%d, early_trigger:%d",
+			notification->notif_type,
+			notification->notif_data.early_trigger);
+
+	switch (notification->notif_type) {
+	case DRM_PANEL_EVENT_UNBLANK:
+		if (!notification->notif_data.early_trigger) {
+			ILI_INFO("early_trigger resume DRM_PANEL_EVENT_UNBLANK\n");
+			//resume
+			if (ili_sleep_handler(TP_RESUME) < 0)
+				ILI_ERR("TP resume failed\n");
+		}
+
+		break;
+	case DRM_PANEL_EVENT_BLANK:
+		if (notification->notif_data.early_trigger) {
+			ILI_INFO("early_trigger suspend DRM_PANEL_EVENT_BLANK \n");
+			//suspend
+#ifdef ILI_DOUBLE_TAP_CTRL
+			if (ilits->should_enable_gesture) {
+				ILI_INFO("TP suspend: tap gesture suspend\n");
+				if (ili_sleep_handler(TP_SUSPEND) < 0)
+					ILI_ERR("TP suspend failed\n");
+#ifdef ILI_SET_TOUCH_STATE
+				touch_set_state(TOUCH_LOW_POWER_STATE, TOUCH_PANEL_IDX_PRIMARY);
+#endif
+			}else {
+				ILI_INFO("TP suspend: TP_DEEP_SLEEP \n");
+				if (ili_sleep_handler(TP_DEEP_SLEEP) < 0)
+					ILI_ERR("TP suspend deep sleep fail\n");
+#ifdef ILI_SET_TOUCH_STATE
+				touch_set_state(TOUCH_DEEP_SLEEP_STATE, TOUCH_PANEL_IDX_PRIMARY);
+#endif
+				if (ilits->rst_pull_flag && gpio_get_value(ilits->tp_rst))
+					gpio_set_value(ilits->tp_rst, 0);
+			}
+#else //ILI_DOUBLE_TAP_CTRL
+			ILI_INFO("TP suspend: TP_DEEP_SLEEP\n");
+			if (ili_sleep_handler(TP_DEEP_SLEEP) < 0)
+				ILI_ERR("TP suspend deep sleep failed\n");
+#endif //ILI_DOUBLE_TAP_CTRL
+		
+		}
+		break;
+
+	case DRM_PANEL_EVENT_BLANK_LP:
+		ILI_INFO("DRM_PANEL_EVENT_BLANK_LP\n");
+		break;
+
+	case DRM_PANEL_EVENT_FPS_CHANGE:
+		ILI_DBG("Received fps change old fps:%d new fps:%d\n",
+				notification->notif_data.old_fps,
+				notification->notif_data.new_fps);
+		break;
+
+	default:
+		ILI_INFO("notification serviced :%d\n",
+				notification->notif_type);
+		break;
+	}
+}
+#endif
+#endif/*kernel 5.15*/
 #else
+
 static int ilitek_plat_notifier_fb(struct notifier_block *self, unsigned long event, void *data)
 {
 	int *blank;
@@ -737,7 +886,6 @@ static int ilitek_plat_notifier_fb(struct notifier_block *self, unsigned long ev
 	}
 	return NOTIFY_OK;
 }
-#endif
 #endif/*defined(__DRM_PANEL_H__) && defined(DRM_PANEL_EARLY_EVENT_BLANK)*/
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 static void ilitek_plat_early_suspend(struct early_suspend *h)
@@ -878,7 +1026,91 @@ void ili_gesture_state_switch(void)
 	}
 }
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
+#if SUSPEND_RESUME_SUPPORT
+static void ilitek_plat_sleep_init(void)
+{
+#if IS_ENABLED(CONFIG_DRM_MEDIATEK)
+	int ret;
+	void **mtk_ret = NULL;
 
+	ILI_INFO("init disp_notifier cb\n");
+	ilits->disp_notifier.notifier_call = ili_disp_notifier_callback;
+	ret = mtk_disp_notifier_register("ILI Touch", &ilits->disp_notifier);
+	if (ret) {
+		ILI_ERR("Failed to register disp notifier client:%d", ret);
+		goto err_register_disp_notif_failed;
+	}
+
+	ILI_DBG("disp notifier TP power_on reset config\n");
+	if (mtk_panel_tch_handle_init()) {
+		mtk_ret = mtk_panel_tch_handle_init();
+		*mtk_ret = (void *)ili_tp_power_on_reinit;
+	}
+	else
+		ILI_INFO("mtk_panel_tch_handle_init NULL\n");
+
+	return;
+#elif defined(CONFIG_FB) //|| defined(CONFIG_DRM)
+	ILI_INFO("Init notifier_fb struct\n");
+#if defined(CONFIG_DRM_MSM)
+	ILI_INFO("Init drm_notifier_callback \n");
+	ilits->notifier_fb.notifier_call = drm_notifier_callback;
+	if (active_panel) {
+		if (drm_panel_notifier_register(active_panel, &ilits->notifier_fb))
+		ILI_ERR("[DRM]drm_panel_notifier_register fail\n");
+	}
+#else
+#if defined(CONFIG_FB)
+	ILI_INFO("Init ilitek_plat_notifier_fb \n");
+	ilits->notifier_fb.notifier_call = ilitek_plat_notifier_fb;
+#endif //defined(CONFIG_FB)
+#if defined(CONFIG_DRM_MSM)
+	ILI_INFO("Init msm_drm_register_client \n");
+		if (msm_drm_register_client(&ilits->notifier_fb)) {
+			ILI_ERR("msm_drm_register_client Unable to register fb_notifier\n");
+		}
+#else
+#if CONFIG_PLAT_SPRD
+	if (adf_register_client(&ilits->notifier_fb))
+		ILI_ERR("Unable to register notifier_fb\n");
+#else
+#if defined(CONFIG_FB)
+	ILI_INFO("Init fb_register_client \n");
+	if (fb_register_client(&ilits->notifier_fb))
+		ILI_ERR("Unable to register notifier_fb\n");
+#endif //defined(CONFIG_FB)
+#endif /* CONFIG_PLAT_SPRD */
+#endif /* CONFIG_DRM_MSM */
+#endif /*defined(CONFIG_DRM_MSM)*/
+#elif ILI_DRM_PANEL_EVENT_NOTIFICATIONS
+	ILI_INFO("Init panel_event_notifier_register \n");
+	if (active_panel){
+		ilits->notifier_cookie = panel_event_notifier_register(PANEL_EVENT_NOTIFICATION_PRIMARY,
+			PANEL_EVENT_NOTIFIER_CLIENT_PRIMARY_TOUCH, active_panel,
+			&ili_drm_notifier_callback, ilits);
+	}
+	if (!ilits->notifier_cookie) {
+		ILI_ERR("Failed to register for panel events\n");
+		return;
+	}
+#elif defined(CONFIG_HAS_EARLYSUSPEND)
+	ILI_INFO("Init eqarly_suspend struct\n");
+	ilits->early_suspend.suspend = ilitek_plat_early_suspend;
+	ilits->early_suspend.resume = ilitek_plat_late_resume;
+	ilits->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
+	register_early_suspend(&ilits->early_suspend);
+#endif
+
+#if IS_ENABLED(CONFIG_DRM_MEDIATEK)
+err_register_disp_notif_failed:
+	ret = mtk_disp_notifier_unregister(&ilits->disp_notifier);
+	if (ret)
+		ILI_ERR("Error unregistering disp_notifier\n");
+#endif
+}
+#endif
+#else
 static void ilitek_plat_sleep_init(void)
 {
 #if IS_ENABLED(CONFIG_DRM_MEDIATEK)
@@ -943,16 +1175,25 @@ err_register_disp_notif_failed:
 }
 #endif/*SPRD_SYSFS_SUSPEND_RESUME*/
 
+//#endif/*kernel 5.15*/
 static int ilitek_plat_probe(void)
 {
 #ifdef ILI_SENSOR_EN
 	static bool initialized_sensor;
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
+#if SUSPEND_RESUME_SUPPORT
+#if defined(CONFIG_FB) || defined(CONFIG_DRM)
+	int ret = 0;
+#endif
+#endif
+#else/*kernel 5.15*/
 #if SUSPEND_RESUME_SUPPORT
 #if defined(__DRM_PANEL_H__) && defined(DRM_PANEL_EARLY_EVENT_BLANK)
 	int ret = 0;
 #endif
 #endif
+#endif/*kernel 5.15*/
 	ILI_INFO("platform probe\n");
 
 #if defined(CONFIG_INPUT_TOUCHSCREEN_MMI)
@@ -964,7 +1205,17 @@ static int ilitek_plat_probe(void)
 #if REGULATOR_POWER
 	ilitek_plat_regulator_power_init();
 #endif
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
+#if SUSPEND_RESUME_SUPPORT
+#if defined(CONFIG_FB) || defined(CONFIG_DRM)
+	ret = ili_v3_drm_check_dt(ilits->dev->of_node);
+	if (ret < 0) {
+		ILI_ERR("[ili_v3_drm_check_dt] parse drm-panel fail EPROBE_DEFER");
+		return -EPROBE_DEFER;
+	}
+#endif
+#endif
+#else/*kernel 5.15*/
 #if SUSPEND_RESUME_SUPPORT
 #if defined(__DRM_PANEL_H__) && defined(DRM_PANEL_EARLY_EVENT_BLANK)
 	ret = ili_v3_drm_check_dt(ilits->dev->of_node);
@@ -974,6 +1225,7 @@ static int ilitek_plat_probe(void)
 	}
 #endif
 #endif
+#endif/*kernel 5.15*/
 
 	if (ilitek_plat_gpio_register() < 0)
 		ILI_ERR("Register gpio failed\n");
@@ -1103,18 +1355,14 @@ static void __exit ilitek_plat_dev_exit(void)
 }
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
 MODULE_SOFTDEP("pre:msm_drm");
-#if defined(__DRM_PANEL_H__)
 late_initcall(ilitek_plat_dev_init);
-#else
-module_init(ilitek_plat_dev_init);
-#endif
-#else
+#else/*kernel 5.15*/
 #if defined(__DRM_PANEL_H__) && defined(DRM_PANEL_EARLY_EVENT_BLANK)
 late_initcall(ilitek_plat_dev_init);
 #else
 module_init(ilitek_plat_dev_init);
 #endif
-#endif
+#endif/*kernel 5.15*/
 #if KERNEL_VERSION(5, 4, 0) <= LINUX_VERSION_CODE
 MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
 #endif

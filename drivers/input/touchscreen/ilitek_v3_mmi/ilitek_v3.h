@@ -103,6 +103,11 @@
 #include <linux/msm_drm_notify.h>
 #endif
 
+#if IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
+#define ILI_DRM_PANEL_EVENT_NOTIFICATIONS  1
+#include <linux/soc/qcom/panel_event_notifier.h>
+#endif
+
 #ifdef ILI_SENSOR_EN
 #include <linux/sensors.h>
 #endif
@@ -181,11 +186,8 @@
 #else
 #define GENERIC_KERNEL_IMAGE	DISABLE/*follow gki */
 #endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
-#define SUSPEND_RESUME_SUPPORT		DISABLE
-#else
+
 #define SUSPEND_RESUME_SUPPORT		ENABLE
-#endif
 
 #define BOOT_FW_UPDATE_MODE			BOOT_FW_VER_DIFF
 #define BOOT_FW_VER_DIFF			0
@@ -1150,6 +1152,10 @@ struct ilitek_ts_data {
 
 #if IS_ENABLED(CONFIG_DRM_MEDIATEK)
 	struct notifier_block disp_notifier;
+
+#endif
+#ifdef ILI_DRM_PANEL_EVENT_NOTIFICATIONS
+    void* notifier_cookie;
 #endif
 #if  defined(CONFIG_FB) || defined(CONFIG_DRM)
 	struct notifier_block notifier_fb;
