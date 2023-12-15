@@ -17,6 +17,10 @@ ifeq ($(GTP_LIMIT_USE_SUPPLIER),true)
     KBUILD_OPTIONS += CONFIG_GTP_LIMIT_USE_SUPPLIER=y
 endif
 
+ifeq ($(TOUCHSCREEN_LAST_TIME),true)
+    KBUILD_OPTIONS += CONFIG_GTP_LAST_TIME=y
+endif
+
 include $(CLEAR_VARS)
 LOCAL_MODULE := goodix_gt96x_mmi.ko
 LOCAL_MODULE_TAGS := optional

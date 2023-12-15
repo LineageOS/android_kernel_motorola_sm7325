@@ -770,6 +770,10 @@ struct goodix_ts_core {
 	wait_queue_head_t pm_wq;
 	atomic_t pm_resume;
 	struct mutex mode_lock;
+#ifdef CONFIG_GTP_LAST_TIME
+	ktime_t last_event_time;
+#endif
+
 };
 
 struct goodix_device_resource {

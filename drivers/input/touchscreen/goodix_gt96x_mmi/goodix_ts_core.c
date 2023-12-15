@@ -958,6 +958,10 @@ static void goodix_ts_report_finger(struct input_dev *dev,
 {
 	unsigned int touch_num = touch_data->touch_num;
 	int i;
+#ifdef CONFIG_GTP_LAST_TIME
+	struct goodix_ts_core *core_data = input_get_drvdata(dev);
+	static uint8_t touchdown[GOODIX_MAX_TOUCH];
+#endif
 
 	mutex_lock(&dev->mutex);
 
@@ -967,6 +971,17 @@ static void goodix_ts_report_finger(struct input_dev *dev,
 				touch_data->coords[i].x,
 				touch_data->coords[i].y,
 				touch_data->coords[i].w);
+
+#ifdef CONFIG_GTP_LAST_TIME
+			/* need add touch down control to ensure one ID and one session(down-up) just acquire
+			 * time once or touch performance will be affected
+			*/
+			if (touchdown[i] == 0) {
+				core_data->last_event_time = ktime_get_boottime();
+				ts_debug("TOUCH: [%d] logged timestamp\n", i);
+				touchdown[i] = 1;
+			}
+#endif
 			input_mt_slot(dev, i);
 			input_mt_report_slot_state(dev, MT_TOOL_FINGER, true);
 			input_report_abs(dev, ABS_MT_POSITION_X,
@@ -976,6 +991,12 @@ static void goodix_ts_report_finger(struct input_dev *dev,
 			input_report_abs(dev, ABS_MT_TOUCH_MAJOR,
 					touch_data->coords[i].w);
 		} else {
+#ifdef CONFIG_GTP_LAST_TIME
+			if (touchdown[i] == 1) {
+				ts_debug("TOUCH: [%d] release\n", i);
+				touchdown[i] = 0;
+			}
+#endif
 			input_mt_slot(dev, i);
 			input_mt_report_slot_state(dev, MT_TOOL_FINGER, false);
 		}
