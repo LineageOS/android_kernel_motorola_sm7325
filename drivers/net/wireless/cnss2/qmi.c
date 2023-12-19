@@ -137,7 +137,7 @@ static int num_of_products(moto_product *list)
 	return num;
 }
 
-static int get_moto_device()
+static int get_moto_device(void)
 {
 	char *bootdevice = NULL;
 	int rc = 0;
@@ -152,7 +152,7 @@ static int get_moto_device()
 }
 
 
-static int get_moto_radio()
+static int get_moto_radio(void)
 {
 	char *radiodevice = NULL;
 	int rc = 0;
