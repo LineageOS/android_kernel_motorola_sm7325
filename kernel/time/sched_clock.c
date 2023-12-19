@@ -22,7 +22,7 @@
 #ifdef CONFIG_QTI_RPM_STATS_LOG
 extern ssize_t show_msm_rpmh_master_stats(void);
 #endif
-extern qrtr_first_msg;
+extern int qrtr_first_msg;
 
 /**
  * struct clock_read_data - data required to read from sched_clock()
