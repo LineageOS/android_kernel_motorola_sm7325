@@ -48,6 +48,7 @@
 #include "mmi_qc3p.h"
 #include <linux/iio/consumer.h>
 #include <linux/qti_power_supply.h>
+#include <linux/version.h>
 
 static int __debug_mask = 0x85;
 module_param_named(
@@ -175,9 +176,13 @@ static int mmi_charger_iio_read_raw(struct iio_dev *indio_dev,
 
 	return IIO_VAL_INT;
 }
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,1,25)
+static int mmi_charger_iio_of_xlate(struct iio_dev *indio_dev,
+				const struct fwnode_reference_args *iiospec)
+#else
 static int mmi_charger_iio_of_xlate(struct iio_dev *indio_dev,
 				const struct of_phandle_args *iiospec)
+#endif
 {
 	struct mmi_charger_manager *chip = iio_priv(indio_dev);
 	struct iio_chan_spec *iio_chan = chip->iio_chan;
@@ -194,7 +199,11 @@ static int mmi_charger_iio_of_xlate(struct iio_dev *indio_dev,
 static const struct iio_info mmi_charger_iio_info = {
 	.read_raw	= mmi_charger_iio_read_raw,
 	.write_raw	= mmi_charger_iio_write_raw,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,1,25)
+	.fwnode_xlate	= mmi_charger_iio_of_xlate,
+#else
 	.of_xlate	= mmi_charger_iio_of_xlate,
+#endif
 };
 
 static int mmi_charger_init_iio_psy(struct mmi_charger_manager *chip,

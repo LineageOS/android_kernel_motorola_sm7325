@@ -1,7 +1,7 @@
 # add -Wall to try to catch everything we can.
 EXTRA_CFLAGS += -Wall
-EXTRA_CFLAGS += -I$(TOP)/motorola/kernel/modules/include \
-		-I$(TOP)/motorola/kernel/modules/drivers/power/mmi_parallel_charger_iio
+EXTRA_CFLAGS += -I$(TOP)/motorola/kernel/modules/include
+EXTRA_CFLAGS += -I$(TOP)/motorola/kernel/modules/drivers/power/mmi_parallel_charger_iio
 
 obj-m += mmi_parallel_charger_iio.o
 mmi_parallel_charger_iio-objs += mmi_charger_class.o

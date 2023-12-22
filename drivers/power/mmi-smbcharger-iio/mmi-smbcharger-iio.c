@@ -3325,8 +3325,10 @@ static int mmi_set_qg_iterm(struct smb_mmi_charger *chip, int qg_iterm)
 	int fcc = 0;
 	union power_supply_propval val;
 
-	rc = power_supply_get_property(chip->batt_psy,
-			POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT, &val);
+	if (chip->batt_psy)
+		rc = power_supply_get_property(chip->batt_psy,
+				POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT, &val);
+
 	if (rc < 0) {
 		mmi_err(chip, "Couldn't get batt FCC, rc=%d\n", rc);
 		return rc;
@@ -4544,7 +4546,11 @@ static int batt_get_prop(struct power_supply *psy,
 				}
 			}
 		}
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,1,25)
+		fallthrough;/* Fall through */
+#else
 		/* Fall through */
+#endif
 	default:
 		rc = power_supply_get_property(chip->qcom_psy, psp, val);
 		if (rc < 0) {
@@ -4895,7 +4901,11 @@ static int parse_mmi_dual_dt(struct smb_mmi_charger *chg)
 
 static int smb_mmi_chg_config_init(struct smb_mmi_charger *chip)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,1,25)
+	unsigned long subtype = (unsigned long)of_device_get_match_data(chip->dev);
+#else
 	int subtype = (u8)of_device_get_match_data(chip->dev);
+#endif
 
 	switch (subtype) {
 	case PM8150B:
@@ -4914,8 +4924,13 @@ static int smb_mmi_chg_config_init(struct smb_mmi_charger *chip)
 		chip->param = smb5_pmi632_params;
 		break;
 	default:
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,1,25)
+		pr_err("SMBMMI: PMIC subtype %ld not supported\n",
+				subtype);
+#else
 		pr_err("SMBMMI: PMIC subtype %d not supported\n",
 				subtype);
+#endif
 		return -EINVAL;
 	}
 
@@ -5075,8 +5090,13 @@ static int mmi_smbcharger_iio_read_raw(struct iio_dev *indio_dev,
 	return IIO_VAL_INT;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,1,25)
+static int mmi_smbcharger_iio_of_xlate(struct iio_dev *indio_dev,
+				const struct fwnode_reference_args *iiospec)
+#else
 static int mmi_smbcharger_iio_of_xlate(struct iio_dev *indio_dev,
 				const struct of_phandle_args *iiospec)
+#endif
 {
 	struct smb_mmi_charger *chip = iio_priv(indio_dev);
 	struct iio_chan_spec *iio_chan = chip->iio_chan;
@@ -5093,7 +5113,11 @@ static int mmi_smbcharger_iio_of_xlate(struct iio_dev *indio_dev,
 static const struct iio_info mmi_smbcharger_iio_info = {
 	.read_raw	= mmi_smbcharger_iio_read_raw,
 	.write_raw	= mmi_smbcharger_iio_write_raw,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,1,25)
+	.fwnode_xlate	= mmi_smbcharger_iio_of_xlate,
+#else
 	.of_xlate	= mmi_smbcharger_iio_of_xlate,
+#endif
 };
 
 static int smb_mmi_init_iio_psy(struct smb_mmi_charger *chip,
