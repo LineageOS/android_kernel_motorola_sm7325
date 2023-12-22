@@ -71,6 +71,7 @@ enum {
 	NOTIFY_EVENT_TYPE_LPD_PRESENT,
 	NOTIFY_EVENT_TYPE_VBUS_PRESENT,
 	NOTIFY_EVENT_TYPE_POWER_WATT,
+	NOTIFY_EVENT_TYPE_POWER_WATT_DESIGN,
 	NOTIFY_EVENT_TYPE_CHG_REAL_TYPE,
 };
 
@@ -365,6 +366,8 @@ static ssize_t state_sync_store(struct device *dev,
 					NOTIFY_EVENT_TYPE_VBUS_PRESENT);
 		mmi_notify_charger_event(this_chip,
 					NOTIFY_EVENT_TYPE_POWER_WATT);
+		mmi_notify_charger_event(this_chip,
+					NOTIFY_EVENT_TYPE_POWER_WATT_DESIGN);
 		mmi_notify_charger_event(this_chip,
 					NOTIFY_EVENT_TYPE_CHG_REAL_TYPE);
 		mutex_unlock(&this_chip->charger_lock);
@@ -1783,6 +1786,11 @@ static void mmi_notify_charger_event(struct mmi_charger_chip *chip, int type)
 				"POWER_SUPPLY_POWER_WATT=%d",
 				chip->power_watt / 1000);
 			break;
+		case NOTIFY_EVENT_TYPE_POWER_WATT_DESIGN:
+			scnprintf(event_string, CHG_SHOW_MAX_SIZE,
+				"POWER_SUPPLY_POWER_WATT_DESIGN=%d",
+				chip->pd_pmax / 1000);
+			break;
 		case NOTIFY_EVENT_TYPE_CHG_REAL_TYPE:
 			scnprintf(event_string, CHG_SHOW_MAX_SIZE,
 				"POWER_SUPPLY_CHARGE_REAL_TYPE=%d",
@@ -2142,6 +2150,7 @@ static void mmi_update_battery_status(struct mmi_charger_chip *chip)
 
 	if ((chip->power_watt / 1000) != (power_watt / 1000)) {
 		mmi_changed = true;
+		mmi_notify_charger_event(chip, NOTIFY_EVENT_TYPE_POWER_WATT_DESIGN);
 		chip->power_watt = power_watt;
 		mmi_notify_charger_event(chip, NOTIFY_EVENT_TYPE_POWER_WATT);
 		mmi_info(chip, "charger power is %d mW\n", power_watt);
