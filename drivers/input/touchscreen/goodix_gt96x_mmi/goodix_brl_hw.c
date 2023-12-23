@@ -41,6 +41,7 @@
 #define GOODIX_IC_INFO_ADDR_BRA		0x10068
 #define GOODIX_IC_INFO_ADDR			0x10070
 
+#define GOODIX_PALM_FLAG		0x10
 
 enum brl_request_code {
 	BRL_REQUEST_CODE_CONFIG = 0x01,
@@ -1325,6 +1326,14 @@ static int goodix_touch_handler(struct goodix_ts_core *cd,
 		touch_data->keys[i].code = goodix_touch_btn_code[i];
 	for (i = 0; i < GOODIX_MAX_PEN_KEY; i++)
 		pen_data->keys[i].code = goodix_pen_btn_code[i];
+
+#ifdef CONFIG_ENABLE_GTP_PALM_CANCEL
+	if (buffer[2] & GOODIX_PALM_FLAG) {
+		ts_event->touch_data.palm_on = true;
+		ts_debug("goodix palm on, touch num %d", touch_num);
+	} else
+		ts_event->touch_data.palm_on = false;
+#endif
 
 	if (touch_num > 0) {
 		data = buffer + IRQ_EVENT_HEAD_LEN;
