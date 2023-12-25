@@ -744,13 +744,13 @@ void qti_msb_dev_info(struct qti_charger *chg, struct msb_dev_info msb_dev)
 #if defined(SWITCHEDCAP_DUMP)
 void qti_switched_dump_info(struct qti_charger *chg, struct switched_dev_info switched_info)
 {
-	mmi_info(chg, "switchedcap dump info [%d]: chg_en %d, work_mode 0x%x, int_stat 0x%x, "
+	mmi_info(chg, "switchedcap dump info [0x%02x-%d]: chg_en %d, work_mode 0x%x, int_stat 0x%x, "
 			"ibat_ma %d, ibus_ma %d, vbus_mv %d, vout_mv %d, vac_mv %d, vbat_mv %d, "
 			"vusb_mv %d, vwpc_mv %d, die_temp %d",
-			switched_info.chg_role, switched_info.chg_en, switched_info.work_mode,
-			switched_info.int_stat, switched_info.ibat_ma, switched_info.ibus_ma,
-			switched_info.vbus_mv, switched_info.vout_mv, switched_info.vac_mv,
-			switched_info.vbat_mv, switched_info.vusb_mv, switched_info.vwpc_mv, switched_info.die_temp);
+			switched_info.chip_id, switched_info.chg_role, switched_info.chg_en, switched_info.work_mode,
+			switched_info.int_stat, switched_info.ibat_ma, switched_info.ibus_ma, switched_info.vbus_mv,
+			switched_info.vout_mv, switched_info.vac_mv, switched_info.vbat_mv, switched_info.vusb_mv,
+			switched_info.vwpc_mv, switched_info.die_temp);
 }
 #endif
 

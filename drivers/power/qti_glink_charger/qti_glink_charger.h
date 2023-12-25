@@ -104,6 +104,7 @@ enum mmi_charger_sku_type
 struct switched_dev_info
 {
 	bool chg_en;
+	u8 chip_id;
 	u8 chg_role;
 	u8 work_mode;
 	u8 int_stat;
