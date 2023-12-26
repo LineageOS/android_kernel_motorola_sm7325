@@ -437,6 +437,7 @@ struct sx937x_platform_data
 	int ref_phase_c;
 	int eldo_gpio;
 	bool eldo_vdd_en;
+	bool esd_reinit_on;
 	sx937x_power_supply_type_t power_supply_type;
 #ifdef CONFIG_CAPSENSE_HEADSET_STATE
 	int headset_operate_reg_num;

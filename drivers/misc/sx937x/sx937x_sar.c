@@ -64,6 +64,10 @@
 
 #define NUM_RETRY_ON_I2C_ERR    5
 #define SLEEP_BETWEEN_RETRY     10
+
+#define NUM_PHASES 8
+#define CHECK_TIMES 3
+
 /*! \struct sx937x
  * Specialized struct containing input event data, platform data, and
  * last cap state read if needed.
@@ -1171,7 +1175,8 @@ static int sx937x_parse_dt(struct sx937x_platform_data *pdata, struct device *de
 	pdata->phone_flip_update_regs = parse_flip_dt_params(pdata, dev);
 #endif
 	pdata->reinit_on_i2c_failure = of_property_read_bool(dNode, "reinit-on-i2c-failure");
-
+	pdata->esd_reinit_on = of_property_read_bool(dNode, "esd-reinit-on");
+	LOG_INFO("esd_reinit_on %d\n", pdata->esd_reinit_on);
 	LOG_INFO("-[%d] parse_dt complete\n", pdata->irq_gpio);
 	return 0;
 }
@@ -1710,7 +1715,7 @@ static int sx937x_probe(struct i2c_client *client, const struct i2c_device_id *i
 
 	global_sx937x = this;
 
-	if(pplatData->reinit_on_i2c_failure) {
+	if(pplatData->reinit_on_i2c_failure || pplatData->esd_reinit_on) {
 		INIT_DELAYED_WORK(&this->i2c_watchdog_work, sx937x_i2c_watchdog_work);
 		schedule_delayed_work(&this->i2c_watchdog_work,
 			msecs_to_jiffies(SX937X_I2C_WATCHDOG_TIME));
@@ -1797,7 +1802,7 @@ static int sx937x_suspend(struct device *dev)
 	if (this) {
 		/* If we happen to reinitialize during suspend we might fail so wait for it to end */
 		if ((pDevice = this->pDevice) && (pdata = pDevice->hw)) {
-			if (pdata->reinit_on_i2c_failure)
+			if (pdata->reinit_on_i2c_failure || pdata->esd_reinit_on)
 				cancel_delayed_work_sync(&this->i2c_watchdog_work);
 		}
 
@@ -1824,7 +1829,7 @@ static int sx937x_resume(struct device *dev)
 
 		/* Restart the watchdog in 2 seconds */
 		if ((pDevice = this->pDevice) && (pdata = pDevice->hw)){
-			if (pdata->reinit_on_i2c_failure)
+			if (pdata->reinit_on_i2c_failure || pdata->esd_reinit_on)
 				schedule_delayed_work(&this->i2c_watchdog_work,
 					msecs_to_jiffies(SX937X_I2C_WATCHDOG_TIME_ERR));
 		}
@@ -1998,10 +2003,65 @@ int sx93XX_IRQ_init(psx93XX_t this)
 	}
 	return -ENOMEM;
 }
-
 /* Read i2c every 10 seconds, if there is an error, schedule again in 2 seconds
  * and if it fails a few more times we can assume there is a device error and reset
  */
+static void vdd_power_off_on(psx93XX_t this, bool on)
+{
+	int err = 0;
+	psx937x_t pDevice = this->pDevice;
+	psx937x_platform_data_t pdata = pDevice->hw;
+
+	if(pdata->eldo_vdd_en) {
+		err = gpio_direction_output(pdata->eldo_gpio,on);
+		LOG_INFO("SX937x reused eLDO_gpio 0x%x status:%d\n",pdata->eldo_gpio, on );
+		if(err < 0){
+			LOG_ERR("SX937x eLDO_gpio output fail,%d\n", err);
+		}
+	} else {
+		 LOG_ERR("SX937x using other power supply\n");
+	}
+}
+
+static void sx937x_register_err(psx93XX_t this)
+{
+	int ph = 0, idx = 0, num_same_val;
+	u32 reg_val, phen;
+	static int check_round = 0;
+	static u32 ph_useful[NUM_PHASES][CHECK_TIMES] ={0};
+
+	sx937x_i2c_read_16bit(this, 0x8024, &phen);
+	phen &= 0xFF; //current enabled phases
+
+	//update useful of each phase
+	for(ph=0; ph<NUM_PHASES; ph++) {
+		if(phen & 1<<ph) {
+			sx937x_i2c_read_16bit(this, SX937X_USEFUL_PH0 + ph*4, &reg_val);
+			ph_useful[ph][check_round] = reg_val;
+		} else {
+			ph_useful[ph][check_round] = 0;
+		}
+		LOG_DBG("phen = %d useful[%d][%d] = %d\n",phen,ph,check_round,ph_useful[ph][check_round]);
+	}
+	//reset if any phase read the same value by CHECK_TIMES
+	for(ph=0; ph<NUM_PHASES; ph++) {
+		num_same_val = 0;
+		if(phen & 1<<ph) {
+			for(idx=1; idx<CHECK_TIMES; idx++) {
+				if(ph_useful[ph][idx] != 0 && ph_useful[ph][idx-1] == ph_useful[ph][idx]) {
+					if(++num_same_val >= CHECK_TIMES-1) {
+						LOG_ERR("sx937x ph[%d] no change:%d %d %d\n",ph,ph_useful[ph][idx-2],ph_useful[ph][idx-1],ph_useful[ph][idx]);
+						sx937x_reinitialize(this);
+						goto reinit_end;
+					}
+				}
+			}
+		}
+	}
+reinit_end:
+	check_round = (check_round + 1) % CHECK_TIMES;
+}
+
 static void sx937x_i2c_watchdog_work(struct work_struct *work)
 {
 	static int err_cnt = 0;
@@ -2009,22 +2069,54 @@ static void sx937x_i2c_watchdog_work(struct work_struct *work)
 	int ret;
 	u32 temp;
 	int delay = SX937X_I2C_WATCHDOG_TIME;
+	psx937x_t pDevice = this->pDevice;
+	psx937x_platform_data_t pdata = pDevice?pDevice->hw:NULL;
 
 	LOG_DBG("sx937x_i2c_watchdog_work");
 
 	if(!this->suspended) {
-		ret = sx937x_i2c_read_16bit(this, SX937X_DEVICE_INFO, &temp);
-		if (ret < 0) {
-			err_cnt++;
-			LOG_ERR("sx937x_i2c_watchdog_work err_cnt: %d", err_cnt);
-			delay = SX937X_I2C_WATCHDOG_TIME_ERR;
-		} else
-			err_cnt = 0;
 
-		if (err_cnt >= 3) {
-			err_cnt = 0;
-			sx937x_reinitialize(this);
-			delay = SX937X_I2C_WATCHDOG_TIME;
+		if (pdata && pdata->esd_reinit_on) {
+			//err_1:i2c fail
+			ret = sx937x_i2c_read_16bit(this, 0x4004, &temp);
+			if (ret < 0) {
+				err_cnt++;
+				LOG_ERR("sx937x_i2c_watchdog_work err_cnt: %d\n", err_cnt);
+				delay = SX937X_I2C_WATCHDOG_TIME_ERR;
+				if (err_cnt >= 3) {
+					err_cnt = 0;
+					vdd_power_off_on(this, 0);
+					msleep(100);
+					vdd_power_off_on(this, 1);
+					sx937x_reinitialize(this);
+					delay = SX937X_I2C_WATCHDOG_TIME;
+				}
+			} else {
+				err_cnt = 0;
+				//err_2:default value of 0x4004 is 0x60 and usually will be configured to 0x70
+				if(temp == 0x60) {
+					LOG_ERR("sx937x_i2c_watchdog_work 0x4004 used default value: %d\n", temp);
+					sx937x_reinitialize(this);
+				} else {
+					//err_3:reset if any phase read the same value by CHECK_TIMES
+					LOG_DBG("sx937x_i2c_watchdog_work:checking enabled phase\n");
+					sx937x_register_err(this);
+				}
+			}
+		} else {
+			ret = sx937x_i2c_read_16bit(this, SX937X_DEVICE_INFO, &temp);
+			if (ret < 0) {
+				err_cnt++;
+				LOG_ERR("sx937x_i2c_watchdog_work err_cnt: %d", err_cnt);
+				delay = SX937X_I2C_WATCHDOG_TIME_ERR;
+			} else
+				err_cnt = 0;
+
+			if (err_cnt >= 3) {
+				err_cnt = 0;
+				sx937x_reinitialize(this);
+				delay = SX937X_I2C_WATCHDOG_TIME;
+			}
 		}
 	} else
 		LOG_DBG("sx937x_i2c_watchdog_work before resume.");
@@ -2040,8 +2132,9 @@ static void sx937x_reinitialize(psx93XX_t this)
 	u32 temp;
 	int i=0;
 	int retry;
+	LOG_INFO("SX937x start reinit....\n");
 	if (this && (pDevice = this->pDevice) && (pdata = pDevice->hw)) {
-		if (!pdata->reinit_on_i2c_failure)
+		if (!pdata->reinit_on_i2c_failure && !pdata->esd_reinit_on)
 			return;
 		if (!atomic_add_unless(&this->init_busy, 1, 1))
 			return;
@@ -2077,6 +2170,7 @@ static void sx937x_reinitialize(psx93XX_t this)
 			}
 		}
 
+		LOG_INFO("write reg[0x8024]:0x%x\n",temp | 0x0000007F);
 		manual_offset_calibration(this);
 		atomic_set(&this->init_busy, 0);
 		LOG_ERR("reinitialized sx937x, count %d\n", this->reset_count++);
