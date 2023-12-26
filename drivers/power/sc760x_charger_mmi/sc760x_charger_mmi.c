@@ -446,7 +446,7 @@ static int sc760x_dump_reg(struct sc760x_chip *sc)
     if (!sc->sc760x_enable)
         return -1;
 
-    for (i = 0; i <= 0x15; i++) {
+    for (i = 0; i <= 0x20; i++) {
         ret = regmap_read(sc->regmap, i, &val);
         if (!ret) {
             desc +=
