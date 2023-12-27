@@ -266,7 +266,7 @@ int32_t aw_sar_parse_dts_comm(struct device *dev, struct device_node *np, struct
 	val = of_property_read_u32(np, "monitor_esd_flag", &p_dts_info->monitor_esd_flag);
 	if (val != 0) {
 		AWLOGE(dev, "monitor_esd_flag failed!");
-		return -AW_ERR;
+		//return -AW_ERR;
 	} else {
 		AWLOGI(dev, "monitor_esd_flag = %d", p_dts_info->monitor_esd_flag);
 	}
