@@ -3797,7 +3797,9 @@ err_irq_gpio_request:
 err_reset_gpio_request:
 err_parse_dt:
 err_id:
+#ifdef AW_INPUT_FRAMEWORK
 err_input_config:
+#endif
 	devm_kfree(&i2c->dev, aw_haptic);
 	aw_haptic = NULL;
 	return ret;
