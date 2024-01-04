@@ -27,6 +27,9 @@
 #include <linux/delay.h>
 #include <linux/soc/qcom/pmic_glink.h>
 #include <linux/power/bm_adsp_ulog.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+#include <linux/thermal.h>
 
 #include "mmi_charger.h"
 #include "qti_glink_charger.h"
@@ -237,6 +240,7 @@ struct qti_charger {
 	struct mmi_charger_driver	*driver;
 	struct power_supply		*wls_psy;
 	struct power_supply		*partner_charger;
+	struct thermal_cooling_device	*cdev;
 	u32				partner_charger_icl;
 	u32				*profile_data;
 	struct charger_profile_info	profile_info;
@@ -259,6 +263,9 @@ struct qti_charger {
 	int				rx_connected;
 	u32				weak_charge_disable;
 	u32				switched_nums;
+	bool				mosfet_supported;
+	int				mos_en_gpio;
+	bool				mosfet_is_enable;
 
 	u32 *thermal_primary_levels;
 	u32 thermal_primary_fcc_ua;
@@ -2846,6 +2853,157 @@ static int mmi_get_hw_revision(struct qti_charger *chg, u16 *hw_rev)
 	}
 }
 
+
+/*************************
+ * USB   COOLER   START  *
+ *************************/
+static bool mmi_is_softbank_sku(struct qti_charger *chg)
+{
+	char *s = NULL;
+	bool is_softbank = false;
+	char androidboot_carrier_str[RADIO_MAX_LEN];
+
+	if (mmi_get_bootarg("androidboot.carrier=", &s) == 0) {
+		mmi_info(chg, "Get bootarg androidboot.hardware.sku success");
+		if (s != NULL) {
+			strlcpy(androidboot_carrier_str, s, RADIO_MAX_LEN);
+			mmi_info(chg, "carrier: %s", androidboot_carrier_str);
+			if (!strncmp("softbank", androidboot_carrier_str, 8)) {
+				is_softbank = true;
+			}
+		}
+	}
+	return is_softbank;
+}
+static int usb_therm_set_mosfet(struct qti_charger *chg, bool enable)
+{
+	int rc = 0;
+	u32 value = 0;
+	/*set typec mosfet output*/
+	mmi_info(chg, "%s,set mos en: %d, chrg_type: %d, mosfet_is_enable: %d",__func__,enable,chg->chg_info.chrg_type, chg->mosfet_is_enable);
+	if(enable == true && chg->mosfet_is_enable == false){
+		value = 1;
+		rc = qti_charger_write(chg, OEM_PROP_CHG_DISABLE,
+					&value, sizeof(value));
+		value = 1;
+		rc = qti_charger_write(chg, OEM_PROP_CHG_SUSPEND,
+					&value, sizeof(value));
+		udelay(100);
+		if ((chg->chg_info.chrg_type != POWER_SUPPLY_TYPE_USB)&&
+		    (chg->chg_info.chrg_type !=POWER_SUPPLY_TYPE_USB_CDP) &&
+		    (gpio_is_valid(chg->mos_en_gpio))) {
+			gpio_direction_output(chg->mos_en_gpio, enable);
+			mmi_info(chg, "%s,open mos en: %d %d",__func__,enable,rc);
+		}
+		chg->mosfet_is_enable = true;
+	}
+	else if (enable == false && chg->mosfet_is_enable == true){
+		if(gpio_is_valid(chg->mos_en_gpio)) {
+			gpio_direction_output(chg->mos_en_gpio, enable);
+		}
+		udelay(100);
+		value = 0;
+		rc = qti_charger_write(chg, OEM_PROP_CHG_DISABLE,
+					&value, sizeof(value));
+		value = 0;
+		rc = qti_charger_write(chg, OEM_PROP_CHG_SUSPEND,
+					&value, sizeof(value));
+		chg->mosfet_is_enable = false;
+		mmi_info(chg, "%s,close mos en: %d %d",__func__,enable,rc);
+	} else {
+		mmi_info(chg, "%s,ignore the usb_therm settings",__func__);
+	}
+
+	return rc;
+}
+
+static int usb_therm_get_mosfet(struct qti_charger *chg)
+{
+	int ret = 0;
+
+	/*get typec mosfet output*/
+	if (gpio_is_valid(chg->mos_en_gpio)) {
+//		mmi_err(chip, "%s,get mos en.",__func__);
+		return gpio_get_value(chg->mos_en_gpio);
+	} else {
+		return chg->mosfet_is_enable;
+	}
+
+	return ret;
+}
+
+
+static int usb_therm_get_max_state(struct thermal_cooling_device *cdev,
+	unsigned long *state)
+{
+	*state = 1;
+
+	return 0;
+}
+
+static int usb_therm_get_cur_state(struct thermal_cooling_device *cdev,
+	unsigned long *state)
+{
+	struct qti_charger *chg = cdev->devdata;
+
+	*state = usb_therm_get_mosfet(chg);
+
+	return 0;
+}
+
+static int usb_therm_set_cur_state(struct thermal_cooling_device *cdev,
+	unsigned long state)
+{
+	struct qti_charger *chg = cdev->devdata;
+	if (state) {
+		mmi_info(chg, "Enable typec mosfet.");
+		usb_therm_set_mosfet(chg, true);
+	} else {
+		mmi_info(chg, "Disable typec mosfet.");
+		usb_therm_set_mosfet(chg, false);
+	}
+
+	return 0;
+}
+
+static const struct thermal_cooling_device_ops usb_therm_ops = {
+	.get_max_state = usb_therm_get_max_state,
+	.get_cur_state = usb_therm_get_cur_state,
+	.set_cur_state = usb_therm_set_cur_state,
+};
+
+static int qti_charger_init_usb_therm_cooler(struct qti_charger *chg)
+{
+	int ret;
+	/* Register thermal zone cooling device */
+	chg->cdev = thermal_of_cooling_device_register(dev_of_node(chg->dev),
+		"usb_therm_cooler", chg, &usb_therm_ops);
+
+	if (IS_ERR(chg->cdev)) {
+		mmi_err(chg, "Cooling register failed for usb_therm, ret:%ld\n",
+			PTR_ERR(chg->cdev));
+		return PTR_ERR(chg->cdev);
+	}
+	mmi_info(chg, "Cooling register success for usb_therm.");
+
+	/*typec mosfet outout en control*/
+	chg->mos_en_gpio = of_get_named_gpio(chg->dev->of_node, "mmi,mos-en-gpio", 0);
+	if (gpio_is_valid(chg->mos_en_gpio))
+	{
+		ret = gpio_request(chg->mos_en_gpio, "mmi mos en pin");
+		if (ret) {
+			mmi_err(chg, "%s: %d gpio(mos en) request failed.", __func__, chg->mos_en_gpio);
+			return ret;
+		}
+
+		gpio_direction_output(chg->mos_en_gpio, 0);//default enable mos charge
+	}
+
+	chg->mosfet_is_enable = false;
+	return 0;
+}
+
+
 static void thermal_charge_control_init(struct qti_charger *chg)
 {
 	struct power_supply		*battery_psy;
@@ -2994,6 +3152,14 @@ static int qti_charger_init(struct qti_charger *chg)
 			chg->batt_psy = NULL;
 			mmi_err(chg, "Failed to register main psy, rc=%d\n", rc);
 			return rc;
+		}
+	}
+	
+	if (chg->mosfet_supported && !chg->constraint.factory_version && mmi_is_softbank_sku(chg)) {
+		rc = qti_charger_init_usb_therm_cooler(chg);
+		if (rc < 0) {
+			mmi_err(chg, "Couldn't initialize usb therm cooler rc=%d.", rc);
+			//goto cleanup;
 		}
 	}
 
@@ -3345,6 +3511,8 @@ static int qti_charger_parse_dt(struct qti_charger *chg)
 	if (rc) {
 		chg->switched_nums = 1;
 	}
+
+	chg->mosfet_supported = of_property_read_bool(node, "mmi,usb-mosfet-supported");
 
 	rc = of_property_count_elems_of_size(node, "mmi,thermal-primary-mitigation",
 							sizeof(u32));
