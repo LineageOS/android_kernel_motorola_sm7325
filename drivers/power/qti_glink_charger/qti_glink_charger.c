@@ -271,11 +271,13 @@ struct qti_charger {
 	u32 thermal_primary_fcc_ua;
 	int curr_thermal_primary_level;
 	int num_thermal_primary_levels;
+	struct thermal_cooling_device *primary_tcd;
 
 	u32 *thermal_secondary_levels;
 	u32 thermal_secondary_fcc_ua;
 	int curr_thermal_secondary_level;
 	int num_thermal_secondary_levels;
+	struct thermal_cooling_device *secondary_tcd;
 
 	struct notifier_block		wls_nb;
 	struct dentry		*debug_root;
@@ -2853,6 +2855,77 @@ static int mmi_get_hw_revision(struct qti_charger *chg, u16 *hw_rev)
 	}
 }
 
+static inline int primary_get_max_charge_cntl_limit(struct thermal_cooling_device *tcd,
+                    unsigned long *state)
+{
+    struct qti_charger* chg = tcd->devdata;
+
+    *state = chg->num_thermal_primary_levels;
+
+    return 0;
+}
+
+static inline int primary_get_cur_charge_cntl_limit(struct thermal_cooling_device *tcd,
+                    unsigned long *state)
+{
+    struct qti_charger* chg = tcd->devdata;
+
+    *state = chg->curr_thermal_primary_level;
+
+    return 0;
+}
+
+static int primary_set_cur_charge_cntl_limit(struct thermal_cooling_device *tcd,
+                    unsigned long state)
+{
+    char buf[32] = {0};
+
+    sprintf(buf, "%ld", state);
+
+    return thermal_primary_charge_control_limit_store(NULL, NULL, buf, strlen(buf));
+}
+
+static const struct thermal_cooling_device_ops primary_charge_ops = {
+    .get_max_state = primary_get_max_charge_cntl_limit,
+    .get_cur_state = primary_get_cur_charge_cntl_limit,
+    .set_cur_state = primary_set_cur_charge_cntl_limit,
+};
+
+static inline int secondary_get_max_charge_cntl_limit(struct thermal_cooling_device *tcd,
+                    unsigned long *state)
+{
+    struct qti_charger* chg = tcd->devdata;
+
+    *state = chg->num_thermal_secondary_levels;
+
+    return 0;
+}
+
+static inline int secondary_get_cur_charge_cntl_limit(struct thermal_cooling_device *tcd,
+                    unsigned long *state)
+{
+    struct qti_charger* chg = tcd->devdata;
+
+    *state = chg->curr_thermal_secondary_level;
+
+    return 0;
+}
+
+static int secondary_set_cur_charge_cntl_limit(struct thermal_cooling_device *tcd,
+                    unsigned long state)
+{
+    char buf[32] = {0};
+
+    sprintf(buf, "%ld", state);
+
+    return thermal_secondary_charge_control_limit_store(NULL, NULL, buf, strlen(buf));
+}
+
+static const struct thermal_cooling_device_ops secondary_charge_ops = {
+    .get_max_state = secondary_get_max_charge_cntl_limit,
+    .get_cur_state = secondary_get_cur_charge_cntl_limit,
+    .set_cur_state = secondary_set_cur_charge_cntl_limit,
+};
 
 /*************************
  * USB   COOLER   START  *
@@ -3003,7 +3076,6 @@ static int qti_charger_init_usb_therm_cooler(struct qti_charger *chg)
 	return 0;
 }
 
-
 static void thermal_charge_control_init(struct qti_charger *chg)
 {
 	struct power_supply		*battery_psy;
@@ -3044,6 +3116,17 @@ static void thermal_charge_control_init(struct qti_charger *chg)
 		pr_err("couldn't create thermal_secondary_charge_control_limit_max\n");
 	}
 
+	chg->primary_tcd = thermal_cooling_device_register("primary_charge", chg, &primary_charge_ops);
+	if (IS_ERR_OR_NULL(chg->primary_tcd)) {
+		rc = PTR_ERR_OR_ZERO(chg->primary_tcd);
+		dev_err(chg->dev, "Failed to register thermal cooling device rc=%d\n", rc);
+	}
+
+	chg->secondary_tcd = thermal_cooling_device_register("secondary_charge", chg, &secondary_charge_ops);
+	if (IS_ERR_OR_NULL(chg->secondary_tcd)) {
+		rc = PTR_ERR_OR_ZERO(chg->secondary_tcd);
+		dev_err(chg->dev, "Failed to register thermal cooling device rc=%d\n", rc);
+	}
 }
 
 static void thermal_charge_control_deinit(struct qti_charger *chg)
@@ -3073,6 +3156,8 @@ static void thermal_charge_control_deinit(struct qti_charger *chg)
 	device_remove_file(battery_psy->dev.parent,
 				&dev_attr_thermal_secondary_charge_control_limit_max);
 
+	thermal_cooling_device_unregister(chg->primary_tcd);
+	thermal_cooling_device_unregister(chg->secondary_tcd);
 }
 
 static int qti_charger_init(struct qti_charger *chg)
