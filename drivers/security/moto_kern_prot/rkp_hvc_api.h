@@ -20,7 +20,7 @@
 #ifdef MTK_PLATFORM
 #define MOTO_RKP_SMCID 0x82000000
 #else
-#define MOTO_RKP_SMCID 0x3000000
+#define MOTO_RKP_SMCID 0x43000000
 #endif
 
 enum SMC_FUNC_IDS {
