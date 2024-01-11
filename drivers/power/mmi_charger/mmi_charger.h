@@ -64,6 +64,7 @@ struct mmi_battery_info {
 	int batt_soc;
 	int batt_temp;
 	int batt_status;
+	int batt_soh; /*state of health*/
 	int batt_full_uah;
 	int batt_design_uah;
 	int batt_chg_counter;

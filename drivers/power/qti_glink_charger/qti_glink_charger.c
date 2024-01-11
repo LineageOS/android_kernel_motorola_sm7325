@@ -68,6 +68,7 @@ struct battery_info {
 	int batt_soc; /* 0 ~ 10000 indicating 0% to 100% */
 	int batt_temp; /* hundredth degree */
 	int batt_status;
+	int batt_soh; /*state of health*/
 	int batt_full_uah;
 	int batt_design_uah;
 	int batt_chg_counter;
@@ -635,6 +636,7 @@ static int qti_charger_get_batt_info(void *data, struct mmi_battery_info *batt_i
 	chg->batt_info.batt_chg_counter = info.batt_chg_counter;
 	chg->batt_info.batt_fv_mv = info.batt_fv_uv / 1000;
 	chg->batt_info.batt_fcc_ma = info.batt_fcc_ua / 1000;
+	chg->batt_info.batt_soh = info.batt_soh;
 	memcpy(batt_info, &chg->batt_info, sizeof(struct mmi_battery_info));
 
 	if (batt_status != chg->batt_info.batt_status) {
