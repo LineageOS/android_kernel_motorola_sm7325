@@ -110,6 +110,7 @@ struct ini_data {
     "SCapRawDataTest_High_Min", "SCapRawDataTest_High_Max", "SCapRawDataTest_SetHighSensitivity", \
     "SCapCbTest_Hov_Min", "SCapCbTest_Hov_Max", "ScapCBTest_SetHov", \
     "SCapRawDataTest_Hov_Min", "SCapRawDataTest_Hov_Max", "SCapRawDataTest_SetHov", \
+    "NoiseTest_Max", "NoiseTest_Frames", "NoiseTest_FwNoiseMode", "Polling_Frequency", \
 }
 
 #define TEST_ITEM_SC                { \

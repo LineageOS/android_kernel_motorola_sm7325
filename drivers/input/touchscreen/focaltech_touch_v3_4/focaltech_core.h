@@ -82,6 +82,8 @@
 #define FTS_COORDS_ARR_SIZE                 4
 #define FTS_ONE_TCH_LEN                     6
 #define FTS_TOUCH_DATA_LEN  (FTS_MAX_POINTS_SUPPORT * FTS_ONE_TCH_LEN + 2)
+#define FTS_ONE_TCH_LEN_V2                  8
+#define FTS_TOUCH_DATA_LEN_V2  (FTS_MAX_POINTS_SUPPORT * FTS_ONE_TCH_LEN_V2 + 4)
 
 #define FTS_GESTURE_POINTS_MAX              6
 #define FTS_GESTURE_DATA_LEN               (FTS_GESTURE_POINTS_MAX * 4 + 4)
@@ -96,6 +98,8 @@
 #define FTS_TOUCH_OFF_YL                    3
 #define FTS_TOUCH_OFF_PRE                   4
 #define FTS_TOUCH_OFF_AREA                  5
+#define FTS_TOUCH_OFF_MINOR                 6
+
 #define FTS_TOUCH_E_NUM                     1
 #define FTS_X_MIN_DISPLAY_DEFAULT           0
 #define FTS_Y_MIN_DISPLAY_DEFAULT           0
@@ -129,6 +133,18 @@
  */
 #define FTS_PATCH_COMERR_PM                 1
 #define FTS_TIMEOUT_COMERR_PM               700
+
+#define FTS_HI_RES_X_MAX                    16
+#ifdef CONFIG_FTS_HIRES_EN
+#define FTS_TOUCH_HIRES_EN                  1
+#ifdef CONFIG_FTS_HIRES_X
+#define FTS_TOUCH_HIRES_X                   ((CONFIG_FTS_HIRES_X < FTS_HI_RES_X_MAX) ? CONFIG_FTS_HIRES_X : FTS_HI_RES_X_MAX)
+#else
+#define FTS_TOUCH_HIRES_X                   10
+#endif
+#else
+#define FTS_TOUCH_HIRES_EN                  0
+#endif
 
 /*****************************************************************************
 * Private enumerations, structures and unions using typedef
@@ -174,6 +190,7 @@ struct ts_event {
     int flag;   /* touch event flag: 0 -- down; 1-- up; 2 -- contact */
     int id;     /*touch ID */
     int area;
+    int minor;
 };
 
 
@@ -337,7 +354,7 @@ enum _FTS_BUS_TYPE {
 
 enum _FTS_TOUCH_ETYPE {
     TOUCH_DEFAULT = 0x00,
-    TOUCH_EVENT_NUM = 0x02,
+    TOUCH_PROTOCOL_v2 = 0x02,
     TOUCH_EXTRA_MSG = 0x08,
     TOUCH_PEN = 0x0B,
     TOUCH_GESTURE = 0x80,

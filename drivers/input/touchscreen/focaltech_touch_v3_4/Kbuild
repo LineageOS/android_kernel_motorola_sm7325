@@ -13,15 +13,26 @@ focaltech_v3_4-objs += focaltech_gesture.o
 focaltech_v3_4-objs += focaltech_esdcheck.o
 focaltech_v3_4-objs += focaltech_point_report_check.o
 focaltech_v3_4-objs += focaltech_flash.o
-focaltech_v3_4-objs += focaltech_flash/focaltech_upgrade_ft3681.o
 focaltech_v3_4-objs += focaltech_spi.o
 focaltech_v3_4-objs += focaltech_test/focaltech_test.o
 focaltech_v3_4-objs += focaltech_test/focaltech_test_ini.o
-focaltech_v3_4-objs += focaltech_test/supported_ic/focaltech_test_ft3681.o
 focaltech_v3_4-objs += focaltech_ts_config.o
 
-ifneq ($(filter ft3681,$(CONFIG_INPUT_FOCALTECH_V3_MMI_IC_NAME)),)
-	EXTRA_CFLAGS += -DCONFIG_INPUT_FOCALTECH_V3_MMI_IC_NAME_FT3681
+ifneq ($(filter ft3681,$(CONFIG_INPUT_FOCAL_IC_NAME)),)
+	EXTRA_CFLAGS += -DCONFIG_FTS_IC_FT3681
+	focaltech_v3_4-objs += focaltech_flash/focaltech_upgrade_ft3681.o
+	focaltech_v3_4-objs += focaltech_test/supported_ic/focaltech_test_ft3681.o
+endif
+
+ifneq ($(filter ft3683g,$(CONFIG_INPUT_FOCAL_IC_NAME)),)
+	EXTRA_CFLAGS += -DCONFIG_FTS_IC_FT3683G
+	EXTRA_CFLAGS += -DCONFIG_FTS_NOISE_TEST_P2P
+	focaltech_v3_4-objs += focaltech_flash/focaltech_upgrade_ft3683g.o
+	focaltech_v3_4-objs += focaltech_test/supported_ic/focaltech_test_ft3683g.o
+endif
+
+ifneq ($(filter m y,$(CONFIG_FTS_INPUT_PROTOCOL_V0)),)
+	EXTRA_CFLAGS += -DCONFIG_FTS_INPUT_PROTOCOL_V0
 endif
 
 ifneq ($(filter m y,$(CONFIG_INPUT_TOUCHSCREEN_MMI)),)
@@ -58,6 +69,11 @@ endif
 
 ifneq ($(filter m y, $(CONFIG_FTS_DOUBLE_TAP_CONTROL)),)
 	EXTRA_CFLAGS += -DCONFIG_FTS_DOUBLE_TAP_CONTROL
+endif
+
+ifneq ($(CONFIG_SUPPORT_FTS_HIRES_X),)
+	EXTRA_CFLAGS += -DCONFIG_FTS_HIRES_EN
+	EXTRA_CFLAGS += -DCONFIG_FTS_HIRES_X=$(CONFIG_SUPPORT_FTS_HIRES_X)
 endif
 
 ifneq ($(filter m y, $(CONFIG_FTS_SUPPORT_HIGH_RESOLUTION)),)

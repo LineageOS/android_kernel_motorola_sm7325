@@ -175,15 +175,20 @@
 #define _FT3169             0x3169008B
 #define _FT3269             0x3269008B
 
-
+#define _FT3683G            0x56720090
 
 /*************************************************/
 
 /*
  * choose your ic chip type of focaltech
  */
+#ifdef CONFIG_FTS_IC_FT3683G
+#define FTS_CHIP_TYPE   _FT3683G
+#define FTS_CHIP_NAME   "ft3683g"
+#else
 #define FTS_CHIP_TYPE   _FT3681
 #define FTS_CHIP_NAME   "ft3681"
+#endif
 
 /******************* Enables *********************/
 /*********** 1 to enable, 0 to disable ***********/
@@ -199,6 +204,12 @@
  * 1: Protocol B(default), 0: Protocol A
  */
 #define FTS_MT_PROTOCOL_B_EN                    1
+
+#ifdef CONFIG_FTS_INPUT_PROTOCOL_V0
+#define FTS_INPUT_PROTOCOL_V2			0
+#else
+#define FTS_INPUT_PROTOCOL_V2			1
+#endif
 
 /*
  * Report Pressure in multitouch

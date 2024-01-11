@@ -1125,6 +1125,10 @@ static void print_thr_mc_sc(void)
     FTS_TEST_DBG("short_cc:%d", thr->basic.short_cc);
     FTS_TEST_DBG("panel_differ_min:%d", thr->basic.panel_differ_min);
     FTS_TEST_DBG("panel_differ_max:%d", thr->basic.panel_differ_max);
+#if defined(CONFIG_FTS_NOISE_TEST_P2P)
+    FTS_TEST_DBG("noise_max:%d,frame_num:%d,noise_mode:%d,polling:%d", thr->basic.noise_max,
+                 thr->basic.noise_framenum, thr->basic.noise_mode, thr->basic.noise_polling);
+#endif
 
     print_buffer(thr->rawdata_h_min, tdata->node.node_num, tdata->node.rx_num);
     print_buffer(thr->rawdata_h_max, tdata->node.node_num, tdata->node.rx_num);

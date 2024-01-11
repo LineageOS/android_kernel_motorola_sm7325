@@ -631,7 +631,13 @@ enum csv_itemcode_sc {
 /*****************************************************************************
 * Global variable or extern global variabls/functions
 *****************************************************************************/
+#ifdef CONFIG_FTS_IC_FT3681
 extern struct test_funcs test_func_ft5662;
+#endif
+
+#ifdef CONFIG_FTS_IC_FT3683G
+extern struct test_funcs test_func_ft5672;
+#endif
 
 extern struct fts_test *fts_ftest;
 

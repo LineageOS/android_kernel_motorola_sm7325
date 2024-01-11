@@ -173,6 +173,13 @@ void fts_tp_resume_recovery(struct fts_ts_data *ts_data)
 int fts_reset_proc(int hdelayms)
 {
     FTS_DEBUG("tp reset");
+#ifdef CONFIG_FTS_IC_FT3683G
+    if (gpio_get_value(fts_data->pdata->reset_gpio)) {
+        fts_write_reg(0xB6, 0x01);
+	    msleep(20);
+    }
+#endif
+
     gpio_direction_output(fts_data->pdata->reset_gpio, 0);
     msleep(1);
     gpio_direction_output(fts_data->pdata->reset_gpio, 1);
@@ -821,6 +828,118 @@ static int fts_read_parse_touchdata(struct fts_ts_data *ts_data, u8 *touch_buf)
     return ((touch_buf[FTS_TOUCH_E_NUM] >> 4) & 0x0F);
 }
 
+#if FTS_INPUT_PROTOCOL_V2
+static int fts_input_report_touch_pv2(struct fts_ts_data *ts_data, u8 *touch_buf)
+{
+    int i = 0;
+    int event_num = 0;
+    int pointid = 0;
+    int base = 0;
+    int max_touch_num = ts_data->pdata->max_touch_number;
+    struct ts_event *events = ts_data->events;
+
+    event_num = touch_buf[FTS_TOUCH_E_NUM] & 0x0F;
+    if (!event_num || (event_num > max_touch_num)) {
+        FTS_ERROR("invalid touch event num(%d)", event_num);
+        return -EIO;
+    }
+
+    ts_data->touch_event_num = event_num;
+    for (i = 0; i < event_num; i++) {
+        base = FTS_ONE_TCH_LEN_V2 * i + 4;
+        pointid = (touch_buf[FTS_TOUCH_OFF_ID_YH + base]) >> 4;
+        if (pointid >= max_touch_num) {
+            FTS_ERROR("touch point ID(%d) beyond max_touch_number(%d)",
+                      pointid, max_touch_num);
+            return -EINVAL;
+        }
+
+        events[i].id = pointid;
+        events[i].flag = touch_buf[FTS_TOUCH_OFF_E_XH + base] >> 6;
+
+        events[i].x = ((touch_buf[FTS_TOUCH_OFF_E_XH + base] & 0x0F) << 12) \
+                      + ((touch_buf[FTS_TOUCH_OFF_XL + base] & 0xFF) << 4) \
+                      + ((touch_buf[FTS_TOUCH_OFF_PRE + base] >> 4) & 0x0F);
+
+        events[i].y = ((touch_buf[FTS_TOUCH_OFF_ID_YH + base] & 0x0F) << 12) \
+                      + ((touch_buf[FTS_TOUCH_OFF_YL + base] & 0xFF) << 4) \
+                      + (touch_buf[FTS_TOUCH_OFF_PRE + base] & 0x0F);
+#if FTS_TOUCH_HIRES_EN
+        events[i].x = (events[i].x * FTS_TOUCH_HIRES_X ) / FTS_HI_RES_X_MAX;
+        events[i].y = (events[i].y * FTS_TOUCH_HIRES_X ) / FTS_HI_RES_X_MAX;
+#else
+        events[i].x = events[i].x  / FTS_HI_RES_X_MAX;
+        events[i].y = events[i].y  / FTS_HI_RES_X_MAX;
+#endif
+        events[i].area = touch_buf[FTS_TOUCH_OFF_AREA + base];
+        events[i].minor = touch_buf[FTS_TOUCH_OFF_MINOR + base];
+        events[i].p = 0x3F;
+#if FTS_REPORT_PRESSURE_EN
+        FTS_ERROR("The pressure property isn't supported");
+#endif
+        if (events[i].area <= 0) events[i].area = 0x09;
+        if (events[i].minor <= 0) events[i].minor = 0x09;
+    }
+
+    mutex_lock(&ts_data->report_mutex);
+#if FTS_MT_PROTOCOL_B_EN
+    fts_input_report_b(ts_data, events);
+#else
+    fts_input_report_a(ts_data, events);
+#endif
+    mutex_unlock(&ts_data->report_mutex);
+    return 0;
+}
+#else
+static int fts_input_report_touch_v0(struct fts_ts_data *ts_data, u8 *touch_buf)
+{
+    int i = 0;
+    int event_num = 0;
+    int pointid = 0;
+    int base = 0;
+    int max_touch_num = ts_data->pdata->max_touch_number;
+    struct ts_event *events = ts_data->events;
+
+    event_num = touch_buf[FTS_TOUCH_E_NUM] & 0x0F;
+    if (!event_num || (event_num > max_touch_num)) {
+        FTS_ERROR("invalid touch event num(%d)", event_num);
+        return -EIO;
+    }
+
+    ts_data->touch_event_num = event_num;
+    for (i = 0; i < event_num; i++) {
+        base = FTS_ONE_TCH_LEN * i + 2;
+        pointid = (touch_buf[FTS_TOUCH_OFF_ID_YH + base]) >> 4;
+        if (pointid >= max_touch_num) {
+            FTS_ERROR("touch point ID(%d) beyond max_touch_number(%d)",
+                      pointid, max_touch_num);
+            return -EINVAL;
+        }
+
+        events[i].id = pointid;
+        events[i].flag = touch_buf[FTS_TOUCH_OFF_E_XH + base] >> 6;
+        events[i].x = ((touch_buf[FTS_TOUCH_OFF_E_XH + base] & 0x0F) << 8) \
+                      + (touch_buf[FTS_TOUCH_OFF_XL + base] & 0xFF);
+        events[i].y = ((touch_buf[FTS_TOUCH_OFF_ID_YH + base] & 0x0F) << 8) \
+                      + (touch_buf[FTS_TOUCH_OFF_YL + base] & 0xFF);
+        events[i].p =  touch_buf[FTS_TOUCH_OFF_PRE + base];
+        events[i].area = touch_buf[FTS_TOUCH_OFF_AREA + base];
+        if (events[i].p <= 0) events[i].p = 0x3F;
+        if (events[i].area <= 0) events[i].area = 0x09;
+    }
+
+    mutex_lock(&ts_data->report_mutex);
+#if FTS_MT_PROTOCOL_B_EN
+    fts_input_report_b(ts_data, events);
+#else
+    fts_input_report_a(ts_data, events);
+#endif
+    mutex_unlock(&ts_data->report_mutex);
+
+    return 0;
+}
+#endif
+
 #if FTS_USB_DETECT_EN
 static void fts_mcu_usb_detect_set(uint8_t usb_connected)
 {
@@ -900,7 +1019,7 @@ static int fts_irq_read_report(struct fts_ts_data *ts_data)
             return -EIO;
         }
 
-#ifdef CONFIG_FTS_SUPPORT_HIGH_RESOLUTION
+#if !FTS_TOUCH_HIRES_EN && defined(CONFIG_FTS_SUPPORT_HIGH_RESOLUTION)
         for (i = 0; i < max_touch_num; i++) {
             base = FTS_ONE_TCH_LEN * i + 2;
             pointid = (touch_buf[FTS_TOUCH_OFF_ID_YH + base]) >> 4;
@@ -999,42 +1118,12 @@ static int fts_irq_read_report(struct fts_ts_data *ts_data)
         break;
 #endif
 
-    case TOUCH_EVENT_NUM:
-        event_num = touch_buf[FTS_TOUCH_E_NUM] & 0x0F;
-        if (!event_num || (event_num > max_touch_num)) {
-            FTS_ERROR("invalid touch event num(%d)", event_num);
-            return -EIO;
-        }
-
-        ts_data->touch_event_num = event_num;
-        for (i = 0; i < event_num; i++) {
-            base = FTS_ONE_TCH_LEN * i + 2;
-            pointid = (touch_buf[FTS_TOUCH_OFF_ID_YH + base]) >> 4;
-            if (pointid >= max_touch_num) {
-                FTS_ERROR("touch point ID(%d) beyond max_touch_number(%d)",
-                          pointid, max_touch_num);
-                return -EINVAL;
-            }
-
-            events[i].id = pointid;
-            events[i].flag = touch_buf[FTS_TOUCH_OFF_E_XH + base] >> 6;
-            events[i].x = ((touch_buf[FTS_TOUCH_OFF_E_XH + base] & 0x0F) << 8) \
-                          + (touch_buf[FTS_TOUCH_OFF_XL + base] & 0xFF);
-            events[i].y = ((touch_buf[FTS_TOUCH_OFF_ID_YH + base] & 0x0F) << 8) \
-                          + (touch_buf[FTS_TOUCH_OFF_YL + base] & 0xFF);
-            events[i].p =  touch_buf[FTS_TOUCH_OFF_PRE + base];
-            events[i].area = touch_buf[FTS_TOUCH_OFF_AREA + base];
-            if (events[i].p <= 0) events[i].p = 0x3F;
-            if (events[i].area <= 0) events[i].area = 0x09;
-        }
-
-        mutex_lock(&ts_data->report_mutex);
-#if FTS_MT_PROTOCOL_B_EN
-        fts_input_report_b(ts_data, events);
+    case TOUCH_PROTOCOL_v2:
+#if FTS_INPUT_PROTOCOL_V2
+        fts_input_report_touch_pv2(ts_data, touch_buf);
 #else
-        fts_input_report_a(ts_data, events);
+        fts_input_report_touch_v0(ts_data, touch_buf);
 #endif
-        mutex_unlock(&ts_data->report_mutex);
         break;
 
     case TOUCH_EXTRA_MSG:
@@ -2379,6 +2468,9 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
     fts_mmi_dev_register(ts_data);
 #endif
 
+#if FTS_TOUCH_HIRES_EN
+    FTS_DEBUG("Hight resolution HIRES_X=%d", FTS_TOUCH_HIRES_X);
+#endif
     FTS_FUNC_EXIT();
     return 0;
 

@@ -44,7 +44,12 @@
 struct fts_test *fts_ftest;
 
 struct test_funcs *test_func_list[] = {
+#ifdef CONFIG_FTS_IC_FT3681
     &test_func_ft5662,
+#endif
+#ifdef CONFIG_FTS_IC_FT3683G
+    &test_func_ft5672,
+#endif
 };
 
 /*****************************************************************************

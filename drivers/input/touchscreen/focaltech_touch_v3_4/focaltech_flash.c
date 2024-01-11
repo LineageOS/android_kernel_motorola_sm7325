@@ -64,7 +64,12 @@ struct upgrade_module module_list[] = {
 };
 
 struct upgrade_func *upgrade_func_list[] = {
+#ifdef CONFIG_FTS_IC_FT3683G
+    &upgrade_func_ft5672,
+#endif
+#ifdef CONFIG_FTS_IC_FT3681
     &upgrade_func_ft5662,
+#endif
 };
 
 struct fts_upgrade *fwupgrade;
