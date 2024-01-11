@@ -262,8 +262,8 @@ void fts_read_report_fod_event(struct fts_ts_data *ts_data)
 {
     u8 cmd = 0xE1;
     u8 fod_data[9] = {0};
-    u16 fod_x = 0;
-    u16 fod_y = 0;
+    //u16 fod_x = 0;
+    //u16 fod_y = 0;
     u8 fod_id = 0;
     u8 fod_down = 0;
     int ret = 0;
@@ -279,8 +279,8 @@ void fts_read_report_fod_event(struct fts_ts_data *ts_data)
         return;
     }
     fod_id = fod_data[1];
-    fod_x = (fod_data[4] << 8) + fod_data[5];
-    fod_y = (fod_data[6] << 8) + fod_data[7];
+    //fod_x = (fod_data[4] << 8) + fod_data[5];
+    //fod_y = (fod_data[6] << 8) + fod_data[7];
     fod_down = fod_data[8]; //1 up, 0 down
 
     //FTS_INFO("fod_id =  %02x, fod_down = %d", fod_id, fod_down);

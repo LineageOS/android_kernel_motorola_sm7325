@@ -117,6 +117,9 @@
 #define FTS_REG_RETRY_TIMES                 5
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+#define PDE_DATA(x) pde_data(x)
+#endif
 
 /*****************************************************************************
 *  Alternative mode (When something goes wrong, the modules may be able to solve the problem.)

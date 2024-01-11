@@ -89,12 +89,12 @@ static int ft5662_fwupg_get_boot_state(enum FW_STATUS *fw_sts)
 
 static bool ft5662_fwupg_check_state(enum FW_STATUS rstate)
 {
-    int ret = 0;
+    //int ret = 0;
     int i = 0;
     enum FW_STATUS cstate = FTS_RUN_IN_ERROR;
 
     for (i = 0; i < FTS_UPGRADE_LOOP; i++) {
-        ret = ft5662_fwupg_get_boot_state(&cstate);
+        ft5662_fwupg_get_boot_state(&cstate);
         /* FTS_DEBUG("fw state=%d, retries=%d", cstate, i); */
         if (cstate == rstate)
             return true;

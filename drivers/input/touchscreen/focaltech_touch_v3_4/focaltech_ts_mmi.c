@@ -617,10 +617,10 @@ static int fts_mmi_methods_reset(struct device *dev, int type)
 static int fts_mmi_firmware_update(struct device *dev, char *fwname)
 {
 	struct fts_ts_data *ts_data;
-	struct input_dev *input_dev;
+	//struct input_dev *input_dev;
 
 	GET_TS_DATA(dev);
-	input_dev = ts_data->input_dev;
+	//input_dev = ts_data->input_dev;
 
 	ts_data->force_reflash = true;
 
@@ -678,7 +678,7 @@ static int fts_mmi_charger_mode(struct device *dev, int mode)
 static int fts_mmi_panel_state(struct device *dev,
 	enum ts_mmi_pm_mode from, enum ts_mmi_pm_mode to)
 {
-	struct fts_ts_platform_data *pdata;
+	//struct fts_ts_platform_data *pdata;
 	struct fts_ts_data *ts_data;
 	int ret = 0;
 #if defined(CONFIG_FTS_DOUBLE_TAP_CONTROL)
@@ -687,7 +687,7 @@ static int fts_mmi_panel_state(struct device *dev,
 #endif
 
 	GET_TS_DATA(dev);
-	pdata = ts_data->pdata;
+	//pdata = ts_data->pdata;
 #ifdef FOCALTECH_SENSOR_EN
 	ts_data->zero_enable = 0;
 #endif

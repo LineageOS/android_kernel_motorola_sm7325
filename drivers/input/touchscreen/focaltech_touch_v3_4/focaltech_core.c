@@ -2692,10 +2692,17 @@ static int fts_ts_probe(struct spi_device *spi)
     return 0;
 }
 
+#if (KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE)
 static int fts_ts_remove(struct spi_device *spi)
 {
     return fts_ts_remove_entry(spi_get_drvdata(spi));
 }
+#else
+static void fts_ts_remove(struct spi_device *spi)
+{
+    fts_ts_remove_entry(spi_get_drvdata(spi));
+}
+#endif
 
 static const struct spi_device_id fts_ts_id[] = {
     {FTS_DRIVER_NAME, 0},

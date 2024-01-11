@@ -1,7 +1,7 @@
 DLKM_DIR := motorola/kernel/modules
 LOCAL_PATH := $(call my-dir)
 
-ifeq ($(call is-board-platform-in-list,taro kalama parrot), true)
+ifeq ($(call is-board-platform-in-list,taro kalama parrot blair), true)
 
 ifneq ($(FOCALTECH_TOUCH_IC_NAME),)
 	KBUILD_OPTIONS += CONFIG_INPUT_FOCALTECH_V3_MMI_IC_NAME=$(FOCALTECH_TOUCH_IC_NAME)
@@ -26,6 +26,10 @@ endif
 
 ifneq ($(findstring touchscreen_mmi.ko,$(BOARD_VENDOR_KERNEL_MODULES)),)
     KBUILD_OPTIONS += CONFIG_INPUT_TOUCHSCREEN_MMI=y
+endif
+
+ifeq ($(DRM_PANEL_NOTIFICATIONS),true)
+	KBUILD_OPTIONS += CONFIG_DRM_PANEL_NOTIFICATIONS=y
 endif
 
 ifeq ($(DRM_PANEL_EVENT_NOTIFICATIONS),true)
