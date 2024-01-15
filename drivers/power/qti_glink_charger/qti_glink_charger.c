@@ -2964,8 +2964,8 @@ static int usb_therm_set_mosfet(struct qti_charger *chg, bool enable)
 		rc = qti_charger_write(chg, OEM_PROP_CHG_SUSPEND,
 					&value, sizeof(value));
 		udelay(100);
-		if ((chg->chg_info.chrg_type != POWER_SUPPLY_TYPE_USB)&&
-		    (chg->chg_info.chrg_type !=POWER_SUPPLY_TYPE_USB_CDP) &&
+		if ((chg->chg_info.chrg_type != POWER_SUPPLY_USB_TYPE_SDP)&&
+		    (chg->chg_info.chrg_type !=POWER_SUPPLY_USB_TYPE_CDP) &&
 		    (gpio_is_valid(chg->mos_en_gpio))) {
 			gpio_direction_output(chg->mos_en_gpio, enable);
 			mmi_info(chg, "%s,open mos en: %d %d",__func__,enable,rc);
@@ -3047,9 +3047,10 @@ static const struct thermal_cooling_device_ops usb_therm_ops = {
 	.set_cur_state = usb_therm_set_cur_state,
 };
 
-static int qti_charger_init_usb_therm_cooler(struct qti_charger *chg)
+static int qti_charger_init_usb_therm_cooler(struct qti_charger *chg, u16 hwrev)
 {
 	int ret;
+	u32 support_gpio_hwrev=0x0;
 	/* Register thermal zone cooling device */
 	chg->cdev = thermal_of_cooling_device_register(dev_of_node(chg->dev),
 		"usb_therm_cooler", chg, &usb_therm_ops);
@@ -3061,8 +3062,16 @@ static int qti_charger_init_usb_therm_cooler(struct qti_charger *chg)
 	}
 	mmi_info(chg, "Cooling register success for usb_therm.");
 
+	if (of_property_read_u32(chg->dev->of_node, "mmi,support-gpio-hwrev", &support_gpio_hwrev)) {
+		support_gpio_hwrev=0x0;
+	}
+
 	/*typec mosfet outout en control*/
-	chg->mos_en_gpio = of_get_named_gpio(chg->dev->of_node, "mmi,mos-en-gpio", 0);
+	chg->mos_en_gpio = -1;
+	if (hwrev >= support_gpio_hwrev) {
+		chg->mos_en_gpio = of_get_named_gpio(chg->dev->of_node, "mmi,mos-en-gpio", 0);
+	}
+	mmi_info(chg, "support_gpio_hwrev=0x%x hwrev=0x%x mos_en_gpio=%d",support_gpio_hwrev, hwrev, chg->mos_en_gpio);
 	if (gpio_is_valid(chg->mos_en_gpio))
 	{
 		ret = gpio_request(chg->mos_en_gpio, "mmi mos en pin");
@@ -3243,7 +3252,7 @@ static int qti_charger_init(struct qti_charger *chg)
 	}
 	
 	if (chg->mosfet_supported && !chg->constraint.factory_version && mmi_is_softbank_sku(chg)) {
-		rc = qti_charger_init_usb_therm_cooler(chg);
+		rc = qti_charger_init_usb_therm_cooler(chg, hw_rev);
 		if (rc < 0) {
 			mmi_err(chg, "Couldn't initialize usb therm cooler rc=%d.", rc);
 			//goto cleanup;
