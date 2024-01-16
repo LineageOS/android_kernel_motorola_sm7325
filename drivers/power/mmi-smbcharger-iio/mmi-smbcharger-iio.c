@@ -526,6 +526,10 @@ struct smb_mmi_charger {
 	bool			enable_dcp_ffc;
 
 	bool			enable_fcc_large_qg_iterm;
+
+	/*Battery info*/
+	int			manufacturing_date;
+	int			first_usage_date;
 };
 
 #define CHGR_FAST_CHARGE_CURRENT_CFG_REG	(CHGR_BASE + 0x61)
@@ -4972,9 +4976,100 @@ static ssize_t age_show(struct device *dev,
 }
 static DEVICE_ATTR(age, S_IRUGO, age_show, NULL);
 
+static ssize_t state_of_health_show(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	if (!this_chip) {
+		pr_err("mmi_charger: chip is invalid\n");
+		return -ENODEV;
+	}
+
+	return scnprintf(buf, CHG_SHOW_MAX_SIZE, "%d\n", this_chip->age);
+}
+
+static DEVICE_ATTR(state_of_health, S_IRUGO, state_of_health_show, NULL);
+
+static ssize_t first_usage_date_show(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	if (!this_chip) {
+		pr_err("mmi_charger: chip is invalid\n");
+		return -ENODEV;
+	}
+
+	return scnprintf(buf, CHG_SHOW_MAX_SIZE, "%d\n", this_chip->first_usage_date);
+}
+
+static ssize_t first_usage_date_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	unsigned long r;
+	unsigned long first_usage_date;
+
+	if (!this_chip) {
+		pr_err("mmi_charger: chip is invalid\n");
+		return -ENODEV;
+	}
+
+	r = kstrtoul(buf, 0, &first_usage_date);
+	if (r) {
+		mmi_err(this_chip, "Invalid first_usage_date value = %lu\n", first_usage_date);
+		return -EINVAL;
+	}
+
+	this_chip->first_usage_date = first_usage_date;
+
+	return r ? r : count;
+}
+
+static DEVICE_ATTR(first_usage_date, 0644, first_usage_date_show, first_usage_date_store);
+
+static ssize_t manufacturing_date_show(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	if (!this_chip) {
+		pr_err("mmi_charger: chip is invalid\n");
+		return -ENODEV;
+	}
+
+	return scnprintf(buf, CHG_SHOW_MAX_SIZE, "%d\n", this_chip->manufacturing_date);
+}
+
+static ssize_t manufacturing_date_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	unsigned long r;
+	unsigned long manufacturing_date;
+
+	if (!this_chip) {
+		pr_err("mmi_charger: chip is invalid\n");
+		return -ENODEV;
+	}
+
+	r = kstrtoul(buf, 0, &manufacturing_date);
+	if (r) {
+		mmi_err(this_chip, "Invalid manufacturing_date value = %lu\n", manufacturing_date);
+		return -EINVAL;
+	}
+
+	this_chip->manufacturing_date = manufacturing_date;
+
+	return r ? r : count;
+}
+
+static DEVICE_ATTR(manufacturing_date, 0644, manufacturing_date_show, manufacturing_date_store);
+
 static struct attribute * mmi_g[] = {
 	&dev_attr_charge_rate.attr,
 	&dev_attr_age.attr,
+	&dev_attr_state_of_health.attr,
+	&dev_attr_manufacturing_date.attr,
+	&dev_attr_first_usage_date.attr,
 	NULL,
 };
 
