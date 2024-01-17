@@ -191,12 +191,11 @@ struct anc_data {
 };
 
 static int vreg_setup(struct anc_data *p_data, const char *name, bool enable) {
-    int ret_val = 0;
+    int ret_val = -1;
 
-    if (p_data == NULL) {
-        ANC_LOGE("p_data is NULL");
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
+    CHECK_PTR_PARAM(name);
+
     ret_val = strncmp(vreg_conf.name, name, strlen(vreg_conf.name));
     if (ret_val != 0) {
         ANC_LOGE("Regulator %s not found", name);
@@ -283,13 +282,12 @@ static DEVICE_ATTR(netlink_event, S_IWUSR, NULL, forward_netlink_event_set);
  * the device tree
  */
 static int select_pin_ctl(struct anc_data *p_data, const char *name) {
-    int ret_val = 0;
+    int ret_val = -1;
     size_t i = 0;
 
-    if ((p_data == NULL) || (name == NULL)) {
-        ANC_LOGE("parameter is NULL, p_data:%p, name:%p", p_data, name);
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
+    CHECK_PTR_PARAM(name);
+
     for (i = 0; i < ARRAY_SIZE(p_data->pinctrl_state); i++) {
         const char *n = pctl_names[i];
 
@@ -304,7 +302,6 @@ static int select_pin_ctl(struct anc_data *p_data, const char *name) {
         }
     }
 
-    ret_val = -EINVAL;
     ANC_LOGE("%s not found", name);
 
 exit:
@@ -313,8 +310,13 @@ exit:
 
 static ssize_t pinctl_set(struct device *dev, struct device_attribute *attr, const char *buf,
                           size_t count) {
-    int ret_val = 0;
-    struct anc_data *p_data = dev_get_drvdata(dev);
+    int ret_val = -1;
+    struct anc_data *p_data = NULL;
+
+    CHECK_PTR_PARAM(dev);
+    CHECK_PTR_PARAM(buf);
+
+    p_data = dev_get_drvdata(dev);
     if (p_data == NULL) {
         ANC_LOGE("dev get data failed");
         return -EINVAL;
@@ -330,14 +332,13 @@ static ssize_t pinctl_set(struct device *dev, struct device_attribute *attr, con
 static DEVICE_ATTR(pinctl_set, S_IWUSR, NULL, pinctl_set);
 
 static int set_reset_level(struct anc_data *p_data, int level) {
-    int ret_val = 0;
+    int ret_val = -1;
 
-    if (p_data == NULL) {
-        ANC_LOGE("p_data is NULL");
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
+
     if (p_data->use_gpio_init) {
         gpio_set_value(p_data->rst_gpio, level);
+        ret_val = 0;
     } else {
         if (level == 0) {
             ret_val = select_pin_ctl(p_data, "anc_reset_low");
@@ -354,12 +355,10 @@ static int set_reset_level(struct anc_data *p_data, int level) {
 }
 
 static int anc_reset(struct anc_data *p_data) {
-    int ret_val = 0;
+    int ret_val = -1;
 
-    if (p_data == NULL) {
-        ANC_LOGE("p_data is NULL");
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
+
     ANC_LOGD("hardware reset");
     mutex_lock(&p_data->lock);
     do {
@@ -382,8 +381,13 @@ static int anc_reset(struct anc_data *p_data) {
 
 static ssize_t hw_reset_set(struct device *dev, struct device_attribute *attr, const char *buf,
                             size_t count) {
-    int ret_val = 0;
-    struct anc_data *p_data = dev_get_drvdata(dev);
+    int ret_val = -1;
+    struct anc_data *p_data = NULL;
+
+    CHECK_PTR_PARAM(dev);
+    CHECK_PTR_PARAM(buf);
+
+    p_data = dev_get_drvdata(dev);
     if (p_data == NULL) {
         ANC_LOGE("dev get data failed");
         return -EINVAL;
@@ -428,11 +432,6 @@ static void anc_power_onoff(struct anc_data *p_data, bool power_onoff) {
 }
 
 static void device_power_up(struct anc_data *p_data) {
-    if (p_data == NULL) {
-        ANC_LOGE("p_data is NULL");
-        return;
-    }
-
     ANC_LOGD("device power up");
     anc_power_onoff(p_data, true);
 }
@@ -443,7 +442,12 @@ static void device_power_up(struct anc_data *p_data) {
 static ssize_t device_power_set(struct device *dev, struct device_attribute *attr, const char *buf,
                                 size_t count) {
     ssize_t ret_val = count;
-    struct anc_data *p_data = dev_get_drvdata(dev);
+    struct anc_data *p_data = NULL;
+
+    CHECK_PTR_PARAM(dev);
+    CHECK_PTR_PARAM(buf);
+
+    p_data = dev_get_drvdata(dev);
     if (p_data == NULL) {
         ANC_LOGE("dev get data failed");
         return -EINVAL;
@@ -678,7 +682,16 @@ static void anc_wake_unlock(struct anc_data *p_data) {
 static ssize_t irq_control_set(struct device *dev, struct device_attribute *attr, const char *buf,
                                size_t count) {
     ssize_t ret_val = count;
-    struct anc_data *p_data = dev_get_drvdata(dev);
+    struct anc_data *p_data = NULL;
+
+    CHECK_PTR_PARAM(dev);
+    CHECK_PTR_PARAM(buf);
+
+    p_data = dev_get_drvdata(dev);
+    if (p_data == NULL) {
+        ANC_LOGE("dev get data failed");
+        return -EINVAL;
+    }
 
     mutex_lock(&p_data->lock);
     if (!strncmp(buf, "enable", strlen("enable"))) {
@@ -703,7 +716,12 @@ static int anc_platform_free(struct anc_data *p_data);
 static ssize_t resource_control_set(struct device *dev, struct device_attribute *attr,
                                     const char *buf, size_t count) {
     ssize_t ret_val = count;
-    struct anc_data *p_data = dev_get_drvdata(dev);
+    struct anc_data *p_data = NULL;
+
+    CHECK_PTR_PARAM(dev);
+    CHECK_PTR_PARAM(buf);
+
+    p_data = dev_get_drvdata(dev);
     if (p_data == NULL) {
         ANC_LOGE("dev get data failed");
         return -EINVAL;
@@ -766,12 +784,12 @@ static irqreturn_t anc_irq_handler(int irq, void *handle) {
 }
 
 static int anc_request_named_gpio(struct anc_data *p_data, const char *label, int *gpio) {
-    int ret_val = 0;
+    int ret_val = -1;
 
-    if ((p_data == NULL) || (label == NULL) || (gpio == NULL)) {
-        ANC_LOGE("parameter is NULL, p_data:%p, label:%p, gpio:%p", p_data, label, gpio);
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
+    CHECK_PTR_PARAM(label);
+    CHECK_PTR_PARAM(gpio);
+
     ret_val = of_get_named_gpio(p_data->dev->of_node, label, 0);
     if (ret_val < 0) {
         ANC_LOGE("failed to get '%s'", label);
@@ -790,13 +808,11 @@ static int anc_request_named_gpio(struct anc_data *p_data, const char *label, in
 }
 
 static int anc_irq_init(struct anc_data *p_data) {
-    int ret_val = 0;
+    int ret_val = -1;
     int irqf = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;  // IRQF_TRIGGER_FALLING or IRQF_TRIGGER_RISING
 
-    if (p_data == NULL) {
-        ANC_LOGE("p_data is NULL");
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
+
     p_data->irq = gpio_to_irq(p_data->irq_gpio);
     if (p_data->irq_init == 0) {
         ret_val = devm_request_threaded_irq(
@@ -810,16 +826,15 @@ static int anc_irq_init(struct anc_data *p_data) {
         /* Request that the interrupt should be wakeable */
         enable_irq_wake(p_data->irq);
         atomic_set(&p_data->irq_enabled, 1);
+    } else {
+        ret_val = 0;
     }
 
     return ret_val;
 }
 
 static int anc_irq_deinit(struct anc_data *p_data) {
-    if (p_data == NULL) {
-        ANC_LOGE("p_data is NULL");
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
 
     if (p_data->irq_init == 1) {
         disable_irq_wake(p_data->irq);
@@ -831,12 +846,11 @@ static int anc_irq_deinit(struct anc_data *p_data) {
 }
 
 static int anc_copy_from_user(void *to, const void *from, unsigned long n) {
-    int ret_val = 0;
+    int ret_val = -1;
 
-    if (!access_ok(from, n)) {
-        ANC_LOGE("the parameter is invalid");
-        return -EFAULT;
-    }
+    CHECK_PTR_PARAM(to);
+    CHECK_PTR_PARAM(from);
+    CHECK_INT_PARAM(n);
 
     ret_val = copy_from_user(to, from, n);
     if (ret_val != 0) {
@@ -849,13 +863,11 @@ static int anc_copy_from_user(void *to, const void *from, unsigned long n) {
 
 #ifdef ANC_SUPPORT_NAVIGATION_EVENT
 static int anc_report_key_event(struct anc_data *p_data, const void *arg) {
-    int ret_val = 0;
+    int ret_val = -1;
     unsigned int key_code = KEY_UNKNOWN;
 
-    if (p_data == NULL) {
-        ANC_LOGE("p_data is NULL");
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
+    CHECK_PTR_PARAM(arg);
 
     ret_val = anc_copy_from_user(&(p_data->key_event), arg, sizeof(ANC_KEY_EVENT));
     if (ret_val != 0) {
@@ -908,13 +920,11 @@ static int anc_report_key_event(struct anc_data *p_data, const void *arg) {
 #endif
 
 static int use_pinctrl_init(struct anc_data *p_data) {
-    int ret_val = 0;
+    int ret_val = -1;
     size_t i = 0;
 
-    if (p_data == NULL) {
-        ANC_LOGE("p_data is NULL");
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
+
     p_data->fingerprint_pinctrl = devm_pinctrl_get(p_data->dev);
     if (IS_ERR(p_data->fingerprint_pinctrl)) {
         if (PTR_ERR(p_data->fingerprint_pinctrl) == -EPROBE_DEFER) {
@@ -953,12 +963,10 @@ static int use_pinctrl_init(struct anc_data *p_data) {
 }
 
 static int use_gpio_init(struct anc_data *p_data) {
-    int ret_val = 0;
+    int ret_val = -1;
 
-    if (p_data == NULL) {
-        ANC_LOGE("p_data is NULL");
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
+
     ret_val = anc_request_named_gpio(p_data, "anc,gpio_rst", &p_data->rst_gpio);
     if (ret_val) {
         ANC_LOGD("request reset gpio failed, ret_val:%d", ret_val);
@@ -987,13 +995,9 @@ static int use_gpio_init(struct anc_data *p_data) {
 }
 
 static int anc_gpio_deinit(struct anc_data *p_data) {
-    if (p_data == NULL) {
-        ANC_LOGE("p_data is NULL");
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
 
     ANC_LOGD("deinit gpio");
-
     if (p_data->vdd_use_gpio) {
         if (gpio_is_valid(p_data->pwr_gpio)) {
             gpio_free(p_data->pwr_gpio);
@@ -1021,17 +1025,13 @@ static int anc_gpio_deinit(struct anc_data *p_data) {
 #endif
 
     ANC_LOGD("success");
-
     return 0;
 }
 
 static int anc_gpio_init(struct anc_data *p_data) {
-    int ret_val = 0;
+    int ret_val = -1;
 
-    if (p_data == NULL) {
-        ANC_LOGE("p_data is NULL");
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
 
     ANC_LOGD("init gpio");
     if (p_data->vdd_use_gpio) {
@@ -1077,7 +1077,6 @@ static int anc_gpio_init(struct anc_data *p_data) {
     }
 
     ANC_LOGD("success");
-
     return 0;
 
 ANC_INIT_FAIL:
@@ -1087,6 +1086,10 @@ ANC_INIT_FAIL:
 
 static int anc_open(struct inode *inode, struct file *filp) {
     struct anc_data *p_data = NULL;
+
+    CHECK_PTR_PARAM(inode);
+    CHECK_PTR_PARAM(filp);
+
     p_data = container_of(inode->i_cdev, struct anc_data, cdev);
     if (p_data == NULL) {
         ANC_LOGE("get anc date failed");
@@ -1098,12 +1101,9 @@ static int anc_open(struct inode *inode, struct file *filp) {
 }
 
 static int anc_platform_init(struct anc_data *p_data) {
-    int ret_val = 0;
+    int ret_val = -1;
 
-    if (p_data == NULL) {
-        ANC_LOGE("p_data is NULL");
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
 
     if (p_data->resource_requested) {
         ANC_LOGW("warning: resource is already requested, return!");
@@ -1122,12 +1122,9 @@ static int anc_platform_init(struct anc_data *p_data) {
 }
 
 static int anc_platform_free(struct anc_data *p_data) {
-    int ret_val = 0;
+    int ret_val = -1;
 
-    if (p_data == NULL) {
-        ANC_LOGE("p_data is NULL");
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
 
     if (!p_data->resource_requested) {
         ANC_LOGW("warning: resource is already released, return!");
@@ -1174,6 +1171,11 @@ void spi_clk_enable(bool enable_flag) {
 
 #ifdef SAMSUNG_PLATFORM
 static void spi_clock_set(struct anc_data *data, int speed) {
+    if (p_data == NULL) {
+        ANC_LOGE("p_data is NULL");
+        return;
+    }
+
 #if 0
     unsigned long rate_core;
     unsigned long rate_iface;
@@ -1182,12 +1184,15 @@ static void spi_clock_set(struct anc_data *data, int speed) {
     rate_iface = clk_get_rate(data->iface_clk);
     ANC_LOGD("%s, spi clock speed (%lld, %lld)", __func__, rate_core, rate_iface);
 #endif
+
     clk_set_rate(data->core_clk, speed);
     clk_set_rate(data->iface_clk, speed);
 }
 
 static int anc_spi_clk_init(struct anc_data *data) {
     ANC_LOGD("%s, enter", __func__);
+
+    CHECK_PTR_PARAM(data);
 
     data->clk_enabled = 0;
     data->core_clk = clk_get(data->dev, "gate_spi_clk" /*"spi"*/);
@@ -1206,8 +1211,9 @@ static int anc_spi_clk_init(struct anc_data *data) {
 }
 
 static int anc_spi_clk_enable(struct anc_data *data, uint32_t flag) {
-    int ret_val = 0;
+    int ret_val = -1;
 
+    CHECK_PTR_PARAM(data);
     ANC_LOGD("%s, enter", __func__);
 
     if (data->clk_enabled) {
@@ -1248,6 +1254,8 @@ static int anc_spi_clk_enable(struct anc_data *data, uint32_t flag) {
 static int anc_spi_clk_disable(struct anc_data *data) {
     ANC_LOGD("%s, enter", __func__);
 
+    CHECK_PTR_PARAM(data);
+
     if (!data->clk_enabled) {
         ANC_LOGW("%s warning: spi clock is disabled, return!", __func__);
         return 0;
@@ -1264,6 +1272,8 @@ static int anc_spi_clk_disable(struct anc_data *data) {
 
 static int anc_spi_clk_deinit(struct anc_data *data) {
     ANC_LOGD("%s, enter", __func__);
+
+    CHECK_PTR_PARAM(data);
 
     if (data->clk_enabled) {
         anc_spi_clk_disable(data);
@@ -1402,12 +1412,10 @@ static void set_irq_flag(struct anc_data *p_data, bool flag) {
 }
 
 static int init_irq(struct anc_data *p_data) {
-    int ret_val = 0;
+    int ret_val = -1;
 
-    if (p_data == NULL) {
-        ANC_LOGE("p_data is NULL");
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
+
     ANC_LOGD("init irq");
     ret_val = anc_irq_init(p_data);
     INIT_WORK(&p_data->work_queue, anc_do_irq_work);
@@ -1427,7 +1435,10 @@ static void deinit_irq(struct anc_data *p_data) {
 }
 
 static int set_product_id(struct anc_data *p_data, const void *arg) {
-    int ret_val = 0;
+    int ret_val = -1;
+
+    CHECK_PTR_PARAM(p_data);
+    CHECK_PTR_PARAM(arg);
 
     ret_val = anc_copy_from_user(&(p_data->product_info), arg, sizeof(ANC_SENSOR_PRODUCT_INFO));
     if (ret_val != 0) {
@@ -1441,9 +1452,12 @@ static int set_product_id(struct anc_data *p_data, const void *arg) {
 }
 
 static int get_irq_pin_level(struct anc_data *p_data, uint8_t *pin_level) {
-    int ret_val = 0;
+    int ret_val = -1;
     int irq_pin_levl = 0;
     uint8_t irq_pin_levl_u8 = 0;
+
+    CHECK_PTR_PARAM(p_data);
+    CHECK_PTR_PARAM(pin_level);
 
     irq_pin_levl = gpio_get_value(p_data->irq_gpio);
     if (irq_pin_levl >= 0) {
@@ -1465,8 +1479,12 @@ static int get_irq_pin_level(struct anc_data *p_data, uint8_t *pin_level) {
 }
 
 static long anc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
-    int ret_val = 0;
-    struct anc_data *p_data = filp->private_data;
+    long ret_val = -1;
+    struct anc_data *p_data = NULL;
+
+    CHECK_PTR_PARAM(filp);
+
+    p_data = filp->private_data;
     if (p_data == NULL) {
         ANC_LOGE("get anc data failed");
         return -EINVAL;
@@ -1485,24 +1503,30 @@ static long anc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
             break;
         case ANC_IOC_ENABLE_POWER:
             anc_power_onoff(p_data, true);
+            ret_val = 0;
             break;
         case ANC_IOC_DISABLE_POWER:
             anc_power_onoff(p_data, false);
+            ret_val = 0;
             break;
         case ANC_IOC_CLEAR_FLAG:
-            custom_send_command(CUSTOM_COMMAND_CLEAR_TOUCH_STATE, NULL);
+            ret_val = custom_send_command(CUSTOM_COMMAND_CLEAR_TOUCH_STATE, NULL);
             break;
         case ANC_IOC_ENABLE_IRQ:
             anc_enable_irq(p_data);
+            ret_val = 0;
             break;
         case ANC_IOC_DISABLE_IRQ:
             anc_disable_irq(p_data);
+            ret_val = 0;
             break;
         case ANC_IOC_SET_IRQ_FLAG_MASK:
             set_irq_flag(p_data, true);
+            ret_val = 0;
             break;
         case ANC_IOC_CLEAR_IRQ_FLAG_MASK:
             set_irq_flag(p_data, false);
+            ret_val = 0;
             break;
 #ifdef ANC_USE_REE_SPI
         case ANC_IOC_SPI_SPEED:
@@ -1511,24 +1535,28 @@ static long anc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
 #endif
         case ANC_IOC_WAKE_LOCK:
             anc_wake_lock(p_data);
+            ret_val = 0;
             break;
         case ANC_IOC_WAKE_UNLOCK:
             anc_wake_unlock(p_data);
+            ret_val = 0;
             break;
 
 #ifdef MTK_PLATFORM
         case ANC_IOC_ENABLE_SPI_CLK:
             spi_clk_enable(true);
+            ret_val = 0;
             break;
         case ANC_IOC_DISABLE_SPI_CLK:
             spi_clk_enable(false);
+            ret_val = 0;
             break;
 #elif defined SAMSUNG_PLATFORM
         case ANC_IOC_ENABLE_SPI_CLK:
-            anc_spi_clk_enable(p_data, ANC_LOW_SPEED);
+            ret_val = anc_spi_clk_enable(p_data, ANC_LOW_SPEED);
             break;
         case ANC_IOC_DISABLE_SPI_CLK:
-            anc_spi_clk_disable(p_data);
+            ret_val = anc_spi_clk_disable(p_data);
             break;
 #endif
         case ANC_IOC_INIT_IRQ:
@@ -1536,6 +1564,7 @@ static long anc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
             break;
         case ANC_IOC_DEINIT_IRQ:
             deinit_irq(p_data);
+            ret_val = 0;
             break;
         case ANC_IOC_REQUEST_RESOURCE:
             ret_val = anc_platform_init(p_data);
@@ -1582,10 +1611,8 @@ static const struct file_operations anc_fops = {
 };
 
 static int anc_malloc(struct anc_data **pp_data, struct device *dev) {
-    if ((pp_data == NULL) || (dev == NULL)) {
-        ANC_LOGE("parameter is NULL, pp_data:%p, dev:%p", pp_data, dev);
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(pp_data);
+    CHECK_PTR_PARAM(dev);
 
     /* Allocate device data */
     *pp_data = devm_kzalloc(dev, sizeof(struct anc_data), GFP_KERNEL);
@@ -1612,6 +1639,7 @@ static void anc_free(struct anc_data *p_data, struct device *dev) {
         return;
     }
 
+
     if (p_data) {
         devm_kfree(dev, p_data);
         p_data = NULL;
@@ -1626,13 +1654,11 @@ static void anc_free(struct anc_data *p_data, struct device *dev) {
 }
 
 static int anc_create_device(struct anc_data *p_data) {
-    int ret_val = 0;
+    int ret_val = -1;
     struct device *device_ptr = NULL;
 
-    if (p_data == NULL) {
-        ANC_LOGE("p_data is NULL");
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
+
     p_data->dev_class = class_create(THIS_MODULE, ANC_DEVICE_NAME);
     if (IS_ERR(p_data->dev_class)) {
         ANC_LOGE("class_create failed");
@@ -1686,12 +1712,10 @@ static void anc_destroy_device(struct anc_data *p_data) {
 
 #ifdef ANC_SUPPORT_NAVIGATION_EVENT
 static int anc_input_init(struct anc_data *p_data) {
-    int rc = 0;
+    int rc = -1;
 
-    if (p_data == NULL) {
-        ANC_LOGE("p_data is NULL");
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
+
     p_data->input = input_allocate_device();
     if (!p_data->input) {
         ANC_LOGE("Failed to allocate input device");
@@ -1724,12 +1748,10 @@ static int anc_input_init(struct anc_data *p_data) {
 #endif
 
 static int anc_parse_dts(struct anc_data *p_data) {
-    int ret_val = 0;
+    int ret_val = -1;
 
-    if (p_data == NULL) {
-        ANC_LOGE("p_data is NULL");
-        return -EINVAL;
-    }
+    CHECK_PTR_PARAM(p_data);
+
     p_data->vdd_use_gpio = of_property_read_bool(p_data->dev->of_node, "anc,vdd_use_gpio");
     p_data->vdd_use_pmic = of_property_read_bool(p_data->dev->of_node, "anc,vdd_use_pmic");
     p_data->use_gpio_init = of_property_read_bool(p_data->dev->of_node, "anc,use_gpio_init");
@@ -1765,18 +1787,22 @@ static int anc_parse_dts(struct anc_data *p_data) {
                  vreg_conf.vmin,
                  vreg_conf.vmax,
                  vreg_conf.ua_load);
+    } else {
+        ret_val = 0;
     }
 
     return ret_val;
 }
 
 static int anc_probe(anc_device_t *pdev) {
-    struct device *dev = &pdev->dev;
+    struct device *dev = NULL;
     struct anc_data *p_data = NULL;
-    int ret_val = 0;
+    int ret_val = -1;
 
+    CHECK_PTR_PARAM(pdev);
     ANC_LOGD("entry");
 
+    dev = &pdev->dev;
     ret_val = anc_malloc(&p_data, dev);
     if (ret_val != 0) {
         goto out_free;
@@ -1854,7 +1880,11 @@ out_free:
 }
 
 static int anc_remove(anc_device_t *pdev) {
-    struct anc_data *p_data = dev_get_drvdata(&pdev->dev);
+    struct anc_data *p_data = NULL;
+
+    CHECK_PTR_PARAM(pdev);
+
+    p_data = dev_get_drvdata(&pdev->dev);
     if (p_data == NULL) {
         ANC_LOGE("get data handle failed");
         return -EINVAL;
@@ -1872,11 +1902,17 @@ static int anc_remove(anc_device_t *pdev) {
     custom_send_command(CUSTOM_COMMAND_DEINIT, NULL);
     anc_destroy_device(p_data);
     anc_free(p_data, &pdev->dev);
+
     return 0;
 }
 
 static void anc_shutdown(anc_device_t *pdev) {
     struct anc_data *p_data = NULL;
+
+    if (pdev == NULL) {
+        ANC_LOGE("pdev is NULL");
+        return;
+    }
 
     ANC_LOGD("entry");
     p_data = dev_get_drvdata(&pdev->dev);
@@ -1912,7 +1948,7 @@ static anc_driver_t anc_driver = {
 };
 
 static int __init ancfp_init(void) {
-    int ret_val = 0;
+    int ret_val = -1;
 
     ANC_LOGD("entry");
 

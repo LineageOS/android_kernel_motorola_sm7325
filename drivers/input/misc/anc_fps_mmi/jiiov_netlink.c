@@ -31,9 +31,12 @@ static struct sock *gp_netlink_sock = NULL;
 extern struct net init_net;  // by default
 
 static int netlink_send_message(const char *p_buffer, uint16_t length) {
-    int ret = 0;
+    int ret = -1;
     struct sk_buff *p_sk_buff = NULL;
     struct nlmsghdr *p_nlmsghdr = NULL;
+
+    CHECK_PTR_PARAM(p_buffer);
+    CHECK_INT_PARAM(length);
 
     /* 创建sk_buff 空间 */
     p_sk_buff = nlmsg_new(length, GFP_ATOMIC);
@@ -60,10 +63,11 @@ static int netlink_send_message(const char *p_buffer, uint16_t length) {
 int netlink_send_message_to_user(const char *p_buffer, size_t length) {
     int ret = -1;
 
-    if ((NULL != p_buffer) && (length > 0)) {
-        ANC_LOGE("send message to user: %d", *p_buffer);
-        ret = netlink_send_message(p_buffer, length);
-    }
+    CHECK_PTR_PARAM(p_buffer);
+    CHECK_INT_PARAM(length);
+
+    ANC_LOGE("send message to user: %d", *p_buffer);
+    ret = netlink_send_message(p_buffer, length);
 
     return ret;
 }
@@ -71,6 +75,11 @@ int netlink_send_message_to_user(const char *p_buffer, size_t length) {
 static void netlink_receive_message(struct sk_buff *p_sk_buffer) {
     struct nlmsghdr *nlh = NULL;
     char *p_user_message = NULL;
+
+    if (p_sk_buffer == NULL) {
+        ANC_LOGE("p_sk_buffer is NULL");
+        return;
+    }
 
     if (p_sk_buffer->len >= nlmsg_total_size(0)) {
         nlh = nlmsg_hdr(p_sk_buffer);
