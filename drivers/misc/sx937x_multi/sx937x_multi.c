@@ -528,7 +528,7 @@ static ssize_t capsense_reset_store(struct device *dev,
 					this->hw->flip_far_reg[i].val = this->hw->flip_far_reg[i].val | temp;
 				}
 				sx937x_i2c_write_16bit(this->bus, this->hw->flip_far_reg[i].reg,this->hw->flip_far_reg[i].val);
-				LOG_INFO("sx937 flip near download %s params set Reg 0x%x Value: 0x%x\n",
+				LOG_INFO("sx937 flip far reg num >0  download %s params set Reg 0x%x Value: 0x%x\n",
 						this->hw->dbg_name,this->hw->flip_far_reg[i].reg,this->hw->flip_far_reg[i].val);
 			}
 		}
@@ -542,7 +542,7 @@ static ssize_t capsense_reset_store(struct device *dev,
 					this->hw->flip_far_reg[i].val = this->hw->flip_far_reg[i].val | temp;
 				}
 				sx937x_i2c_write_16bit(this->bus, this->hw->flip_far_reg[i].reg,this->hw->flip_far_reg[i].val);
-				LOG_INFO("sx937 flip near download %s params set Reg 0x%x Value: 0x%x\n",
+				LOG_INFO("sx937 flip far download %s params set Reg 0x%x Value: 0x%x\n",
 						this->hw->dbg_name,this->hw->flip_far_reg[i].reg,this->hw->flip_far_reg[i].val);
 			}
 		}
@@ -677,7 +677,7 @@ static ssize_t sx937x_fac_enable_store(struct device *dev,
 	if ( !strncmp(buf, "0", 1)) {
 		LOG_INFO("disnable cap sensor\n");
 		sx937x_i2c_read_16bit(this->bus, SX937X_GENERAL_SETUP, &temp);
-		temp = temp | 0xFFFFFF00;
+		temp = temp & 0xFFFFFF00;
 		LOG_INFO("set reg 0x%x val 0x%x\n", SX937X_GENERAL_SETUP, temp);
 		sx937x_i2c_write_16bit(this->bus, SX937X_GENERAL_SETUP, temp);
 		if(ret <0){
@@ -1243,7 +1243,7 @@ static int capsensor_set_enable(struct sensors_classdev *sensors_cdev,
 				{
 					LOG_INFO("MotoTopApproach_ENABLE_FLAG is true and calibrate MotoTopApproach channel");
 					MotoTopApproach_ENABLE_FLAG = 1;
-					temp = temp | 0x80FF;
+					//temp = temp | 0x80FF;
 				}
 				LOG_DBG("set reg 0x%x val 0x%x\n", SX937X_GENERAL_SETUP, temp);
 				sx937x_i2c_write_16bit(this->bus, SX937X_GENERAL_SETUP, temp);
@@ -1261,6 +1261,10 @@ static int capsensor_set_enable(struct sensors_classdev *sensors_cdev,
 				{
 					LOG_INFO("MotoTopApproach_ENABLE_FLAG is false");
 					MotoTopApproach_ENABLE_FLAG = 0;
+					sx937x_i2c_read_16bit(this->bus, SX937X_GENERAL_SETUP, &temp);
+					temp = temp & 0xFFFFFF7F;
+					LOG_INFO("set reg 0x%x val 0x%x\n", SX937X_GENERAL_SETUP, temp);
+					sx937x_i2c_write_16bit(this->bus, SX937X_GENERAL_SETUP, temp);
 				}
 			} else {
 				LOG_ERR("unknown enable symbol\n");
