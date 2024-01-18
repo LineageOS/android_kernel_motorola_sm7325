@@ -294,7 +294,8 @@ static int fts_mmi_set_report_rate(struct fts_ts_data *ts_data)
 
 	FTS_INFO("Success to set %s\n", mode == REPORT_RATE_CMD_240HZ ? "REPORT_RATE_240HZ" :
 				(mode == REPORT_RATE_CMD_360HZ ? "REPORT_RATE_360HZ" :
-				"Unsupported"));
+				(mode == REPORT_RATE_CMD_120HZ ? "REPORT_RATE_120HZ" :
+				"Unsupported")));
 
 	return ret;
 }
@@ -851,7 +852,8 @@ exit:
 			FTS_INFO("Success to %s interpolation mode\n",
 				ts_data->get_mode.report_rate_mode == REPORT_RATE_CMD_240HZ ? "REPORT_RATE_240HZ" :
 				(ts_data->get_mode.report_rate_mode == REPORT_RATE_CMD_360HZ ? "REPORT_RATE_360HZ" :
-				"Unsupported"));
+				(ts_data->get_mode.report_rate_mode == REPORT_RATE_CMD_120HZ ? "REPORT_RATE_120HZ" :
+				"Unsupported")));
 		}
 	}
 
