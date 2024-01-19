@@ -23,6 +23,12 @@
 #include <linux/regulator/consumer.h>
 #ifdef CONFIG_HALL_PASSIVE_PEN
 #include <linux/pen_detection_notify.h>
+#ifdef CONFIG_HAS_WAKELOCK
+#include <linux/wakelock.h>
+#else
+#include <linux/pm_wakeup.h>
+#include <linux/mmi_wake_lock.h>
+#endif
 #endif
 
 #define DRIVER_NAME "hall_pen_detect"
@@ -53,6 +59,11 @@ static struct hall_sensor_str {
 	struct input_dev *hall_dev;
 	struct sensors_classdev sensors_pen_cdev;
 #ifdef CONFIG_HALL_PASSIVE_PEN
+#ifdef CONFIG_HAS_WAKELOCK
+	struct wake_lock wake_lock;
+#else
+	struct wakeup_source *wake_lock;
+#endif
 	struct delayed_work hall_sensor_work;
 	struct delayed_work hall_sensor_dowork;
 	struct input_handler pen_handler;
@@ -169,6 +180,15 @@ static void pen_report_function(struct work_struct *dat)
 			hall_sensor_dev->status = 1;
 		input_report_switch(hall_sensor_dev->hall_dev, SW_PEN_INSERTED, !hall_sensor_dev->status);
 		input_sync(hall_sensor_dev->hall_dev);
+#ifdef CONFIG_HAS_WAKELOCK
+		wake_unlock(&hall_sensor_dev->wake_lock);
+#else
+#endif
+#ifdef CONFIG_HAS_WAKELOCK
+		wake_lock_timeout(&hall_sensor_dev->wake_lock, msecs_to_jiffies(3000));
+#else
+		PM_WAKEUP_EVENT(hall_sensor_dev->wake_lock,msecs_to_jiffies(3000));
+#endif
 		if(hall_sensor_dev->report_val)
 			pen_detection_notifier_call_chain(PEN_DETECTION_INSERT, NULL);
 		else
@@ -311,6 +331,10 @@ static irqreturn_t hall_sensor_interrupt_handler(int irq, void *dev_id)
 {
 	LOG_DBG("hall_sensor_interrupt_handler = %d", irq);
 	queue_delayed_work(hall_sensor_do_wq, &hall_sensor_dev->hall_sensor_dowork, msecs_to_jiffies(0));
+#ifdef CONFIG_HAS_WAKELOCK
+	wake_lock(&hall_sensor_dev->wake_lock);
+#else
+#endif
 	return IRQ_HANDLED;
 }
 #else
@@ -339,7 +363,7 @@ static int hall_sensor_probe(struct platform_device *pdev)
 	if (!hall_sensor_dev) {
 		LOG_ERR("Memory allocation fails for hall sensor");
 		ret = -ENOMEM;
-		goto fail_for_mem;
+		return ret;
 	}
 
 	spin_lock_init(&hall_sensor_dev->mHallSensorLock);
@@ -354,6 +378,10 @@ static int hall_sensor_probe(struct platform_device *pdev)
 	//tcmd node
 	ret = of_property_read_string(np, "hall,factory-class-name", &hall_class.name);
 	ret = class_register(&hall_class);
+	if (ret < 0) {
+		LOG_ERR(" class_register fails\n" );
+		goto fail_for_dev;
+	}
 	ret = of_property_read_string(np, "hall,input-dev-name", &name_temp);
      	LOG_INFO("hall_input num :%s", name_temp);
 
@@ -364,11 +392,12 @@ static int hall_sensor_probe(struct platform_device *pdev)
 	}
 	LOG_INFO("gpio num :%d", hall_sensor_dev->gpio_num);
 
-	  hall_sensor_dev->hall_dev = input_allocate_device();
-	  	if (!hall_sensor_dev->hall_dev){
-			LOG_ERR(" hall_indev allocation fails\n" );
-			return -ENOMEM;
-		}
+	hall_sensor_dev->hall_dev = input_allocate_device();
+	if (!hall_sensor_dev->hall_dev){
+		LOG_ERR(" hall_indev allocation fails\n" );
+		ret = -ENOMEM;
+		goto fail_for_class;
+	}
 	hall_sensor_dev->hall_dev->name = name_temp;
 	hall_sensor_dev->hall_dev->dev.parent= NULL;
 	LOG_INFO("hall_ num :%s", hall_sensor_dev->hall_dev->name);
@@ -430,14 +459,16 @@ static int hall_sensor_probe(struct platform_device *pdev)
 	hall_sensor_dev->sensors_pen_cdev.enabled = 0;
 
 	ret = sensors_classdev_register(&hall_sensor_dev->hall_dev->dev, &hall_sensor_dev->sensors_pen_cdev);
-	if (ret < 0)
+	if (ret < 0) {
 		LOG_ERR("create cap sensor_class  file failed (%d)\n", ret);
+		goto fail_for_device;
+	}
 
 	hall_sensor_dev->gpio_list = kzalloc(sizeof (struct hall_gpio) * hall_sensor_dev->gpio_num, GFP_KERNEL);
 	if (!hall_sensor_dev->gpio_list) {
 		LOG_ERR("Memory allocation fails for hall sensor");
 		ret = -ENOMEM;
-		goto fail_for_mem;
+		goto fail_for_classdev;
 	}
 
 #ifdef CONFIG_HALL_PASSIVE_PEN
@@ -446,6 +477,16 @@ static int hall_sensor_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&hall_sensor_dev->hall_sensor_work, pen_report_function);
 	INIT_DELAYED_WORK(&hall_sensor_dev->hall_sensor_dowork, pen_do_work_function);
 	queue_delayed_work(hall_sensor_do_wq, &hall_sensor_dev->hall_sensor_dowork, 0);
+#ifdef CONFIG_HAS_WAKELOCK
+	wake_lock_init(&hall_sensor_dev->wake_lock, WAKE_LOCK_SUSPEND, "pen_suspend_blocker");
+#else
+	PM_WAKEUP_REGISTER(&pdev->dev, hall_sensor_dev->wake_lock, "pen_suspend_blocker");
+	if(!hall_sensor_dev->wake_lock){
+		dev_err(&pdev->dev,"%s: Failed to allocate wakeup source\n",__func__);
+		ret = -ENOMEM;
+		goto fail_wakeup_init;
+	}
+#endif
 #endif
 
 	for (i = 0; i < hall_sensor_dev->gpio_num; i++)
@@ -505,9 +546,6 @@ static int hall_sensor_probe(struct platform_device *pdev)
 	LOG_INFO("hall_sensor_probe Done");
 	return 0;
 
-	kfree(hall_sensor_dev);
-	hall_sensor_dev=NULL;
-
 fail_for_irq:
 	for (i = 0; i < hall_sensor_dev->gpio_num; i++)
 	{
@@ -516,21 +554,37 @@ fail_for_irq:
 		if (gpio_is_valid(hall_sensor_dev->gpio_list[i].gpio))
 			gpio_free(hall_sensor_dev->gpio_list[i].gpio);
 	}
-	class_unregister(&hall_class);
-fail_for_mem:
+#ifdef CONFIG_HALL_PASSIVE_PEN
+#ifdef CONFIG_HAS_WAKELOCK
+	wake_lock_destroy(&hall_sensor_dev->wake_lock);
+#else
+	PM_WAKEUP_UNREGISTER(hall_sensor_dev->wake_lock);
+fail_wakeup_init:
+#endif
+	destroy_workqueue(hall_sensor_do_wq);
+	destroy_workqueue(hall_sensor_wq);
+#endif
 	if (hall_sensor_dev->gpio_list)
 		kfree(hall_sensor_dev->gpio_list);
-	if (hall_sensor_dev)
-		kfree(hall_sensor_dev);
+fail_for_classdev:
+	sensors_classdev_unregister(&hall_sensor_dev->sensors_pen_cdev);
+fail_for_device:
 #ifdef CONFIG_HALL_PASSIVE_PEN
+	input_unregister_handle(& hall_sensor_dev->pen_handle);
 exit_unregister_handler:
 	input_unregister_handler(& hall_sensor_dev->pen_handler);
 exit_unregister_input_dev:
-	input_unregister_device(hall_sensor_dev->hall_dev);
 #endif
+	input_unregister_device(hall_sensor_dev->hall_dev);
 exit_input_free:
 	input_free_device(hall_sensor_dev->hall_dev);
 	hall_sensor_dev->hall_dev = NULL;
+fail_for_class:
+	class_unregister(&hall_class);
+fail_for_dev:
+	if (hall_sensor_dev)
+		kfree(hall_sensor_dev);
+	hall_sensor_dev=NULL;
 	return ret;
 }
 
@@ -539,6 +593,17 @@ static int hall_sensor_remove(struct platform_device *pdev)
 	int i;
 	regulator_disable(hall_sensor_dev->hall_vdd);
 	regulator_put(hall_sensor_dev->hall_vdd);
+#ifdef CONFIG_HALL_PASSIVE_PEN
+	destroy_workqueue(hall_sensor_do_wq);
+	destroy_workqueue(hall_sensor_wq);
+#ifdef CONFIG_HAS_WAKELOCK
+	wake_lock_destroy(&hall_sensor_dev->wake_lock);
+#else
+	PM_WAKEUP_UNREGISTER(hall_sensor_dev->wake_lock);
+#endif
+        input_unregister_handle(& hall_sensor_dev->pen_handle);
+	input_unregister_handler(& hall_sensor_dev->pen_handler);
+#endif
 	class_unregister(&hall_class);
 	for (i = 0; i < hall_sensor_dev->gpio_num; i++)
 	{
@@ -549,11 +614,12 @@ static int hall_sensor_remove(struct platform_device *pdev)
 	}
 	if (hall_sensor_dev->gpio_list)
 		kfree(hall_sensor_dev->gpio_list);
-	if (hall_sensor_dev)
-		kfree(hall_sensor_dev);
 
 	sensors_classdev_unregister(&hall_sensor_dev->sensors_pen_cdev);
 	input_unregister_device(hall_sensor_dev->hall_dev);
+	input_free_device(hall_sensor_dev->hall_dev);
+	if (hall_sensor_dev)
+		kfree(hall_sensor_dev);
 	LOG_INFO("paltform rm");
 	return 0;
 }
