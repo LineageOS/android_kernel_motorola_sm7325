@@ -128,7 +128,7 @@ else ifneq ($(filter lynkco%, $(USE_TARGET_PRODUCT)), )
         EXTRA_CFLAGS += -DPRODUCT_LYNKCO
 else ifneq ($(filter bangkk%, $(USE_TARGET_PRODUCT)), )
         EXTRA_CFLAGS += -DPRODUCT_BANGKK
-else ifneq ($(filter eqe, $(USE_TARGET_PRODUCT)), )
+else ifneq ($(filter eqe%, $(USE_TARGET_PRODUCT)), )
         EXTRA_CFLAGS += -DPRODUCT_EQE
 else ifneq ($(filter boston%, $(USE_TARGET_PRODUCT)), )
         EXTRA_CFLAGS += -DPRODUCT_BOSTON
