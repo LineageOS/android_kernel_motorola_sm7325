@@ -322,6 +322,9 @@ struct fts_ts_data {
 #ifdef CONFIG_FTS_LAST_TIME
     ktime_t last_event_time;
 #endif
+#ifdef CONFIG_ENABLE_FTS_PALM_CANCEL
+    bool palm_on;
+#endif
 
 };
 
