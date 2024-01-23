@@ -50,6 +50,8 @@ static const struct sc8541_iio_channels sc8541_iio_psy_channels[] = {
 	SC8541_CHAN_INDEX("sc8541_input_voltage_settled", PSY_IIO_MMI_CP_INPUT_VOLTAGE_NOW)
 	SC8541_CHAN_INDEX("sc8541_cp_status1", PSY_IIO_CP_STATUS1)
 	SC8541_CHAN_INDEX("sc8541_cp_clear_error", PSY_IIO_CP_CLEAR_ERROR)
+	SC8541_CHAN_INDEX("sc8541_otg_enable", PSY_IIO_MMI_OTG_ENABLE)
+	SC8541_CHAN_INDEX("sc8541_cp_chipid", PSY_IIO_MMI_CP_CHIP_ID)
 };
 
 #endif /* SC8541_IIO_H */

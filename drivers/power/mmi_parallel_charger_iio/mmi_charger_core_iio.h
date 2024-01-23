@@ -48,6 +48,8 @@ enum mmi_charger_ext_iio_channels {
 	CP_INPUT_VOLTAGE_NOW,
 	CP_STATUS1,
 	CP_CLEAR_ERROR,
+	CP_OTG_ENABLE,
+	CP_CHIP_ID,
 	/*mmi-smb5charger-iio*/
 	MMI_CP_ENABLE_STATUS,
 };
@@ -69,6 +71,8 @@ static const char * const mmi_charger_ext_iio_chan_name[] = {
 	[CP_INPUT_VOLTAGE_NOW] = "cp_input_voltage_now",
 	[CP_STATUS1] = "cp_status1",
 	[CP_CLEAR_ERROR] = "cp_clear_error",
+	[CP_OTG_ENABLE] = "cp_otg_enable",
+	[CP_CHIP_ID] = "cp_chip_id",
 	/*mmi-smb5charger-iio*/
 	[MMI_CP_ENABLE_STATUS] = "mmi_cp_enabled_status",
 };

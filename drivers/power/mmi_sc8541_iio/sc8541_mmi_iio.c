@@ -522,6 +522,33 @@ static int sc8541_is_chg_en(struct sc8541_device *bq, bool *en_chg)
 	return 0;
 }
 
+static int sc8541_set_otg_en(struct sc8541_device *bq, bool en_otg)
+{
+	int ret = 0;
+
+	if (bq->part_no != NU2115_PART_NO) {
+		dev_err(bq->dev," ic is not NU2115 charger!");
+		return ret;
+	}
+
+	if (en_otg) {
+		ret = regmap_update_bits(bq->regmap, NU2115_VAC12PRET,
+						NU2115_EN_OTG, NU2115_EN_OTG);
+		ret += regmap_update_bits(bq->regmap, NU2115_ACDRV12_CTRL,
+						NU2115_EN_ACRDV2, NU2115_EN_ACRDV2);
+	} else {
+		ret = regmap_update_bits(bq->regmap, NU2115_VAC12PRET,
+						NU2115_EN_OTG, en_otg);
+		ret += regmap_update_bits(bq->regmap, NU2115_ACDRV12_CTRL,
+						NU2115_EN_ACRDV2, NU2115_EN_ACRDV2);
+	}
+
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int sc8541_get_adc_ibus(struct sc8541_device *bq)
 {
 	int ibus_adc_lsb, ibus_adc_msb;
@@ -1679,6 +1706,11 @@ static int sc8541_iio_write_raw(struct iio_dev *indio_dev,
 		pr_info("[%s] set_chg_en: %s\n", bq->model_name,
 				val1 ? "enable" : "disable");
 		break;
+	case PSY_IIO_MMI_OTG_ENABLE:
+		sc8541_set_otg_en(bq, !!val1);
+		pr_info("[%s] set_otg_en: %s\n", bq->model_name,
+				!!val1 ? "enable" : "disable");
+		break;
 	case PSY_IIO_ONLINE:
 		sc8541_set_present(bq, !!val1);
 		pr_info("[%s] set_present :%d\n", bq->model_name, val1);
@@ -1742,6 +1774,28 @@ static int sc8541_iio_read_raw(struct iio_dev *indio_dev,
 			} else
 				pr_err("[%s] read charge enable err\n", bq->model_name);
 		}
+		break;
+	case PSY_IIO_MMI_OTG_ENABLE:
+		if (bq->part_no == NU2115_PART_NO) {
+			rc = regmap_read(bq->regmap, NU2115_VAC12PRET, &result);
+			if (!rc) {
+				*val1 = !!(result & NU2115_EN_OTG);
+				pr_info("[%s] read otg enable:%d\n", bq->model_name, *val1);
+			}
+		} else {
+			rc = regmap_read(bq->regmap, SC8541_CHRGR_CTRL_2, &result);
+			if (!rc) {
+				*val1 = !!(result & SC8541_EN_OTG);
+				pr_info("[%s] read otg enable:%d\n", bq->model_name, *val1);
+			}
+		}
+		break;
+	case PSY_IIO_MMI_CP_CHIP_ID:
+		if (bq->part_no == NU2115_PART_NO)
+			*val1 = NU2115_PART_NO;
+
+		if (bq->part_no == SC8541_PART_NO)
+			*val1 = SC8541_PART_NO;
 		break;
 	case PSY_IIO_ONLINE:
 		if (bq->part_no == NU2115_PART_NO) {

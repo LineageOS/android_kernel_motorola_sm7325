@@ -103,6 +103,7 @@
 #define SC8541_WD_STAT			BIT(0)
 #define SC8541_PRESENT_MASK		GENMASK(4, 2)
 #define SC8541_CHG_EN			BIT(4)
+#define SC8541_EN_OTG			BIT(5)
 #define SC8541_EN_HIZ			BIT(6)
 #define SC8541_ADC_EN			BIT(7)
 #define SC8541_MS_MASK			GENMASK(1, 0)
