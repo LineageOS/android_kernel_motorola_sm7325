@@ -153,12 +153,13 @@ static int parse_log_sources_response(struct log_layer *layer, uint8_t *data,
 		layer->log_modules[idx].lvl = *data++;
 		current_len = strlen((char *)data) + 1;
 		if (current_len > sizeof(layer->log_modules[idx].name)) {
+			const char *error_msg = "log name error";
 			pr_err("qm35: log module name bigger than allocated buffer: current_len = %d bytes\n",
 			       current_len);
-			strncpy(layer->log_modules[idx].name, "ERROR", 6);
+			strlcpy(layer->log_modules[idx].name, error_msg,
+				sizeof(layer->log_modules[idx].name));
 		} else
-			strncpy(layer->log_modules[idx].name, (char *)data,
-				current_len);
+			strcpy(layer->log_modules[idx].name, (char *)data);
 		data += current_len;
 
 		debug_create_module_entry(&qm35_hdl->debug,
@@ -429,6 +430,15 @@ static int get_soc_id(struct debug *dbg, uint8_t *soc_id)
 	return qm_get_soc_id(qm35_hdl, soc_id);
 }
 
+static int get_uuid(struct debug *dbg, uint8_t *uuid)
+{
+	struct qm35_ctx *qm35_hdl;
+
+	qm35_hdl = container_of(dbg, struct qm35_ctx, debug);
+
+	return qm_get_uuid(qm35_hdl, uuid);
+}
+
 static const struct debug_trace_ops debug_trace_ops = {
 	.enable_set = log_enable_set,
 	.enable_get = log_enable_get,
@@ -440,6 +450,7 @@ static const struct debug_trace_ops debug_trace_ops = {
 	.trace_reset = log_trace_reset,
 	.get_dev_id = get_dev_id,
 	.get_soc_id = get_soc_id,
+	.get_uuid = get_uuid,
 };
 
 int log_layer_init(struct log_layer *log, struct debug *debug)

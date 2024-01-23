@@ -23,8 +23,12 @@
 
 // #define CONFIG_INJECT_ERROR 1
 
+#ifndef IS_ENABLED
+#define IS_ENABLED(option) ((option == 'y') || (option == 'm'))
+#endif
+
 enum fw_pkg_error_e {
-	FW_PKG_SUCESS = 0,
+	FW_PKG_SUCCESS = 0,
 	FW_PKG_DOWNLOAD_ERROR,
 	FW_PKG_MAGIC_NUM_INVALID,
 	FW_PKG_VERSION_INVALID,
@@ -62,7 +66,7 @@ struct fw_updater_status_t {
 	uint32_t status;
 	uint32_t suberror;
 	uint32_t spi_errors;
-	uint32_t crc_errors;
+	uint32_t cksum_errors;
 	uint32_t rram_errors;
 	uint32_t crypto_errors;
 } __attribute__((packed));
@@ -70,6 +74,7 @@ struct fw_updater_status_t {
 #define FWUPDATER_STATUS_MAGIC 0xCAFECAFE
 
 void run_fwupdater_unit_tests(void *spi_handle);
-int run_fwupdater(struct qmrom_handle *handle, char *fwpkg_bin, size_t size);
+int run_fwupdater(struct qmrom_handle *handle, const char *fwpkg_bin,
+		  size_t size);
 
 #endif /* __FWUPDATER_H__ */

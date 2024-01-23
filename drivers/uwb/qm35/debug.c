@@ -357,8 +357,24 @@ static int debug_socid_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
+static int debug_uuid_show(struct seq_file *s, void *unused)
+{
+	struct debug *debug = (struct debug *)s->private;
+	uint8_t uuid[QM357XX_ROM_UUID_LEN];
+	int rc;
+
+	if (debug->trace_ops && debug->trace_ops->get_uuid) {
+		rc = debug->trace_ops->get_uuid(debug, uuid);
+		if (rc < 0)
+			return -EIO;
+		seq_printf(s, "%*phN\n", QM357XX_ROM_UUID_LEN, uuid);
+	}
+	return 0;
+}
+
 DEFINE_SHOW_ATTRIBUTE(debug_devid);
 DEFINE_SHOW_ATTRIBUTE(debug_socid);
+DEFINE_SHOW_ATTRIBUTE(debug_uuid);
 
 void debug_soc_info_available(struct debug *debug)
 {
@@ -375,6 +391,13 @@ void debug_soc_info_available(struct debug *debug)
 				   &debug_socid_fops);
 	if (!file) {
 		pr_err("qm35: failed to create /sys/kernel/debug/uwb0/fw/soc_id\n");
+		goto unregister;
+	}
+
+	file = debugfs_create_file("uuid", 0444, debug->chip_dir, debug,
+				   &debug_uuid_fops);
+	if (!file) {
+		pr_err("qm35: failed to create /sys/kernel/debug/uwb0/fw/uuid\n");
 		goto unregister;
 	}
 

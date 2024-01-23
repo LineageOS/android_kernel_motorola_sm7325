@@ -329,10 +329,6 @@ qm357xx_rom_b0_flash_unstitched_fw(struct qmrom_handle *handle,
 
 end:
 	check_stcs(__func__, __LINE__, handle);
-	qmrom_free(all_fws->fw_img);
-	qmrom_free(all_fws->fw_crt);
-	qmrom_free(all_fws->key1_crt);
-	qmrom_free(all_fws->key2_crt);
 	return rc;
 }
 

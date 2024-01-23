@@ -46,6 +46,7 @@
 #define SS_READY_TIMEOUT_MS (250)
 
 #define MAX_SUCCESSIVE_ERRORS (5)
+#define CHIP_RESET_RETRY (3)
 #define SPI_CS_SETUP_DELAY_US (5)
 
 #ifdef HSSPI_MANUAL_CS_SETUP
@@ -319,15 +320,13 @@ static int hsspi_rx(struct hsspi *hsspi, u8 ul, u16 length)
 		layer = NULL;
 
 	blk = layer ? layer->ops->get(layer, length) : NULL;
-	if (blk) {
+	if (blk)
 		ret = spi_xfer(hsspi, NULL, blk->data, blk->size);
-
-		layer->ops->received(layer, blk, ret);
-	} else
+	else
 		ret = spi_xfer(hsspi, NULL, NULL, 0);
 
 	if (ret)
-		return ret;
+		goto out;
 
 	if (!check_soc_flag(&hsspi->spi->dev, __func__, hsspi->soc->flags,
 			    false)) {
@@ -345,6 +344,10 @@ static int hsspi_rx(struct hsspi *hsspi, u8 ul, u16 length)
 	if (!(hsspi->soc->flags & STC_SOC_ODW) &&
 	    test_and_clear_bit(HSSPI_FLAGS_SS_IRQ, hsspi->flags))
 		hsspi->odw_cleared(hsspi);
+
+out:
+	if (blk)
+		layer->ops->received(layer, blk, ret);
 
 	return ret;
 }
@@ -428,6 +431,14 @@ static int hsspi_thread_fn(void *data)
 {
 	struct hsspi *hsspi = data;
 	static int successive_errors;
+	int reset_cnt = 0;
+
+	/* This is supposed to be a one-time delay which should be cleared after
+	 * the initial wait. */
+	if (hsspi->boot_delay_ms) {
+		msleep(hsspi->boot_delay_ms);
+		hsspi->boot_delay_ms = 0;
+	}
 
 	successive_errors = 0;
 	while (1) {
@@ -480,9 +491,19 @@ static int hsspi_thread_fn(void *data)
 				 */
 				hsspi->reset_qm35(hsspi);
 				successive_errors = 0;
+				reset_cnt++;
+				if (reset_cnt >= CHIP_RESET_RETRY) {
+					spin_lock(&hsspi->lock);
+					hsspi->state = HSSPI_STOPPED;
+					spin_unlock(&hsspi->lock);
+					reset_cnt = 0;
+					dev_err(&hsspi->spi->dev,
+						"No response from FW after multiple resets. Stopping HSSPI.\n");
+				}
 			}
 		} else {
 			successive_errors = 0;
+			reset_cnt = 0;
 		}
 	}
 	return 0;

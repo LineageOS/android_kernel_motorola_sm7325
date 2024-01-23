@@ -4,12 +4,12 @@
  *
  */
 
-#include <qmrom.h>
-#include <qmrom_spi.h>
-#include <qmrom_log.h>
-#include <qmrom_utils.h>
-#include <spi_rom_protocol.h>
-#include <qm358xx_firmware_pack_handling.h>
+#include <linux/uwb/qmrom.h>
+#include <linux/uwb/qmrom_spi.h>
+#include <linux/uwb/qmrom_log.h>
+#include <linux/uwb/qmrom_utils.h>
+#include <linux/uwb/spi_rom_protocol.h>
+#include <linux/uwb/qm358xx_firmware_pack_handling.h>
 
 #define DEFAULT_SPI_CLOCKRATE 5000000
 #define CHIP_VERSION_CHIP_REV_PAYLOAD_OFFSET (sizeof(resp_t))
@@ -319,7 +319,7 @@ static int load_asset_pkg(struct qmrom_handle *handle,
 static int load_fw_pkg(struct qmrom_handle *handle,
 		       const struct firmware *fw_pkg);
 static int load_secure_debug_pkg(struct qmrom_handle *handle,
-				 struct firmware *dbg_pkg);
+				 const struct firmware *dbg_pkg);
 static int erase_secure_debug_pkg(struct qmrom_handle *handle);
 static int run_test_mode(struct qmrom_handle *handle);
 static int load_sram_fw(struct qmrom_handle *handle,
@@ -393,8 +393,8 @@ static void qm358xx_rom_poll_soc(struct qmrom_handle *handle)
 	memset(handle->hstc, 0, sizeof(struct stc));
 	handle->sstc->raw_flags = 0;
 	do {
-		int rc =
-			qmrom_spi_wait_for_ready_line(handle->ss_rdy_handle, 0);
+		int rc = qmrom_spi_wait_for_ready_line(
+			handle->ss_rdy_handle, QM358_SPI_READY_TIMEOUT_MS);
 		if (rc) {
 			LOG_ERR("%s qmrom_spi_wait_for_ready_line failed\n",
 				__func__);
@@ -415,6 +415,29 @@ static int qm358xx_rom_wait_ready(struct qmrom_handle *handle)
 	/* handle->sstc has been updated */
 	while (retries-- &&
 	       !(handle->sstc->raw_flags & QM358_SPI_SH_READY_CMD_BIT_MASK)) {
+		if (handle->sstc->soc_flags.out_waiting) {
+			qm358xx_rom_pre_read(handle);
+			qm358xx_rom_read(handle);
+		} else if (handle->sstc->soc_flags.out_active) {
+			return qm358xx_rom_read(handle);
+		} else
+			qm358xx_rom_poll_soc(handle);
+	}
+
+	return handle->sstc->raw_flags & QM358_SPI_SH_READY_CMD_BIT_MASK ?
+		       0 :
+		       SPI_ERR_WAIT_READY_TIMEOUT;
+}
+
+static int qm358xx_rom_wait_ready_only(struct qmrom_handle *handle)
+{
+	int retries = handle->comms_retries;
+
+	qm358xx_rom_poll_soc(handle);
+
+	/* handle->sstc has been updated */
+	while (retries-- &&
+	       (handle->sstc->raw_flags != QM358_SPI_SH_READY_CMD_BIT_MASK)) {
 		if (handle->sstc->soc_flags.out_waiting) {
 			qm358xx_rom_pre_read(handle);
 			qm358xx_rom_read(handle);
@@ -642,7 +665,7 @@ static int load_fw_pkg(struct qmrom_handle *handle,
 		goto exit;
 	}
 
-	rc = qm358xx_rom_wait_ready(handle);
+	rc = qm358xx_rom_wait_ready_only(handle);
 	if (rc)
 		goto exit;
 
@@ -810,7 +833,7 @@ static int load_asset_pkg(struct qmrom_handle *handle,
 }
 
 static int load_secure_debug_pkg(struct qmrom_handle *handle,
-				 struct firmware *dbg_pkg)
+				 const struct firmware *dbg_pkg)
 {
 	int rc;
 
@@ -986,7 +1009,7 @@ int qm358xx_rom_load_asset_pkg(struct qmrom_handle *handle,
 }
 
 int qm358xx_rom_load_fw_pkg(struct qmrom_handle *handle,
-			    struct firmware *fw_pkg)
+			    const struct firmware *fw_pkg)
 {
 	if (!handle->qm358xx_rom_ops.load_fw_pkg) {
 		LOG_ERR("%s: loading firmware packages not supported on this device\n",
@@ -997,7 +1020,7 @@ int qm358xx_rom_load_fw_pkg(struct qmrom_handle *handle,
 }
 
 int qm358xx_rom_load_secure_dbg_pkg(struct qmrom_handle *handle,
-				    struct firmware *dbg_pkg)
+				    const struct firmware *dbg_pkg)
 {
 	if (!handle->qm358xx_rom_ops.load_secure_dbg_pkg) {
 		LOG_ERR("%s: loading secure debug packages not supported on this device\n",

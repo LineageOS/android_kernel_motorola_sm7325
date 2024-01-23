@@ -48,6 +48,7 @@ struct debug_trace_ops {
 	void (*trace_reset)(struct debug *dbg);
 	int (*get_dev_id)(struct debug *dbg, uint16_t *dev_id);
 	int (*get_soc_id)(struct debug *dbg, uint8_t *soc_id);
+	int (*get_uuid)(struct debug *dbg, uint8_t *uuid);
 };
 
 struct debug {

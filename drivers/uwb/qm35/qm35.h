@@ -8,20 +8,23 @@
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
 #include <linux/spinlock.h>
+#include <linux/kconfig.h>
 #include <linux/miscdevice.h>
 
 #include "uci_ioctls.h"
-#include "qm35_coredump_ioctls.h"
+
 #include "hsspi.h"
 #include "hsspi_uci.h"
 #include "hsspi_coredump.h"
+#include "qm35_coredump_ioctls.h"
 #include "hsspi_log.h"
 #include "debug.h"
 
 #define FWUPDATER_SPI_SPEED_HZ 20000000
 #define DEFAULT_SPI_CLOCKRATE 3000000
 
-#define DEBUG_CERTIFICATE_SIZE 2560
+#define QM357_DEBUG_CERTIFICATE_SIZE 2560
+#define QM358_DEBUG_CERTIFICATE_SIZE 1244
 #define QM_RESET_LOW_MS 2
 /*
  * value found using a SALAE
@@ -29,7 +32,7 @@
 #define QM_BOOT_MS 450
 #define QM_BEFORE_RESET_MS 450
 
-#define DRV_VERSION "magenta-7.4.0-rc2"
+#define DRV_VERSION "magenta-8.1.0-rc2"
 
 struct regulator;
 
@@ -40,7 +43,9 @@ struct regulator;
 struct qm35_ctx {
 	unsigned int state;
 	struct miscdevice uci_dev;
+#if IS_ENABLED(CONFIG_QM35_COREDUMP)
 	struct miscdevice coredump_dev;
+#endif
 	struct spi_device *spi;
 	struct gpio_desc *gpio_csn;
 	struct gpio_desc *gpio_reset;
@@ -55,7 +60,9 @@ struct qm35_ctx {
 	bool soc_error;
 	struct hsspi hsspi;
 	struct uci_layer uci_layer;
+#if IS_ENABLED(CONFIG_QM35_COREDUMP)
 	struct coredump_layer coredump_layer;
+#endif
 	struct log_layer log_layer;
 	struct debug debug;
 	struct regulator *vdd1;
@@ -85,11 +92,14 @@ static inline void qm35_set_state(struct qm35_ctx *qm35_hdl, int state)
 	spin_unlock_irqrestore(&qm35_hdl->lock, flags);
 }
 
-static inline int qm35_reset(struct qm35_ctx *qm35_hdl, int timeout_ms)
+static inline int qm35_reset(struct qm35_ctx *qm35_hdl, int timeout_ms,
+			     bool run)
 {
 	if (qm35_hdl->gpio_reset) {
 		qm35_set_state(qm35_hdl, QM35_CTRL_STATE_RESET);
 		gpiod_set_value(qm35_hdl->gpio_reset, 1);
+		if (!run)
+			return 0;
 		usleep_range(timeout_ms * 1000UL, timeout_ms * 1000UL);
 		gpiod_set_value(qm35_hdl->gpio_reset, 0);
 		qm35_set_state(qm35_hdl, QM35_CTRL_STATE_UNKNOWN);
@@ -103,6 +113,7 @@ int qm35_reset_sync(struct qm35_ctx *qm35_hdl);
 
 int qm_get_dev_id(struct qm35_ctx *qm35_hdl, uint16_t *dev_id);
 int qm_get_soc_id(struct qm35_ctx *qm35_hdl, uint8_t *soc_id);
+int qm_get_uuid(struct qm35_ctx *qm35_hdl, uint8_t *uuid);
 
 void qm35_hsspi_start(struct qm35_ctx *qm35_hdl);
 void qm35_hsspi_stop(struct qm35_ctx *qm35_hdl);

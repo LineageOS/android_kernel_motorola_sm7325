@@ -59,5 +59,7 @@ int qmrom_spi_wait_for_ready_line(void *handle, unsigned int timeout_ms);
 int qmrom_spi_read_irq_line(void *handle);
 void qmrom_spi_set_freq(unsigned int freq);
 unsigned int qmrom_spi_get_freq(void);
+int qmrom_check_fw_boot_state(struct qmrom_handle *handle,
+			      unsigned int timeout_ms);
 
 #endif /* __QMROM_SPI_H__ */

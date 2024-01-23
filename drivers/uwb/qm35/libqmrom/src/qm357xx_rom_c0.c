@@ -493,24 +493,11 @@ qm357xx_rom_c0_flash_unstitched_fw(struct qmrom_handle *handle,
 
 	/* Flashing is done, the fw should reboot, check we are not still talking to the ROM code */
 	if (!rc && !handle->skip_check_fw_boot) {
-		uint8_t raw_flags;
-
 		qmrom_msleep(SPI_READY_TIMEOUT_MS_C0);
-		qm357xx_rom_c0_poll_soc(handle);
-		raw_flags = handle->sstc->raw_flags;
-		/* The ROM code sends the same quartets for the first byte of each xfers */
-		if (((raw_flags & 0xf0) >> 4) == (raw_flags & 0xf)) {
-			LOG_ERR("%s: firmware not properly started: %#x\n",
-				__func__, raw_flags);
-			rc = -2;
-		}
+		rc = qmrom_check_fw_boot_state(handle, SPI_READY_TIMEOUT_MS_C0);
 	}
 
 end:
-	qmrom_free(all_fws->fw_img);
-	qmrom_free(all_fws->fw_crt);
-	qmrom_free(all_fws->key1_crt);
-	qmrom_free(all_fws->key2_crt);
 	return rc;
 }
 
@@ -564,7 +551,7 @@ static int qm357xx_rom_c0_flash_debug_cert(struct qmrom_handle *handle,
 
 	rc = qm357xx_rom_c0_flash_data(handle, dbg_cert, ROM_CMD_C0_CERT_DATA,
 				       WAITING_FOR_DEBUG_CERT_DATA, true);
-	return 0;
+	return rc;
 }
 
 static int qm357xx_rom_c0_erase_debug_cert(struct qmrom_handle *handle)

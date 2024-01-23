@@ -34,11 +34,14 @@
 
 #include "qm35.h"
 
-/* TODO Compile QM358XX code */
-int qm358xx_rom_probe_device(struct qmrom_handle *handle)
-{
-	return -1;
-}
+#define QUOTE(name) #name
+#define STR(macro) QUOTE(macro)
+
+#ifdef CONFIG_QM_FW_PATH_PREPEND
+#define QM_FW_PATH_PREPEND STR(CONFIG_QM_FW_PATH_PREPEND)
+#endif
+
+#define FIRMWARE_PATH_MAX_CHARS 64
 
 static const char *fwname = NULL;
 static unsigned int speed_hz;
@@ -107,7 +110,7 @@ int qmrom_spi_reset_device(void *reset_handle)
 {
 	struct qm35_ctx *qm35_hdl = (struct qm35_ctx *)reset_handle;
 
-	return qm35_reset(qm35_hdl, SPI_RST_LOW_DELAY_MS);
+	return qm35_reset(qm35_hdl, SPI_RST_LOW_DELAY_MS, true);
 }
 
 const struct firmware *qmrom_spi_get_firmware(void *handle,
@@ -118,6 +121,7 @@ const struct firmware *qmrom_spi_get_firmware(void *handle,
 	const struct firmware *fw;
 	struct spi_device *spi = handle;
 	const char *fw_name;
+	char fw_path[FIRMWARE_PATH_MAX_CHARS] = { 0 };
 	int ret;
 	uint32_t lcs_state = qmrom_h->qm357xx_soc_info.lcs_state;
 
@@ -136,9 +140,13 @@ const struct firmware *qmrom_spi_get_firmware(void *handle,
 	} else {
 		fw_name = fwname;
 	}
-	dev_info(&spi->dev, "Requesting fw %s!\n", fw_name);
+#ifdef CONFIG_QM_FW_PATH_PREPEND
+	strncat(fw_path, QM_FW_PATH_PREPEND, sizeof(fw_path) - 1);
+#endif
+	strncat(fw_path, fw_name, sizeof(fw_path) - 1);
+	dev_info(&spi->dev, "Requesting fw %s!\n", fw_path);
 
-	ret = request_firmware(&fw, fw_name, &spi->dev);
+	ret = request_firmware(&fw, fw_path, &spi->dev);
 	if (ret) {
 		if (lcs_state != CC_BSV_SECURE_LCS) {
 			dev_warn(&spi->dev, "LCS state is not secure.");
@@ -150,8 +158,14 @@ const struct firmware *qmrom_spi_get_firmware(void *handle,
 			fw_name = "qm35_oem_prod.bin";
 		else
 			fw_name = "qm35_oem.bin";
-		dev_info(&spi->dev, "Requesting fw %s!\n", fw_name);
-		ret = request_firmware(&fw, fw_name, &spi->dev);
+
+		fw_path[0] = 0;
+#ifdef CONFIG_QM_FW_PATH_PREPEND
+		strncat(fw_path, QM_FW_PATH_PREPEND, sizeof(fw_path) - 1);
+#endif
+		strncat(fw_path, fw_name, sizeof(fw_path) - 1);
+		dev_info(&spi->dev, "Requesting fw %s!\n", fw_path);
+		ret = request_firmware(&fw, fw_path, &spi->dev);
 		if (!ret) {
 			dev_info(&spi->dev, "Firmware size is %zu!\n",
 				 fw->size);
@@ -195,7 +209,59 @@ void qmrom_spi_set_freq(unsigned int freq)
 	speed_hz = freq;
 }
 
-unsigned int qmrom_spi_get_freq()
+unsigned int qmrom_spi_get_freq(void)
 {
 	return speed_hz;
+}
+
+int qmrom_check_fw_boot_state(struct qmrom_handle *handle,
+			      unsigned int timeout_ms)
+{
+	uint8_t raw_flags;
+	struct stc hstc, sstc;
+	int retries = handle->comms_retries;
+	struct qm35_ctx *qm35_ctx = (struct qm35_ctx *)handle->ss_rdy_handle;
+	struct spi_device *spi = qm35_ctx->spi;
+
+	/* Check if the ss_irq line is already high */
+	int ss_irq_gpio_val = qmrom_spi_read_irq_line(handle->ss_irq_handle);
+	if (ss_irq_gpio_val == 0) {
+		/* Enable the ss_irq */
+		qm35_ctx->hsspi.odw_cleared(&qm35_ctx->hsspi);
+		/* Clear the ss_irq flag, otherwise
+		 * wait_event_interruptible_timeout() will return immediately */
+		clear_bit(HSSPI_FLAGS_SS_IRQ, qm35_ctx->hsspi.flags);
+		/* wait for the ss_irq line to become high */
+		wait_event_interruptible_timeout(
+			qm35_ctx->hsspi.wq,
+			test_bit(HSSPI_FLAGS_SS_IRQ, qm35_ctx->hsspi.flags),
+			msecs_to_jiffies(timeout_ms));
+		ss_irq_gpio_val =
+			qmrom_spi_read_irq_line(handle->ss_irq_handle);
+		if (ss_irq_gpio_val == 0) {
+			dev_err(&spi->dev,
+				"%s: Waiting for ss-rdy failed with %d\n",
+				__func__, 1);
+			return -1;
+		}
+	}
+
+	/* Poll the QM until sstc.all is set or retry limit reached */
+	sstc.all = 0;
+	hstc.all = 0;
+	do {
+		qmrom_spi_transfer(handle->spi_handle, (char *)&sstc,
+				   (const char *)&hstc, sizeof(hstc));
+		qmrom_spi_wait_for_ready_line(handle->ss_rdy_handle,
+					      timeout_ms);
+	} while (sstc.all == 0 && --retries);
+
+	raw_flags = sstc.raw_flags;
+	/* The ROM code sends the same quartets for the first byte of each xfers */
+	if (((raw_flags & 0xf0) >> 4) == (raw_flags & 0xf)) {
+		dev_err(&spi->dev, "%s: firmware not properly started: %#x\n",
+			__func__, raw_flags);
+		return -2;
+	}
+	return 0;
 }

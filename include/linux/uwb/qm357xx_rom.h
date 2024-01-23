@@ -15,9 +15,9 @@
 
 #define HBK_LOC 12
 typedef enum {
-	HBK_2E_ICV = 0,
-	HBK_2E_OEM = 1,
-	HBK_1E_ICV_OEM = 2,
+	HBK_2E_ICV,
+	HBK_2E_OEM,
+	HBK_1E_ICV_OEM,
 } hbk_t;
 
 #define ROM_VERSION_A0 0x01a0
@@ -72,7 +72,8 @@ int qm357xx_rom_unstitch_fw(const struct firmware *fw,
 			    struct unstitched_firmware *unstitched_fw,
 			    enum chip_revision_e revision);
 int qm357xx_rom_fw_macro_pkg_get_fw_idx(const struct firmware *fw, int idx,
-					uint32_t *fw_size, char **fw_fata);
+					uint32_t *fw_size,
+					const uint8_t **fw_fata);
 int qm357xx_rom_unpack_fw_macro_pkg(const struct firmware *fw,
 				    struct unstitched_firmware *all_fws);
 int qm357xx_rom_unpack_fw_pkg(const struct firmware *fw_pkg,

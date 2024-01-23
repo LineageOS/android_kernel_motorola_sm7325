@@ -19,13 +19,15 @@
 #define MAX_CERTIFICATE_SIZE 0x400
 #define MAX_CHUNK_SIZE 3072
 #define WAIT_REBOOT_DELAY_MS 250
+#define WAIT_SS_RDY_AFTER_RESET_TIMEOUT_MS 450
 #define WAIT_SS_RDY_CHUNK_TIMEOUT 100
 #define WAIT_SS_RDY_STATUS_TIMEOUT 10
 #define RESULT_RETRIES 3
+#define RESULT_POLL_RETRIES 20
 #define RESULT_CMD_INTERVAL_MS 50
-#define CRC_TYPE uint32_t
-#define CRC_SIZE (sizeof(CRC_TYPE))
-#define TRANPORT_HEADER_SIZE (sizeof(struct stc) + CRC_SIZE)
+#define CKSUM_TYPE uint32_t
+#define CKSUM_SIZE (sizeof(CKSUM_TYPE))
+#define TRANPORT_HEADER_SIZE (sizeof(struct stc) + CKSUM_SIZE)
 #define EMERGENCY_SPI_FREQ 1000000 /* 1MHz */
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -39,11 +41,11 @@ _Static_assert(TRANPORT_HEADER_SIZE + MAX_CERTIFICATE_SIZE < MAX_CHUNK_SIZE);
 static int gstats_spi_errors;
 static int gstats_ss_rdy_timeouts;
 
-static int send_data_chunks(struct qmrom_handle *handle, char *data,
+static int send_data_chunks(struct qmrom_handle *handle, const char *data,
 			    size_t size);
-static int check_fw_boot(struct qmrom_handle *handle);
 
-int run_fwupdater(struct qmrom_handle *handle, char *fwpkg_bin, size_t size)
+int run_fwupdater(struct qmrom_handle *handle, const char *fwpkg_bin,
+		  size_t size)
 {
 	int rc;
 
@@ -54,8 +56,7 @@ int run_fwupdater(struct qmrom_handle *handle, char *fwpkg_bin, size_t size)
 			   sizeof(struct fw_pkg_img_hdr_t) +
 			   CRYPTO_IMAGES_CERT_PKG_SIZE +
 			   CRYPTO_FIRMWARE_CHUNK_MIN_SIZE) {
-		LOG_ERR("%s cannot extract enough data from fw package binary\n",
-			__func__);
+		LOG_ERR("Cannot extract enough data from fw package binary\n");
 		return -EINVAL;
 	}
 
@@ -72,23 +73,36 @@ static int run_fwupdater_get_status(struct qmrom_handle *handle,
 				    struct fw_updater_status_t *status)
 {
 	uint32_t i = 0;
-	CRC_TYPE *crc = (CRC_TYPE *)(hstc + 1);
+	CKSUM_TYPE *cksum = (CKSUM_TYPE *)(hstc + 1);
 	bool owa;
 	memset(hstc, 0, TRANPORT_HEADER_SIZE + sizeof(*status));
 
 	while (i++ < RESULT_RETRIES) {
-		// Poll the QM
-		sstc->all = 0;
-		hstc->all = 0;
-		*crc = 0;
-		qmrom_spi_transfer(handle->spi_handle, (char *)sstc,
-				   (const char *)hstc, TRANPORT_HEADER_SIZE);
-		qmrom_spi_wait_for_ready_line(handle->ss_rdy_handle,
-					      WAIT_SS_RDY_STATUS_TIMEOUT);
+		// Poll the QM until ODW is set
+		while (i++ < RESULT_POLL_RETRIES) {
+			sstc->all = 0;
+			hstc->all = 0;
+			*cksum = 0;
+			qmrom_spi_transfer(handle->spi_handle, (char *)sstc,
+					   (const char *)hstc,
+					   TRANPORT_HEADER_SIZE);
+			owa = sstc->soc_flags.out_waiting;
+			if (owa)
+				break;
+			qmrom_msleep(WAIT_SS_RDY_STATUS_TIMEOUT);
+		}
+		// Poll timed out, reduce the spi speed and retry
+		if (!owa) {
+			qmrom_spi_set_freq(EMERGENCY_SPI_FREQ);
+			gstats_spi_errors++;
+			continue;
+		}
+
+		// Then send a pre-read
 		sstc->all = 0;
 		hstc->all = 0;
 		hstc->host_flags.pre_read = 1;
-		*crc = 0;
+		*cksum = 0;
 		qmrom_spi_transfer(handle->spi_handle, (char *)sstc,
 				   (const char *)hstc, TRANPORT_HEADER_SIZE);
 		// LOG_INFO("Pre-Read received:\n");
@@ -98,11 +112,13 @@ static int run_fwupdater_get_status(struct qmrom_handle *handle,
 		owa = sstc->soc_flags.out_waiting;
 		qmrom_spi_wait_for_ready_line(handle->ss_rdy_handle,
 					      WAIT_SS_RDY_STATUS_TIMEOUT);
+
+		// And finally send a read
 		sstc->all = 0;
 		hstc->all = 0;
 		hstc->host_flags.read = 1;
 		hstc->len = sizeof(*status);
-		*crc = 0;
+		*cksum = 0;
 		qmrom_spi_transfer(handle->spi_handle, (char *)sstc,
 				   (const char *)hstc,
 				   TRANPORT_HEADER_SIZE + sizeof(*status));
@@ -128,39 +144,38 @@ static int run_fwupdater_get_status(struct qmrom_handle *handle,
 	return 0;
 }
 
-static CRC_TYPE checksum(const void *data, const size_t size)
+static CKSUM_TYPE checksum(const void *data, const size_t size)
 {
-	CRC_TYPE crc = 0;
-	CRC_TYPE *ptr = (CRC_TYPE *)data;
-	CRC_TYPE remainder = size & (CRC_SIZE - 1);
+	CKSUM_TYPE cksum = 0;
+	CKSUM_TYPE *ptr = (CKSUM_TYPE *)data;
+	CKSUM_TYPE remainder = size & (CKSUM_SIZE - 1);
 	size_t idx;
 
-	for (idx = 0; idx < size; idx += CRC_SIZE, ptr++)
-		crc += *ptr;
+	for (idx = 0; idx < size; idx += CKSUM_SIZE, ptr++)
+		cksum += *ptr;
 
-	if (remainder) {
-		crc += ((uint8_t *)data)[size - 1];
-		if (remainder > 1) {
-			crc += ((uint8_t *)data)[size - 2];
-			if (remainder > 2) {
-				crc += ((uint8_t *)data)[size - 3];
-			}
-		}
+	if (!remainder)
+		return cksum;
+
+	while (remainder) {
+		cksum += ((uint8_t *)data)[size - remainder];
+		remainder--;
 	}
-	return crc;
+
+	return cksum;
 }
 
-static void prepare_hstc(struct stc *hstc, char *data, size_t len)
+static void prepare_hstc(struct stc *hstc, const char *data, size_t len)
 {
-	CRC_TYPE *crc = (CRC_TYPE *)(hstc + 1);
-	void *payload = crc + 1;
+	CKSUM_TYPE *cksum = (CKSUM_TYPE *)(hstc + 1);
+	void *payload = cksum + 1;
 
 	hstc->all = 0;
 	hstc->host_flags.write = 1;
-	hstc->len = len + CRC_SIZE;
-	*crc = checksum(data, len);
-#ifdef CONFIG_INJECT_ERROR
-	*crc += 2;
+	hstc->len = len + CKSUM_SIZE;
+	*cksum = checksum(data, len);
+#if IS_ENABLED(CONFIG_INJECT_ERROR)
+	*cksum += 2;
 #endif
 	memcpy(payload, data, len);
 }
@@ -168,10 +183,10 @@ static void prepare_hstc(struct stc *hstc, char *data, size_t len)
 static int xfer_payload_prep_next(struct qmrom_handle *handle,
 				  const char *step_name, struct stc *hstc,
 				  struct stc *sstc, struct stc *hstc_next,
-				  char **data, size_t *size)
+				  const char **data, size_t *size)
 {
 	int rc = 0, nb_retry = CONFIG_NB_RETRIES;
-	CRC_TYPE *crc = (CRC_TYPE *)(hstc + 1);
+	CKSUM_TYPE *cksum = (CKSUM_TYPE *)(hstc + 1);
 
 	do {
 		int ss_rdy_rc, irq_up;
@@ -190,20 +205,20 @@ static int xfer_payload_prep_next(struct qmrom_handle *handle,
 		ss_rdy_rc = qmrom_spi_wait_for_ready_line(
 			handle->ss_rdy_handle, WAIT_SS_RDY_CHUNK_TIMEOUT);
 		if (ss_rdy_rc) {
-			LOG_ERR("%s Waiting for ss-rdy failed with %d (nb_retry %d , crc 0x%x)\n",
-				step_name, ss_rdy_rc, nb_retry, *crc);
+			LOG_ERR("%s Waiting for ss-rdy failed with %d (nb_retry %d , cksum 0x%x)\n",
+				step_name, ss_rdy_rc, nb_retry, *cksum);
 			gstats_ss_rdy_timeouts++;
 			rc = -EAGAIN;
 		}
 		irq_up = qmrom_spi_read_irq_line(handle->ss_irq_handle);
 		if ((!rc && !sstc->soc_flags.ready) || irq_up) {
-			LOG_ERR("%s Retry rc %d, sstc 0x%08x, irq %d, crc %08x\n",
-				step_name, rc, sstc->all, irq_up, *crc);
+			LOG_ERR("%s Retry rc %d, sstc 0x%08x, irq %d, cksum %08x\n",
+				step_name, rc, sstc->all, irq_up, *cksum);
 			rc = -EAGAIN;
 			gstats_spi_errors++;
 		}
-#ifdef CONFIG_INJECT_ERROR
-		(*crc)--;
+#if IS_ENABLED(CONFIG_INJECT_ERROR)
+		(*cksum)--;
 #endif
 	} while (rc && --nb_retry > 0);
 	if (rc) {
@@ -220,14 +235,14 @@ static int xfer_payload(struct qmrom_handle *handle, const char *step_name,
 				      NULL);
 }
 
-static int send_data_chunks(struct qmrom_handle *handle, char *data,
+static int send_data_chunks(struct qmrom_handle *handle, const char *data,
 			    size_t size)
 {
 	struct fw_updater_status_t status;
-	struct stc *hstc, *sstc, *hstc_current, *hstc_next;
 	uint32_t chunk_nr = 0;
+	struct stc *hstc, *sstc, *hstc_current, *hstc_next;
 	char *rx, *tx;
-	CRC_TYPE *crc;
+	CKSUM_TYPE *cksum;
 	int rc = 0;
 
 	LOG_DBG("chunk_nr:%u\n", chunk_nr);
@@ -244,7 +259,7 @@ static int send_data_chunks(struct qmrom_handle *handle, char *data,
 	hstc = (struct stc *)tx;
 	hstc_current = hstc;
 	hstc_next = (struct stc *)&tx[MAX_CHUNK_SIZE + TRANPORT_HEADER_SIZE];
-	crc = (CRC_TYPE *)(hstc + 1);
+	cksum = (CKSUM_TYPE *)(hstc + 1);
 
 	/* wait for the QM to be ready */
 	rc = qmrom_spi_wait_for_ready_line(handle->ss_rdy_handle,
@@ -254,8 +269,8 @@ static int send_data_chunks(struct qmrom_handle *handle, char *data,
 
 	/* Sending the fw package header */
 	prepare_hstc(hstc, data, sizeof(struct fw_pkg_hdr_t));
-	LOG_INFO("Sending the fw package header (%zu bytes, crc is 0x%08x)\n",
-		 sizeof(struct fw_pkg_hdr_t), *crc);
+	LOG_INFO("Sending the fw package header (%zu bytes, cksum is 0x%08x)\n",
+		 sizeof(struct fw_pkg_hdr_t), *cksum);
 	// hexdump(LOG_INFO, hstc->payload + 4, sizeof(struct fw_pkg_hdr_t));
 	rc = xfer_payload(handle, "fw package header", hstc, sstc);
 	if (rc)
@@ -266,8 +281,8 @@ static int send_data_chunks(struct qmrom_handle *handle, char *data,
 
 	/* Sending the image header */
 	prepare_hstc(hstc, data, sizeof(struct fw_pkg_img_hdr_t));
-	LOG_INFO("Sending the image header (%zu bytes crc 0x%08x)\n",
-		 sizeof(struct fw_pkg_img_hdr_t), *crc);
+	LOG_INFO("Sending the image header (%zu bytes cksum 0x%08x)\n",
+		 sizeof(struct fw_pkg_img_hdr_t), *cksum);
 	// hexdump(LOG_INFO, hstc->payload + 4, sizeof(struct fw_pkg_img_hdr_t));
 	rc = xfer_payload(handle, "image header", hstc, sstc);
 	if (rc)
@@ -277,8 +292,8 @@ static int send_data_chunks(struct qmrom_handle *handle, char *data,
 
 	/* Sending the cert chain */
 	prepare_hstc(hstc, data, CRYPTO_IMAGES_CERT_PKG_SIZE);
-	LOG_INFO("Sending the cert chain (%d bytes crc 0x%08x)\n",
-		 CRYPTO_IMAGES_CERT_PKG_SIZE, *crc);
+	LOG_INFO("Sending the cert chain (%d bytes cksum 0x%08x)\n",
+		 CRYPTO_IMAGES_CERT_PKG_SIZE, *cksum);
 	rc = xfer_payload(handle, "cert chain", hstc, sstc);
 	if (rc)
 		goto exit;
@@ -287,11 +302,11 @@ static int send_data_chunks(struct qmrom_handle *handle, char *data,
 
 	/* Sending the fw image */
 	LOG_INFO("Sending the image (%zu bytes)\n", size);
-	LOG_DBG("Sending a chunk (%zu bytes crc 0x%08x)\n",
-		MIN(MAX_CHUNK_SIZE, size), *crc);
+	LOG_DBG("Sending a chunk (%zu bytes cksum 0x%08x)\n",
+		MIN(MAX_CHUNK_SIZE, size), *cksum);
 	prepare_hstc(hstc_current, data, MIN(MAX_CHUNK_SIZE, size));
-	size -= hstc_current->len - CRC_SIZE;
-	data += hstc_current->len - CRC_SIZE;
+	size -= hstc_current->len - CKSUM_SIZE;
+	data += hstc_current->len - CKSUM_SIZE;
 	do {
 		rc = xfer_payload_prep_next(handle, "data chunk", hstc_current,
 					    sstc, hstc_next, &data, &size);
@@ -313,20 +328,20 @@ exit:
 	rc = run_fwupdater_get_status(handle, hstc, sstc, &status);
 	if (!rc) {
 		if (status.status) {
-			LOG_ERR("Flashing failed, fw updater status %#x (errors: sub %#x, crc %u, rram %u, crypto %d)\n",
+			LOG_ERR("Flashing failed, fw updater status %#x (errors: sub %#x, cksum %u, rram %u, crypto %d)\n",
 				status.status, status.suberror,
-				status.crc_errors, status.rram_errors,
+				status.cksum_errors, status.rram_errors,
 				status.crypto_errors);
 			rc = status.status;
 		} else {
 			if (gstats_ss_rdy_timeouts + gstats_spi_errors +
-			    status.crc_errors + status.rram_errors +
+			    status.cksum_errors + status.rram_errors +
 			    status.crypto_errors) {
 				LOG_WARN(
-					"Flashing succeeded with errors (host %u, ss_rdy_timeout %u, QM %u, crc %u, rram %u, crypto %d)\n",
+					"Flashing succeeded with errors (host %u, ss_rdy_timeout %u, QM %u, cksum %u, rram %u, crypto %d)\n",
 					gstats_spi_errors,
 					gstats_ss_rdy_timeouts,
-					status.spi_errors, status.crc_errors,
+					status.spi_errors, status.cksum_errors,
 					status.rram_errors,
 					status.crypto_errors);
 			} else {
@@ -334,8 +349,13 @@ exit:
 					"Flashing succeeded without any errors\n");
 			}
 
-			if (!handle->skip_check_fw_boot)
-				rc = check_fw_boot(handle);
+			if (!handle->skip_check_fw_boot) {
+				handle->dev_ops.reset(handle->reset_handle);
+				qmrom_msleep(WAIT_REBOOT_DELAY_MS);
+				rc = qmrom_check_fw_boot_state(
+					handle,
+					WAIT_SS_RDY_AFTER_RESET_TIMEOUT_MS);
+			}
 		}
 	} else {
 		LOG_ERR("run_fwupdater_get_status returned %d\n", rc);
@@ -346,30 +366,4 @@ exit_nomem:
 	if (tx)
 		qmrom_free(tx);
 	return rc;
-}
-
-static int check_fw_boot(struct qmrom_handle *handle)
-{
-	uint8_t raw_flags;
-	struct stc hstc, sstc;
-
-	handle->dev_ops.reset(handle->reset_handle);
-
-	qmrom_msleep(WAIT_REBOOT_DELAY_MS);
-
-	// Poll the QM
-	sstc.all = 0;
-	hstc.all = 0;
-	while(sstc.all == 0)
-		qmrom_spi_transfer(handle->spi_handle, (char *)&sstc,
-					(const char *)&hstc, sizeof(hstc));
-
-	raw_flags = sstc.raw_flags;
-	/* The ROM code sends the same quartets for the first byte of each xfers */
-	if (((raw_flags & 0xf0) >> 4) == (raw_flags & 0xf)) {
-		LOG_ERR("%s: firmware not properly started: %#x\n",
-			__func__, raw_flags);
-		return -2;
-	}
-	return 0;
 }

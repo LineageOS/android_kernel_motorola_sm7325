@@ -21,7 +21,7 @@ typedef int (*load_asset_pkg_fn)(struct qmrom_handle *handle,
 typedef int (*load_fw_pkg_fn)(struct qmrom_handle *handle,
 			      const struct firmware *fw_pkg);
 typedef int (*load_secure_dbg_pkg_fn)(struct qmrom_handle *handle,
-				      struct firmware *dbg_pkg);
+				      const struct firmware *dbg_pkg);
 typedef int (*erase_secure_dbg_pkg_fn)(struct qmrom_handle *handle);
 typedef int (*run_test_mode_fn)(struct qmrom_handle *handle);
 typedef int (*load_sram_fw_fn)(struct qmrom_handle *handle,
@@ -59,9 +59,9 @@ int qm358xx_rom_gen_secrets(struct qmrom_handle *handle);
 int qm358xx_rom_load_asset_pkg(struct qmrom_handle *handle,
 			       struct firmware *asset_pkg);
 int qm358xx_rom_load_fw_pkg(struct qmrom_handle *handle,
-			    struct firmware *fw_pkg);
+			    const struct firmware *fw_pkg);
 int qm358xx_rom_load_secure_dbg_pkg(struct qmrom_handle *handle,
-				    struct firmware *dbg_pkg);
+				    const struct firmware *dbg_pkg);
 int qm358xx_rom_erase_secure_dbg_pkg(struct qmrom_handle *handle);
 int qm358xx_rom_run_test_mode(struct qmrom_handle *handle);
 int qm358xx_rom_load_sram_fw(struct qmrom_handle *handle,

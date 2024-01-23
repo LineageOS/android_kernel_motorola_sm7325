@@ -49,8 +49,8 @@
 
 extern int fu_spi_speed_hz;
 extern int qmrom_spi_speed_hz;
-
-#define QMROM_RETRIES 10
+extern int qm35_gen_hint;
+extern int qmrom_retries;
 
 static void *priv_from_file(const struct file *filp)
 {
@@ -141,8 +141,8 @@ static ssize_t rom_probe(struct file *filp, const char __user *buff,
 
 	pr_info("qm35: Starting the probe test...\n");
 	h = qmrom_init(&qm35_hdl->spi->dev, qm35_hdl, qm35_hdl,
-		       qm35_hdl->gpio_ss_irq, qmrom_spi_speed_hz, QMROM_RETRIES,
-		       qmrom_spi_reset_device, DEVICE_GEN_QM357XX);
+		       qm35_hdl->gpio_ss_irq, qmrom_spi_speed_hz, qmrom_retries,
+		       qmrom_spi_reset_device, qm35_gen_hint);
 	if (!h) {
 		pr_err("qm35: qmrom_init failed\n");
 		goto end;
@@ -150,7 +150,7 @@ static ssize_t rom_probe(struct file *filp, const char __user *buff,
 
 	pr_info("qm35: chip_revision %#2x\n", h->chip_rev);
 	pr_info("qm35: device version %#02x\n", h->device_version);
-	if (h->chip_rev != 0xa001) {
+	if (h->dev_gen == DEVICE_GEN_QM357XX) {
 		pr_info("qm35: lcs_state %u\n", h->qm357xx_soc_info.lcs_state);
 		print_hex_dump(KERN_DEBUG, "qm35: soc_id:", DUMP_PREFIX_NONE,
 			       16, 1, h->qm357xx_soc_info.soc_id,
@@ -158,6 +158,14 @@ static ssize_t rom_probe(struct file *filp, const char __user *buff,
 		print_hex_dump(KERN_DEBUG, "qm35: uuid:", DUMP_PREFIX_NONE, 16,
 			       1, h->qm357xx_soc_info.uuid,
 			       sizeof(h->qm357xx_soc_info.uuid), false);
+	} else if (h->dev_gen == DEVICE_GEN_QM358XX) {
+		pr_info("qm35: lcs_state %u\n", h->qm358xx_soc_info.lcs_state);
+		print_hex_dump(KERN_DEBUG, "qm35: uuid:", DUMP_PREFIX_NONE, 16,
+			       1, h->qm358xx_soc_info.uuid,
+			       sizeof(h->qm358xx_soc_info.uuid), false);
+	} else {
+		pr_err("qm35: device generation %x not supported\n",
+		       h->dev_gen);
 	}
 	qmrom_deinit(h);
 	qmrom_spi_reset_device(qm35_hdl);
@@ -191,7 +199,9 @@ static ssize_t rom_flash_dbg_cert(struct file *filp, const char __user *buff,
 	}
 	filename[count - 1] = '\0';
 	certificate = file2firmware(filename);
-	if (!certificate || certificate->size != DEBUG_CERTIFICATE_SIZE) {
+	if (!certificate ||
+	    (certificate->size != QM357_DEBUG_CERTIFICATE_SIZE &&
+	     certificate->size != QM358_DEBUG_CERTIFICATE_SIZE)) {
 		pr_err("qm35: %s: file retrieval failed, abort (%s)\n",
 		       __func__, certificate ? "wrong size" : "not found");
 		count = -1;
@@ -202,13 +212,17 @@ static ssize_t rom_flash_dbg_cert(struct file *filp, const char __user *buff,
 	pr_info("Flashing debug certificate %s...\n", filename);
 
 	h = qmrom_init(&qm35_hdl->spi->dev, qm35_hdl, qm35_hdl,
-		       qm35_hdl->gpio_ss_irq, qmrom_spi_speed_hz, QMROM_RETRIES,
-		       qmrom_spi_reset_device, DEVICE_GEN_QM357XX);
+		       qm35_hdl->gpio_ss_irq, qmrom_spi_speed_hz, qmrom_retries,
+		       qmrom_spi_reset_device, qm35_gen_hint);
 	if (!h) {
 		pr_err("qm35: qmrom_init failed\n");
 		goto end;
 	}
-	err = qm357xx_rom_flash_dbg_cert(h, certificate);
+	if (h->dev_gen == DEVICE_GEN_QM357XX) {
+		err = qm357xx_rom_flash_dbg_cert(h, certificate);
+	} else {
+		err = qm358xx_rom_load_secure_dbg_pkg(h, certificate);
+	}
 	if (err)
 		pr_err("qm35: Flashing debug certificate %s failed with %d!\n",
 		       filename, err);
@@ -243,13 +257,17 @@ static ssize_t rom_erase_dbg_cert(struct file *filp, const char __user *buff,
 	pr_info("qm35: Erasing debug certificate...\n");
 
 	h = qmrom_init(&qm35_hdl->spi->dev, qm35_hdl, qm35_hdl,
-		       qm35_hdl->gpio_ss_irq, qmrom_spi_speed_hz, QMROM_RETRIES,
-		       qmrom_spi_reset_device, DEVICE_GEN_QM357XX);
+		       qm35_hdl->gpio_ss_irq, qmrom_spi_speed_hz, qmrom_retries,
+		       qmrom_spi_reset_device, qm35_gen_hint);
 	if (!h) {
 		pr_err("qm35: qmrom_init failed\n");
 		goto end;
 	}
-	err = qm357xx_rom_erase_dbg_cert(h);
+	if (h->dev_gen == DEVICE_GEN_QM357XX) {
+		err = qm357xx_rom_erase_dbg_cert(h);
+	} else {
+		err = qm358xx_rom_erase_secure_dbg_pkg(h);
+	}
 	if (err)
 		pr_err("qm35: Erasing debug certificate failed with %d!\n",
 		       err);
@@ -299,10 +317,14 @@ static ssize_t rom_flash_fw(struct file *filp, const char __user *buff,
 		fw->data);
 
 	h = qmrom_init(&qm35_hdl->spi->dev, qm35_hdl, qm35_hdl,
-		       qm35_hdl->gpio_ss_irq, qmrom_spi_speed_hz, QMROM_RETRIES,
-		       qmrom_spi_reset_device, DEVICE_GEN_QM357XX);
+		       qm35_hdl->gpio_ss_irq, qmrom_spi_speed_hz, qmrom_retries,
+		       qmrom_spi_reset_device, qm35_gen_hint);
 	if (!h) {
 		pr_err("qm35: qmrom_init failed\n");
+		goto end;
+	}
+	if (h->dev_gen == DEVICE_GEN_QM358XX) {
+		pr_err("qm35: cannot flash fw binary on QM358 (only fw pkg supported)\n");
 		goto end;
 	}
 	rc = qm357xx_rom_flash_fw(h, fw);
@@ -331,7 +353,8 @@ static ssize_t rom_flash_fw_pkg(struct file *filp, const char __user *buff,
 	struct qm35_ctx *qm35_hdl = rom_test_prepare(filp);
 	const struct firmware *fw = NULL;
 	struct qmrom_handle *h = NULL;
-	char *filename = NULL, *fw_data;
+	char *filename;
+	const uint8_t *fw_data;
 	uint32_t fw_size;
 	int rc;
 
@@ -355,42 +378,54 @@ static ssize_t rom_flash_fw_pkg(struct file *filp, const char __user *buff,
 		       __func__, filename, fw ? "no data read" : "not found");
 		goto end;
 	}
-
-	pr_info("qm35: Flashing fw_updater...\n");
 	h = qmrom_init(&qm35_hdl->spi->dev, qm35_hdl, qm35_hdl,
-		       qm35_hdl->gpio_ss_irq, qmrom_spi_speed_hz, QMROM_RETRIES,
-		       qmrom_spi_reset_device, DEVICE_GEN_QM357XX);
+		       qm35_hdl->gpio_ss_irq, qmrom_spi_speed_hz, qmrom_retries,
+		       qmrom_spi_reset_device, qm35_gen_hint);
 	if (!h) {
 		pr_err("qm35: qmrom_init failed\n");
 		goto end;
 	}
-	h->skip_check_fw_boot = true;
-	rc = qm357xx_rom_flash_fw(h, fw);
-	h->skip_check_fw_boot = false;
-	if (rc) {
-		pr_err("qm35: Flashing fw_updater failed with %d!\n", rc);
-		goto end;
-	}
 
-	pr_info("qm35: Flashing fw_updater succeeded, flashing the fw package now...\n");
-	qmrom_spi_set_freq(fu_spi_speed_hz);
-
-	rc = qm357xx_rom_fw_macro_pkg_get_fw_idx(fw, 1, &fw_size, &fw_data);
-	if (rc) {
-		pr_err("qm35: %s FW MACRO PACKAGE corupted = %d\n", __func__,
-		       rc);
-		goto end;
-	}
-
-	if (*(uint32_t *)fw_data == CRYPTO_FIRMWARE_PACK_MAGIC_VALUE) {
-		rc = run_fwupdater(h, fw_data, fw_size);
+	if (h->dev_gen == DEVICE_GEN_QM357XX) {
+		pr_info("qm35: Flashing fw_updater...\n");
 	} else {
-		pr_err("qm35: FW PACKAGE not found - %04x! fw_size = %d\n",
-		       *(uint32_t *)fw_data, fw_size);
-		goto end;
+		pr_info("qm35: Flashing fw...\n");
 	}
-	pr_info("qm35: FW package flashing %s (rc = %d), rebooting the QM...\n",
-		rc ? "failed" : "succeeded", rc);
+	if (h->dev_gen == DEVICE_GEN_QM357XX) {
+		h->skip_check_fw_boot = true;
+		rc = qm357xx_rom_flash_fw(h, fw);
+		h->skip_check_fw_boot = false;
+		if (rc) {
+			pr_err("qm35: Flashing fw_updater failed with %d!\n",
+			       rc);
+			goto end;
+		}
+
+		pr_info("qm35: Flashing fw_updater succeeded, flashing the fw package now...\n");
+		qmrom_spi_set_freq(fu_spi_speed_hz);
+
+		rc = qm357xx_rom_fw_macro_pkg_get_fw_idx(fw, 1, &fw_size,
+							 &fw_data);
+		if (rc) {
+			pr_err("qm35: %s FW MACRO PACKAGE corrupted = %d\n",
+			       __func__, rc);
+			goto end;
+		}
+
+		if (*(uint32_t *)fw_data == CRYPTO_FIRMWARE_PACK_MAGIC_VALUE) {
+			rc = run_fwupdater(h, fw_data, fw_size);
+		} else {
+			pr_err("qm35: FW PACKAGE not found - %04x! fw_size = %d\n",
+			       *(uint32_t *)fw_data, fw_size);
+			goto end;
+		}
+		pr_info("qm35: FW package flashing %s (rc = %d), rebooting the QM...\n",
+			rc ? "failed" : "succeeded", rc);
+	} else {
+		rc = qm358xx_rom_load_fw_pkg(h, fw);
+		pr_info("qm35: FW package flashing %s (rc = %d), rebooting the QM...\n",
+			rc ? "failed" : "succeeded", rc);
+	}
 
 end:
 	qmrom_spi_reset_device(qm35_hdl);

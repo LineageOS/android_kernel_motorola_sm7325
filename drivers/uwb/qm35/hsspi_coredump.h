@@ -62,7 +62,7 @@ void coredump_layer_deinit(struct coredump_layer *coredump);
 bool coredump_layer_force_coredump(struct coredump_layer *coredump);
 
 /**
- * coredump_layer_new_coredump_available() - checks if the layer has 
+ * coredump_layer_new_coredump_available() - checks if the layer has
  * ack coredump data to be read
  * @coredump: pointer to &struct coredump_layer
  *

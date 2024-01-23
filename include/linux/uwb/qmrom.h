@@ -28,9 +28,6 @@
 
 #undef CHECK_STCS
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-
 enum chip_revision_e {
 	CHIP_REVISION_A0 = 0xA0,
 	CHIP_REVISION_B0 = 0xB0,

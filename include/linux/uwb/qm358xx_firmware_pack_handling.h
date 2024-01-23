@@ -15,7 +15,9 @@
 extern "C" {
 #endif
 
+#ifndef __KERNEL__
 #include <stdint.h>
+#endif
 
 /*!
 @addtogroup secureboot_firmware_pack_handling

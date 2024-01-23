@@ -19,6 +19,10 @@
 #include <linux/types.h>
 #endif
 
+#ifndef CONFIG_SPI_RST_LOW_DELAY_MS
+#define CONFIG_SPI_RST_LOW_DELAY_MS 80
+#endif
+
 #define SPI_PROTO_WRONG_RESP SPI_PROTO_ERR_BASE - 1
 
 #pragma GCC diagnostic push
@@ -68,7 +72,7 @@ struct stc {
 #define SPI_NUM_READS_FOR_READY 1
 #define SPI_NUM_FAILS_RETRY 4
 #define SPI_ET_PROTOCOL 5
-#define SPI_RST_LOW_DELAY_MS 20
+#define SPI_RST_LOW_DELAY_MS CONFIG_SPI_RST_LOW_DELAY_MS
 #define SPI_INTERCMD_DELAY_MS 1
 #define SPI_DEVICE_POLL_RETRY 10
 #define SPI_READY_TIMEOUT_MS 50
