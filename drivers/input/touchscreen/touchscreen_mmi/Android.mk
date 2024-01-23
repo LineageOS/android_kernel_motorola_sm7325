@@ -37,6 +37,10 @@ ifeq ($(BOARD_USES_DOUBLE_TAP_CTRL),true)
 	KBUILD_OPTIONS += CONFIG_BOARD_USES_DOUBLE_TAP_CTRL=y
 endif
 
+ifeq ($(call is-board-platform-in-list, pineapple), true)
+	KBUILD_OPTIONS += CONFIG_TOUCHSCREEN_DEVICE_VIRTUAL_PATH=y
+endif
+
 include $(CLEAR_VARS)
 LOCAL_MODULE := touchscreen_mmi.ko
 LOCAL_MODULE_TAGS := optional

@@ -898,9 +898,15 @@ int ts_mmi_dev_register(struct device *parent,
 	}
 	dev_info(DEV_TS, "class entry name %s\n", class_fname);
 
+#ifndef CONFIG_TOUCHSCREEN_DEVICE_VIRTUAL_PATH
 	DEV_MMI = device_create(touchscreens_class,
 		parent, touch_cdev->class_dev_no,
 		touch_cdev, "%s", class_fname);
+#else
+	DEV_MMI = device_create(touchscreens_class,
+		NULL, touch_cdev->class_dev_no,
+		touch_cdev, "%s", class_fname);
+#endif
 	if (IS_ERR(DEV_MMI)) {
 		ret = PTR_ERR(DEV_MMI);
 		goto CLASS_DEVICE_CREATE_FAILED;
