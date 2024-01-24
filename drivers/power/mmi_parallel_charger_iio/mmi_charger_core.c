@@ -1768,7 +1768,7 @@ static void __exit mmi_chrg_manager_exit(void)
 module_init(mmi_chrg_manager_init);
 module_exit(mmi_chrg_manager_exit);
 
-MODULE_ALIAS("platform:mmi parallel charger");
+MODULE_ALIAS("platform:mmi_parallel_charger");
 MODULE_AUTHOR("Motorola Mobility LLC");
 MODULE_DESCRIPTION("Motorola Mobility parallel charger");
 MODULE_LICENSE("GPL");
