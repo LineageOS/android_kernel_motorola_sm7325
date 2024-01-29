@@ -40,6 +40,10 @@
 #include <linux/of_gpio.h>
 #include <linux/clk.h>
 
+#ifdef QCOM_NFC_CLK_REQ_WAKE_SET
+#include <linux/pinctrl/qcom-pinctrl.h>
+#endif
+
 
 #define MAX_BUFFER_SIZE 260
 #define WAKEUP_SRC_TIMEOUT	(500)
@@ -702,6 +706,10 @@ static int st21nfc_probe(struct i2c_client *client,
 	char *tmp = NULL;
 #endif
 
+#ifdef QCOM_NFC_CLK_REQ_WAKE_SET
+	unsigned int clk_req_gpio;
+#endif
+
 	pr_info("st21nfc_probe\n");
 
 	if (client->dev.of_node && !mmi_device_is_available(client->dev.of_node)) {
@@ -806,6 +814,16 @@ static int st21nfc_probe(struct i2c_client *client,
 				ret = -ENODEV;
 				goto err_clkreq_gpio;
 			}
+#ifdef QCOM_NFC_CLK_REQ_WAKE_SET
+			ret = of_property_read_u32_index(client->dev.of_node, "st,clkreq_gpio", 1, &clk_req_gpio);
+			if (ret < 0) {
+				pr_err("%s Failed to read clkreq gpio number\n", __func__);
+			}
+			ret = msm_gpio_mpm_wake_set(clk_req_gpio, true);
+			if (ret < 0) {
+				pr_err("%s Failed to setup clkreq gpio %d as wakeup capable\n",__func__, clk_req_gpio);
+			}
+#endif
 		}
 	} else {
 		pr_warn("clkreq gpio not provided. Ext xtal expected\n");
