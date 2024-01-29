@@ -121,11 +121,12 @@ static int fts_ft5672_flash_write_buf(u32 saddr, u8 *buf, u32 len, u32 delay)
         if ((i == (packet_number - 1)) && remainder)
             packet_len = remainder;
 
-        if (fts_data->bus_type == BUS_TYPE_SPI) {
+        if (fts_data->bus_type == BUS_TYPE_SPI_V2) {
             packet_buf[0] = FTS_CMD_SET_WFLASH_ADDR;
             packet_buf[1] = BYTE_OFF_16(addr);
             packet_buf[2] = BYTE_OFF_8(addr);
             packet_buf[3] = BYTE_OFF_0(addr);
+
             ret = fts_write(packet_buf, FTS_LEN_SET_ADDR);
             if (ret < 0) {
                 FTS_ERROR("set flash address fail");
