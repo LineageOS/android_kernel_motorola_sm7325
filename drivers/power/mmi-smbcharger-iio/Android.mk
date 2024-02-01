@@ -1,6 +1,11 @@
 DLKM_DIR := motorola/kernel/modules
 LOCAL_PATH := $(call my-dir)
 
+ifeq ($(MMI_BOOTCONFIG_SUPPORT),true)
+        KERNEL_CFLAGS += CONFIG_MMI_BOOTCONFIG_SUPPORT=y
+        KBUILD_OPTIONS += CONFIG_MMI_BOOTCONFIG_SUPPORT=y
+endif
+
 include $(CLEAR_VARS)
 LOCAL_MODULE := mmi-smbcharger-iio.ko
 LOCAL_MODULE_TAGS := optional

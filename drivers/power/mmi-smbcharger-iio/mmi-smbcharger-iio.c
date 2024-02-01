@@ -1697,6 +1697,9 @@ enum {
 	MMI_FACTORY_BUILD,
 };
 
+#ifdef CONFIG_MMI_BOOTCONFIG_SUPPORT
+#define MMI_BOOTCONFIG_SIZE 1024
+#endif
 static bool mmi_factory_check(int type)
 {
 	struct device_node *np = of_find_node_by_path("/chosen");
@@ -1705,6 +1708,10 @@ static bool mmi_factory_check(int type)
 	char *bl_version = NULL;
 	char *end = NULL;
 
+#ifdef CONFIG_MMI_BOOTCONFIG_SUPPORT
+	const char *mmi_bootconfig = NULL;
+	bool mmi_bootconfig_support = false;
+#endif
 	if (!np)
 		return factory;
 
@@ -1719,12 +1726,31 @@ static bool mmi_factory_check(int type)
 			if (bl_version) {
 				end = strpbrk(bl_version, " ");
 				bl_version = strpbrk(bl_version, "=");
+#ifdef CONFIG_MMI_BOOTCONFIG_SUPPORT
+			} else {
+				mmi_bootconfig_support = true;
+#endif
 			}
+
 			if (bl_version && end > bl_version &&
 			    strnstr(bl_version, "factory", end - bl_version)) {
 				factory = true;
 			}
 		}
+#ifdef CONFIG_MMI_BOOTCONFIG_SUPPORT
+		if (mmi_bootconfig_support && (!of_property_read_string(np, "mmi,bootconfig", &mmi_bootconfig)) ) {
+			bl_version = strnstr(mmi_bootconfig, "androidboot.bootloader=", MMI_BOOTCONFIG_SIZE);
+			if (bl_version) {
+				end = strpbrk(bl_version, "\n");
+				bl_version = strpbrk(bl_version, "=");
+			}
+
+			if (bl_version && end > bl_version &&
+			    strnstr(bl_version, "factory", end - bl_version)) {
+				factory = true;
+			}
+		}
+#endif
 		break;
 	default:
 		factory = false;
