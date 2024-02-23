@@ -27,19 +27,26 @@ enum SMC_FUNC_IDS {
 	MARK_RANGE_RO = 0x1,
 	LOCK_RKP = 0x2,
 	ADD_JUMP_LABEL_LOOKUP = 0x3,
-	ALLOC_IMMUTABLE_BITMAP = 0x4, // Not enabled in this release
-	MARK_WORD_RO = 0x5, // Not enabled in this release
-	PREPARE_BLOCK = 0x6,
-	COMMIT_BLOCK = 0x7
+	REGISTER_AMEM = 0x8,
+	COMM_EL1_PT = 0xA
+};
+
+enum MEM_PROT_TYPE {
+	KERN_PROT_GENERIC = 0x0,
+	KERN_PROT_PAGE_TABLE = 0x1,
 };
 
 /**
  * mark_range_ro_smc - Marks a range of memory read-only using the RKP smcID
+ * @start: start of the range to mark ro
+ * @end: end of the range to mark ro
+ * @type: type of the memory with 0 being generic, 1 being page table,
+ * and others yet undefined
  *
  * Callers should ensure the inputs always resolve to a fixed value, e.g.
  * _stext. Should be used for large regions of memory spanning multiple pages
  */
-int mark_range_ro_smc(uint64_t start, uint64_t end);
+void mark_range_ro_smc(uint64_t start, uint64_t end, uint64_t type);
 
 /**
  * add_jump_entry_lookup - loads the jet table into the hypervisor
@@ -48,30 +55,41 @@ int mark_range_ro_smc(uint64_t start, uint64_t end);
  * of it to the hypervisor. The hypervisor will use this to determine if a
  * jump entry is valid or not, and if so, allow it to patch the jump entry.
  */
-int add_jump_entry_lookup(uint64_t vaddr, uint64_t size);
+void add_jump_entry_lookup(uint64_t paddr, uint64_t size);
 
 /**
  * lock_rkp - removes all RKP-related SMC calls
  *
  * Locks down the hypervisor side of RKP so that it may not be called into
  */
-int lock_rkp(void);
+void lock_rkp(void);
 
 /**
- * prepare_hugepage - sets up a split hugepage in the hypervisor
+ * register_amem - registers contiguous physical memory region as additional
+ * @paddr_start: start of physical memory region
+ * @size: size of physical memory region
  *
- * Prepares a new page table for splitting a 2MB hugepage into 4KB pages
- * in the hypervisor
+ * Registers a contiguous physical memory region as additional memory for
+ * the hypervisor to use. This memory should be marked RO ahead of time and
+ * not be writable by the kernel.
  */
-int prepare_hugepage(uint64_t addr);
+void amem_register(uint64_t paddr_start, uint64_t size);
 
 /**
- * commit_hugepage - updates TLB for hugepage split by prepare_hugepage
+ * communicate_el1_pt - saves the EL1 page table information for this VM at EL2
+ * @pgd: physical address of the page table
+ * @pgd_ind: index of the pgd entry
+ * @pmd_ind: index of the pmd entry
+ * @pte_ind: index of the pte entry
+ * @virt_offset: offset of virtual addresses from physical ones
  *
- * Commits a hugepage split by prepare_hugepage into the calling CPU's
- * TLB and page table, must be called from a context where it is impossible
- * for the break-before-make semantics to affect other processor's execution
+ * Of course, assumes p4d and pud are unused. This is used to communicate
+ * the EL1 page table information to the hypervisor. Then, once RO protections
+ * are appplied to the page table, the hypervisor will be able to enforce
+ * immutability on the page table entries, i.e. writes to the page table may
+ * consist of _existing_ entries only (remappings or double mappings of
+ * virtual memory) but not _new_ or mutated entries.
  */
-int commit_hugepage(void);
+void comm_el1_pt(uint64_t pgd);
 
 #endif /* _RKP_HVC_API_H_ */

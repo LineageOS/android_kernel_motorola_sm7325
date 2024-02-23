@@ -10,19 +10,23 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+k* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * Implements the Motorola Kernel Integrity Protection Hypervisor API.
  */
 #include <linux/memory.h>
-#include <linux/qcom_scm.h>
-#include <drivers/firmware/qcom_scm.h>
-#include <soc/qcom/qseecom_scm.h>
-#include <soc/qcom/qseecomi.h>
 #include <linux/arm-smccc.h>
 
 #include "rkp_hvc_api.h"
+
+#define VIRT_WDT_PET \
+	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_32,\
+	ARM_SMCCC_OWNER_VENDOR_HYP, 0x0007)
+void try_pet_wdt(void) {
+	struct arm_smccc_res res;
+	arm_smccc_1_1_smc(VIRT_WDT_PET, 0, &res);
+}
 
 /**
  * mrkp_smc - raw arm SMC call for mrkp
@@ -37,37 +41,39 @@
  * them into x2/x3 rather than x1, and for historical reasons
  * we adapted.
  */
-static int mrkp_smc(uint64_t id, uint64_t arg0, uint64_t arg1) {
+static void mrkp_smc(uint64_t id, uint64_t arg0, uint64_t arg1) {
 	struct arm_smccc_res res;
 	struct arm_smccc_quirk quirk = { .id = ARM_SMCCC_QUIRK_QCOM_A6 };
 	quirk.state.a6 = 0;
+	try_pet_wdt();
 	do {
-		arm_smccc_smc_quirk(MOTO_RKP_SMCID | id, 0, arg0, arg1, 0, 0, quirk.state.a6, 0, &res, &quirk);
+		arm_smccc_smc_quirk(MOTO_RKP_SMCID | id, 0, arg0, arg1, 0, 0,
+				    quirk.state.a6, 0, &res, &quirk);
 	} while (res.a0);
-	return 0;
 }
 
-int mark_range_ro_smc(uint64_t start, uint64_t end)
+void mark_range_ro_smc(uint64_t start, uint64_t end, uint64_t type)
 {
-	return mrkp_smc(MARK_RANGE_RO, __virt_to_phys(start), __virt_to_phys(end));
+	mrkp_smc(MARK_RANGE_RO, start, end);
 }
 
-int add_jump_entry_lookup(uint64_t vaddr, uint64_t size)
+void add_jump_entry_lookup(uint64_t paddr, uint64_t size)
 {
-	return mrkp_smc(ADD_JUMP_LABEL_LOOKUP, vaddr, size);
+	mrkp_smc(ADD_JUMP_LABEL_LOOKUP, paddr, size);
 }
 
-int lock_rkp(void)
+void lock_rkp(void)
 {
-	return mrkp_smc(LOCK_RKP, 0, 0);
+	mrkp_smc(LOCK_RKP, 0, 0);
 }
 
-int prepare_hugepage(uint64_t addr)
+void amem_register(uint64_t paddr, uint64_t size)
 {
-	return mrkp_smc(PREPARE_BLOCK, __virt_to_phys(addr), 0);
+	mrkp_smc(REGISTER_AMEM, paddr, size);
 }
 
-int commit_hugepage(void)
-{
-	return mrkp_smc(COMMIT_BLOCK, 0, 0);
+
+void comm_el1_pt(uint64_t pgd) {
+	mrkp_smc(REGISTER_AMEM, __virt_to_phys(pgd), PHYS_OFFSET);
 }
+
