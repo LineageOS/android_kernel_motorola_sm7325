@@ -1222,6 +1222,76 @@ void ili_touch_release_all_point(void)
 	input_sync(ilits->input);
 }
 
+#if ILI_DEBUG_INFO
+/*---------------------------debug-info------------------------------*/
+void ili_report_touch_debug_info(u8 *buf) {
+
+	if (buf == NULL) {
+		ILI_ERR("argument null\n");
+		return;
+	}
+	if(ilits->di.nGlove != ((buf[55] >> 7) & 1) ||
+		ilits->di.nHopping != ((buf[55] >> 6) & 1) ||
+		ilits->di.nCharge != ((buf[55] >> 5) & 1) ||
+		ilits->di.nNoiseWarning != ((buf[55] >> 4) & 1) ||
+		ilits->di.nRebase != ((buf[55] >> 3) & 1) ||
+		ilits->di.nBending != ((buf[55] >> 2) & 1) ||
+		ilits->di.nGndUnstable != ((buf[55] >> 1) & 1) ||
+		ilits->di.nPalm != ((buf[55] >> 0) & 1) ||
+		ilits->di.nNoiseState != (buf[56] & 0x38) ||
+		ilits->di.nBGState != (buf[56] & 0x07))
+	{
+		ILI_INFO("Data[55]-[Byte0] = %#x Binary = %d %d %d %d  %d %d %d %d \n",
+			buf[55],
+			(buf[55] >> 7) & 1,
+			(buf[55] >> 6) & 1,
+			(buf[55] >> 5) & 1,
+			(buf[55] >> 4) & 1,
+			(buf[55] >> 3) & 1,
+			(buf[55] >> 2) & 1,
+			(buf[55] >> 1) & 1,
+			(buf[55] >> 0) & 1);//12 = 0001 0010
+
+		ILI_INFO("Data[56]-[Byte1] = %#x Binary = %d %d %d %d  %d %d %d %d \n",
+			buf[56],
+			(buf[56] >> 7) & 1,
+			(buf[56] >> 6) & 1,
+			(buf[56] >> 5) & 1,
+			(buf[56] >> 4) & 1,
+			(buf[56] >> 3) & 1,
+			(buf[56] >> 2) & 1,
+			(buf[56] >> 1) & 1,
+			(buf[56] >> 0) & 1);//A  = 1010
+	}
+
+	ilits->di.nGlove = (buf[55] >> 7) & 1;
+	ilits->di.nHopping = (buf[55] >> 6) & 1;
+	ilits->di.nCharge = (buf[55] >> 5) & 1;
+	ilits->di.nNoiseWarning = (buf[55] >> 4) & 1;
+	ilits->di.nRebase = (buf[55] >> 3) & 1;
+	ilits->di.nBending = (buf[55] >> 2) & 1;
+	ilits->di.nGndUnstable = (buf[55] >> 1) & 1;
+	ilits->di.nPalm = (buf[55] >> 0) & 1;
+
+	ilits->di.nNoiseState = buf[56] & 0x38;
+	ilits->di.nBGState = buf[56] & 0x07;
+
+	ILI_DBG("Byte[0]:\n");
+	ILI_DBG(" Glove = %#x\n", ilits->di.nGlove);
+	ILI_DBG(" Hopping = %#x\n", ilits->di.nHopping);
+	ILI_DBG(" Charge = %#x\n", ilits->di.nCharge);
+	ILI_DBG(" NoiseWarning = %#x\n", ilits->di.nNoiseWarning);
+	ILI_DBG(" Rebase = %#x\n", ilits->di.nRebase);
+	ILI_DBG(" Bending = %#x\n", ilits->di.nBending);
+	ILI_DBG(" GndUnstable = %#x\n", ilits->di.nGndUnstable);
+	ILI_DBG(" Palm = %#x\n", ilits->di.nPalm);
+	ILI_DBG("Byte[1]:\n");
+	ILI_DBG(" NoiseState = %#x\n", ilits->di.nNoiseState);
+	ILI_DBG(" BGState = %#x\n", ilits->di.nBGState);
+}
+/*------------------------debug-info---------------------------*/
+#endif
+
 static struct ilitek_touch_info touch_info[MAX_TOUCH_NUM + MAX_PEN_NUM];
 
 void ili_report_ap_mode(u8 *buf, int len)
