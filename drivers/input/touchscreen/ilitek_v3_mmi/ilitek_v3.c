@@ -1316,11 +1316,6 @@ int ili_report_handler(void)
 			ili_report_pen_ap_mode(trdata, rlen);
 		} else {
 			ili_report_ap_mode(trdata, rlen);
-#if ILI_DEBUG_INFO
-			/*-----debug-info-------*/
-			ili_report_touch_debug_info(trdata);
-			/*-----debug-info-------*/
-#endif	
 		}
 		break;
 	case P5_X_DEBUG_HIGH_RESOLUTION_PACKET_ID:

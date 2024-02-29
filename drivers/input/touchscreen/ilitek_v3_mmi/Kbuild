@@ -18,10 +18,6 @@ ifneq ($(filter m y, $(CONFIG_BOARD_USES_DOUBLE_TAP_CTRL)),)
 	EXTRA_CFLAGS += -DILI_PRIMARY_NODE
 endif
 
-ifneq ($(filter m y, $(CONFIG_ILI_DEBUG_INFO)),)
-        EXTRA_CFLAGS += -DILI_DEBUG_INFO
-endif
-
 ifneq ($(filter m y,$(CONFIG_INPUT_ILI_SET_TOUCH_STATE)),)
 	EXTRA_CFLAGS += -DILI_SET_TOUCH_STATE
 endif

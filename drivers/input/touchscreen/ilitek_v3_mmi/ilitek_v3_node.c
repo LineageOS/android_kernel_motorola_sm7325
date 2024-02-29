@@ -1784,9 +1784,6 @@ static ssize_t ilitek_node_change_list_read(struct file *filp, char __user *buff
 
 	len += snprintf(g_user_buf + len, USER_STR_BUFF - len, "============= Change list ==============\n");
 	len += snprintf(g_user_buf + len, USER_STR_BUFF - len, "[Drive version] = %s\n", DRIVER_VERSION);
-#if ILI_DEBUG_INFO
-	len += snprintf(g_user_buf + len, USER_STR_BUFF - len, "2024-02-01 - add debug info\n");
-#endif
 	/* len += snprintf(g_user_buf + len, USER_STR_BUFF - len, "[Patch] 202001-0001\n"); */
 	len += snprintf(g_user_buf + len, USER_STR_BUFF - len, "========================================\n");
 
