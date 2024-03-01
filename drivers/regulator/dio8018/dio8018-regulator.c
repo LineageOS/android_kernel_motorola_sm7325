@@ -235,6 +235,16 @@ const struct linear_range dio8018_regls_range[DIO8018_MAX_REGULATORS] = {
 	{.min = 1500000, .min_sel=0x10, .max_sel=0xFF, .step=8000,},
 };
 
+const struct linear_range wl28681c_regls_range[DIO8018_MAX_REGULATORS] = {
+	{.min = 496000, .min_sel=0x3D, .max_sel=0xFF, .step=8000,},
+	{.min = 496000, .min_sel=0x3D, .max_sel=0xFF, .step=8000,},
+	{.min = 1372000, .min_sel=0x00, .max_sel=0xFF, .step=8000,},
+	{.min = 1372000, .min_sel=0x00, .max_sel=0xFF, .step=8000,},
+	{.min = 1372000, .min_sel=0x00, .max_sel=0xFF, .step=8000,},
+	{.min = 1372000, .min_sel=0x00, .max_sel=0xFF, .step=8000,},
+	{.min = 1372000, .min_sel=0x00, .max_sel=0xFF, .step=8000,},
+};
+
 #define DIO8018_REGL_DESC(_id, _name, _s_name, _min, _step, _min_linear_sel, _n_volt)       \
 	[DIO8018_REGULATOR_##_id] = {                             \
 		.name = #_name,                                    \
@@ -300,6 +310,25 @@ static int dio8018_regulator_init(struct dio8018 *chip)
 	if (ret < 0) {
 		dev_err(chip->dev, "Disable all LDO output failed!!!\n");
 		return ret;
+	}
+
+	if(ldo_chipid == 0x0D){
+		dio8018_regls_desc[DIO8018_REGULATOR_LDO1].min_uV = 496000;
+		dio8018_regls_desc[DIO8018_REGULATOR_LDO1].n_voltages = 256;
+		dio8018_regls_desc[DIO8018_REGULATOR_LDO1].linear_ranges = &wl28681c_regls_range[DIO8018_REGULATOR_LDO1];
+		dio8018_regls_desc[DIO8018_REGULATOR_LDO2].min_uV = 496000;
+		dio8018_regls_desc[DIO8018_REGULATOR_LDO2].n_voltages = 256;
+		dio8018_regls_desc[DIO8018_REGULATOR_LDO2].linear_ranges = &wl28681c_regls_range[DIO8018_REGULATOR_LDO2];
+		dio8018_regls_desc[DIO8018_REGULATOR_LDO3].min_uV = 1372000;
+		dio8018_regls_desc[DIO8018_REGULATOR_LDO3].linear_ranges = &wl28681c_regls_range[DIO8018_REGULATOR_LDO3];
+		dio8018_regls_desc[DIO8018_REGULATOR_LDO4].min_uV = 1372000;
+		dio8018_regls_desc[DIO8018_REGULATOR_LDO4].linear_ranges = &wl28681c_regls_range[DIO8018_REGULATOR_LDO4];
+		dio8018_regls_desc[DIO8018_REGULATOR_LDO5].min_uV = 1372000;
+		dio8018_regls_desc[DIO8018_REGULATOR_LDO5].linear_ranges = &wl28681c_regls_range[DIO8018_REGULATOR_LDO5];
+		dio8018_regls_desc[DIO8018_REGULATOR_LDO6].min_uV = 1372000;
+		dio8018_regls_desc[DIO8018_REGULATOR_LDO6].linear_ranges = &wl28681c_regls_range[DIO8018_REGULATOR_LDO6];
+		dio8018_regls_desc[DIO8018_REGULATOR_LDO7].min_uV = 1372000;
+		dio8018_regls_desc[DIO8018_REGULATOR_LDO7].linear_ranges = &wl28681c_regls_range[DIO8018_REGULATOR_LDO7];
 	}
 
 	for (id = DIO8018_MAX_REGULATORS-1; id >= 0; id--)
@@ -439,7 +468,7 @@ static int dio8018_i2c_probe(struct i2c_client *client, const struct i2c_device_
 	mdelay(1);
 
 	ret = regmap_read(chip->regmap, DIO8018_PRODUCT_ID, &ldo_chipid);
-	if (DIO8018_CHIP_ID == ldo_chipid) {
+	if (DIO8018_CHIP_ID == ldo_chipid || WL28681C_CHIP_ID == ldo_chipid) {
 		dev_info(chip->dev, "DIO8018 chip id matched!\n");
 	} else {
 		dev_err(chip->dev, "DIO8018 read chipid error...chipid=:0x%x, ret:%d\n",ldo_chipid,ret);

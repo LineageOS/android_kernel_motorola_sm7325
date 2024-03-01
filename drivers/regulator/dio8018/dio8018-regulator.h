@@ -45,6 +45,7 @@
 #define DIO8018_MINT3      0x1E
 
 #define DIO8018_CHIP_ID    0x04
+#define WL28681C_CHIP_ID   0x0D
 
 /* DIO8018_LDO1_VSEL ~ DIO8018_LDO7_VSEL =
  * 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09
