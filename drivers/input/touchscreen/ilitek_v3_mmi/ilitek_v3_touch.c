@@ -1222,6 +1222,68 @@ void ili_touch_release_all_point(void)
 	input_sync(ilits->input);
 }
 
+#ifdef ILI_DEBUG_INFO
+/*---------------------------debug-info------------------------------*/
+void ili_report_touch_debug_info(u8 *buf) {
+	int rlen = 3;
+	u8 checksum = 0;
+	u8 pack_checksum = 0;
+
+	if (buf == NULL) {
+		ILI_ERR("Argument null\n");
+		return;
+	}
+
+	checksum = ili_calc_packet_checksum(buf, rlen - 1);
+	pack_checksum = buf[rlen-1];
+	if (checksum != pack_checksum) {
+		ILI_ERR("Debug info Checksum Error (0x%X)! Pack = 0x%X \n", checksum, pack_checksum);
+		return;
+	}
+
+	if (ilits->di.nGlove != ((buf[1] >> 7) & 1) ||
+		ilits->di.nHopping != ((buf[1] >> 6) & 1) ||
+		ilits->di.nCharge != ((buf[1] >> 5) & 1) ||
+		ilits->di.nNoiseWarning != ((buf[1] >> 4) & 1) ||
+		ilits->di.nRebase != ((buf[1] >> 3) & 1) ||
+		ilits->di.nBending != ((buf[1] >> 2) & 1) ||
+		ilits->di.nGndUnstable != ((buf[1] >> 1) & 1) ||
+		ilits->di.nPalm != ((buf[1] >> 0) & 1) )
+	{
+		ILI_INFO("Data[1]-[Byte0] = %#x Binary = %d %d %d %d  %d %d %d %d \n",
+			buf[1],
+			(buf[1] >> 7) & 1,
+			(buf[1] >> 6) & 1,
+			(buf[1] >> 5) & 1,
+			(buf[1] >> 4) & 1,
+			(buf[1] >> 3) & 1,
+			(buf[1] >> 2) & 1,
+			(buf[1] >> 1) & 1,
+			(buf[1] >> 0) & 1);//12 = 0001 0010
+	}
+
+	ilits->di.nGlove = (buf[1] >> 7) & 1;
+	ilits->di.nHopping = (buf[1] >> 6) & 1;
+	ilits->di.nCharge = (buf[1] >> 5) & 1;
+	ilits->di.nNoiseWarning = (buf[1] >> 4) & 1;
+	ilits->di.nRebase = (buf[1] >> 3) & 1;
+	ilits->di.nBending = (buf[1] >> 2) & 1;
+	ilits->di.nGndUnstable = (buf[1] >> 1) & 1;
+	ilits->di.nPalm = (buf[1] >> 0) & 1;
+
+	ILI_DBG("Byte[0]:\n");
+	ILI_DBG(" Glove = %#x\n", ilits->di.nGlove);
+	ILI_DBG(" Hopping = %#x\n", ilits->di.nHopping);
+	ILI_DBG(" Charge = %#x\n", ilits->di.nCharge);
+	ILI_DBG(" NoiseWarning = %#x\n", ilits->di.nNoiseWarning);
+	ILI_DBG(" Rebase = %#x\n", ilits->di.nRebase);
+	ILI_DBG(" Bending = %#x\n", ilits->di.nBending);
+	ILI_DBG(" GndUnstable = %#x\n", ilits->di.nGndUnstable);
+	ILI_DBG(" Palm = %#x\n", ilits->di.nPalm);
+}
+/*------------------------debug-info---------------------------*/
+#endif
+
 static struct ilitek_touch_info touch_info[MAX_TOUCH_NUM + MAX_PEN_NUM];
 
 void ili_report_ap_mode(u8 *buf, int len)
