@@ -2,7 +2,7 @@ DLKM_DIR := motorola/kernel/modules
 LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
-LOCAL_MODULE := aw_haptic_hv_v1.5.ko
+LOCAL_MODULE := aw_haptic_hv_v1_5.ko
 LOCAL_MODULE_TAGS := optional
 
 ifeq ($(DLKM_INSTALL_TO_VENDOR_OUT),true)

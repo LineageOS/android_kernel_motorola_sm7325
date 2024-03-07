@@ -2,5 +2,5 @@
 EXTRA_CFLAGS += -Wall
 EXTRA_CFLAGS += -I$(TOP)/motorola/kernel/modules/include
 
-obj-m += aw_haptic_hv_v1.5.o
-aw_haptic_hv_v1.5-objs := aw869x.o aw869xx.o aw8671x.o aw8672x.o aw8692x.o aw8693x.o haptic_hv.o
+obj-m += aw_haptic_hv_v1_5.o
+aw_haptic_hv_v1_5-objs := aw869x.o aw869xx.o aw8671x.o aw8672x.o aw8692x.o aw8693x.o haptic_hv.o
