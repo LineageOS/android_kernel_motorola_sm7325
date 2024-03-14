@@ -174,7 +174,7 @@ static int wlan_elna_remove(struct platform_device *pdev)
     struct wlan_elna_drvdata* p_drvdata;
 
     p_drvdata = pdev->dev.driver_data;
-    if (gpio_is_valid(drvdata->wlan_elna_gpio))
+    if (gpio_is_valid(p_drvdata->wlan_elna_gpio))
     {
         gpio_free(p_drvdata->wlan_elna_gpio);
     }
