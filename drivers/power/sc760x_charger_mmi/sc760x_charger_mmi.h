@@ -61,6 +61,7 @@ enum {
 #define SC760x_ICHRG_I_MAX_uA			3780000
 #define SC760x_ICHRG_I_DEF_uA			2000000
 #define SC760x_VREG_V_MAX_uV	    4600000
+#define SC760x_DUAL_VBATT_DIFF_THRE	    500
 
 typedef enum {
     ADC_IBAT,
@@ -138,6 +139,7 @@ struct sc760x_init_data {
 	u32 max_ichg;
 	u32 max_vreg;
 	u32 vrechg;
+	u32 dual_vbatt_diff_thre;
 	bool charger_disabled;
 };
 
@@ -204,6 +206,11 @@ struct sc760x_chip {
     bool irq_dis_cfg;
     int role;
     int sc760x_enable;
+
+    int sc760x_extmos_en_gpio;
+    int sc760x_extmos_en;
+    int user_extmos_en; /* user external mosfet control	*/
+
     u32 *thermal_levels;
     u32 thermal_fcc_ua;
     int curr_thermal_level;
