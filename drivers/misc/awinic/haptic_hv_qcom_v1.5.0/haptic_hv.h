@@ -83,6 +83,10 @@
 #define AW_BIT_RESET				(0xAA)
 #define CPU_LATENCY_QOC_VALUE			(0)
 
+#define AW_STRONG_GAIN				(0x80)
+#define AW_MEDIUM_GAIN				(0x60)
+#define AW_LIGHT_GAIN				(0x40)
+
 #define AW_CHECK_RAM_DATA
 #define AW_READ_BIN_FLEXBALLY
 #define AW_LRA_F0_DEFAULT
