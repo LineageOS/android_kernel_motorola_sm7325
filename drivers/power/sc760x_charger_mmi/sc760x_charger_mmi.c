@@ -1893,6 +1893,7 @@ static void sc760x_charger_set_constraint(void *data,
 }
 
 #define DUAL_VBATT_DELTA_MV 200
+#define DUAL_VBATT_DELTA_MAX_MV 500
 static void sc760x_paired_battery_notify(void *data,
 			struct mmi_battery_info *batt_info)
 {
@@ -1933,8 +1934,8 @@ static void sc760x_paired_battery_notify(void *data,
 	pr_info("sc760x checking, partner_fg_vbatt %d, fg_vbatt %d\n", partner_fg_vbatt, fg_vbatt);
 	if (!is_usb_online(chg->sc) &&
 		!is_wls_online(chg->sc) &&
-		(DUAL_VBATT_DELTA_MV < (partner_fg_vbatt - fg_vbatt))) {
-		pr_err("partner_fg_vbatt > fg_vbatt, and delta value > %d, Does not turn on sc760x\n", DUAL_VBATT_DELTA_MV);
+		(DUAL_VBATT_DELTA_MV < (partner_fg_vbatt - fg_vbatt) || (fg_vbatt - partner_fg_vbatt) > DUAL_VBATT_DELTA_MV)) {
+		pr_err("partner_fg_vbatt diff fg_vbatt, and delta value %d, max threshold %d, Does not turn on sc760x\n", DUAL_VBATT_DELTA_MV, DUAL_VBATT_DELTA_MV);
 		return;
 	} else {
 		if (chg->sc->user_gpio_en < 0)
