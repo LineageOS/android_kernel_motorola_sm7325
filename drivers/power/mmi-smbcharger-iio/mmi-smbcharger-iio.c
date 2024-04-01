@@ -528,8 +528,8 @@ struct smb_mmi_charger {
 	bool			enable_fcc_large_qg_iterm;
 
 	/*Battery info*/
-	int			manufacturing_date;
-	int			first_usage_date;
+	unsigned long		manufacturing_date;
+	unsigned long		first_usage_date;
 };
 
 #define CHGR_FAST_CHARGE_CURRENT_CFG_REG	(CHGR_BASE + 0x61)
@@ -3744,7 +3744,11 @@ static void mmi_basic_charge_sm(struct smb_mmi_charger *chip,
 				prm->pres_chrg_step = STEP_FULL;
 		}
 	} else if (prm->pres_chrg_step == STEP_FULL) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,1,25)
+		if (stat->batt_soc <= 95) {
+#else
 		if (stat->batt_mv < (max_fv_mv - HYST_STEP_MV * 2)) {
+#endif
 			prm->chrg_taper_cnt = 0;
 			prm->pres_chrg_step = STEP_NORM;
 		}
@@ -4375,7 +4379,6 @@ sch_hb:
 		envp[0] = chrg_rate_string;
 		envp[1] = NULL;
 	}
-
 	if (chip->batt_psy) {
 		smb_mmi_power_supply_changed(chip->batt_psy, envp);
 	} else if (chip->qcom_psy) {
@@ -4535,7 +4538,12 @@ static int batt_get_prop(struct power_supply *psy,
 			val->intval = chip->last_reported_soc;
 		break;
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,1,25)
+		rc = power_supply_get_property(chip->qcom_psy,
+						       psp, val);
+#else
 		val->intval = chip->cycles / 100;
+#endif
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		if (chip->max_main_psy && chip->max_flip_psy)
@@ -5025,7 +5033,7 @@ static ssize_t first_usage_date_show(struct device *dev,
 		return -ENODEV;
 	}
 
-	return scnprintf(buf, CHG_SHOW_MAX_SIZE, "%d\n", this_chip->first_usage_date);
+	return scnprintf(buf, CHG_SHOW_MAX_SIZE, "%lu\n", this_chip->first_usage_date);
 }
 
 static ssize_t first_usage_date_store(struct device *dev,
@@ -5062,7 +5070,7 @@ static ssize_t manufacturing_date_show(struct device *dev,
 		return -ENODEV;
 	}
 
-	return scnprintf(buf, CHG_SHOW_MAX_SIZE, "%d\n", this_chip->manufacturing_date);
+	return scnprintf(buf, CHG_SHOW_MAX_SIZE, "%lu\n", this_chip->manufacturing_date);
 }
 
 static ssize_t manufacturing_date_store(struct device *dev,
