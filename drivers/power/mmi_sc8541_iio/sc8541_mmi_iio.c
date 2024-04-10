@@ -247,7 +247,7 @@ static struct reg_default nu2115_reg_init_val[] = {
 	{NU2115_INT_MASK,	0x00},//default
 	{NU2115_FLT_MASK,	0x00},//default
 	{NU2115_ADC_CTRL,	0x00},//default mean {NU2115_ADC_CONTROL1,	0x00}
-	{NU2115_ADC_FN_DIS,	0x07},//0x06:TSBUS TSBAT mean {NU2115_ADC_CONTROL2,	0x06}
+	{NU2115_ADC_FN_DIS,	0x8F},//0x06:TSBUS TSBAT mean {NU2115_ADC_CONTROL2,	0x06}
 	{NU2115_TSBUS_FLT,	0x15},
 	{NU2115_TSBAT_FLG,	0x15},
 	{NU2115_TDIE_ALM,	0x48},//0x48:60C
@@ -339,7 +339,7 @@ static struct reg_default nu2115_reg_defs[] = {
 	{NU2115_FLT_FLAG,      0x00},
 	{NU2115_FLT_MASK,      0x00},
 	{NU2115_ADC_CTRL,      0x00},
-	{NU2115_ADC_FN_DIS,    0x07},
+	{NU2115_ADC_FN_DIS,    0x8F},
 	{NU2115_IBUS_ADC_MSB,  0x00},
 	{NU2115_IBUS_ADC_LSB,  0x00},
 	{NU2115_VBUS_ADC_MSB,  0x00},
@@ -396,10 +396,12 @@ static int sc8541_set_adc_enable(struct sc8541_device *bq, bool enable)
 	dev_notice(bq->dev, "%s %d", __FUNCTION__, enable);
 
 	if (bq->part_no == NU2115_PART_NO) {
-		if (enable)
+		if (enable) {
 			ret = regmap_update_bits(bq->regmap, NU2115_ADC_CTRL,
 					NU2115_ADC_EN, NU2115_ADC_EN);
-		else
+			/* when adc coolect after 20ms */
+			msleep(20);
+		} else
 			ret = regmap_update_bits(bq->regmap, NU2115_ADC_CTRL,
 					NU2115_ADC_EN, 0);
 	} else {
@@ -815,10 +817,12 @@ static int nu2115_get_state(struct sc8541_device *bq,
 	ret = regmap_read(bq->regmap, NU2115_INT_STAT, &alm_stat);
 	if (ret)
 		return ret;
-	
+
 	ret = regmap_read(bq->regmap, NU2115_FLT_FLAG, &flt_flag);
 	if (ret)
 		return ret;
+	/* delay 150ms for NU2115_CON_STAT out after setting cp enable */
+	msleep(150);
 
 	ret = regmap_read(bq->regmap, NU2115_CON_STAT, &stat5);
 		if (ret)
