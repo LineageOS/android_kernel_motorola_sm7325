@@ -1062,7 +1062,7 @@ static int ram_select_waveform(struct aw_haptic *aw_haptic)
 	uint8_t wavseq = 0;
 	uint8_t wavloop = 0;
 
-	if (aw_haptic->duration <= 0) {
+	if (aw_haptic->duration < 0) {
 		aw_err("duration time %d error", aw_haptic->duration);
 		return -ERANGE;
 	}
@@ -1079,7 +1079,12 @@ static int ram_select_waveform(struct aw_haptic *aw_haptic)
 		wavseq = 4;
 		wavloop = 15;
 		aw_haptic->activate_mode = AW_RAM_LOOP_MODE;
-	}
+	} else if ((aw_haptic->duration == 0) && (0 < aw_haptic->seq[0])) {
+		wavseq = aw_haptic->seq[0];
+	} else {
+		aw_err("duration time error, duration= %d", aw_haptic->duration);
+		return -ERANGE;
+	} 
 	aw_info("duration %d, select index %d", aw_haptic->duration, wavseq);
 	aw_haptic->func->set_wav_seq(aw_haptic, 0, wavseq);
 	aw_haptic->func->set_wav_loop(aw_haptic, 0, wavloop);
@@ -1786,6 +1791,8 @@ static ssize_t activate_store(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&aw_haptic->lock);
 	aw_haptic->state = val;
 	aw_haptic->activate_mode = aw_haptic->info.mode;
+	if (0 == val)
+	    aw_haptic->gain = AW_DEFAULT_GAIN;
 	mutex_unlock(&aw_haptic->lock);
 	queue_work(aw_haptic->work_queue, &aw_haptic->vibrator_work);
 
@@ -1933,6 +1940,7 @@ static ssize_t seq_store(struct device *dev, struct device_attribute *attr,
 {
 	cdev_t *cdev = dev_get_drvdata(dev);
 	struct aw_haptic *aw_haptic = container_of(cdev, struct aw_haptic, vib_dev);
+#if 0
 	uint32_t databuf[2] = { 0, 0 };
 
 	if (sscanf(buf, "%x %x", &databuf[0], &databuf[1]) == 2) {
@@ -1947,6 +1955,31 @@ static ssize_t seq_store(struct device *dev, struct device_attribute *attr,
 					     aw_haptic->seq[databuf[0]]);
 		mutex_unlock(&aw_haptic->lock);
 	}
+#endif
+	unsigned int val = 0;
+	int rc = 0;
+	rc = kstrtouint(buf, 0, &val);
+	if (rc < 0)
+		return rc;
+
+	val = (val >> 24) & 0xFF;
+	aw_info("%s: seq=%d\n", __func__,val);
+
+	mutex_lock(&aw_haptic->lock);
+	aw_haptic->duration = 0;
+	if (val == 3) {
+		aw_haptic->seq[0] = 1;
+	} else if (val == 4) {
+		aw_haptic->seq[0] = 3;
+	} else if (val == 5) {
+		aw_haptic->seq[0] = 1;
+	} else if (val == 6) {
+		aw_haptic->seq[0] = 2;
+	} else {
+		aw_haptic->seq[0] = 1;
+	}
+	aw_haptic->func->set_wav_seq(aw_haptic, 0, aw_haptic->seq[0]);
+	mutex_unlock(&aw_haptic->lock);
 
 	return count;
 }

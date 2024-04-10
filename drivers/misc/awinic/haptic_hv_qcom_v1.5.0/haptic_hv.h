@@ -83,6 +83,7 @@
 #define AW_BIT_RESET				(0xAA)
 #define CPU_LATENCY_QOC_VALUE			(0)
 
+#define AW_DEFAULT_GAIN                         (0x80)
 #define AW_STRONG_GAIN				(0x80)
 #define AW_MEDIUM_GAIN				(0x60)
 #define AW_LIGHT_GAIN				(0x40)
