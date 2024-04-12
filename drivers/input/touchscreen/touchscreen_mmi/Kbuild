@@ -36,6 +36,10 @@ ifneq ($(filter m y,$(CONFIG_TOUCHSCREEN_DEVICE_VIRTUAL_PATH)),)
 	EXTRA_CFLAGS += -DCONFIG_TOUCHSCREEN_DEVICE_VIRTUAL_PATH
 endif
 
+ifneq ($(filter m y,$(CONFIG_TOUCHSCREEN_EARLY_RESET_ON_RESUME)),)
+	EXTRA_CFLAGS += -DCONFIG_TOUCHSCREEN_EARLY_RESET_ON_RESUME
+endif
+
 obj-m := touchscreen_mmi.o
 touchscreen_mmi-objs := touchscreen_mmi_class.o touchscreen_mmi_panel.o touchscreen_mmi_notif.o touchscreen_mmi_gesture.o
 

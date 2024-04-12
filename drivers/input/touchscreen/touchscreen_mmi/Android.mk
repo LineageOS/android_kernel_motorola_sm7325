@@ -41,6 +41,10 @@ ifeq ($(call is-board-platform-in-list, pineapple), true)
 	KBUILD_OPTIONS += CONFIG_TOUCHSCREEN_DEVICE_VIRTUAL_PATH=y
 endif
 
+ifeq ($(TOUCHCLASS_MMI_EARLY_RESET_ON_RESUME),true)
+	KBUILD_OPTIONS += CONFIG_TOUCHSCREEN_EARLY_RESET_ON_RESUME=y
+endif
+
 include $(CLEAR_VARS)
 LOCAL_MODULE := touchscreen_mmi.ko
 LOCAL_MODULE_TAGS := optional
