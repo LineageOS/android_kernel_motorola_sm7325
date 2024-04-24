@@ -4350,7 +4350,11 @@ static void mmi_heartbeat_work(struct work_struct *work)
 			chip->factory_kill_armed = true;
 		} else if (chip->factory_kill_armed && !factory_kill_disable) {
 			mmi_warn(chip, "Factory kill power off\n");
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,1,25)
+			kernel_power_off();
+#else
 			orderly_poweroff(true);
+#endif
 		} else
 			chip->factory_kill_armed = false;
 	}
