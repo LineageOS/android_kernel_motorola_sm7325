@@ -24,6 +24,7 @@
 #endif
 
 #include "ktd3136_bl.h"
+#include "ktd3136_align.h"
 
 #define KTD3136_LED_DEV 	"ktd3136-BL"
 #define KTD3136_NAME 		"ktd3136-bl"
@@ -124,8 +125,10 @@ static int ktd3136_gpio_init(struct ktd3136_data *drvdata)
 		ret = gpio_request(drvdata->hwen_gpio, "ktd_hwen_gpio");
 		if (ret<0) {
 			pr_err("failed to request gpio\n");
+			gpio_free(drvdata->hwen_gpio);
 			return -1;
 		}
+		/*
 		ret = gpio_direction_output(drvdata->hwen_gpio, 0);
 		pr_debug(" request gpio init\n");
 		if (ret<0) {
@@ -133,6 +136,7 @@ static int ktd3136_gpio_init(struct ktd3136_data *drvdata)
 			gpio_free(drvdata->hwen_gpio);
 			return ret;
 		}
+		*/
 		pr_debug("gpio is valid!\n");
 		ktd3136_hwen_pin_ctrl(drvdata, 1);
 	}
@@ -178,20 +182,22 @@ static int ktd3136_bl_enable_channel(struct ktd3136_data *drvdata)
 
 	return ret;
 }
-static void ktd3136_pwm_mode_enable(struct ktd3136_data *drvdata, bool en)
+static void ktd3136_pwm_mode_enable(struct ktd3136_data *drvdata, bool mode)
 {
 	u8 value;
 
-	if (en) {
+	if (mode) {
+		//1:disable
 		if (drvdata->pwm_mode) {
-			pr_debug("already activated!\n");
+			pr_debug("already set!\n");
 		} else {
-			drvdata->pwm_mode = en;
+			drvdata->pwm_mode = mode;
 		}
 		ktd3136_masked_write(drvdata->client, REG_PWM, 0x80, 0x80);
 	} else {
+		//0:enable as default
 		if (drvdata->pwm_mode) {
-			drvdata->pwm_mode = en;
+			drvdata->pwm_mode = mode;
 		}
 		ktd3136_masked_write(drvdata->client, REG_PWM, 0x80, 0x00);
 	}
@@ -272,13 +278,10 @@ static int ktd3136_backlight_init(struct ktd3136_data *drvdata)
 {
 	int err = 0;
 	u8 value;
-	u8 update_value;
-	pr_info("%s enter.\n", __func__);
-	update_value = (drvdata->ovp_level == 32) ? 0x20 : 0x00;
-	(drvdata->induct_current == 2600) ? update_value |=0x08 : update_value;
-	(drvdata->frequency == 1000) ? update_value |=0x40: update_value;
 
-	ktd3136_write_reg(drvdata->client, REG_CONTROL, update_value | 0x06); /* Linear default*/
+	pr_info("%s enter.\n", __func__);
+
+	ktd3136_write_reg(drvdata->client, REG_CONTROL, drvdata->reg_ctrl_val);
 	ktd3136_bl_enable_channel(drvdata);
 		if (drvdata->pwm_mode) {
 			ktd3136_pwm_mode_enable(drvdata, true);
@@ -286,10 +289,14 @@ static int ktd3136_backlight_init(struct ktd3136_data *drvdata)
 			ktd3136_pwm_mode_enable(drvdata, false);
 			}
 	ktd3136_ramp_setting(drvdata);
-	ktd3136_transition_ramp(drvdata);
+		if ( drvdata->skip_first_trans){
+			drvdata->reset_trans_delay = true;
+		} else {
+			ktd3136_transition_ramp(drvdata);
+		}
 	ktd3136_read_reg(drvdata->client, REG_CONTROL, &value);
 	pr_debug("read control register -before--<0x%x> -after--<0x%x> \n",
-					update_value, value);
+					drvdata->reg_ctrl_val, value);
 
 	pr_info("%s exit\n", __func__);
 	return err;
@@ -309,8 +316,26 @@ int ktd3136_set_brightness(struct ktd3136_data *drvdata, int brt_val)
 {
 	pr_info("%s brt_val is %d\n", __func__, brt_val);
 
-	if (drvdata->enable == false)
+	if (drvdata->enable == false) {
+		if (brt_val == 0) {
+			//avoid duplicate standby
+			return 0;
+		}
 		ktd3136_backlight_init(drvdata);
+	}
+	else if ( drvdata->skip_first_trans && drvdata->reset_trans_delay){
+		ktd3136_transition_ramp(drvdata);
+		drvdata->reset_trans_delay = false;
+	}
+
+	if(0 == drvdata->map_type) {
+		if(ALIGN_BL_MAPPING_450 == drvdata->led_current_align) {
+			brt_val = bl_mapping_450[brt_val];
+			pr_info("%s bl_mapping brt_val: %d\n", __func__, brt_val);
+		}
+		else if (drvdata->led_current_align)
+			pr_info("%s: unsupport align type: %d\n", __func__, drvdata->led_current_align);
+	}
 
 	if (brt_val>0) {
 		ktd3136_masked_write(drvdata->client, REG_MODE, 0x01, 0x01); //enalbe bl mode
@@ -468,16 +493,38 @@ static void ktd3136_get_dt_data(struct device *dev, struct ktd3136_data *drvdata
 	drvdata->pwm_mode = of_property_read_bool(np,"ktd,pwm-mode");
 	pr_debug("pwmmode --<%d> \n", drvdata->pwm_mode);
 
+	rc = of_property_read_u32(np, "ktd,map-type", &drvdata->map_type);
+	if (rc != 0) {
+		//Linear default
+		drvdata->map_type = 1;
+		pr_info("%s map-type default linear:1\n", __func__);
+	}
+	else
+		pr_info("%s map-type=%d\n", __func__, drvdata->map_type);
+
+	rc = of_property_read_u32(np, "ktd,current-align-type", &drvdata->led_current_align);
+	if (rc != 0) {
+		drvdata->led_current_align = ALIGN_NONE;
+		pr_err("%s current-align-type not found\n", __func__);
+	}
+	else
+		pr_info("%s current-align-type=%d\n", __func__, drvdata->led_current_align);
+
 	drvdata->using_lsb = of_property_read_bool(np, "ktd,using-lsb");
 	pr_info("%s using_lsb --<%d>\n", __func__, drvdata->using_lsb);
 
 	if (drvdata->using_lsb) {
-		drvdata->default_brightness = 0x7ff;
 		drvdata->max_brightness = 2047;
 	} else {
-		drvdata->default_brightness = 0xff;
 		drvdata->max_brightness = 255;
 	}
+
+	drvdata->skip_first_trans = of_property_read_bool(np, "ktd,skip-first-trans");
+	pr_info("%s skip_first_trans --<%d>\n", __func__, drvdata->skip_first_trans);
+
+	drvdata->reset_trans_delay = of_property_read_bool(np, "ktd,reset-trans-delay");
+	pr_info("%s reset_trans_delay --<%d>\n", __func__, drvdata->reset_trans_delay);
+
 	rc = of_property_read_u32(np, "ktd,pwm-frequency", &temp);
 	if (rc) {
 		pr_err("Invalid pwm-frequency!\n");
@@ -485,6 +532,14 @@ static void ktd3136_get_dt_data(struct device *dev, struct ktd3136_data *drvdata
 		drvdata->pwm_period = temp;
 		pr_debug("pwm-frequency --<%d> \n", drvdata->pwm_period);
 	}
+
+	rc = of_property_read_u32(np, "ktd,default-brightness", &drvdata->default_brightness);
+	if (rc != 0) {
+		drvdata->default_brightness = drvdata->max_brightness;
+		pr_err("%s default-brightness not found, set to max %d\n", __func__, drvdata->default_brightness);
+	}
+	else
+		pr_info("%s default_brightness=%d\n", __func__, drvdata->default_brightness);
 
 	rc = of_property_read_u32(np, "ktd,bl-fscal-led", &temp);
 	if (rc) {
@@ -574,6 +629,78 @@ static void ktd3136_get_dt_data(struct device *dev, struct ktd3136_data *drvdata
 	}
 }
 
+static void ktd3136_data_init(struct ktd3136_data *drvdata)
+{
+	u8 update_value;
+
+	update_value = (drvdata->ovp_level == 32) ? 0x20 : 0x00;
+	((drvdata->induct_current == 2600) || (drvdata->induct_current == 1)) ? update_value |=0x08 : update_value;
+	(drvdata->frequency == 1000) ? update_value |=0x40: update_value;
+
+	pr_info("%s update_value:0x%2x\n", __func__, update_value);
+	if (0 == drvdata->map_type) {
+		// exponential
+		drvdata->reg_ctrl_val = update_value & 0xF8;
+		pr_info("ktd: exponential map mode, reg_ctrl:0x%02x\n", drvdata->reg_ctrl_val);
+	}
+	else {
+		//Linear
+		drvdata->reg_ctrl_val = update_value | 0x06;
+		pr_info("ktd: linear map mode, reg_ctrl:0x%02x\n", drvdata->reg_ctrl_val);
+	}
+}
+
+/******************************************************
+ *
+ * sys group attribute: reg
+ *
+ ******************************************************/
+static ssize_t ktd3136_i2c_reg_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct ktd3136_data *ktd3136 = dev_get_drvdata(dev);
+
+	unsigned int databuf[2] = {0, 0};
+
+	if (sscanf(buf, "%x %x", &databuf[0], &databuf[1]) == 2) {
+		ktd3136_write_reg(ktd3136->client,
+				(unsigned char)databuf[0],
+				(unsigned char)databuf[1]);
+	}
+
+	return count;
+}
+
+static ssize_t ktd3136_i2c_reg_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct ktd3136_data *data = dev_get_drvdata(dev);
+	ssize_t len = 0;
+	unsigned char i = 0, num = 0;
+	unsigned char reg_val = 0;
+
+	num = sizeof(ktd3136_reg_access)/sizeof(ktd3136_reg_access[0]);
+	for (i = 0; i < num; i++) {
+		if (!(ktd3136_reg_access[i]&REG_RD_ACCESS))
+			continue;
+		ktd3136_read_reg(data->client, i, &reg_val);
+		len += snprintf(buf+len, PAGE_SIZE-len, "reg:0x%02x=0x%02x\n",
+				i, reg_val);
+	}
+
+	return len;
+}
+
+static DEVICE_ATTR(reg, 0664, ktd3136_i2c_reg_show, ktd3136_i2c_reg_store);
+static struct attribute *ktd3136_attributes[] = {
+	&dev_attr_reg.attr,
+	NULL
+};
+
+static struct attribute_group ktd3136_attribute_group = {
+	.attrs = ktd3136_attributes
+};
+
 static int ktd3136_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -646,6 +773,7 @@ static int ktd3136_probe(struct i2c_client *client,
 	bl_dev = backlight_device_register(KTD3136_NAME, &client->dev,
 					drvdata, &ktd3136_bl_ops, &props);
 #endif
+	ktd3136_data_init(drvdata);
 	ktd3136_backlight_init(drvdata);
 	ktd3136_backlight_enable(drvdata);
 	ktd3136_check_status(drvdata);
@@ -656,6 +784,11 @@ static int ktd3136_probe(struct i2c_client *client,
 	if (err)
 		pr_err("%s : Unable to register fb_notifier: %d\n", __func__, err);
 #endif
+
+	err = sysfs_create_group(&client->dev.kobj, &ktd3136_attribute_group);
+	if (err < 0) {
+		dev_info(&client->dev, "%s error creating sysfs attr files\n", __func__);
+	}
 
 	pr_info("%s exit\n", __func__);
 	return 0;
@@ -683,7 +816,8 @@ static const struct i2c_device_id ktd3136_id[] = {
 	{}
 };
 static struct of_device_id match_table[] = {
-		{.compatible = "ktd,ktd3136",}
+		{.compatible = "ktd,ktd3136",},
+		{}
 };
 
 MODULE_DEVICE_TABLE(i2c, ktd3136_id);
