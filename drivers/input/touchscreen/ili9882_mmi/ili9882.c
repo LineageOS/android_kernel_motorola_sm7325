@@ -660,24 +660,36 @@ int ili_set_tp_data_len(int format, bool send, u8* data)
 {
 	u8 cmd[10] = {0}, ctrl = 0, debug_ctrl = 0;
 	u16 self_key = 2;
-	int ret = 0, tp_mode = ilits->actual_tp_mode, len = 0;
+	int ret = 0, tp_mode = ilits->actual_tp_mode, len = 0, geture_info_length = 0, demo_mode_packet_len = 0;
 
+	if (ilits->rib.nReportResolutionMode == POSITION_LOW_RESOLUTION) {
+		geture_info_length = P5_X_GESTURE_INFO_LENGTH;
+		demo_mode_packet_len = P5_X_DEMO_MODE_PACKET_LEN;
+		}
+	else if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
+		geture_info_length = P5_X_GESTURE_INFO_LENGTH_HIGH_RESOLUTION;
+		demo_mode_packet_len = P5_X_DEMO_MODE_PACKET_LEN_HIGH_RESOLUTION;
+	}
 	switch (format) {
 	case DATA_FORMAT_DEMO:
 		if (TOUCH_WIDTH)
 			len = P5_X_5B_LOW_RESOLUTION_LENGTH + P5_X_CUSTOMER_LENGTH;
 		else
-			len = P5_X_DEMO_MODE_PACKET_LEN;
+			len = demo_mode_packet_len;
 
 		ctrl = DATA_FORMAT_DEMO_CMD;
 		break;
 	case DATA_FORMAT_GESTURE_DEMO:
-		len = P5_X_DEMO_MODE_PACKET_LEN;
+		len = demo_mode_packet_len;
 		ctrl = DATA_FORMAT_DEMO_CMD;
 		break;
 	case DATA_FORMAT_DEBUG:
 		len = (2 * ilits->xch_num * ilits->ych_num) + (ilits->stx * 2) + (ilits->srx * 2);
-		len += 2 * self_key + (8 * 2) + 1 + 35;
+		if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
+			len += 2 * self_key + (8 * 2) + 1 + 45;
+		} else {
+			len += 2 * self_key + (8 * 2) + 1 + 35;
+		}
 		if (TOUCH_WIDTH)
 			len += P5_X_CUSTOMER_LENGTH;
 
@@ -686,17 +698,21 @@ int ili_set_tp_data_len(int format, bool send, u8* data)
 
 	case DATA_FORMAT_GESTURE_DEBUG:
 		len = (2 * ilits->xch_num * ilits->ych_num) + (ilits->stx * 2) + (ilits->srx * 2);
-		len += 2 * self_key + (8 * 2) + 1 + 35;
+		if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
+			len += 2 * self_key + (8 * 2) + 1 + 45;
+		} else {
+			len += 2 * self_key + (8 * 2) + 1 + 35;
+		}
 		ctrl = DATA_FORMAT_DEBUG_CMD;
 		break;
 	case DATA_FORMAT_DEMO_DEBUG_INFO:
 		/*only suport SPI interface now, so defult use size 1024 buffer*/
-		len = P5_X_DEMO_MODE_PACKET_LEN +
+		len = demo_mode_packet_len +
 			P5_X_DEMO_DEBUG_INFO_ID0_LENGTH + P5_X_INFO_HEADER_LENGTH;
 		ctrl = DATA_FORMAT_DEMO_DEBUG_INFO_CMD;
 		break;
 	case DATA_FORMAT_GESTURE_INFO:
-		len = P5_X_GESTURE_INFO_LENGTH;
+		len = geture_info_length;
 		ctrl = DATA_FORMAT_GESTURE_INFO_CMD;
 		break;
 	case DATA_FORMAT_GESTURE_NORMAL:
@@ -706,12 +722,12 @@ int ili_set_tp_data_len(int format, bool send, u8* data)
 	case DATA_FORMAT_GESTURE_SPECIAL_DEMO:
 		if (ilits->gesture_demo_ctrl == ENABLE) {
 			if (ilits->gesture_mode == DATA_FORMAT_GESTURE_INFO)
-				len = P5_X_GESTURE_INFO_LENGTH + P5_X_INFO_HEADER_LENGTH + P5_X_INFO_CHECKSUM_LENGTH;
+				len = geture_info_length + P5_X_INFO_HEADER_LENGTH + P5_X_INFO_CHECKSUM_LENGTH;
 			else
-				len = P5_X_DEMO_MODE_PACKET_LEN + P5_X_INFO_HEADER_LENGTH + P5_X_INFO_CHECKSUM_LENGTH;
+				len = demo_mode_packet_len + P5_X_INFO_HEADER_LENGTH + P5_X_INFO_CHECKSUM_LENGTH;
 		} else {
 			if (ilits->gesture_mode == DATA_FORMAT_GESTURE_INFO)
-				len = P5_X_GESTURE_INFO_LENGTH;
+				len = geture_info_length;
 			else
 				len = P5_X_GESTURE_NORMAL_LENGTH;
 		}
@@ -853,6 +869,13 @@ int ili_report_handler(void)
 		}
 		goto out;
 	}
+	if (ilits->tr_buf[0] == P5_X_GESTURE_PACKET_ID) {
+		if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
+			rlen = P5_X_GESTURE_INFO_LENGTH_HIGH_RESOLUTION;
+		} else {
+			rlen = P5_X_GESTURE_INFO_LENGTH;
+		}
+	}
 
 	ili_dump_data(ilits->tr_buf, 8, rlen, 0, "finger report");
 
@@ -970,11 +993,15 @@ int ili_reset_ctrl(int mode)
 		atomic_set(&ilits->ice_stat, DISABLE);
 
 	ilits->tp_data_format = DATA_FORMAT_DEMO;
-	if (TOUCH_WIDTH)
+	if (TOUCH_WIDTH) {
 		ilits->tp_data_len = P5_X_5B_LOW_RESOLUTION_LENGTH + P5_X_CUSTOMER_LENGTH;
-	else
-		ilits->tp_data_len = P5_X_DEMO_MODE_PACKET_LEN;
-
+	} else {
+		if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
+			ilits->tp_data_len = P5_X_DEMO_MODE_PACKET_LEN_HIGH_RESOLUTION;
+		} else {
+			ilits->tp_data_len = P5_X_DEMO_MODE_PACKET_LEN;
+		}
+	}
 	ilits->pll_clk_wakeup = true;
 	atomic_set(&ilits->tp_reset, END);
 	return ret;

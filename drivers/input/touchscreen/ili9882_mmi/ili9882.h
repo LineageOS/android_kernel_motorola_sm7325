@@ -477,7 +477,8 @@ struct report_info_block {
 	u8 nIsSPISLAVE		:1;
 	u8 nIsI2C		:1;
 	u8 nReserved00		:3;
-	u8 nReserved01		:8;
+	u8 nReportResolutionMode:3;
+	u8 nReserved01		:5;
 	u8 nReserved02		:8;
 	u8 nReserved03		:8;
 };
@@ -751,6 +752,7 @@ struct report_info_block {
 #define DATA_FORMAT_DEBUG_LITE_AREA_CMD			0x03
 #define P5_X_DEMO_MODE_PACKET_INFO_LEN			3
 #define P5_X_DEMO_MODE_PACKET_LEN			43
+#define P5_X_DEMO_MODE_PACKET_LEN_HIGH_RESOLUTION	72
 #define P5_X_INFO_HEADER_LENGTH				3
 #define P5_X_INFO_CHECKSUM_LENGTH			1
 #define P5_X_DEMO_DEBUG_INFO_ID0_LENGTH			14
@@ -758,9 +760,12 @@ struct report_info_block {
 #define P5_X_TEST_MODE_PACKET_LENGTH			1180
 #define P5_X_GESTURE_NORMAL_LENGTH			8
 #define P5_X_GESTURE_INFO_LENGTH			170
+#define P5_X_GESTURE_INFO_LENGTH_HIGH_RESOLUTION	221
 #define P5_X_DEBUG_LITE_LENGTH				300
 #define P5_X_CORE_VER_THREE_LENGTH			5
 #define P5_X_CORE_VER_FOUR_LENGTH			6
+#define P5_X_DEBUG_LOW_RESOLUTION_FINGER_DATA_LENGTH	35
+#define P5_X_DEBUG_HIGH_RESOLUTION_FINGER_DATA_LENGTH	45
 #define P5_X_5B_LOW_RESOLUTION_LENGTH			62
 #define P5_X_CUSTOMER_LENGTH				50
 
@@ -833,6 +838,8 @@ struct report_info_block {
 
 #ifdef ILI_SET_TOUCH_STATE
 #define MAX_PANEL_IDX 2
+#define POSITION_LOW_RESOLUTION		0X00
+#define POSITION_HIGH_RESOLUTION	0x01
 enum touch_panel_id {
 	TOUCH_PANEL_IDX_PRIMARY = 0,
 	TOUCH_PANEL_MAX_IDX,
@@ -1028,6 +1035,7 @@ struct ilitek_ts_data {
 	struct ili_sensor_platform_data *sensor_pdata;
 #endif
 
+	bool check_resolution;
 	/* Event for driver test */
 	struct completion esd_done;
 

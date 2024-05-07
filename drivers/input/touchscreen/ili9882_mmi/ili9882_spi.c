@@ -576,6 +576,12 @@ static int parse_dt(struct device_node *np)
 		ilits->report_gesture_key = 0;
 	}
 #endif
+	if (of_property_read_bool(np, "ilitek,check_resolution")) {
+                ILI_INFO("ilitek,ilitek,check_resolution set");
+                ilits->check_resolution = 1;
+        } else {
+                ilits->check_resolution = 0;
+        }
 
 #ifdef ILI_CONFIG_PANEL_GESTURE
 	//parse gesture by panel config

@@ -1018,31 +1018,50 @@ void ili_report_ap_mode(u8 *buf, int len)
 			xop = (((buf[(4 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] & 0xF0) << 4) | (buf[(4 * i) + 2 + P5_X_DEMO_MODE_PACKET_INFO_LEN]));
 			yop = (((buf[(4 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] & 0x0F) << 8) | (buf[(4 * i) + 3 + P5_X_DEMO_MODE_PACKET_INFO_LEN]));
 		} else {
-			if ((buf[(4 * i) + 1] == 0xFF) && (buf[(4 * i) + 2] == 0xFF)
-				&& (buf[(4 * i) + 3] == 0xFF)) {
-				if (MT_B_TYPE)
-					ilits->curt_touch[i] = 0;
-				continue;
+			if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
+				if ((buf[(5 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) && (buf[(5 * i) + 2 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) &&
+				    (buf[(5 * i) + 3 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) && (buf[(5 * i) + 4 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF)) {
+					if (MT_B_TYPE)
+						ilits->curt_touch[i] = 0;
+					continue;
+				}
+				xop = ((buf[(5 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] << 8) | (buf[(5 * i) + 2 + P5_X_DEMO_MODE_PACKET_INFO_LEN]));
+				yop = ((buf[(5 * i) + 3 + P5_X_DEMO_MODE_PACKET_INFO_LEN] << 8) | (buf[(5 * i) + 4 + P5_X_DEMO_MODE_PACKET_INFO_LEN]));
+			} else {
+				if ((buf[(4 * i) + 1] == 0xFF) && (buf[(4 * i) + 2] == 0xFF)
+					&& (buf[(4 * i) + 3] == 0xFF)) {
+					if (MT_B_TYPE)
+						ilits->curt_touch[i] = 0;
+					continue;
+				}
+				xop = (((buf[(4 * i) + 1] & 0xF0) << 4) | (buf[(4 * i) + 2]));
+				yop = (((buf[(4 * i) + 1] & 0x0F) << 8) | (buf[(4 * i) + 3]));
 			}
-
-			xop = (((buf[(4 * i) + 1] & 0xF0) << 4) | (buf[(4 * i) + 2]));
-			yop = (((buf[(4 * i) + 1] & 0x0F) << 8) | (buf[(4 * i) + 3]));
 		}
 		if (ilits->trans_xy) {
 			touch_info[ilits->finger].x = xop;
 			touch_info[ilits->finger].y = yop;
 		} else {
-			touch_info[ilits->finger].x = xop * ilits->panel_wid / TPD_WIDTH;
-			touch_info[ilits->finger].y = yop * ilits->panel_hei / TPD_HEIGHT;
+			if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
+				touch_info[ilits->finger].x = xop * ilits->panel_wid / ilits->max_x;
+				touch_info[ilits->finger].y = yop * ilits->panel_hei / ilits->max_y;
+			} else {
+				touch_info[ilits->finger].x = xop * ilits->panel_wid / TPD_WIDTH;
+				touch_info[ilits->finger].y = yop * ilits->panel_hei / TPD_HEIGHT;
+			}
 		}
 
 		touch_info[ilits->finger].id = i;
 
 		if (MT_PRESSURE) {
 			if (TOUCH_WIDTH) {
-				touch_info[ilits->finger].pressure =(buf[(4 * i) + 4 + P5_X_DEMO_MODE_PACKET_INFO_LEN])<<2;
+				touch_info[ilits->finger].pressure = buf[(4 * i) + 4 + P5_X_DEMO_MODE_PACKET_INFO_LEN];
 			} else {
-				touch_info[ilits->finger].pressure = buf[(4 * i) + 4];
+				if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
+					touch_info[ilits->finger].pressure = buf[(5 * i) + 5 + P5_X_DEMO_MODE_PACKET_INFO_LEN];
+				} else {
+					touch_info[ilits->finger].pressure = buf[(4 * i) + 4];
+				}
 			}
 		} else {
 			touch_info[ilits->finger].pressure = 1;
@@ -1133,22 +1152,37 @@ void ili_debug_mode_report_point(u8 *buf, int len)
 	ilits->finger = 0;
 
 	for (i = 0; i < MAX_TOUCH_NUM; i++) {
-		if ((buf[(3 * i)] == 0xFF) && (buf[(3 * i) + 1] == 0xFF)
-			&& (buf[(3 * i) + 2] == 0xFF)) {
-			if (MT_B_TYPE)
-				ilits->curt_touch[i] = 0;
-			continue;
+		if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
+			if ((buf[(4 * i)] == 0xFF) && (buf[(4 * i) + 1] == 0xFF)
+				&& (buf[(4 * i) + 2] == 0xFF) && (buf[(4 * i) + 3] == 0xFF)) {
+				if (MT_B_TYPE)
+					ilits->curt_touch[i] = 0;
+				continue;
+			}
+			xop = ((buf[(4 * i) + 0] << 8) | (buf[(4 * i) + 1]));
+			yop = ((buf[(4 * i) + 2] << 8) | (buf[(4 * i) + 3]));
+		} else {
+			if ((buf[(3 * i)] == 0xFF) && (buf[(3 * i) + 1] == 0xFF)
+				&& (buf[(3 * i) + 2] == 0xFF)) {
+				if (MT_B_TYPE)
+					ilits->curt_touch[i] = 0;
+				continue;
+			}
+			xop = (((buf[(3 * i)] & 0xF0) << 4) | (buf[(3 * i) + 1]));
+			yop = (((buf[(3 * i)] & 0x0F) << 8) | (buf[(3 * i) + 2]));
 		}
-
-		xop = (((buf[(3 * i)] & 0xF0) << 4) | (buf[(3 * i) + 1]));
-		yop = (((buf[(3 * i)] & 0x0F) << 8) | (buf[(3 * i) + 2]));
 
 		if (ilits->trans_xy) {
 			touch_info[ilits->finger].x = xop;
 			touch_info[ilits->finger].y = yop;
 		} else {
-			touch_info[ilits->finger].x = xop * ilits->panel_wid / TPD_WIDTH;
-			touch_info[ilits->finger].y = yop * ilits->panel_hei / TPD_HEIGHT;
+			if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
+				touch_info[ilits->finger].x = xop * ilits->panel_wid / ilits->max_x;
+				touch_info[ilits->finger].y = yop * ilits->panel_hei / ilits->max_y;
+			} else {
+				touch_info[ilits->finger].x = xop * ilits->panel_wid / TPD_WIDTH;
+				touch_info[ilits->finger].y = yop * ilits->panel_hei / TPD_HEIGHT;
+			}
 		}
 
 		touch_info[ilits->finger].id = i;
@@ -1239,7 +1273,7 @@ void ili_report_debug_lite_mode(u8 *buf, int len)
 void ili_report_gesture_mode(u8 *buf, int len)
 {
 	int lu_x = 0, lu_y = 0, rd_x = 0, rd_y = 0, score = 0;
-	u8 ges[P5_X_GESTURE_INFO_LENGTH] = {0};
+	u8 ges[P5_X_GESTURE_INFO_LENGTH_HIGH_RESOLUTION] = {0};
 	struct gesture_coordinate *gc = ilits->gcoord;
 #if !defined(ILI_SENSOR_EN) && !defined(CONFIG_INPUT_TOUCHSCREEN_MMI)
 	struct input_dev *input = ilits->input;
@@ -1253,22 +1287,39 @@ void ili_report_gesture_mode(u8 *buf, int len)
 	memset(gc, 0x0, sizeof(struct gesture_coordinate));
 
 	gc->code = ges[1];
-	score = ges[36];
-	ILI_INFO("gesture code = 0x%x, score = %d\n", gc->code, score);
 
-	/* Parsing gesture coordinate */
-	gc->pos_start.x = ((ges[4] & 0xF0) << 4) | ges[5];
-	gc->pos_start.y = ((ges[4] & 0x0F) << 8) | ges[6];
-	gc->pos_end.x   = ((ges[7] & 0xF0) << 4) | ges[8];
-	gc->pos_end.y   = ((ges[7] & 0x0F) << 8) | ges[9];
-	gc->pos_1st.x   = ((ges[16] & 0xF0) << 4) | ges[17];
-	gc->pos_1st.y   = ((ges[16] & 0x0F) << 8) | ges[18];
-	gc->pos_2nd.x   = ((ges[19] & 0xF0) << 4) | ges[20];
-	gc->pos_2nd.y   = ((ges[19] & 0x0F) << 8) | ges[21];
-	gc->pos_3rd.x   = ((ges[22] & 0xF0) << 4) | ges[23];
-	gc->pos_3rd.y   = ((ges[22] & 0x0F) << 8) | ges[24];
-	gc->pos_4th.x   = ((ges[25] & 0xF0) << 4) | ges[26];
-	gc->pos_4th.y   = ((ges[25] & 0x0F) << 8) | ges[27];
+	if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
+		score = ges[46];
+		gc->pos_start.x = (ges[4] << 8) | ges[5];
+		gc->pos_start.y = (ges[6] << 8) | ges[7];
+		gc->pos_end.x   = (ges[8] << 8) | ges[9];
+		gc->pos_end.y   = (ges[10] << 8) | ges[11];
+		gc->pos_1st.x   = (ges[20] << 8) | ges[21];
+		gc->pos_1st.y   = (ges[22] << 8) | ges[23];
+		gc->pos_2nd.x   = (ges[24] << 4) | ges[25];
+		gc->pos_2nd.y   = (ges[26] << 8) | ges[27];
+		gc->pos_3rd.x   = (ges[28] << 8) | ges[29];
+		gc->pos_3rd.y   = (ges[30] << 8) | ges[31];
+		gc->pos_4th.x   = (ges[32] << 8) | ges[33];
+		gc->pos_4th.y   = (ges[34] << 8) | ges[35];
+	} else {
+		score = ges[36];
+
+		/* Parsing gesture coordinate */
+		gc->pos_start.x = ((ges[4] & 0xF0) << 4) | ges[5];
+		gc->pos_start.y = ((ges[4] & 0x0F) << 8) | ges[6];
+		gc->pos_end.x   = ((ges[7] & 0xF0) << 4) | ges[8];
+		gc->pos_end.y   = ((ges[7] & 0x0F) << 8) | ges[9];
+		gc->pos_1st.x   = ((ges[16] & 0xF0) << 4) | ges[17];
+		gc->pos_1st.y   = ((ges[16] & 0x0F) << 8) | ges[18];
+		gc->pos_2nd.x   = ((ges[19] & 0xF0) << 4) | ges[20];
+		gc->pos_2nd.y   = ((ges[19] & 0x0F) << 8) | ges[21];
+		gc->pos_3rd.x   = ((ges[22] & 0xF0) << 4) | ges[23];
+		gc->pos_3rd.y   = ((ges[22] & 0x0F) << 8) | ges[24];
+		gc->pos_4th.x   = ((ges[25] & 0xF0) << 4) | ges[26];
+		gc->pos_4th.y   = ((ges[25] & 0x0F) << 8) | ges[27];
+	}
+	ILI_INFO("gesture code = 0x%x, score = %d\n", gc->code, score);
 
 	switch (gc->code) {
 	case GESTURE_SINGLECLICK:
@@ -1347,13 +1398,19 @@ void ili_report_gesture_mode(u8 *buf, int len)
 		break;
 	case GESTURE_O:
 		gc->type  = GESTURE_O;
-		gc->clockwise = (ges[34] > 1) ? 0 : ges[34];
-
-		lu_x = (((ges[28] & 0xF0) << 4) | (ges[29]));
-		lu_y = (((ges[28] & 0x0F) << 8) | (ges[30]));
-		rd_x = (((ges[31] & 0xF0) << 4) | (ges[32]));
-		rd_y = (((ges[31] & 0x0F) << 8) | (ges[33]));
-
+		if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
+			gc->clockwise = (ges[44] > 1) ? 0 : ges[44];
+			lu_x = ((ges[36] << 8) | (ges[37]));
+			lu_y = ((ges[38] << 8) | (ges[39]));
+			rd_x = ((ges[40] << 8) | (ges[41]));
+			rd_y = ((ges[42] << 8) | (ges[43]));
+		} else {
+			gc->clockwise = (ges[34] > 1) ? 0 : ges[34];
+			lu_x = (((ges[28] & 0xF0) << 4) | (ges[29]));
+			lu_y = (((ges[28] & 0x0F) << 8) | (ges[30]));
+			rd_x = (((ges[31] & 0xF0) << 4) | (ges[32]));
+			rd_y = (((ges[31] & 0x0F) << 8) | (ges[33]));
+		}
 		gc->pos_1st.x = ((rd_x + lu_x) / 2);
 		gc->pos_1st.y = lu_y;
 		gc->pos_2nd.x = lu_x;
@@ -1394,10 +1451,17 @@ void ili_report_gesture_mode(u8 *buf, int len)
 	case GESTURE_TWOLINE_DOWN:
 		gc->type  = GESTURE_TWOLINE_DOWN;
 		gc->clockwise = 1;
-		gc->pos_1st.x  = (((ges[10] & 0xF0) << 4) | (ges[11]));
-		gc->pos_1st.y  = (((ges[10] & 0x0F) << 8) | (ges[12]));
-		gc->pos_2nd.x  = (((ges[13] & 0xF0) << 4) | (ges[14]));
-		gc->pos_2nd.y  = (((ges[13] & 0x0F) << 8) | (ges[15]));
+		if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
+			gc->pos_1st.x  = ((ges[12] << 8) | (ges[13]));
+			gc->pos_1st.y  = ((ges[14] << 8) | (ges[15]));
+			gc->pos_2nd.x  = ((ges[16] << 8) | (ges[17]));
+			gc->pos_2nd.y  = ((ges[18] << 8) | (ges[19]));
+		} else {
+			gc->pos_1st.x  = (((ges[10] & 0xF0) << 4) | (ges[11]));
+			gc->pos_1st.y  = (((ges[10] & 0x0F) << 8) | (ges[12]));
+			gc->pos_2nd.x  = (((ges[13] & 0xF0) << 4) | (ges[14]));
+			gc->pos_2nd.y  = (((ges[13] & 0x0F) << 8) | (ges[15]));
+		}
 		break;
 	default:
 		ILI_ERR("Unknown gesture code\n");
@@ -1405,18 +1469,33 @@ void ili_report_gesture_mode(u8 *buf, int len)
 	}
 
 	if (!transfer) {
-		gc->pos_start.x	= gc->pos_start.x * ilits->panel_wid / TPD_WIDTH;
-		gc->pos_start.y = gc->pos_start.y * ilits->panel_hei / TPD_HEIGHT;
-		gc->pos_end.x   = gc->pos_end.x * ilits->panel_wid / TPD_WIDTH;
-		gc->pos_end.y   = gc->pos_end.y * ilits->panel_hei / TPD_HEIGHT;
-		gc->pos_1st.x   = gc->pos_1st.x * ilits->panel_wid / TPD_WIDTH;
-		gc->pos_1st.y   = gc->pos_1st.y * ilits->panel_hei / TPD_HEIGHT;
-		gc->pos_2nd.x   = gc->pos_2nd.x * ilits->panel_wid / TPD_WIDTH;
-		gc->pos_2nd.y   = gc->pos_2nd.y * ilits->panel_hei / TPD_HEIGHT;
-		gc->pos_3rd.x   = gc->pos_3rd.x * ilits->panel_wid / TPD_WIDTH;
-		gc->pos_3rd.y   = gc->pos_3rd.y * ilits->panel_hei / TPD_HEIGHT;
-		gc->pos_4th.x   = gc->pos_4th.x * ilits->panel_wid / TPD_WIDTH;
-		gc->pos_4th.y   = gc->pos_4th.y * ilits->panel_hei / TPD_HEIGHT;
+		if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
+			gc->pos_start.x	= gc->pos_start.x * ilits->panel_wid / ilits->max_x;
+			gc->pos_start.y = gc->pos_start.y * ilits->panel_hei / ilits->max_y;
+			gc->pos_end.x   = gc->pos_end.x * ilits->panel_wid / ilits->max_x;
+			gc->pos_end.y   = gc->pos_end.y * ilits->panel_hei / ilits->max_y;
+			gc->pos_1st.x   = gc->pos_1st.x * ilits->panel_wid / ilits->max_x;
+			gc->pos_1st.y   = gc->pos_1st.y * ilits->panel_hei / ilits->max_y;
+			gc->pos_2nd.x   = gc->pos_2nd.x * ilits->panel_wid / ilits->max_x;
+			gc->pos_2nd.y   = gc->pos_2nd.y * ilits->panel_hei / ilits->max_y;
+			gc->pos_3rd.x   = gc->pos_3rd.x * ilits->panel_wid / ilits->max_x;
+			gc->pos_3rd.y   = gc->pos_3rd.y * ilits->panel_hei / ilits->max_y;
+			gc->pos_4th.x   = gc->pos_4th.x * ilits->panel_wid / ilits->max_x;
+			gc->pos_4th.y   = gc->pos_4th.y * ilits->panel_hei / ilits->max_y;
+		} else {
+			gc->pos_start.x	= gc->pos_start.x * ilits->panel_wid / TPD_WIDTH;
+			gc->pos_start.y = gc->pos_start.y * ilits->panel_hei / TPD_HEIGHT;
+			gc->pos_end.x   = gc->pos_end.x * ilits->panel_wid / TPD_WIDTH;
+			gc->pos_end.y   = gc->pos_end.y * ilits->panel_hei / TPD_HEIGHT;
+			gc->pos_1st.x   = gc->pos_1st.x * ilits->panel_wid / TPD_WIDTH;
+			gc->pos_1st.y   = gc->pos_1st.y * ilits->panel_hei / TPD_HEIGHT;
+			gc->pos_2nd.x   = gc->pos_2nd.x * ilits->panel_wid / TPD_WIDTH;
+			gc->pos_2nd.y   = gc->pos_2nd.y * ilits->panel_hei / TPD_HEIGHT;
+			gc->pos_3rd.x   = gc->pos_3rd.x * ilits->panel_wid / TPD_WIDTH;
+			gc->pos_3rd.y   = gc->pos_3rd.y * ilits->panel_hei / TPD_HEIGHT;
+			gc->pos_4th.x   = gc->pos_4th.x * ilits->panel_wid / TPD_WIDTH;
+			gc->pos_4th.y   = gc->pos_4th.y * ilits->panel_hei / TPD_HEIGHT;
+		}
 	}
 
 	ILI_INFO("Transfer = %d, Type = %d, clockwise = %d\n", transfer, gc->type, gc->clockwise);

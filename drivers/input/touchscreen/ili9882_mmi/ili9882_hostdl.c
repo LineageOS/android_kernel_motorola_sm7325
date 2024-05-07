@@ -538,10 +538,15 @@ static int ilitek_tddi_fw_update_block_info(u8 *pfw)
 
 	/* Get hex report info block*/
 	ipio_memcpy(&ilits->rib, ilits->fw_info, sizeof(ilits->rib), sizeof(ilits->rib));
+	if (ilits->check_resolution == 1)
+		ilits->rib.nReportResolutionMode = (ilits->chip->core_ver >= CORE_VER_1470) ? (ilits->rib.nReportResolutionMode & 0x07) : POSITION_LOW_RESOLUTION;
+	else
+		ilits->rib.nReportResolutionMode = POSITION_LOW_RESOLUTION;
+
 	ILI_INFO("report_info_block : nReportByPixel = %d, nIsHostDownload = %d, nIsSPIICE = %d, nIsSPISLAVE = %d\n",
 		ilits->rib.nReportByPixel, ilits->rib.nIsHostDownload, ilits->rib.nIsSPIICE, ilits->rib.nIsSPISLAVE);
-	ILI_INFO("report_info_block : nIsI2C = %d, nReserved00 = %d, nReserved01 = %x, nReserved02 = %x,  nReserved03 = %x\n",
-		ilits->rib.nIsI2C, ilits->rib.nReserved00, ilits->rib.nReserved01, ilits->rib.nReserved02, ilits->rib.nReserved03);
+	ILI_INFO("report_info_block : nIsI2C = %d, nReportResolutionMode = %d, nReserved00 = %d, nReserved01 = %x, nReserved02 = %x,  nReserved03 = %x\n",
+		ilits->rib.nIsI2C, ilits->rib.nReportResolutionMode, ilits->rib.nReserved00, ilits->rib.nReserved01, ilits->rib.nReserved02, ilits->rib.nReserved03);
 
 	/* Calculate update address */
 	ILI_INFO("New FW ver = 0x%x\n", tfd.new_fw_cb);

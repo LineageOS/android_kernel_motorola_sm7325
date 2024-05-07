@@ -279,7 +279,7 @@ out:
 
 static int debug_mode_get_data(struct file_buffer *file, u8 type, u32 frame_count)
 {
-	int ret;
+	int ret = 0, cdc_starIdx = 0;
 	u8 cmd[2] = { 0 }, row, col;
 	s16 temp;
 	unsigned char *ptr;
@@ -293,6 +293,11 @@ static int debug_mode_get_data(struct file_buffer *file, u8 type, u32 frame_coun
 	col = ilits->xch_num;
 	mutex_lock(&ilits->touch_mutex);
 
+	if (ilits->rib.nReportResolutionMode == POSITION_LOW_RESOLUTION) {
+		cdc_starIdx = P5_X_DEBUG_LOW_RESOLUTION_FINGER_DATA_LENGTH;
+	} else if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
+		cdc_starIdx = P5_X_DEBUG_HIGH_RESOLUTION_FINGER_DATA_LENGTH;
+	}
 	cmd[0] = 0xFA;
 	cmd[1] = type;
 	ret = ilits->wrapper(cmd, 2, NULL, 0, ON, OFF);
@@ -324,7 +329,7 @@ static int debug_mode_get_data(struct file_buffer *file, u8 type, u32 frame_coun
 		file->wlen += snprintf(file->ptr + file->wlen, (file->max_size - file->wlen), "\n\nFrame%d,", write_index);
 		for (j = 0; j < col; j++)
 			file->wlen += snprintf(file->ptr + file->wlen, (file->max_size - file->wlen), "[X%d] ,", j);
-		ptr = &ilits->dbl[ilits->odi].data[35];
+		ptr = &ilits->dbl[ilits->odi].data[cdc_starIdx];
 		for (j = 0; j < row * col; j++, ptr += 2) {
 			temp = (*ptr << 8) + *(ptr + 1);
 			if (j % col == 0)
