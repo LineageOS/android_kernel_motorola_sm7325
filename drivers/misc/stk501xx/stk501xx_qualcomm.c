@@ -262,7 +262,7 @@ static ssize_t stk_phase_cali(struct device *dev,
     stk501xx_wrapper *stk_wrapper = dev_get_drvdata(dev);
     int result = 0;
     stk_data *stk = &stk_wrapper->stk;
-    stk501xx_phase_reset(stk, STK_TRIGGER_REG_INIT_ALL);
+    stk501xx_phase_reset(stk, STK_TRIGGER_REG_INIT_ALL(stk->pdata->phase_en));
     return (ssize_t)result;
 }
 static ssize_t stk_set_thd(struct device *dev,
@@ -489,7 +489,7 @@ static ssize_t class_stk_phase_cali(struct class *class,
 {
     int result = 0;
     STK_ERR("class_stk_phase_cali , reset all phase\n");
-    stk501xx_phase_reset(global_stk, STK_TRIGGER_REG_INIT_ALL);
+    stk501xx_phase_reset(global_stk, STK_TRIGGER_REG_INIT_ALL(global_stk->pdata->phase_en));
     return (ssize_t)result;
 }
 
@@ -497,7 +497,7 @@ static ssize_t class_stk_phase_cali_store(struct class *class,
         struct class_attribute *attr, const char *buf, size_t count)
 {
     STK_ERR("class_stk_phase_cali_store , reset all phase\n");
-    stk501xx_phase_reset(global_stk, STK_TRIGGER_REG_INIT_ALL);
+    stk501xx_phase_reset(global_stk, STK_TRIGGER_REG_INIT_ALL(global_stk->pdata->phase_en));
     return count;
 }
 
@@ -937,6 +937,25 @@ static int stk_parse_dt(struct device *dev,
 #endif /* STK_INTERRUPT_MODE */
     }
 
+    pdata->phase_en = 0x7f;
+    of_property_read_u32(np,"stk,phase_en",&pdata->phase_en);
+    // load in registers from device tree
+    of_property_read_u32(np,"stk,reg-num",&pdata->i2c_reg_num);
+    STK_LOG("size of elements %d \n", pdata->i2c_reg_num);
+    if (pdata->i2c_reg_num > 0)
+    {
+        // initialize platform reg data array
+        pdata->pi2c_reg = devm_kzalloc(dev,sizeof(struct smtc_reg_data)*pdata->i2c_reg_num, GFP_KERNEL);
+        if (unlikely(pdata->pi2c_reg == NULL))
+        {
+                STK_ERR("size of elements %d alloc error\n", pdata->i2c_reg_num);
+                return -ENOMEM;
+        }
+        // initialize the array
+        if (of_property_read_u32_array(np,"stk,reg-init",(u32*)&(pdata->pi2c_reg[0]),sizeof(struct smtc_reg_data)*pdata->i2c_reg_num/sizeof(u32)))
+            return -ENOMEM;
+    }
+
     return 0; /* SUCCESS */
 }
 #else
@@ -1000,7 +1019,9 @@ static int get_platform_data(stk501xx_wrapper *stk_wrapper)
     stk_wrapper->stk.gpio_info.int_pin = stk_platdata->interrupt_int1_pin;
     STK_ERR("int_pin=%d", stk_wrapper->stk.gpio_info.int_pin);
 #endif /* STK_INTERRUPT_MODE */
+    stk_wrapper->stk.pdata = stk_platdata;
     //stk->direction = stk_platdata->direction;
+    STK_LOG("phase_en %x \n", stk_wrapper->stk.pdata->phase_en);
     return 0;
 }
 

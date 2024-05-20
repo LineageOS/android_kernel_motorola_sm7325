@@ -3,7 +3,7 @@
 #ifdef MCU_GESTURE
     static void stk_alg_work_queue(void *stkdata);
 #endif
-
+/*
 stk501xx_register_table stk501xx_default_register_table[] =
 {
     //Trigger_CMD
@@ -188,7 +188,7 @@ stk501xx_register_table stk501xx_default_register_table[] =
     {STK_ADDR_DELTADES_B_CTRL, STK_ADDR_DELTADES_B_CTRL_VALUE}, //enable delta descend B
 #endif
 };
-
+*/
 /****************************************************************************************************
 * 16bit register address function
 ****************************************************************************************************/
@@ -653,7 +653,7 @@ void stk501xx_set_enable(struct stk_data* stk, char enable)
     {
 //        stk501xx_set_thd(stk);
         reg = STK_ADDR_TRIGGER_REG;
-        val = STK_TRIGGER_REG_INIT_ALL;
+        val = STK_TRIGGER_REG_INIT_ALL(stk->pdata->phase_en);
         STK_REG_WRITE(stk, reg, (uint8_t*)&val);
         reg = STK_ADDR_TRIGGER_CMD;
         val = STK_TRIGGER_CMD_REG_INIT_ALL;
@@ -981,19 +981,24 @@ int32_t stk501xx_show_all_reg(struct stk_data* stk)
 static int32_t stk_reg_init(struct stk_data* stk)
 {
     int32_t err = 0;
-    uint16_t reg, reg_count = 0, reg_num = 0;
+    uint16_t reg;
     uint32_t val;
 #ifdef STK_STARTUP_CALI
     uint32_t fix_cadc[2] = {0}; //Assign factory CADC value  0=ref, 1=measure
 #endif
-
+    int i = 0;
+    struct stk501xx_platform_data   *pdata = stk->pdata;
+#if 0
+    uint16_t reg_count = 0, reg_num = 0;
     reg_num = sizeof(stk501xx_default_register_table) / sizeof(stk501xx_register_table);
 
     for (reg_count = 0; reg_count < reg_num; reg_count++)
     {
         reg = stk501xx_default_register_table[reg_count].address;
         val = stk501xx_default_register_table[reg_count].value;
-
+            STK_LOG("Going to Write Reg from dts: 0x%x 0x%x\n",
+                            reg,val);
+}
         if ( reg == STK_ADDR_CADC_SMOOTH && stk->chip_index >= 0x1)
             val = 0xFF;
 #ifdef STK_STARTUP_CALI
@@ -1016,10 +1021,27 @@ static int32_t stk_reg_init(struct stk_data* stk)
         if (err < 0)
             return err;
     }
+#endif
+    i = 0;
+    while ( i < pdata->i2c_reg_num)
+    {
+            /* Write all registers/values contained in i2c_reg */
+            STK_LOG("Going to Write Reg from dts: 0x%x Value: 0x%x\n",
+                            pdata->pi2c_reg[i].reg,pdata->pi2c_reg[i].val);
+            reg = (uint16_t)pdata->pi2c_reg[i].reg;
+            val = pdata->pi2c_reg[i].val;
+            if ( reg == STK_ADDR_CADC_SMOOTH && stk->chip_index >= 0x1)
+                val = 0xFF;
+            err = STK_REG_WRITE(stk, reg, (uint8_t*)&val);
+            if (err < 0)
+                return err;
+            i++;
+    }
+
 
     //enable phase
     reg = STK_ADDR_TRIGGER_REG;
-    val = STK_TRIGGER_REG_INIT_ALL;
+    val = STK_TRIGGER_REG_INIT_ALL(stk->pdata->phase_en);
     STK_REG_WRITE(stk, reg, (uint8_t*)&val);
     reg = STK_ADDR_TRIGGER_CMD;
     val = STK_TRIGGER_CMD_REG_INIT_ALL;
@@ -1178,7 +1200,7 @@ void stk_work_queue(void *stkdata)
 
     if (flag & STK_IRQ_SOURCE_ENABLE_REG_SATURATION_IRQ_EN_MASK)
     {
-        stk501xx_phase_reset(stk, STK_TRIGGER_REG_INIT_ALL);
+        stk501xx_phase_reset(stk, STK_TRIGGER_REG_INIT_ALL(stk->pdata->phase_en));
 #ifdef TEMP_COMPENSATION
         stk->last_prox_a_state = 0;
         stk->last_prox_b_state = 0;

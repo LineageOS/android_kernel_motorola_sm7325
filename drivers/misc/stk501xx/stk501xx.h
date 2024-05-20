@@ -68,12 +68,13 @@ enum
 
 #define IDLE_WAITING_6MS                    (600000/STK_POLLING_TIME) // default waintg 6ms.
 
-
+/*
 #ifdef MCU_GESTURE
     #define PHASE_EN 0x3F  //use all phase
 #else
     #define PHASE_EN 0x7F  //use phase 0 1 2 3 4 5 6
 #endif
+*/
 
 #ifdef TEMP_COMPENSATION
     /* Modify by design*/
@@ -82,7 +83,7 @@ enum
     #define DELTA_A_MEASURE_PHASE                  1  // measure phase
     /*End of modify by design*/
     #define DELTA_A_MAPPING_PHASE_REG              (STK_ADDR_REG_RAW_PH0_REG  + (DELTA_A_MAPPING_PHASE * 4))
-    #define STK_ADDR_DELTADES_A_CTRL_VALUE          0x01403301 | (DELTA_A_MEASURE_PHASE <<4)
+    //#define STK_ADDR_DELTADES_A_CTRL_VALUE          0x01403301 | (DELTA_A_MEASURE_PHASE <<4)
 
     /* Modify by design*/
     #define DELTA_TEMP_THD_B                       80000
@@ -90,7 +91,7 @@ enum
     #define DELTA_B_MEASURE_PHASE                  3 //  measure phase
     /*End of modify by design*/
     #define DELTA_B_MAPPING_PHASE_REG              (STK_ADDR_REG_RAW_PH0_REG  + (DELTA_B_MAPPING_PHASE * 4))
-    #define STK_ADDR_DELTADES_B_CTRL_VALUE          0x01403301 | (DELTA_B_MEASURE_PHASE <<4)
+    //#define STK_ADDR_DELTADES_B_CTRL_VALUE          0x01403301 | (DELTA_B_MEASURE_PHASE <<4)
     #define BASE_REINIT_DELTA_DES                  0x200000
 #endif
 
@@ -160,46 +161,46 @@ typedef enum
 #define STK_CHIP_INDEX_F__MASK                  0x000000FF
 
 #define STK_ADDR_RXIO0_MUX_REG                  0x0058
-#define STK_RXIO0_MUX_REG_VALUE                 0x22242222 //PH4 ANT4
+//#define STK_RXIO0_MUX_REG_VALUE                 0x22242222 //PH4 ANT4
 
 #define STK_ADDR_RXIO1_MUX_REG                  0x005C
-#define STK_RXIO1_MUX_REG_VALUE                 0x22222222 //PH2 ANT1
+//#define STK_RXIO1_MUX_REG_VALUE                 0x22222222 //PH2 ANT1
 
 #define STK_ADDR_RXIO2_MUX_REG                  0x0060
-#define STK_RXIO2_MUX_REG_VALUE                 0x22422222 //PH5 Ant5&6&6&7&11 ref
+//#define STK_RXIO2_MUX_REG_VALUE                 0x22422222 //PH5 Ant5&6&6&7&11 ref
 
 #define STK_ADDR_RXIO3_MUX_REG                  0x0064
-#define STK_RXIO3_MUX_REG_VALUE                 0x00000000 //Digital mode
+//#define STK_RXIO3_MUX_REG_VALUE                 0x00000000 //Digital mode
 
 #define STK_ADDR_RXIO4_MUX_REG                  0x0068
-#define STK_RXIO4_MUX_REG_VALUE                 0x22222224 //PH0 ANT0&1 ref
+//#define STK_RXIO4_MUX_REG_VALUE                 0x22222224 //PH0 ANT0&1 ref
 
 #define STK_ADDR_RXIO5_MUX_REG                  0x006C
-#define STK_RXIO5_MUX_REG_VALUE                 0x22224222 //PH3 ANT4 ref
+//#define STK_RXIO5_MUX_REG_VALUE                 0x22224222 //PH3 ANT4 ref
 
 #define STK_ADDR_RXIO6_MUX_REG                  0x0070
-#define STK_RXIO6_MUX_REG_VALUE                 0x22222242 //PH1 ANT0
+//#define STK_RXIO6_MUX_REG_VALUE                 0x22222242 //PH1 ANT0
 
 #define STK_ADDR_RXIO7_MUX_REG                  0x0074
-#define STK_RXIO7_MUX_REG_VALUE                 0x24222222 //PH6 ANT5&6&7&11
+//#define STK_RXIO7_MUX_REG_VALUE                 0x24222222 //PH6 ANT5&6&7&11
 
 #define STK_ADDR_ADP_BASELINE_0                 0x00B0
-#define STK_ADP_BASELINE_0_VALUE                0x00050000
+//#define STK_ADP_BASELINE_0_VALUE                0x00050000
 
 #define STK_ADDR_ADP_BASELINE_1                 0x00B4
-#define STK_ADP_BASELINE_1_VALUE                0x10101010
+//#define STK_ADP_BASELINE_1_VALUE                0x10101010
 
 #define STK_ADDR_ADP_BASELINE_2                 0x00B8
-#define STK_ADP_BASELINE_2_VALUE                0x10101010
+//#define STK_ADP_BASELINE_2_VALUE                0x10101010
 
 #define STK_ADDR_IRQ_CONFIG                     0x00C4
 #define STK_IRQ_CONFIG_SENS_RATE_OPT_SHIFT      24
 
 #define STK_ADDR_SCAN_PERIOD                    0x00D0
-#define STK_SCAN_PERIOD_VALUE                   0x00000FA0 //200ms
+//#define STK_SCAN_PERIOD_VALUE                   0x00000FA0 //200ms
 
 #define STK_ADDR_I2C_WDT_CTRL                   0x00D4
-#define STK_I2C_WDT_VALUE                       0x00004008
+//#define STK_I2C_WDT_VALUE                       0x00004008
 
 #define STK_ADDR_TRIGGER_CMD                    0x0100
 #define STK_TRIGGER_CMD_REG_INIT_ALL            0x0000000F
@@ -210,7 +211,8 @@ typedef enum
 #define STK_TRIGGER_REG_PHEN_MASK               0xFF
 #define STK_TRIGGER_REG_PHEN_DISABLE_ALL        0x00000000
 
-#define STK_TRIGGER_REG_INIT_ALL                ((PHASE_EN << 8) | PHASE_EN)
+//#define STK_TRIGGER_REG_INIT_ALL                ((PHASE_EN << 8) | PHASE_EN)
+#define STK_TRIGGER_REG_INIT_ALL(PHASE_EN)        (((PHASE_EN) << 8) | (PHASE_EN))
 #define STK_TRIGGER_REG_PHRST_PHASE             (1 << (8 + DELDEA_A_MAPPING_PHASE))
 
 #define STK_TRIGGER_REG_ENTER_PAUSE_MODE        0x0
@@ -219,7 +221,7 @@ typedef enum
 #define STK_ADDR_RX_NL_CTRL                     0x0134
 
 #define STK_ADDR_FAIL_STAT_DET_2                0x0148
-#define STK_FAIL_STAT_DET_2_VALUE               0x08000500
+//#define STK_FAIL_STAT_DET_2_VALUE               0x08000500
 
 #define STK_ADDR_DETECT_STATUS_1                0x0184
 #define STK_DETECT_STATUS_1_PROX_STATE_MASK     0xFF00
@@ -240,7 +242,7 @@ typedef enum
 #define STK_ADDR_STARTUP_THD_PH0                0x0224
 #define STK_ADDR_PROX_CTRL0_PH0                 0x022C
 #define STK_ADDR_PROX_CTRL1_PH0                 0x0230
-
+/*
 #define STK_SCAN_OPT_PH0_VALUE                  0x00000000
 #ifdef MCU_GESTURE
     #define STK_TX_CTRL_PH0_VALUE                   0x05000404
@@ -260,7 +262,7 @@ typedef enum
     #define STK_PROX_CTRL0_PH0_VALUE                0x32323232
     #define STK_PROX_CTRL1_PH0_VALUE                0x00000007
 #endif
-
+*/
 #define STK_ADDR_SCAN_OPT_PH1                   0x0240
 #define STK_ADDR_TX_CTRL_PH1                    0x0248
 #define STK_ADDR_SENS_CTRL_PH1                  0x024C
@@ -271,7 +273,7 @@ typedef enum
 #define STK_ADDR_STARTUP_THD_PH1                0x0264
 #define STK_ADDR_PROX_CTRL0_PH1                 0x026C
 #define STK_ADDR_PROX_CTRL1_PH1                 0x0270
-
+/*
 #define STK_SCAN_OPT_PH1_VALUE                  0x00000000
 #ifdef MCU_GESTURE
     #define STK_TX_CTRL_PH1_VALUE                   0x05000404
@@ -291,7 +293,7 @@ typedef enum
     #define STK_PROX_CTRL0_PH1_VALUE                0x32323232
     #define STK_PROX_CTRL1_PH1_VALUE                0x00000007
 #endif
-
+*/
 #define STK_ADDR_SCAN_OPT_PH2                   0x0280
 #define STK_ADDR_TX_CTRL_PH2                    0x0288
 #define STK_ADDR_SENS_CTRL_PH2                  0x028C
@@ -302,7 +304,7 @@ typedef enum
 #define STK_ADDR_STARTUP_THD_PH2                0x02A4
 #define STK_ADDR_PROX_CTRL0_PH2                 0x02AC
 #define STK_ADDR_PROX_CTRL1_PH2                 0x02B0
-
+/*
 #define STK_SCAN_OPT_PH2_VALUE                  0x00000000
 #ifdef MCU_GESTURE
     #define STK_TX_CTRL_PH2_VALUE                   0x05000404
@@ -322,7 +324,7 @@ typedef enum
     #define STK_PROX_CTRL0_PH2_VALUE                0x32323232
     #define STK_PROX_CTRL1_PH2_VALUE                0x00000007
 #endif
-
+*/
 #define STK_ADDR_SCAN_OPT_PH3                   0x02C0
 #define STK_ADDR_TX_CTRL_PH3                    0x02C8
 #define STK_ADDR_SENS_CTRL_PH3                  0x02CC
@@ -333,7 +335,7 @@ typedef enum
 #define STK_ADDR_STARTUP_THD_PH3                0x02E4
 #define STK_ADDR_PROX_CTRL0_PH3                 0x02EC
 #define STK_ADDR_PROX_CTRL1_PH3                 0x02F0
-
+/*
 #define STK_SCAN_OPT_PH3_VALUE                  0x00000000
 #ifdef MCU_GESTURE
     #define STK_TX_CTRL_PH3_VALUE                   0x05000404
@@ -353,7 +355,7 @@ typedef enum
     #define STK_PROX_CTRL0_PH3_VALUE                0x32323232
     #define STK_PROX_CTRL1_PH3_VALUE                0x00000007
 #endif
-
+*/
 #define STK_ADDR_SCAN_OPT_PH4                   0x0300
 #define STK_ADDR_TX_CTRL_PH4                    0x0308
 #define STK_ADDR_SENS_CTRL_PH4                  0x030C
@@ -364,7 +366,7 @@ typedef enum
 #define STK_ADDR_STARTUP_THD_PH4                0x0324
 #define STK_ADDR_PROX_CTRL0_PH4                 0x032C
 #define STK_ADDR_PROX_CTRL1_PH4                 0x0330
-
+/*
 #define STK_SCAN_OPT_PH4_VALUE                  0x00000000
 #ifdef MCU_GESTURE
     #define STK_TX_CTRL_PH4_VALUE                   0x05000404
@@ -384,7 +386,7 @@ typedef enum
     #define STK_PROX_CTRL0_PH4_VALUE                0x32323232
     #define STK_PROX_CTRL1_PH4_VALUE                0x00000007
 #endif
-
+*/
 #define STK_ADDR_SCAN_OPT_PH5                   0x0340
 #define STK_ADDR_TX_CTRL_PH5                    0x0348
 #define STK_ADDR_SENS_CTRL_PH5                  0x034C
@@ -395,7 +397,7 @@ typedef enum
 #define STK_ADDR_STARTUP_THD_PH5                0x0364
 #define STK_ADDR_PROX_CTRL0_PH5                 0x036C
 #define STK_ADDR_PROX_CTRL1_PH5                 0x0370
-
+/*
 #define STK_SCAN_OPT_PH5_VALUE                  0x00000000
 #ifdef MCU_GESTURE
     #define STK_TX_CTRL_PH5_VALUE                   0x05000404
@@ -415,7 +417,7 @@ typedef enum
     #define STK_PROX_CTRL0_PH5_VALUE                0x32323232
     #define STK_PROX_CTRL1_PH5_VALUE                0x00000007
 #endif
-
+*/
 #define STK_ADDR_SCAN_OPT_PH6                   0x0380
 #define STK_ADDR_TX_CTRL_PH6                    0x0388
 #define STK_ADDR_SENS_CTRL_PH6                  0x038C
@@ -426,7 +428,7 @@ typedef enum
 #define STK_ADDR_STARTUP_THD_PH6                0x03A4
 #define STK_ADDR_PROX_CTRL0_PH6                 0x03AC
 #define STK_ADDR_PROX_CTRL1_PH6                 0x03B0
-
+/*
 #define STK_SCAN_OPT_PH6_VALUE                  0x00000000
 #ifdef MCU_GESTURE
     #define STK_TX_CTRL_PH6_VALUE                   0x05000404
@@ -446,7 +448,7 @@ typedef enum
     #define STK_PROX_CTRL0_PH6_VALUE                0x32323232
     #define STK_PROX_CTRL1_PH6_VALUE                0x00000007
 #endif
-
+*/
 #define STK_ADDR_SCAN_OPT_PH7                   0x03C0
 #define STK_ADDR_TX_CTRL_PH7                    0x03C8
 #define STK_ADDR_SENS_CTRL_PH7                  0x03CC
@@ -457,7 +459,7 @@ typedef enum
 #define STK_ADDR_STARTUP_THD_PH7                0x03E4
 #define STK_ADDR_PROX_CTRL0_PH7                 0x03EC
 #define STK_ADDR_PROX_CTRL1_PH7                 0x03F0
-
+/*
 #define STK_SCAN_OPT_PH7_VALUE                  0x00000000
 #ifdef MCU_GESTURE
     #define STK_TX_CTRL_PH7_VALUE                   0x05000404
@@ -477,7 +479,7 @@ typedef enum
     #define STK_PROX_CTRL0_PH7_VALUE                0x32323232
     #define STK_PROX_CTRL1_PH7_VALUE                0x00000007
 #endif
-
+*/
 #define STK_ADDR_DELTADES_A_CTRL                0x0400
 #define STK_ADDR_DELTADES_B_CTRL                0x0404
 #define STK_ADDR_DELTADES_C_CTRL                0x0408
@@ -542,10 +544,19 @@ static const uint16_t STK_ID[1] = { STK501XX_ID };
 typedef struct stk_data stk_data;
 typedef void (*STK_REPORT_CB)(struct stk_data *);
 
+struct smtc_reg_data
+{
+    uint32_t reg;
+    uint32_t val;
+};
+
 struct stk501xx_platform_data
 {
     unsigned char   direction;
     int32_t             interrupt_int1_pin;
+    int i2c_reg_num;
+    struct smtc_reg_data *pi2c_reg;
+    u32 phase_en;
 };
 
 struct stk_data
