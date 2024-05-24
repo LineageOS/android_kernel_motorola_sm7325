@@ -71,8 +71,7 @@
 #define _FT7130             0x71300825
 #define _FT8205             0x82050826
 #define _FT8057             0x80570828
-
-
+#define _FT8725             0x87250829
 
 
 #define _FT5426             0x54260402
@@ -190,6 +189,9 @@
 #elif defined(CONFIG_INPUT_FOCALTECH_0FLASH_MMI_IC_NAME_FT8057)
 #define FTS_CHIP_TYPE   _FT8057
 #define FTS_CHIP_NAME   "ft8057"
+#elif defined(CONFIG_INPUT_FOCALTECH_0FLASH_MMI_IC_NAME_FT8725)
+#define FTS_CHIP_TYPE   _FT8725
+#define FTS_CHIP_NAME   "ft8725"
 #else
 #define FTS_CHIP_TYPE   _FT8726
 #define FTS_CHIP_NAME   "ft8726"
@@ -271,8 +273,11 @@
 /*
  * auto upgrade
  */
+#if defined(CONFIG_INPUT_FOCALTECH_0FLASH_MMI_IC_NAME_FT8725)
+#define FTS_AUTO_UPGRADE_EN                     1
+#else
 #define FTS_AUTO_UPGRADE_EN                     0
-
+#endif
 /*
  * auto upgrade for lcd cfg
  */

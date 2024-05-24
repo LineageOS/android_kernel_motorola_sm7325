@@ -39,6 +39,9 @@
 #include <linux/of_irq.h>
 #if defined(CONFIG_DRM)
 #if defined(CONFIG_DRM_PANEL)
+#ifdef CONFIG_FOCALTECH_DRM_PANEL_EVENT_NOTIFICATIONS
+#include <linux/soc/qcom/panel_event_notifier.h>
+#endif
 #include <drm/drm_panel.h>
 #else
 #include <linux/msm_drm_notify.h>
@@ -91,6 +94,10 @@ static bool time_flag = 1;
 *****************************************************************************/
 static int fts_ts_suspend(struct device *dev);
 static int fts_ts_resume(struct device *dev);
+#ifdef CONFIG_FOCALTECH_DRM_PANEL_EVENT_NOTIFICATIONS
+static void fts_ts_panel_notifier_callback(enum panel_event_notifier_tag tag,
+		 struct panel_event_notification *event, void *client_data);
+#endif
 
 int fts_check_cid(struct fts_ts_data *ts_data, u8 id_h)
 {
@@ -1676,6 +1683,68 @@ static int drm_check_dt(struct device_node *np)
     return -ENODEV;
 }
 
+#ifdef CONFIG_FOCALTECH_DRM_PANEL_EVENT_NOTIFICATIONS
+static void fts_ts_register_for_panel_events(struct device_node *dp,
+					struct fts_ts_data *ts_data)
+{
+	void *cookie = NULL;
+
+
+	cookie = panel_event_notifier_register(PANEL_EVENT_NOTIFICATION_PRIMARY,
+			PANEL_EVENT_NOTIFIER_CLIENT_PRIMARY_TOUCH, active_panel,
+			&fts_ts_panel_notifier_callback, ts_data);
+
+	if (!cookie) {
+		pr_err("Failed to register for panel events\n");
+		return;
+	}
+
+	ts_data->notifier_cookie = cookie;
+}
+
+static void fts_ts_panel_notifier_callback(enum panel_event_notifier_tag tag,
+		 struct panel_event_notification *notification, void *client_data)
+{
+	struct fts_ts_data *ts_data = client_data;
+
+	if (!notification) {
+		pr_err("Invalid notification\n");
+		return;
+	}
+
+	FTS_DEBUG("Notification type:%d, early_trigger:%d",
+			notification->notif_type,
+			notification->notif_data.early_trigger);
+	switch (notification->notif_type) {
+	case DRM_PANEL_EVENT_UNBLANK:
+		if (notification->notif_data.early_trigger)
+			FTS_DEBUG("resume notification pre commit\n");
+		else
+			queue_work(fts_data->ts_workqueue, &fts_data->resume_work);
+		break;
+	case DRM_PANEL_EVENT_BLANK:
+		if (notification->notif_data.early_trigger) {
+			cancel_work_sync(&fts_data->resume_work);
+			fts_ts_suspend(ts_data->dev);
+		} else {
+			FTS_DEBUG("suspend notification post commit\n");
+		}
+		break;
+	case DRM_PANEL_EVENT_BLANK_LP:
+		FTS_DEBUG("received lp event\n");
+		break;
+	case DRM_PANEL_EVENT_FPS_CHANGE:
+		FTS_DEBUG("shashank:Received fps change old fps:%d new fps:%d\n",
+				notification->notif_data.old_fps,
+				notification->notif_data.new_fps);
+		break;
+	default:
+		FTS_DEBUG("notification serviced :%d\n",
+				notification->notif_type);
+		break;
+	}
+}
+#else
 static int drm_notifier_callback(struct notifier_block *self,
                                  unsigned long event, void *data)
 {
@@ -1720,6 +1789,8 @@ static int drm_notifier_callback(struct notifier_block *self,
 
     return 0;
 }
+#endif
+
 #else
 #ifndef FOCALTECH_CONFIG_PANEL_NOTIFICATIONS
 static int drm_notifier_callback(struct notifier_block *self,
@@ -2072,13 +2143,19 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 #endif
 
 #if defined(CONFIG_DRM)
-    ts_data->fb_notif.notifier_call = drm_notifier_callback;
+#ifndef CONFIG_FOCALTECH_DRM_PANEL_EVENT_NOTIFICATIONS
+	ts_data->fb_notif.notifier_call = drm_notifier_callback;
+#endif
 #if defined(CONFIG_DRM_PANEL)
+#ifdef CONFIG_FOCALTECH_DRM_PANEL_EVENT_NOTIFICATIONS
+	fts_ts_register_for_panel_events(ts_data->dev->of_node, ts_data);
+#else
     if (active_panel) {
         ret = drm_panel_notifier_register(active_panel, &ts_data->fb_notif);
         if (ret)
             FTS_ERROR("[DRM]drm_panel_notifier_register fail: %d\n", ret);
     }
+#endif
 #else
 #ifndef FOCALTECH_CONFIG_PANEL_NOTIFICATIONS
     ret = msm_drm_register_client(&ts_data->fb_notif);
@@ -2200,8 +2277,14 @@ static int fts_ts_remove_entry(struct fts_ts_data *ts_data)
 
 #if defined(CONFIG_DRM)
 #if defined(CONFIG_DRM_PANEL)
+#ifdef CONFIG_FOCALTECH_DRM_PANEL_EVENT_NOTIFICATIONS
+    if (active_panel && ts_data->notifier_cookie)
+		panel_event_notifier_unregister(ts_data->notifier_cookie);
+#else
     if (active_panel)
         drm_panel_notifier_unregister(active_panel, &ts_data->fb_notif);
+#endif
+
 #else
     if (msm_drm_unregister_client(&ts_data->fb_notif))
         FTS_ERROR("[DRM]Error occurred while unregistering fb_notifier.\n");
@@ -2420,6 +2503,9 @@ static int fts_ts_probe(struct spi_device *spi)
     struct fts_ts_data *ts_data = NULL;
 
     FTS_INFO("Touch Screen(SPI BUS) driver prboe...");
+#if defined(CONFIG_INPUT_FOCALTECH_0FLASH_MMI_IC_NAME_FT8725)
+	spi->chip_select = 0;
+#endif
     spi->mode = SPI_MODE_0;
     spi->bits_per_word = 8;
     ret = spi_setup(spi);
