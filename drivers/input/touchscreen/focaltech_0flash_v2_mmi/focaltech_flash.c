@@ -775,7 +775,7 @@ static int fts_read_file_default(char *file_name, u8 **file_buf)
     pos = 0;
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
     ret = vfs_read(filp, *file_buf, file_len, &pos);
-#else
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
     ret = kernel_read(filp, *file_buf, file_len , &pos);
 #endif
     if (ret < 0)
