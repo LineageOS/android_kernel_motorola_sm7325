@@ -55,6 +55,12 @@
 #endif
 #include "focaltech_core.h"
 
+#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+#include <linux/mmi_device.h>
+extern int fts_mmi_dev_register(struct fts_ts_data *ts_data);
+extern void fts_mmi_dev_unregister(struct fts_ts_data *ts_data);
+#endif
+
 #ifdef FOCALTECH_CONFIG_PANEL_NOTIFICATIONS
 #define register_panel_notifier panel_register_notifier
 #define unregister_panel_notifier panel_unregister_notifier
@@ -92,11 +98,13 @@ static bool time_flag = 1;
 /*****************************************************************************
 * Static function prototypes
 *****************************************************************************/
+#ifndef CONFIG_INPUT_TOUCHSCREEN_MMI
 static int fts_ts_suspend(struct device *dev);
 static int fts_ts_resume(struct device *dev);
 #ifdef CONFIG_FOCALTECH_DRM_PANEL_EVENT_NOTIFICATIONS
 static void fts_ts_panel_notifier_callback(enum panel_event_notifier_tag tag,
 		 struct panel_event_notification *event, void *client_data);
+#endif
 #endif
 
 int fts_check_cid(struct fts_ts_data *ts_data, u8 id_h)
@@ -1643,6 +1651,7 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
     return 0;
 }
 
+#ifndef CONFIG_INPUT_TOUCHSCREEN_MMI
 static void fts_resume_work(struct work_struct *work)
 {
     struct fts_ts_data *ts_data = container_of(work, struct fts_ts_data,
@@ -1946,6 +1955,7 @@ static void fts_ts_late_resume(struct early_suspend *handler)
     queue_work(fts_data->ts_workqueue, &fts_data->resume_work);
 }
 #endif
+#endif //CONFIG_INPUT_TOUCHSCREEN_MMI
 
 #if FTS_USB_DETECT_EN
 static int fts_charger_notifier_callback(struct notifier_block *nb,
@@ -1994,6 +2004,14 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 
     FTS_FUNC_ENTER();
     FTS_INFO("%s", FTS_DRIVER_VERSION);
+
+#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+    if (ts_data->spi->dev.of_node && !mmi_device_is_available(ts_data->spi->dev.of_node)) {
+        FTS_ERROR("mmi: device not supported\n");
+        return -ENODEV;
+    }
+#endif
+
     ts_data->pdata = kzalloc(pdata_size, GFP_KERNEL);
     if (!ts_data->pdata) {
         FTS_ERROR("allocate memory for platform_data fail");
@@ -2005,6 +2023,7 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
         if (ret)
             FTS_ERROR("device-tree parse fail");
 
+#ifndef CONFIG_INPUT_TOUCHSCREEN_MMI
 #if defined(CONFIG_DRM)
 #if defined(CONFIG_DRM_PANEL)
         ret = drm_check_dt(ts_data->dev->of_node);
@@ -2012,6 +2031,7 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
             FTS_ERROR("parse drm-panel fail");
             return -ENODEV;
         }
+#endif
 #endif
 #endif
     } else {
@@ -2132,16 +2152,18 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
     if (ret) {
         FTS_ERROR("init fw upgrade fail");
     }
-
+#ifndef CONFIG_INPUT_TOUCHSCREEN_MMI
     if (ts_data->ts_workqueue) {
         INIT_WORK(&ts_data->resume_work, fts_resume_work);
     }
+#endif
 
 #if defined(CONFIG_PM) && FTS_PATCH_COMERR_PM
     init_completion(&ts_data->pm_completion);
     ts_data->pm_suspend = false;
 #endif
 
+#ifndef CONFIG_INPUT_TOUCHSCREEN_MMI
 #if defined(CONFIG_DRM)
 #ifndef CONFIG_FOCALTECH_DRM_PANEL_EVENT_NOTIFICATIONS
 	ts_data->fb_notif.notifier_call = drm_notifier_callback;
@@ -2181,6 +2203,7 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
     ts_data->early_suspend.resume = fts_ts_late_resume;
     register_early_suspend(&ts_data->early_suspend);
 #endif
+#endif //CONFIG_INPUT_TOUCHSCREEN_MMI
 
 #if FTS_USB_DETECT_EN
 	ts_data->usb_connected = 0x00;
@@ -2190,6 +2213,10 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 		FTS_ERROR("Unable to register charger_notifier: %d\n",ret);
 		goto err_register_charger_notify_failed;
 	}
+#endif
+
+#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+    fts_mmi_dev_register(ts_data);
 #endif
 
     FTS_FUNC_EXIT();
@@ -2238,6 +2265,10 @@ static int fts_ts_remove_entry(struct fts_ts_data *ts_data)
 {
     FTS_FUNC_ENTER();
 
+#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+    fts_mmi_dev_unregister(ts_data);
+#endif
+
     cancel_work_sync(&fts_data->resume_work);
 
 #if FTS_USB_DETECT_EN
@@ -2275,6 +2306,7 @@ static int fts_ts_remove_entry(struct fts_ts_data *ts_data)
     if (ts_data->ts_workqueue)
         destroy_workqueue(ts_data->ts_workqueue);
 
+#ifndef CONFIG_INPUT_TOUCHSCREEN_MMI
 #if defined(CONFIG_DRM)
 #if defined(CONFIG_DRM_PANEL)
 #ifdef CONFIG_FOCALTECH_DRM_PANEL_EVENT_NOTIFICATIONS
@@ -2295,6 +2327,7 @@ static int fts_ts_remove_entry(struct fts_ts_data *ts_data)
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
     unregister_early_suspend(&ts_data->early_suspend);
 #endif
+#endif //CONFIG_INPUT_TOUCHSCREEN_MMI
 
     if (gpio_is_valid(ts_data->pdata->reset_gpio))
         gpio_free(ts_data->pdata->reset_gpio);
@@ -2319,6 +2352,7 @@ static int fts_ts_remove_entry(struct fts_ts_data *ts_data)
     return 0;
 }
 
+#ifndef CONFIG_INPUT_TOUCHSCREEN_MMI
 static int fts_ts_suspend(struct device *dev)
 {
     int ret = 0;
@@ -2466,6 +2500,7 @@ static int fts_ts_resume(struct device *dev)
 
     return 0;
 }
+#endif
 
 #if defined(CONFIG_PM) && FTS_PATCH_COMERR_PM
 static int fts_pm_suspend(struct device *dev)

@@ -291,6 +291,10 @@ struct fts_ts_data {
 #ifdef FTS_LAST_TIME_EN
 	ktime_t last_event_time;
 #endif
+
+#if defined(CONFIG_INPUT_TOUCHSCREEN_MMI)
+	struct ts_mmi_class_methods *imports;
+#endif
 };
 
 #ifdef FTS_SET_TOUCH_STATE
