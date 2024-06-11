@@ -885,6 +885,12 @@ int ili_report_handler(void)
 	pid = trdata[0];
 	ILI_DBG("Packet ID = %x\n", pid);
 
+	if(pid == P5_X_DEBUG_INFO_PACKET_ID){
+		ili_report_touch_debug_info(trdata);
+		goto out;
+	}
+
+
 	if (checksum != pack_checksum && pid != P5_X_I2CUART_PACKET_ID) {
 		ILI_ERR("Checksum Error (0x%X)! Pack = 0x%X, len = %d\n", checksum, pack_checksum, rlen);
 		debug_en = DEBUG_ALL;
