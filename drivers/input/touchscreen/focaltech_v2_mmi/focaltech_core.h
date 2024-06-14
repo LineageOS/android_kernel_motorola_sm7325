@@ -147,6 +147,10 @@ struct fts_ts_platform_data {
     u32 x_min;
     u32 y_min;
     u32 max_touch_number;
+    u32 vci_gpio;
+    u32 vio_gpio;
+    u32 vci_gpio_flags;
+    u32 vio_gpio_flags;
 };
 
 struct ts_event {

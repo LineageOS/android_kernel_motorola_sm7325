@@ -1372,6 +1372,32 @@ static int fts_gpio_configure(struct fts_ts_data *data)
 #endif
     }
 
+   /* request vci gpio */
+    if (gpio_is_valid(data->pdata->vci_gpio)) {
+        ret = gpio_request(data->pdata->vci_gpio, "fts_vci_gpio");
+        if (ret) {
+            FTS_ERROR("[GPIO]vci gpio request failed");
+        }
+
+        ret = gpio_direction_output(data->pdata->vci_gpio, 1);
+        if (ret) {
+            FTS_ERROR("[GPIO]set_direction for vci gpio failed");
+        }
+    }
+
+      /* request vio gpio */
+    if (gpio_is_valid(data->pdata->vio_gpio)) {
+        ret = gpio_request(data->pdata->vio_gpio, "fts_vio_gpio");
+        if (ret) {
+            FTS_ERROR("[GPIO]vio gpio request failed");
+        }
+
+        ret = gpio_direction_output(data->pdata->vio_gpio, 1);
+        if (ret) {
+            FTS_ERROR("[GPIO]set_direction for vio gpio failed");
+        }
+    }
+
     FTS_FUNC_EXIT();
     return 0;
 
@@ -1502,6 +1528,19 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
 
     FTS_INFO("max touch number:%d, irq gpio:%d, reset gpio:%d",
              pdata->max_touch_number, pdata->irq_gpio, pdata->reset_gpio);
+
+    pdata->vci_gpio = of_get_named_gpio_flags(np, "focaltech,vci",
+                        0, &pdata->vci_gpio_flags);
+    if (pdata->reset_gpio < 0)
+        FTS_ERROR("Unable to get vci_gpio");
+
+    pdata->vio_gpio = of_get_named_gpio_flags(np, "focaltech,vio",
+                      0, &pdata->vio_gpio_flags);
+    if (pdata->irq_gpio < 0)
+        FTS_ERROR("Unable to get vio_gpio");
+
+    FTS_INFO("max touch number:%d, vci gpio:%d, vio gpio:%d",
+             pdata->max_touch_number, pdata->vci_gpio, pdata->vio_gpio);
 
     FTS_FUNC_EXIT();
     return 0;
@@ -2230,6 +2269,9 @@ static void __exit fts_ts_exit(void)
 module_init(fts_ts_init);
 module_exit(fts_ts_exit);
 
+#if KERNEL_VERSION(5, 4, 0) <= LINUX_VERSION_CODE
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+#endif
 MODULE_AUTHOR("FocalTech Driver Team");
 MODULE_DESCRIPTION("FocalTech Touchscreen Driver");
 MODULE_LICENSE("GPL v2");
