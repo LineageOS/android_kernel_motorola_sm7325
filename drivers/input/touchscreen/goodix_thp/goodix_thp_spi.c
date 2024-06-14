@@ -392,6 +392,15 @@ static int goodix_thp_parse_dt(struct device_node *node,
 				sizeof(board_data->iovdd_name));
 	}
 
+	r = of_get_named_gpio(node, "goodix,iovdd-gpio", 0);
+	if (r < 0) {
+		ts_info("can't find iovdd-gpio, use other power supply");
+		board_data->iovdd_gpio = 0;
+	} else {
+		ts_info("get iovdd-gpio[%d] from dt", r);
+		board_data->iovdd_gpio = r;
+	}
+
 	r = of_property_read_u32(node, "goodix,power-on-delay-us",
 				&board_data->power_on_delay_us);
 	if (!r) {
@@ -418,6 +427,21 @@ static int goodix_thp_parse_dt(struct device_node *node,
 		ts_err("Failed to parse resolutions:%d", r);
 		return r;
 	}
+
+	board_data->interpolation_ctrl = of_property_read_bool(node,
+					"goodix,interpolation-ctrl");
+	if (board_data->interpolation_ctrl)
+		ts_info("support goodix interpolation mode");
+
+	board_data->sample_ctrl = of_property_read_bool(node,
+					"goodix,sample-ctrl");
+	if (board_data->sample_ctrl)
+		ts_info("support goodix sample mode");
+
+	board_data->stowed_mode_ctrl = of_property_read_bool(node,
+					"goodix,stowed-mode-ctrl");
+	if (board_data->stowed_mode_ctrl)
+		ts_info("Support goodix touch stowed mode");
 
 	return 0;
 }

@@ -49,7 +49,7 @@
 #define GOODIX_THP_DRIVER_NAME				"goodix_thp,gt9916"
 #define GOODIX_CORE_DRIVER_NAME				"goodix_thp"
 #define GOODIX_THP_SUSPEND_INPUT_DEVICE_NAME	        "goodix_suspend_input"
-#define GOODIX_THP_INPUT_DEVICE_NAME			"gdix_input_agent"
+#define GOODIX_THP_INPUT_DEVICE_NAME			"goodix_ts"
 
 /*chip_type*/
 #define CHIP_TYPE_9897                                  1
@@ -189,6 +189,7 @@ enum {
 #define NOTIFY_TYPE_DUMP_REP 5
 #define NOTIFY_TYPE_STYLUS_CTRL 6
 #define NOTIFY_TYPE_RAWDATA 7
+#define NOTIFY_TYPE_SAVE_MOTO_DATA 8
 
 #pragma pack(push, 1)
 struct driver_response_app_pkg {
@@ -275,6 +276,7 @@ struct goodix_thp_board_data {
 	unsigned int irq_gpio;
 	int irq;
 	unsigned int irq_flags;
+	int iovdd_gpio;
 
 	unsigned int power_on_delay_us;
 	unsigned int power_off_delay_us;
@@ -284,6 +286,10 @@ struct goodix_thp_board_data {
         unsigned int panel_max_p; /*pressure*/
 	unsigned int chip_type;
 	struct thp_spi_setting spi_setting;
+	bool report_rate_ctrl;
+	bool interpolation_ctrl;
+	bool sample_ctrl;
+	bool stowed_mode_ctrl;
 };
 
 #define MMAP_BUFFER_SIZE (GOODIX_THP_MAX_FRAME_LEN * GOODIX_THP_MAX_FRAME_BUF_COUNT)
@@ -355,6 +361,14 @@ struct goodix_thp_hw_ops {
 	int (*set_fp_int_pin)(struct thp_ts_device *dev, u8 level);
 };
 
+struct goodix_mode_info {
+	int sample;
+	int report_rate_mode;
+	int edge_mode[2];
+	int interpolation;
+	int stowed;
+};
+
 struct goodix_thp_core {
 	struct spi_device *sdev;
 	struct thp_ts_device *ts_dev;
@@ -366,6 +380,7 @@ struct goodix_thp_core {
 	struct mutex frame_mutex;
 	struct mutex ts_mutex;
 	struct mutex irq_mutex;
+	struct mutex mode_lock;
 
 #ifdef CONFIG_PINCTRL
 	struct pinctrl *pinctrl;
@@ -393,6 +408,14 @@ struct goodix_thp_core {
 	u8 gesture_type[GESTURE_TYPE_LEN];
 	u8 gesture_data[GESTURE_KEY_DATA_LEN];
 	u8 gesture_buffer_data[GESTURE_BUFFER_DATA_LEN];
+
+	struct goodix_mode_info set_mode;
+	struct goodix_mode_info get_mode;
+	int refresh_rate;
+	int zerotap_data[1];
+	/* touchscreen_mmi */
+	struct ts_mmi_class_methods *imports;
+	struct timeval64 last_event_time;
 };
 
 /* func definition & statement*/
@@ -430,5 +453,7 @@ int goodix_thp_set_spi_speed(struct thp_ts_device *dev, u32 speed);
 u16 checksum16_cmp(u8 *data, u32 size, int mode);
 u8 checksum_u8(u8 *data, u32 size);
 u8 checksum8_u16(const u8 *data, u32 size);
+
+void put_frame_list(struct goodix_thp_core *core_data, int type, u8 *data, int len);
 
 #endif /* _GOODIX_THP_H_ */

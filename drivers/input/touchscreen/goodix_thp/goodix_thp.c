@@ -17,11 +17,13 @@
 #include <linux/time64.h>
 
 #include "goodix_thp.h"
+#include "goodix_thp_mmi.h"
 
 #define GOODIX_THP_MISC_DEVICE_NAME	"thp"
 #define PINCTRL_STATE_ACTIVE		"pmx_ts_active"
 #define PINCTRL_STATE_SUSPEND		"pmx_ts_suspend"
 #define DEVICE_NAME			"input_agent"
+#define GOOIDX_INPUT_PHYS			"goodix_ts/input0"
 
 #define QUERYBIT(longlong, bit) 	(!!(longlong[bit/8] & (1 << bit%8)))
 
@@ -102,7 +104,7 @@ static void goodix_thp_reset_frame_list(struct goodix_thp_core *core_data)
 	mutex_unlock(&core_data->frame_mutex);
 }
 
-static void put_frame_list(struct goodix_thp_core *core_data, int type, u8 *data, int len)
+void put_frame_list(struct goodix_thp_core *core_data, int type, u8 *data, int len)
 {
 	struct driver_request_pkg *req_pkg;
 	struct thp_frame_mmap_list *list = &core_data->frame_mmap_list;
@@ -807,6 +809,17 @@ static int goodix_thp_power_init(struct goodix_thp_core *core_data)
 			core_data->avdd = NULL;
 			return r;
 		}
+
+		r = regulator_set_load(core_data->avdd, 50000);
+		if (r) {
+			ts_err("set avdd load fail");
+			return r;
+		}
+		r = regulator_set_voltage(core_data->avdd, 3000000, 3000000);
+		if (r) {
+			ts_err("set avdd voltage fail");
+			return r;
+		}
 	} else {
 		ts_info("Avdd name is NULL[skip]");
 	}
@@ -834,53 +847,47 @@ int goodix_thp_reset_after(struct goodix_thp_core *cd);
  * @core_data: pointer to touch core data
  * return: 0 ok, <0 failed
  */
-static int goodix_thp_power_on(struct goodix_thp_core *core_data)
+static int goodix_thp_power_on(struct goodix_thp_core *cd)
 {
-	struct goodix_thp_board_data *ts_bdata = board_data(core_data);
-	int r;
+	struct goodix_thp_board_data *ts_bdata = board_data(cd);
+	int ret;
 
-	ts_info("Device power on");
-	if (core_data->power_on) {
-		ts_info("device has already power on");
-		return 0;
-	}
+	int iovdd_gpio = ts_bdata->iovdd_gpio;
+	int reset_gpio = ts_bdata->reset_gpio;
 
-	if (core_data->iovdd) {
-		r = regulator_enable(core_data->iovdd);
-		if (r) {
-			ts_err("Failed to enable iovdd:%d", r);
-			goto power_off;
-		}
-		usleep_range(3000, 3100);
-	}
-
-	if (core_data->avdd) {
-		r = regulator_enable(core_data->avdd);
-		if (r) {
-			ts_err("Failed to enable avdd:%d", r);
-			goto power_off;
-		}
-		usleep_range(15000, 15100);
-	}
-	gpio_direction_output(ts_bdata->reset_gpio, 1);
-	if (ts_bdata->chip_type == CHIP_TYPE_9897) {
-		r = goodix_thp_reset_after(core_data);
-		if (r < 0) {
-			ts_err("reset_after process failed,r=%d", r);
+	if (iovdd_gpio > 0) {
+		gpio_direction_output(iovdd_gpio, 1);
+	} else if (cd->iovdd) {
+		ret = regulator_enable(cd->iovdd);
+		if (ret < 0) {
+			ts_err("Failed to enable iovdd:%d", ret);
 			goto power_off;
 		}
 	}
+	usleep_range(3000, 3100);
+	if (cd->avdd) {
+		ret = regulator_enable(cd->avdd);
+		if (ret < 0) {
+			ts_err("Failed to enable avdd:%d", ret);
+			goto power_off;
+		}
+	}
+	usleep_range(15000, 15100);
+	gpio_direction_output(reset_gpio, 1);
+	usleep_range(4000, 4100);
 
-	core_data->power_on = 1;
+	cd->power_on = 1;
 	return 0;
 
 power_off:
-	gpio_direction_output(ts_bdata->reset_gpio, 0);
-	if (core_data->iovdd)
-		regulator_disable(core_data->iovdd);
-	if (core_data->avdd)
-		regulator_disable(core_data->avdd);
-	return r;
+	gpio_direction_output(reset_gpio, 0);
+	if (iovdd_gpio > 0)
+		gpio_direction_output(iovdd_gpio, 0);
+	else if (cd->iovdd)
+		regulator_disable(cd->iovdd);
+	else if (cd->avdd)
+		regulator_disable(cd->avdd);
+	return ret;
 }
 
 static void goodix_thp_power_off(struct goodix_thp_core *core_data)
@@ -927,6 +934,15 @@ static int goodix_thp_gpio_setup(struct goodix_thp_core *core_data)
 		return r;
 	}
 
+	if (ts_bdata->iovdd_gpio > 0) {
+		r = devm_gpio_request_one(&core_data->pdev->dev, ts_bdata->iovdd_gpio,
+				GPIOF_OUT_INIT_LOW, "ts_iovdd_gpio");
+		if (r < 0) {
+			ts_err("Failed to request iovdd-gpio, r:%d", r);
+			return r;
+		}
+	}
+
 	return 0;
 }
 
@@ -941,6 +957,10 @@ static int goodix_thp_gesture_irq_handler(struct goodix_thp_core *core_data)
 	u16 gsx_data = ~core_data->gesture_enable;
 	int coor_x, coor_y;
 	struct thp_ts_device *ts_dev =  core_data->ts_dev;
+	struct gesture_event_data mmi_event;
+	static  unsigned  long  start = 0;
+	int fod_down_interval = 0;
+	int fod_down = core_data->zerotap_data[0];
 
 	if (core_data->suspend_dev == NULL) {
 		ts_err("invalid input_dev!");
@@ -985,88 +1005,106 @@ static int goodix_thp_gesture_irq_handler(struct goodix_thp_core *core_data)
 
 	switch (temp_data[4]) {
 	case 0xCC: //double tap
-	    ts_info("get gesture event: Double tap");
-		// ges_num = 1;
-		input_report_key(g_thp_input_agent->input_dev, KEY_WAKEUP, 1);
-		input_sync(g_thp_input_agent->input_dev);
-		input_report_key(g_thp_input_agent->input_dev, KEY_WAKEUP, 0);
-		input_sync(g_thp_input_agent->input_dev);
-	    break;
+		ts_info("get gesture event: Double tap");
+		mmi_event.evcode =4;
+		core_data->imports->report_gesture(&mmi_event);
+		break;
 	case 0x63: // C
-	    ts_info("get gesture event: C");
-			ges_num = 6;
-	    break;
+		ts_info("get gesture event: C");
+		ges_num = 6;
+		break;
 	case 0x65: // E
-	    ts_info("get gesture event: E");
-			ges_num = 6;
+		ts_info("get gesture event: E");
+		ges_num = 6;
 	    break;
 	case 0x6D: // M
-	    ts_info("get gesture event: M");
-	    break;
+		ts_info("get gesture event: M");
+		break;
 	case 0x77: // W
-	    ts_info("get gesture event: W");
-			ges_num = 5;
-	    break;
+		ts_info("get gesture event: W");
+		ges_num = 5;
+		break;
 	case 0x40: // A
-	    ts_info("get gesture event: A");
-			ges_num = 6;
-	    break;
+		ts_info("get gesture event: A");
+		ges_num = 6;
+		break;
 	case 0x66: // F
-	    ts_info("get gesture event: F");
-			ges_num = 6;
-	    break;
+		ts_info("get gesture event: F");
+		ges_num = 6;
+		break;
 	case 0x6F: // O
-	    ts_info("get gesture event: O");
-			ges_num = 6;
-	    break;
+		ts_info("get gesture event: O");
+		ges_num = 6;
+		break;
 	case 0xAA: // R2L
-	    ts_info("get gesture event: right to left");
-	    break;
+		ts_info("get gesture event: right to left");
+		break;
 	case 0xBB: // L2R
-	    ts_info("get gesture event: left to right");
-	    break;
+		ts_info("get gesture event: left to right");
+		break;
 	case 0xBA: // UP
 		ts_info("get gesture event: up");
-	        ges_num = 2;
+		ges_num = 2;
 		break;
 	case 0xAB: // DOWN
-	    ts_info("get gesture event: down");
-	    ges_num = 2;
-	    break;
+		ts_info("get gesture event: down");
+		ges_num = 2;
+		break;
 	case 0x46: // FP_DOWN
-	    ts_info("get gesture event: finger print down");
-		// goodix_thp_set_fp_int_pin(gdix_thp_core->ts_dev, 1);
-	    break;
+		fod_down_interval = (int)jiffies_to_msecs(jiffies-start);
+		//goodix firmware do not send coordinate, need mmi touch to define a vaild coordinate thru dts
+		mmi_event.evcode = 2;
+		mmi_event.evdata.x= 0;
+		mmi_event.evdata.y= 0;
+
+		ts_info("Get FOD-DOWN gesture:%d interval:%d",fod_down,fod_down_interval);
+		if(fod_down_interval > 2000)
+			fod_down = 0;
+		if(fod_down_interval > 0 && fod_down_interval < 250 && fod_down) {
+			goto exit;
+		}
+		start = jiffies;
+		//maximum allow send down event 7 times
+		if(fod_down < 6)
+			core_data->imports->report_gesture(&mmi_event);
+		fod_down++;
+        break;
 	case 0x55: // FP_UP
-	    ts_info("get gesture event: finger print up");
-		// goodix_thp_set_fp_int_pin(gdix_thp_core->ts_dev, 0);
-	    break;
+		ts_info("Get FOD-UP gesture");
+		mmi_event.evcode = 3;
+		mmi_event.evdata.x= 0;
+		mmi_event.evdata.y= 0;
+		core_data->imports->report_gesture(&mmi_event);
+		fod_down = 0;
+        break;
 	case 0x4C: // single tap
-	    ts_info("get gesture event: single tap");
-	    break;
+		ts_info("get gesture event: single tap");
+		mmi_event.evcode =1;
+		core_data->imports->report_gesture(&mmi_event);
+		break;
 	default:
-	    ts_err("not support gesture type %x", temp_data[4]);
-	    break;
+		ts_err("not support gesture type %x", temp_data[4]);
+		break;
 	}
 
-		for (i = 0; i < ges_num; i++) {
-			coor_x = le16_to_cpup((__le16 *)&temp_data[8 + i * 4]);
-			coor_y = le16_to_cpup((__le16 *)&temp_data[10 + i * 4]);
-			ts_info("ges_coor_x:%d ges_coor_y:%d", coor_x, coor_y);
-			input_mt_slot(g_thp_input_agent->input_dev, 0);
-			input_mt_report_slot_state(g_thp_input_agent->input_dev, 0, 1);
-			input_report_abs(g_thp_input_agent->input_dev, ABS_MT_POSITION_X, coor_x);
-			input_report_abs(g_thp_input_agent->input_dev, ABS_MT_POSITION_Y, coor_y);
-			input_report_key(g_thp_input_agent->input_dev, BTN_TOUCH, 1);
-			input_sync(g_thp_input_agent->input_dev);
-		}
+	for (i = 0; i < ges_num; i++) {
+		coor_x = le16_to_cpup((__le16 *)&temp_data[8 + i * 4]);
+		coor_y = le16_to_cpup((__le16 *)&temp_data[10 + i * 4]);
+		ts_info("ges_coor_x:%d ges_coor_y:%d", coor_x, coor_y);
+		input_mt_slot(g_thp_input_agent->input_dev, 0);
+		input_mt_report_slot_state(g_thp_input_agent->input_dev, 0, 1);
+		input_report_abs(g_thp_input_agent->input_dev, ABS_MT_POSITION_X, coor_x);
+		input_report_abs(g_thp_input_agent->input_dev, ABS_MT_POSITION_Y, coor_y);
+		input_report_key(g_thp_input_agent->input_dev, BTN_TOUCH, 1);
+		input_sync(g_thp_input_agent->input_dev);
+	}
 
-		if (ges_num > 0) {
-			input_mt_slot(g_thp_input_agent->input_dev, 0);
-			input_mt_report_slot_state(g_thp_input_agent->input_dev, 0, 0);
-			input_report_key(g_thp_input_agent->input_dev, BTN_TOUCH, 0);
-			input_sync(g_thp_input_agent->input_dev);
-		}
+	if (ges_num > 0) {
+		input_mt_slot(g_thp_input_agent->input_dev, 0);
+		input_mt_report_slot_state(g_thp_input_agent->input_dev, 0, 0);
+		input_report_key(g_thp_input_agent->input_dev, BTN_TOUCH, 0);
+		input_sync(g_thp_input_agent->input_dev);
+	}
 
 	goto exit;
 
@@ -1077,6 +1115,7 @@ re_send_ges_cmd:
 exit:
 	clean_data = 0;
 	ts_dev->hw_ops->write(ts_dev, ges_addr, &clean_data, 1);
+	core_data->zerotap_data[0] = fod_down;
 	return 0;
 }
 
@@ -1177,9 +1216,10 @@ static int goodix_thp_suspend_input_dev_init(struct goodix_thp_core *core_data)
 	/* init input_dev */
 	suspend_dev->name = GOODIX_THP_SUSPEND_INPUT_DEVICE_NAME;
 	suspend_dev->id.bustype = BUS_SPI;
-	suspend_dev->id.product = 0x0200;
-	suspend_dev->id.vendor = 0x27C6;
-	suspend_dev->id.version = 0x0001;
+	suspend_dev->phys = GOOIDX_INPUT_PHYS;
+	suspend_dev->id.product = 0xDEAD;
+	suspend_dev->id.vendor = 0xBEEF;
+	suspend_dev->id.version = 10427;
 
 	/* set input_dev properties */
 	set_bit(EV_SYN, suspend_dev->evbit);
@@ -1242,6 +1282,7 @@ static long goodix_thp_input_agent_ioctl_set_coordinate(unsigned long arg)
 	struct input_dev *input_dev = g_thp_input_agent->input_dev;
 	struct thp_input_agent_ioctl_coor_data data;
 	u8 i;
+	static int pre_flags = 0;
 
 	if (arg == 0) {
 		ts_err("%s:arg is null.", __func__);
@@ -1254,6 +1295,8 @@ static long goodix_thp_input_agent_ioctl_set_coordinate(unsigned long arg)
 		ts_err("Failed to copy_from_user().");
 		return -EFAULT;
 	}
+
+	gdix_thp_core->last_event_time = data.time_stamp;
 
 	/* report coor to input system */
 	for (i = 0; i < INPUT_AGENT_MAX_POINTS; i++) {
@@ -1308,10 +1351,24 @@ static long goodix_thp_input_agent_ioctl_set_coordinate(unsigned long arg)
 	input_sync(input_dev);
 
 	/* fp touch flag */
-	if (data.fp_mode)
-	     goodix_thp_set_fp_int_pin(gdix_thp_core->ts_dev, 1);
-	else
-		goodix_thp_set_fp_int_pin(gdix_thp_core->ts_dev, 0);
+	if (pre_flags != data.fp_mode) {
+		if (data.fp_mode) {
+			goodix_thp_set_fp_int_pin(gdix_thp_core->ts_dev, 1);
+			input_report_key(g_thp_input_agent->input_dev, BTN_TRIGGER_HAPPY1, 1);
+			input_sync(g_thp_input_agent->input_dev);
+			input_report_key(g_thp_input_agent->input_dev, BTN_TRIGGER_HAPPY1, 0);
+			input_sync(g_thp_input_agent->input_dev);
+			ts_info("report BTN_TRIGGER_HAPPY1");
+		} else {
+			goodix_thp_set_fp_int_pin(gdix_thp_core->ts_dev, 0);
+			input_report_key(g_thp_input_agent->input_dev, BTN_TRIGGER_HAPPY2, 1);
+			input_sync(g_thp_input_agent->input_dev);
+			input_report_key(g_thp_input_agent->input_dev, BTN_TRIGGER_HAPPY2, 0);
+			input_sync(g_thp_input_agent->input_dev);
+			ts_info("report BTN_TRIGGER_HAPPY2");
+		}
+		pre_flags = data.fp_mode;
+	}
 
 	return ret;
 }
@@ -1459,9 +1516,10 @@ static int goodix_thp_input_agent_init(struct goodix_thp_core *core_data)
 	/* init input_dev */
 	input_dev->name = GOODIX_THP_INPUT_DEVICE_NAME;
 	input_dev->id.bustype = BUS_SPI;
-	input_dev->id.product = 0x0201;
-	input_dev->id.vendor = 0x27C6;
-	input_dev->id.version = 0x0001;
+	input_dev->phys = GOOIDX_INPUT_PHYS;
+	input_dev->id.product = 0xDEAD;
+	input_dev->id.vendor = 0xBEEF;
+	input_dev->id.version = 10427;
 
 	/* set input_dev properties */
 	set_bit(EV_SYN, input_dev->evbit);
@@ -1488,6 +1546,8 @@ static int goodix_thp_input_agent_init(struct goodix_thp_core *core_data)
 #ifdef GOODIX_THP_TYPE_B_PROTOCOL
 	input_mt_init_slots(input_dev, INPUT_AGENT_MAX_POINTS, INPUT_MT_DIRECT);
 #endif
+	input_set_capability(input_dev, EV_KEY, BTN_TRIGGER_HAPPY1);
+	input_set_capability(input_dev, EV_KEY, BTN_TRIGGER_HAPPY2);
 
 	/* register input_dev */
 	r = input_register_device(input_dev);
@@ -1681,6 +1741,21 @@ static ssize_t goodix_thp_rawdata_ctrl_store(struct device *dev,
 	return count;
 }
 
+static ssize_t save_moto_data_store(struct device *dev,
+	struct device_attribute *attr,
+	const char *buf,
+	size_t count)
+{
+	struct goodix_thp_core *cd = gdix_thp_core;
+	u8 val[2] = {NOTIFY_TYPE_SAVE_MOTO_DATA, 0};
+
+	if (buf[0] == 1 || buf[0] == '1')
+		val[1] = 1;
+
+	put_frame_list(cd, REQUEST_TYPE_NOTIFY, val, 2);
+	return count;
+}
+
 static DEVICE_ATTR(scan_rate, S_IWUSR | S_IWGRP, NULL,
 				goodix_thp_scan_rate_store);
 static DEVICE_ATTR(driver_info, S_IRUGO, goodix_thp_driver_info_show, NULL);
@@ -1698,6 +1773,8 @@ static DEVICE_ATTR(stylus_ctrl, S_IWUSR | S_IWGRP, NULL,
 				goodix_thp_stylus_ctrl_store);
 static DEVICE_ATTR(rawdata_ctrl, S_IWUSR | S_IWGRP, NULL,
 				goodix_thp_rawdata_ctrl_store);
+static DEVICE_ATTR(save_moto_data, S_IWUSR | S_IWGRP, NULL,
+                                save_moto_data_store);
 static struct attribute *sysfs_attrs[] = {
 	&dev_attr_scan_rate.attr,
 	&dev_attr_driver_info.attr,
@@ -1708,6 +1785,7 @@ static struct attribute *sysfs_attrs[] = {
 	&dev_attr_dump_rep_log.attr,
 	&dev_attr_stylus_ctrl.attr,
 	&dev_attr_rawdata_ctrl.attr,
+	&dev_attr_save_moto_data.attr,
 	NULL,
 };
 
@@ -2047,6 +2125,15 @@ static int goodix_thp_probe(struct platform_device *pdev)
 		ts_err("[FB]Unable to register fb_notifier, ret:%d", r);
 #endif
 
+#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+	ts_info("%s:goodix_ts_mmi_dev_register",__func__);
+	r = goodix_ts_mmi_dev_register(pdev);
+	if (r) {
+		ts_info("Failed register touchscreen mmi.");
+		goto out;
+	}
+#endif
+
 	return 0;
 
 err_irq_setup:
@@ -2067,6 +2154,10 @@ static int goodix_thp_remove(struct platform_device *pdev)
 	struct goodix_thp_core *core_data = gdix_thp_core;
 
 	ts_info("IN");
+#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+	ts_info("%s:goodix_ts_mmi_dev_unregister",__func__);
+	goodix_ts_mmi_dev_unregister(pdev);
+#endif
 	goodix_thp_power_off(core_data);
 	goodix_thp_sysfs_exit(core_data);
 	goodix_thp_input_agent_exit();
