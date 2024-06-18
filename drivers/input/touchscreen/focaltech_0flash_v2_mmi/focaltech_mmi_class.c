@@ -195,6 +195,61 @@ static int fts_mmi_charger_mode(struct device *dev, int mode)
 static int fts_mmi_panel_state(struct device *dev,
 	enum ts_mmi_pm_mode from, enum ts_mmi_pm_mode to)
 {
+	struct fts_ts_data *ts_data;
+
+#if defined(CONFIG_FTS_DOUBLE_TAP_CONTROL)
+	unsigned char gesture_type = 0;
+	u8 gesture_command = 0;
+#endif
+
+	GET_TS_DATA(dev);
+	FTS_INFO("panel state change: %d->%d\n", from, to);
+	switch (to) {
+		case TS_MMI_PM_GESTURE:
+#ifdef FTS_SET_TOUCH_STATE
+			fts_data->gesture_support = true;
+			touch_set_state(TS_MMI_PM_GESTURE, TOUCH_PANEL_IDX_PRIMARY);
+#else
+			fts_data->gesture_support = false;
+#endif
+
+#if defined(CONFIG_FTS_DOUBLE_TAP_CONTROL)
+			if (ts_data->imports && ts_data->imports->get_gesture_type) {
+				ts_data->imports->get_gesture_type(ts_data->dev, &gesture_type);
+			}
+
+			if (gesture_type & TS_MMI_GESTURE_SINGLE) {
+				gesture_command += 0x01;
+				FTS_INFO("enable single gesture mode cmd 0x%04x\n", gesture_command);
+			}
+
+			if (gesture_type & TS_MMI_GESTURE_DOUBLE) {
+				gesture_command += 0x02;
+				FTS_INFO("enable double gesture mode cmd 0x%04x\n", gesture_command);
+			}
+
+			fts_write_reg(FTS_GESTURE_MODE, gesture_command);
+			gesture_command = 0;
+#endif
+			break;
+
+		case TS_MMI_PM_DEEPSLEEP:
+			fts_data->gesture_support = false;
+#ifdef FTS_SET_TOUCH_STATE
+			touch_set_state(TS_MMI_PM_DEEPSLEEP, TOUCH_PANEL_IDX_PRIMARY);
+#endif
+			fts_write_reg(FTS_REG_POWER_MODE, FTS_REG_POWER_MODE_SLEEP);
+
+			break;
+
+		case TS_MMI_PM_ACTIVE:
+			break;
+		default:
+			dev_warn(dev, "panel mode %d is invalid.\n", to);
+			return -EINVAL;
+			break;
+	}
+
 	return 0;
 }
 
@@ -205,6 +260,51 @@ static int fts_mmi_pre_resume(struct device *dev)
 
 static int fts_mmi_post_resume(struct device *dev)
 {
+	struct fts_ts_data *ts_data = fts_data;
+
+	FTS_FUNC_ENTER();
+	if (!ts_data->suspended) {
+		FTS_INFO("Already in awake state");
+		return 0;
+	}
+
+	ts_data->suspended = false;
+	fts_release_all_finger();
+
+	if (!ts_data->ic_info.is_incell) {
+#if FTS_POWER_SOURCE_CUST_EN
+		fts_power_source_resume(ts_data);
+#endif
+		fts_reset_proc(200);
+	}
+
+
+#if FTS_PINCTRL_EN && (!FTS_POWER_SOURCE_CUST_EN)
+	fts_pinctrl_select_normal(ts_data);
+#endif
+
+	fts_wait_tp_to_valid();
+	fts_ex_mode_recovery(ts_data);
+
+#if FTS_ESDCHECK_EN
+	fts_esdcheck_resume(ts_data);
+#endif
+
+#if FTS_GESTURE_EN
+	if (fts_gesture_resume(ts_data) == 0) {
+		ts_data->suspended = false;
+		return 0;
+	}
+#endif
+
+	ts_data->suspended = false;
+
+#if FTS_USB_DETECT_EN
+	fts_cable_detect_func(true);
+#endif
+
+	FTS_FUNC_EXIT();
+
 	return 0;
 }
 
@@ -215,6 +315,52 @@ static int fts_mmi_pre_suspend(struct device *dev)
 
 static int fts_mmi_post_suspend(struct device *dev)
 {
+	int ret = 0;
+	struct fts_ts_data *ts_data = fts_data;
+
+	FTS_FUNC_ENTER();
+	if (ts_data->suspended) {
+		FTS_INFO("Already in suspend state");
+		return 0;
+	}
+
+	if (ts_data->fw_loading) {
+		FTS_INFO("fw upgrade in process, can't suspend");
+		return 0;
+	}
+
+#if FTS_ESDCHECK_EN
+	fts_esdcheck_suspend(ts_data);
+#endif
+
+#if FTS_GESTURE_EN
+	if (fts_gesture_suspend(ts_data) == 0) {
+		ts_data->suspended = true;
+		return 0;
+	}
+#endif
+
+	FTS_INFO("make TP enter into sleep mode");
+	ret = fts_write_reg(FTS_REG_POWER_MODE, FTS_REG_POWER_MODE_SLEEP);
+	if (ret < 0)
+		FTS_ERROR("set TP to sleep mode fail, ret=%d", ret);
+
+	if (!ts_data->ic_info.is_incell) {
+#if FTS_POWER_SOURCE_CUST_EN
+		ret = fts_power_source_suspend(ts_data);
+		if (ret < 0) {
+			FTS_ERROR("power enter suspend fail");
+		}
+#endif
+	}
+
+#if FTS_PINCTRL_EN && (!FTS_POWER_SOURCE_CUST_EN)
+	fts_pinctrl_select_suspend(ts_data);
+#endif
+	fts_release_all_finger();
+	ts_data->suspended = true;
+	FTS_FUNC_EXIT();
+
 	return 0;
 }
 

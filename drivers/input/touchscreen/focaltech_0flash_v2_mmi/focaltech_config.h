@@ -234,7 +234,7 @@
  * Gesture function enable
  * default: disable
  */
-#ifdef FOCALTECH_SENSOR_EN
+#if defined(FOCALTECH_SENSOR_EN) || defined(CONFIG_INPUT_TOUCHSCREEN_MMI)
 #define FTS_GESTURE_EN                          1
 #else
 #define FTS_GESTURE_EN                          0

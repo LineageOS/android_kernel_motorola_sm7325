@@ -90,6 +90,8 @@
 #define FTS_GESTURE_POINTS_MAX              6
 #define FTS_GESTURE_DATA_LEN               (FTS_GESTURE_POINTS_MAX * 4 + 4)
 
+#define FTS_GESTURE_MODE		    0xCF /* 0: disbale; 1: single tap: 2: double tap; 3: single and double tap */
+
 #define FTS_SIZE_PEN                        15
 #define FTS_SIZE_DEFAULT                    15
 

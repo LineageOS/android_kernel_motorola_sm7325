@@ -33,6 +33,9 @@
 * 1.Included header files
 *****************************************************************************/
 #include "focaltech_core.h"
+#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+#include <linux/touchscreen_mmi.h>
+#endif
 
 #if FTS_GESTURE_EN
 /******************************************************************************
@@ -57,7 +60,12 @@
 #define GESTURE_RIGHT                           0x21
 #define GESTURE_UP                              0x22
 #define GESTURE_DOWN                            0x23
+#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+#define GESTURE_SINGLECLICK                     0x24
+#define GESTURE_DOUBLECLICK                     0x26
+#else
 #define GESTURE_DOUBLECLICK                     0x24
+#endif
 #define GESTURE_O                               0x30
 #define GESTURE_W                               0x31
 #define GESTURE_M                               0x32
@@ -97,12 +105,14 @@ struct fts_gesture_st {
 * Static variables
 *****************************************************************************/
 static struct fts_gesture_st fts_gesture_data;
-#ifdef FOCALTECH_SENSOR_EN
+#if defined(FOCALTECH_SENSOR_EN) || defined(CONFIG_INPUT_TOUCHSCREEN_MMI)
 #ifdef CONFIG_HAS_WAKELOCK
 static struct wake_lock gesture_wakelock;
 #else
 static struct wakeup_source *gesture_wakelock;
 #endif
+#endif
+#ifdef FOCALTECH_SENSOR_EN
 static struct sensors_classdev __maybe_unused sensors_touch_cdev = {
     .name = "dt-gesture",
     .vendor = "Focaltech",
@@ -279,7 +289,7 @@ static int fts_create_gesture_sysfs(struct device *dev)
 static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
 {
     int gesture;
-#ifdef FOCALTECH_SENSOR_EN
+#if defined(FOCALTECH_SENSOR_EN) || defined(CONFIG_INPUT_TOUCHSCREEN_MMI)
     int ret = 0;
     static int report_cnt = 0;
 #endif
@@ -298,9 +308,18 @@ static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
     case GESTURE_DOWN:
         gesture = KEY_GESTURE_DOWN;
         break;
+#ifdef CONFIG_INPUT_TOUCHSCREEN_MMI
+    case GESTURE_DOUBLECLICK:
+        gesture = KEY_GESTURE_E;
+        break;
+    case GESTURE_SINGLECLICK:
+        gesture = KEY_GESTURE_U;
+        break;
+#else
     case GESTURE_DOUBLECLICK:
         gesture = KEY_GESTURE_U;
         break;
+#endif
     case GESTURE_O:
         gesture = KEY_GESTURE_O;
         break;
@@ -361,6 +380,38 @@ static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
         FTS_INFO("input report: %d", report_cnt);
         if (report_cnt >= REPORT_MAX_COUNT)
             report_cnt = 0;
+
+        if (!ret) {
+#ifdef CONFIG_HAS_WAKELOCK
+            wake_lock_timeout(&gesture_wakelock, msecs_to_jiffies(5000));
+#else
+            PM_WAKEUP_EVENT(gesture_wakelock, 5000);
+#endif
+        }
+#elif defined(CONFIG_INPUT_TOUCHSCREEN_MMI)
+        /* report double tap */
+        if (gesture == KEY_GESTURE_E) {
+            if (fts_data->imports && fts_data->imports->report_gesture) {
+                struct gesture_event_data event;
+
+                FTS_INFO("invoke imported report double tap gesture function\n");
+                event.evcode = 4;
+                /* call class method */
+                ret = fts_data->imports->report_gesture(&event);
+                ++report_cnt;
+        }
+	    /* report single tap */
+        } else if (gesture == KEY_GESTURE_U) {
+            if (fts_data->imports && fts_data->imports->report_gesture) {
+                struct gesture_event_data event;
+
+                FTS_INFO("invoke imported report single tap gesture function\n");
+                event.evcode = 1;
+                /* call class method */
+                ret = fts_data->imports->report_gesture(&event);
+                ++report_cnt;
+            }
+        }
 
         if (!ret) {
 #ifdef CONFIG_HAS_WAKELOCK
