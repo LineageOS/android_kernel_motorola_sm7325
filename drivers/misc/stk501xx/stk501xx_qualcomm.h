@@ -21,8 +21,6 @@
 #define INPUT_DEVICE_CH6 "Moto CapSense Ch6"
 #define INPUT_DEVICE_CH7 "Moto CapSense Ch7"
 
-uint8_t mapping_phase[8] = {0, 1, 2, 3, 4, 5, 6, 7}; //define by hardware design
-
 char input_dev_name[8][20] = {INPUT_DEVICE_CH0, INPUT_DEVICE_CH1, INPUT_DEVICE_CH2, INPUT_DEVICE_CH3,
                               INPUT_DEVICE_CH4, INPUT_DEVICE_CH5, INPUT_DEVICE_CH6, INPUT_DEVICE_CH7
                              };

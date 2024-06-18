@@ -5,7 +5,7 @@
 #include "stk501xx_config.h"
 #include "stk501xx_ver.h"
 #ifdef MCU_GESTURE
-    #include "stk_gesture_lib.h"
+#include "stk_gesture_lib.h"
 #endif
 
 #ifdef STK_REG_READ
@@ -20,9 +20,9 @@
 /*****************************************************************************
  * Global variable
  *****************************************************************************/
+static struct stk501xx_platform_data *pdata = NULL;
 
-enum
-{
+enum{
     DIST_GAIN_512 = 0x0,
     DIST_GAIN_256 = 0x1,
     DIST_GAIN_128 = 0x2,
@@ -34,31 +34,41 @@ enum
 };
 
 //Threshold fill in delta decimal value
-#define STK_SAR_THD_0                       4500
-#define STK_SAR_THD_1                       4500
-#define STK_SAR_THD_2                       4500
-#define STK_SAR_THD_3                       4500
-#define STK_SAR_THD_4                       4500
-#define STK_SAR_THD_5                       4500
-#define STK_SAR_THD_6                       4500
-#define STK_SAR_THD_7                       4500
+#define STK_SAR_THD_0                       (pdata?pdata->sar_thd0[0]:260000)  //ref
+#define STK_SAR_THD_1                       (pdata?pdata->sar_thd0[1]:20000)
+#define STK_SAR_THD_2                       (pdata?pdata->sar_thd0[2]:8000)
+#define STK_SAR_THD_3                       (pdata?pdata->sar_thd0[3]:260000)  //ref
+#define STK_SAR_THD_4                       (pdata?pdata->sar_thd0[4]:10000)
+#define STK_SAR_THD_5                       (pdata?pdata->sar_thd0[5]:14000)
+#define STK_SAR_THD_6                       (pdata?pdata->sar_thd0[6]:1000)
+#define STK_SAR_THD_7                       (pdata?pdata->sar_thd0[7]:260000)
+
+#define STK_SAR_THD1_0                      (pdata?pdata->sar_thd1[0]:260000)
+#define STK_SAR_THD1_1                      (pdata?pdata->sar_thd1[1]:10000)
+#define STK_SAR_THD1_2                      (pdata?pdata->sar_thd1[2]:260000)
+#define STK_SAR_THD1_3                      (pdata?pdata->sar_thd1[3]:260000)
+#define STK_SAR_THD1_4                      (pdata?pdata->sar_thd1[4]:260000)
+#define STK_SAR_THD1_5                      (pdata?pdata->sar_thd1[5]:7000)
+#define STK_SAR_THD1_6                      (pdata?pdata->sar_thd1[6]:260000)
+#define STK_SAR_THD1_7                      (pdata?pdata->sar_thd1[7]:260000)
+
 
 #define STK_CADC_DIFF                       30
 
 #define STK_COEF_T_POS_PH0                  128    //follow by STK_ADDR_CORRECTION_PH0 [17:08]
 #define STK_COEF_T_NEG_PH0                  128    //follow by STK_ADDR_CORRECTION_PH0 [29:20]
-#define STK_COEF_T_POS_PH1                  128    //follow by STK_ADDR_CORRECTION_PH1 [17:08]
-#define STK_COEF_T_NEG_PH1                  128    //follow by STK_ADDR_CORRECTION_PH1 [29:20]
-#define STK_COEF_T_POS_PH2                  128    //follow by STK_ADDR_CORRECTION_PH2 [17:08]
-#define STK_COEF_T_NEG_PH2                  128    //follow by STK_ADDR_CORRECTION_PH2 [29:20]
+#define STK_COEF_T_POS_PH1                  121    //follow by STK_ADDR_CORRECTION_PH1 [17:08]
+#define STK_COEF_T_NEG_PH1                  125    //follow by STK_ADDR_CORRECTION_PH1 [29:20]
+#define STK_COEF_T_POS_PH2                  112    //follow by STK_ADDR_CORRECTION_PH2 [17:08]
+#define STK_COEF_T_NEG_PH2                  162    //follow by STK_ADDR_CORRECTION_PH2 [29:20]
 #define STK_COEF_T_POS_PH3                  128    //follow by STK_ADDR_CORRECTION_PH3 [17:08]
 #define STK_COEF_T_NEG_PH3                  128    //follow by STK_ADDR_CORRECTION_PH3 [29:20]
-#define STK_COEF_T_POS_PH4                  128    //follow by STK_ADDR_CORRECTION_PH4 [17:08]
-#define STK_COEF_T_NEG_PH4                  128    //follow by STK_ADDR_CORRECTION_PH4 [29:20]
-#define STK_COEF_T_POS_PH5                  128    //follow by STK_ADDR_CORRECTION_PH5 [17:08]
-#define STK_COEF_T_NEG_PH5                  128    //follow by STK_ADDR_CORRECTION_PH5 [29:20]
-#define STK_COEF_T_POS_PH6                  128    //follow by STK_ADDR_CORRECTION_PH6 [17:08]
-#define STK_COEF_T_NEG_PH6                  128    //follow by STK_ADDR_CORRECTION_PH6 [29:20]
+#define STK_COEF_T_POS_PH4                  171    //follow by STK_ADDR_CORRECTION_PH4 [17:08]
+#define STK_COEF_T_NEG_PH4                  215    //follow by STK_ADDR_CORRECTION_PH4 [29:20]
+#define STK_COEF_T_POS_PH5                  134    //follow by STK_ADDR_CORRECTION_PH5 [17:08]
+#define STK_COEF_T_NEG_PH5                  176    //follow by STK_ADDR_CORRECTION_PH5 [29:20]
+#define STK_COEF_T_POS_PH6                  190    //follow by STK_ADDR_CORRECTION_PH6 [17:08]
+#define STK_COEF_T_NEG_PH6                  244    //follow by STK_ADDR_CORRECTION_PH6 [29:20]
 #define STK_COEF_T_POS_PH7                  128    //follow by STK_ADDR_CORRECTION_PH7 [17:08]
 #define STK_COEF_T_NEG_PH7                  128    //follow by STK_ADDR_CORRECTION_PH7 [29:20]
 
@@ -68,31 +78,40 @@ enum
 
 #define IDLE_WAITING_6MS                    (600000/STK_POLLING_TIME) // default waintg 6ms.
 
-/*
+
 #ifdef MCU_GESTURE
     #define PHASE_EN 0x3F  //use all phase
 #else
     #define PHASE_EN 0x7F  //use phase 0 1 2 3 4 5 6
 #endif
-*/
 
 #ifdef TEMP_COMPENSATION
     /* Modify by design*/
-    #define DELTA_TEMP_THD_A                       80000
-    #define DELTA_A_MAPPING_PHASE                  0  // ref channel, 0~7 mapping phase 0~7, this for phase 1
-    #define DELTA_A_MEASURE_PHASE                  1  // measure phase
-    /*End of modify by design*/
+    #define DELTA_TEMP_THD_A                       (pdata?pdata->tc_config[0]:500000)
+    #define DELTA_A_MAPPING_PHASE                  (pdata?pdata->tc_config[1]:0)  // ref channel, 0~7 mapping phase 0~7, this for phase 1
+    #define DELTA_A_MEASURE_PHASE                  (pdata?pdata->tc_config[2]:1)  // measure phase
+/*End of modify by design*/
     #define DELTA_A_MAPPING_PHASE_REG              (STK_ADDR_REG_RAW_PH0_REG  + (DELTA_A_MAPPING_PHASE * 4))
-    //#define STK_ADDR_DELTADES_A_CTRL_VALUE          0x01403301 | (DELTA_A_MEASURE_PHASE <<4)
+    #define STK_ADDR_DELTADES_A_CTRL_VALUE          0x01403301 | (DELTA_A_MEASURE_PHASE <<4)
 
-    /* Modify by design*/
-    #define DELTA_TEMP_THD_B                       80000
-    #define DELTA_B_MAPPING_PHASE                  2  // ref channel, 0~7 mapping phase 0~7, this for phase 2
-    #define DELTA_B_MEASURE_PHASE                  3 //  measure phase
-    /*End of modify by design*/
+/* Modify by design*/
+    #define DELTA_TEMP_THD_B                       (pdata?pdata->tc_config[3]:64000)
+    #define DELTA_B_MAPPING_PHASE                  (pdata?pdata->tc_config[4]:3)  // ref channel, 0~7 mapping phase 0~7, this for phase 2
+    #define DELTA_B_MEASURE_PHASE                  (pdata?pdata->tc_config[5]:4) //  measure phase
+/*End of modify by design*/
     #define DELTA_B_MAPPING_PHASE_REG              (STK_ADDR_REG_RAW_PH0_REG  + (DELTA_B_MAPPING_PHASE * 4))
-    //#define STK_ADDR_DELTADES_B_CTRL_VALUE          0x01403301 | (DELTA_B_MEASURE_PHASE <<4)
+    #define STK_ADDR_DELTADES_B_CTRL_VALUE          0x01403301 | (DELTA_B_MEASURE_PHASE <<4)
     #define BASE_REINIT_DELTA_DES                  0x200000
+
+/* Modify by design*/
+    #define DELTA_TEMP_THD_C                       (pdata?pdata->tc_config[6]:80000)
+    #define DELTA_C_MAPPING_PHASE                  (pdata?pdata->tc_config[7]:4) // ref channel, 0~7 mapping phase 0~7, this for phase 5
+    #define DELTA_C_MEASURE_PHASE                  (pdata?pdata->tc_config[8]:5) //  measure phase
+/*End of modify by design*/
+    #define DELTA_C_MAPPING_PHASE_REG              (STK_ADDR_REG_RAW_PH0_REG  + (DELTA_C_MAPPING_PHASE * 4))
+    #define STK_ADDR_DELTADES_C_CTRL_VALUE          0x01403301 | (DELTA_C_MEASURE_PHASE <<4)
+    #define BASE_REINIT_DELTA_DES                  0x200000
+
 #endif
 
 typedef struct stk501xx_register_table
@@ -199,8 +218,11 @@ typedef enum
 #define STK_ADDR_SCAN_PERIOD                    0x00D0
 //#define STK_SCAN_PERIOD_VALUE                   0x00000FA0 //200ms
 
-#define STK_ADDR_I2C_WDT_CTRL                   0x00D4
-//#define STK_I2C_WDT_VALUE                       0x00004008
+#define STK_ADDR_WATCH_DOG                      0x00D4
+#define STK_SNS_WATCH_DOG_MASK                  0x000000FF
+//#define STK_SNS_WATCH_DOG_VALUE                 0x000000FF
+#define STK_I2C_WDT_MASK                        0x0000FF00
+//#define STK_I2C_WDT_VALUE                       0x00004000
 
 #define STK_ADDR_TRIGGER_CMD                    0x0100
 #define STK_TRIGGER_CMD_REG_INIT_ALL            0x0000000F
@@ -211,8 +233,7 @@ typedef enum
 #define STK_TRIGGER_REG_PHEN_MASK               0xFF
 #define STK_TRIGGER_REG_PHEN_DISABLE_ALL        0x00000000
 
-//#define STK_TRIGGER_REG_INIT_ALL                ((PHASE_EN << 8) | PHASE_EN)
-#define STK_TRIGGER_REG_INIT_ALL(PHASE_EN)        (((PHASE_EN) << 8) | (PHASE_EN))
+#define STK_TRIGGER_REG_INIT_ALL                ((PHASE_EN << 8) | PHASE_EN)
 #define STK_TRIGGER_REG_PHRST_PHASE             (1 << (8 + DELDEA_A_MAPPING_PHASE))
 
 #define STK_TRIGGER_REG_ENTER_PAUSE_MODE        0x0
@@ -221,10 +242,14 @@ typedef enum
 #define STK_ADDR_RX_NL_CTRL                     0x0134
 
 #define STK_ADDR_FAIL_STAT_DET_2                0x0148
-//#define STK_FAIL_STAT_DET_2_VALUE               0x08000500
+//#define STK_FAIL_STAT_DET_2_VALUE               0x08003F00
 
 #define STK_ADDR_DETECT_STATUS_1                0x0184
 #define STK_DETECT_STATUS_1_PROX_STATE_MASK     0xFF00
+#define STK_DETECT_STATUS_1_SATURATION_STATE_MASK     0x0000FF
+
+#define STK_ADDR_DETECT_STATUS_3                0x018C
+
 
 #define STK_ADDR_DETECT_STATUS_4                0x0190
 #define STK_DETECT_STATUS_4_DES_STAT_A_MASK     0x01
@@ -557,6 +582,10 @@ struct stk501xx_platform_data
     int i2c_reg_num;
     struct smtc_reg_data *pi2c_reg;
     u32 phase_en;
+    u32 mapping_phase[8];
+    u32 sar_thd0[8];
+    u32 sar_thd1[8];
+    u32 tc_config[9];
 };
 
 struct stk_data
@@ -571,12 +600,14 @@ struct stk_data
     uint8_t                         power_mode;
     uint8_t                         recv;
     stk_sar_nearby_type             last_nearby[8];
+    stk_sar_nearby_type             last_nearby_dist1[8];
 #ifdef MCU_GESTURE
     GestureType                     gesture_state;
     bool                            gs_timer_is_running;
     uint8_t                         gs_idle_count;
 #endif
     uint8_t                         state_change[8];
+    uint8_t                         state_change_dist1[8];
     int32_t                         last_data[8];
     uint32_t                        chip_id;
     uint32_t                        chip_index;
@@ -586,11 +617,17 @@ struct stk_data
 #ifdef TEMP_COMPENSATION
     bool                            last_prox_a_state;
     bool                            last_prox_b_state;
+    bool                            last_prox_c_state;
     int32_t                         prev_temperature_ref_a;
     int32_t                         next_temperature_ref_a;
     int32_t                         prev_temperature_ref_b;
     int32_t                         next_temperature_ref_b;
+    int                             prev_temperature_ref_c;
+    int                             next_temperature_ref_c;
     bool                            reinit[8];
+    uint8_t                         decent_cnt_a;
+    uint8_t                         decent_cnt_b;
+    uint8_t                         decent_cnt_c;
 #endif
 #ifdef STK_INTERRUPT_MODE
     stk_gpio_info                   gpio_info;
@@ -600,6 +637,7 @@ struct stk_data
 #if (defined STK_POLLING_MODE || defined MCU_GESTURE)
     stk_timer_info                  stk_timer_info;
 #endif /* STK_INTERRUPT_MODE, STK_POLLING_MODE */
+    bool                            first_init;
 };
 
 
@@ -611,7 +649,6 @@ void stk501xx_set_enable(struct stk_data* stk, char enable);
 int32_t stk_read_prox_flag(struct stk_data* stk, uint32_t* prox_flag);
 void stk501xx_read_temp_data(struct stk_data* stk, uint16_t reg, int32_t *temperature);
 void stk501xx_read_sar_data(struct stk_data* stk, uint32_t prox_flag);
-int8_t stk501xx_set_each_thd(struct stk_data* stk, uint8_t idx, uint16_t thd);
 int32_t stk501xx_show_all_reg(struct stk_data* stk);
 int32_t stk501xx_init_client(struct stk_data *stk);
 int32_t stk501xx_sw_reset(struct stk_data* stk);
@@ -620,8 +657,10 @@ int32_t stk501xx_write(struct stk_data* stk, unsigned short addr, unsigned char*
 void stk501xx_data_initialize(struct stk_data* stk);
 void stk501xx_phase_reset(struct stk_data* stk, uint32_t phase_reset_reg);
 void stk_work_queue(void *stkdata);
+void stk_clr_intr(struct stk_data* stk, uint32_t* flag);
+void clr_temp(struct stk_data* stk);
 /* Algorithm loading in the last*/
 #ifdef MCU_GESTURE
-    #include "stk_gesture_lib.h"
+#include "stk_gesture_lib.h"
 #endif
 #endif /* __STK501XX_H__ */

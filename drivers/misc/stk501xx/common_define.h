@@ -52,6 +52,10 @@
 })
 
 #define STK_TAG                 "[STK] "
+#define STK_ERR(fmt, args...)   pr_err(STK_TAG "[ERR]" "<%s><%d>"fmt, __func__, __LINE__, ##args)
+#define STK_LOG(fmt, args...)   pr_info(STK_TAG "[INFO]" "<%s><%d>"fmt, __func__, __LINE__, ##args)
+#define STK_DBG(fmt, args...)   pr_debug(STK_TAG "[DBG]" "<%s><%d>"fmt, __func__, __LINE__, ##args)
+#if 0
 #define STK_FUN()               printk(KERN_INFO STK_TAG" %s\n", __FUNCTION__)
 #define STK_ERR(...)            \
     do {                        \
@@ -71,6 +75,7 @@
         printk(__VA_ARGS__);    \
         printk("\n");           \
     } while (0)
+#endif
 
 typedef struct stk_timer_info stk_timer_info;
 typedef struct stk_gpio_info stk_gpio_info;

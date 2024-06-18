@@ -72,6 +72,7 @@ static ssize_t stk_enable_store(struct device *dev,
     stk_data *stk = &stk_wrapper->stk;
     unsigned int data;
     int error;
+
     error = kstrtouint(buf, 10, &data);
 
     if (error)
@@ -204,7 +205,7 @@ exit:
 
     return count;
 }
-#ifdef TEMP_COMPENSATION
+
 static ssize_t stk_temp_show(struct device *dev,
                              struct device_attribute *attr, char *buf)
 {
@@ -214,7 +215,7 @@ static ssize_t stk_temp_show(struct device *dev,
     stk501xx_read_temp_data(stk, STK_ADDR_REG_RAW_PH0_REG, &stk->prev_temperature_ref_a);
     return scnprintf(buf, PAGE_SIZE, "temperature=%d\n", stk->prev_temperature_ref_a);
 }
-#endif
+
 /**
  * @brief: Read all register value, then send result to userspace.
  *
@@ -262,70 +263,29 @@ static ssize_t stk_phase_cali(struct device *dev,
     stk501xx_wrapper *stk_wrapper = dev_get_drvdata(dev);
     int result = 0;
     stk_data *stk = &stk_wrapper->stk;
-    stk501xx_phase_reset(stk, STK_TRIGGER_REG_INIT_ALL(stk->pdata->phase_en));
+    stk501xx_phase_reset(stk, STK_TRIGGER_REG_INIT_ALL);
     return (ssize_t)result;
 }
-static ssize_t stk_set_thd(struct device *dev,
-                              struct device_attribute *attr, const char *buf, size_t count)
-{
-    stk501xx_wrapper *stk_wrapper = dev_get_drvdata(dev);
-    stk_data *stk = &stk_wrapper->stk;
-    char *token[10];
-    int err, i;
-    u32 ph_idx, thd;
-
-    for (i = 0; i < 2; i++)
-        token[i] = strsep((char **)&buf, " ");
-
-    err = kstrtouint(token[0], 10, &ph_idx);
-
-    if (err)
-    {
-        STK_ERR("kstrtouint failed, err=%d", err);
-        return err;
-    }
-
-    err = kstrtouint(token[1], 10, &thd);
-
-    if (err)
-    {
-        STK_ERR("kstrtouint failed, err=%d", err);
-        return err;
-    }
-
-    STK_ERR("set ph[%x] = %d\n", ph_idx, thd);
-
-    stk501xx_set_each_thd(stk, ph_idx, thd);
-
-    return count;
-}
-
 
 static DEVICE_ATTR(enable, 0664, stk_enable_show, stk_enable_store);
 static DEVICE_ATTR(value, 0444, stk_value_show, NULL);
 static DEVICE_ATTR(send, 0220, NULL, stk_send_store);
-#ifdef TEMP_COMPENSATION
 static DEVICE_ATTR(temp, 0444, stk_temp_show, NULL);
-#endif
 static DEVICE_ATTR(flag, 0444, stk_flag_show, NULL);
 static DEVICE_ATTR(allreg, 0444, stk_allreg_show, NULL);
 static DEVICE_ATTR(chipinfo, 0444, stk_chipinfo_show, NULL);
 static DEVICE_ATTR(phcali, 0444, stk_phase_cali, NULL);
-static DEVICE_ATTR(set_thd, 0220, NULL, stk_set_thd);
 
 static struct attribute *stk_attribute_sar[] =
 {
     &dev_attr_enable.attr,
     &dev_attr_value.attr,
     &dev_attr_send.attr,
-#ifdef TEMP_COMPENSATION
     &dev_attr_temp.attr,
-#endif
     &dev_attr_flag.attr,
     &dev_attr_allreg.attr,
     &dev_attr_chipinfo.attr,
     &dev_attr_phcali.attr,
-    &dev_attr_set_thd.attr,
     NULL
 };
 
@@ -349,6 +309,7 @@ static ssize_t class_stk_enable_store(struct class *class,
 {
     unsigned int data;
     int error;
+
     error = kstrtouint(buf, 10, &data);
 
     STK_ERR("stk_enable_store, data=%d, cnt %lu, -%c-", data, count, buf[0]);
@@ -455,16 +416,15 @@ exit:
 
     return count;
 }
-#ifdef TEMP_COMPENSATION
+
 static ssize_t class_stk_temp_show(struct class *class,
                                    struct class_attribute *attr, char *buf)
 {
     STK_ERR("stk_temp_show");
-
     stk501xx_read_temp_data(global_stk, STK_ADDR_REG_RAW_PH0_REG, &global_stk->prev_temperature_ref_a);
     return scnprintf(buf, PAGE_SIZE, "temperature=%d\n", global_stk->prev_temperature_ref_a);
 }
-#endif
+
 static ssize_t class_stk_allreg_show(struct class *class,
                                      struct class_attribute *attr, char *buf)
 {
@@ -489,7 +449,7 @@ static ssize_t class_stk_phase_cali(struct class *class,
 {
     int result = 0;
     STK_ERR("class_stk_phase_cali , reset all phase\n");
-    stk501xx_phase_reset(global_stk, STK_TRIGGER_REG_INIT_ALL(global_stk->pdata->phase_en));
+    stk501xx_phase_reset(global_stk, STK_TRIGGER_REG_INIT_ALL);
     return (ssize_t)result;
 }
 
@@ -497,40 +457,7 @@ static ssize_t class_stk_phase_cali_store(struct class *class,
         struct class_attribute *attr, const char *buf, size_t count)
 {
     STK_ERR("class_stk_phase_cali_store , reset all phase\n");
-    stk501xx_phase_reset(global_stk, STK_TRIGGER_REG_INIT_ALL(global_stk->pdata->phase_en));
-    return count;
-}
-
-static ssize_t class_stk_set_thd(struct class *class,
-                                    struct class_attribute *attr, const char *buf, size_t count)
-{
-    char *token[10];
-    int err, i;
-    u32 ph_idx, thd;
-
-    for (i = 0; i < 2; i++)
-        token[i] = strsep((char **)&buf, " ");
-
-    err = kstrtouint(token[0], 10, &ph_idx);
-
-    if (err)
-    {
-        STK_ERR("kstrtouint failed, err=%d", err);
-        return err;
-    }
-
-    err = kstrtouint(token[1], 10, &thd);
-
-    if (err)
-    {
-        STK_ERR("kstrtouint failed, err=%d", err);
-        return err;
-    }
-
-    STK_ERR("set ph[%x] = %d\n", ph_idx, thd);
-
-    stk501xx_set_each_thd(global_stk, ph_idx, thd);
-
+    stk501xx_phase_reset(global_stk, STK_TRIGGER_REG_INIT_ALL);
     return count;
 }
 
@@ -548,10 +475,8 @@ static struct class_attribute class_attr_value =
     __ATTR(value, 0444, class_stk_value_show, NULL);
 static struct class_attribute class_attr_send =
     __ATTR(send, 0220, NULL, class_stk_send_store);
-#ifdef TEMP_COMPENSATION
 static struct class_attribute class_attr_temp =
     __ATTR(temp, 0444, class_stk_temp_show, NULL);
-#endif
 static struct class_attribute class_attr_flag =
     __ATTR(flag, 0444, class_stk_flag_show, NULL);
 static struct class_attribute class_attr_allreg =
@@ -560,25 +485,19 @@ static struct class_attribute class_attr_chipinfo =
     __ATTR(chipinfo, 0444, class_stk_chipinfo_show, NULL);
 static struct class_attribute class_attr_reset =
     __ATTR(reset, 0664, class_stk_phase_cali, class_stk_phase_cali_store);
-static struct class_attribute class_attr_set_thd =
-    __ATTR(set_thd, 0220, NULL, class_stk_set_thd);
 static struct class_attribute class_attr_int_state =
     __ATTR(int_state, 0444, class_stk_int_state_show, NULL);
-
 
 static struct attribute *capsense_class_attrs[] =
 {
     &class_attr_enable.attr,
     &class_attr_value.attr,
     &class_attr_send.attr,
-#ifdef TEMP_COMPENSATION
     &class_attr_temp.attr,
-#endif
     &class_attr_flag.attr,
     &class_attr_allreg.attr,
     &class_attr_chipinfo.attr,
     &class_attr_reset.attr,
-    &class_attr_set_thd.attr,
     &class_attr_int_state.attr,
     NULL,
 };
@@ -590,14 +509,11 @@ static struct class_attribute capsense_class_attributes[] =
     __ATTR(enable, 0664, class_stk_enable_show, class_stk_enable_store),
     __ATTR(value, 0444, class_stk_value_show, NULL),
     __ATTR(send, 0220, NULL, class_stk_send_store),
-#ifdef TEMP_COMPENSATION
     __ATTR(temp, 0444, class_stk_temp_show, NULL),
-#endif
     __ATTR(flag, 0444, class_stk_flag_show, NULL),
     __ATTR(allreg, 0444, class_stk_allreg_show, NULL),
     __ATTR(chipinfo, 0444, class_stk_chipinfo_show, NULL),
     __ATTR(reset, 0664, class_stk_phase_cali, class_stk_phase_cali_store),
-    __ATTR(set_thd, 0220, NULL, class_stk_set_thd),
     __ATTR(int_state, 0444, class_stk_int_state_show, NULL),
     __ATTR_NULL,
 };
@@ -699,6 +615,7 @@ static int stk_cdev_sensors_poll_delay(struct sensors_classdev *sensors_cdev,
     STK_LOG("stk_cdev_sensors_poll_delay ms=%d", delay_msec);
     return 0;
 }
+
 /*
  * @brief:
  *          include/linux/sensors.h
@@ -809,15 +726,9 @@ static int stk_init_qualcomm(stk501xx_wrapper *stk_wrapper)
     }
 
     /* sysfs: create file system */
-
-
-    err = sysfs_create_group(&stk_wrapper->channels[0].input_dev->dev.kobj,
-                             &stk_attribute_sar_group);
-
-/*
     err = sysfs_create_group(&stk_wrapper->i2c_mgr.client->dev.kobj,
                              &stk_attribute_sar_group);
-*/
+
     if (err)
     {
         STK_ERR("Fail in sysfs_create_group, err=%d", err);
@@ -851,8 +762,9 @@ err_sysfs_creat_group:
  */
 static void stk_exit_qualcomm(struct stk501xx_wrapper *stk_wrapper)
 {
-    int8_t i = 0;
 #ifdef STK_SENSORS_DEV
+    int8_t i = 0;
+
     for (i = 0; i < ch_num; i++)
     {
         sensors_classdev_unregister(&stk_wrapper->channels[i].sar_cdev);
@@ -877,7 +789,9 @@ void stk_report_sar_data(struct stk_data* stk)
     stk501xx_wrapper *stk_wrapper = container_of(stk, stk501xx_wrapper, stk);
     int i = 0;
     u8 is_change = 0;
+    u8 is_dist1_change = 0;
     u8 nf_flag = 0;
+    uint32_t* mapping_phase = pdata->mapping_phase;
 
     if (!stk_wrapper->channels[i].input_dev)
     {
@@ -889,15 +803,27 @@ void stk_report_sar_data(struct stk_data* stk)
     {
         nf_flag = is_change = 0;
         is_change |= stk->state_change[mapping_phase[i]];
-        STK_ERR("stk_report_sar_data:: change ph[%d] =%d,(%d)", i, stk->state_change[i], is_change);
+        is_dist1_change |= stk->state_change_dist1[mapping_phase[i]];
+        STK_ERR("stk_report_sar_data:: change ph[%d] =%d[%d],(%d)", mapping_phase[i], stk->state_change[mapping_phase[i]], stk->state_change_dist1[mapping_phase[i]], is_change);
+
+        if (STK_SAR_NEAR_BY == stk->last_nearby_dist1[mapping_phase[i]])
+            nf_flag = 1;  // First thd
+
+        if (is_dist1_change != 0)
+        {
+            input_report_abs(stk_wrapper->channels[i].input_dev, ABS_DISTANCE, nf_flag);
+            input_sync(stk_wrapper->channels[i].input_dev);
+            STK_ERR("stk_report_sar_data, ph[%d] nf_flag =%d\n",  mapping_phase[i], nf_flag);
+        }
 
         if (STK_SAR_NEAR_BY == stk->last_nearby[mapping_phase[i]])
-            nf_flag = 5;
+            nf_flag = 2; // Second thd
 
         if (is_change != 0)
         {
             input_report_abs(stk_wrapper->channels[i].input_dev, ABS_DISTANCE, nf_flag);
             input_sync(stk_wrapper->channels[i].input_dev);
+            STK_ERR("stk_report_sar_data, ph[%d] nf_flag =%d\n",  mapping_phase[i], nf_flag);
         }
     }
 }
@@ -939,6 +865,10 @@ static int stk_parse_dt(struct device *dev,
 
     pdata->phase_en = 0x7f;
     of_property_read_u32(np,"stk,phase_en",&pdata->phase_en);
+    of_property_read_u32_array(np,"stk,mapping_phase", (u32*)&(pdata->mapping_phase[0]), 8);
+    of_property_read_u32_array(np,"stk,sar_thd0", (u32*)&(pdata->sar_thd0[0]), 8);
+    of_property_read_u32_array(np,"stk,sar_thd1", (u32*)&(pdata->sar_thd1[0]), 8);
+    of_property_read_u32_array(np,"stk,tc_config", (u32*)&(pdata->tc_config[0]), 9);
     // load in registers from device tree
     of_property_read_u32(np,"stk,reg-num",&pdata->i2c_reg_num);
     STK_LOG("size of elements %d \n", pdata->i2c_reg_num);
@@ -983,7 +913,6 @@ static int get_platform_data(stk501xx_wrapper *stk_wrapper)
 
     if (client->dev.of_node)
     {
-        STK_FUN();
         stk_platdata = devm_kzalloc(&client->dev,
                                     sizeof(struct stk501xx_platform_data), GFP_KERNEL);
 
@@ -1020,8 +949,13 @@ static int get_platform_data(stk501xx_wrapper *stk_wrapper)
     STK_ERR("int_pin=%d", stk_wrapper->stk.gpio_info.int_pin);
 #endif /* STK_INTERRUPT_MODE */
     stk_wrapper->stk.pdata = stk_platdata;
+    pdata  = stk_platdata;
     //stk->direction = stk_platdata->direction;
-    STK_LOG("phase_en %x \n", stk_wrapper->stk.pdata->phase_en);
+    STK_LOG("phase_en %x \n", pdata->phase_en);
+    STK_LOG("mapping_phase %d - %d\n", pdata->mapping_phase[0], pdata->mapping_phase[7]);
+    STK_LOG("sar_thd0 %d - %d\n", pdata->sar_thd0[0], pdata->sar_thd0[7]);
+    STK_LOG("sar_thd1 %d - %d\n", pdata->sar_thd1[0], pdata->sar_thd1[7]);
+    STK_LOG("tc_config %d - %d\n", pdata->tc_config[0], pdata->tc_config[8]);
     return 0;
 }
 
