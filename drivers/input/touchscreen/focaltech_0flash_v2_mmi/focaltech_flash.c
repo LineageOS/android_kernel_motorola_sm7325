@@ -932,6 +932,234 @@ int fts_enter_test_environment(bool test_state)
     return 0;
 }
 
+#ifdef CONFIG_FTS_MULTI_FW
+static int fts_fw_resume(bool need_reset, enum FW_TYPE fw_type)
+{
+    int ret = 0;
+    struct fts_upgrade *upg = fwupgrade;
+    const struct firmware *fw = NULL;
+    char fwname[FILE_NAME_LENGTH] = { 0 };
+    bool get_fw_i_flag = true;
+    const u8 *fw_buf = NULL;
+    u32 fwlen = 0;
+    u32 app_off = 0;
+
+    FTS_INFO("fw upgrade resume function");
+#if !FTS_AUTO_UPGRADE_EN
+    FTS_INFO("FTS_AUTO_UPGRADE_EN is disabled, not upgrade");
+    return 0;
+#endif
+
+    if (!upg || !upg->fw) {
+        FTS_ERROR("upg/fw is null");
+        return -EINVAL;
+    }
+
+    if (upg->ts_data->fw_loading) {
+        FTS_INFO("fw is loading, not download again");
+        return -EINVAL;
+    }
+
+    if (FTS_FW_REQUEST_SUPPORT) {
+        snprintf(fwname, FILE_NAME_LENGTH, "%s%s.bin", \
+                 FTS_FW_NAME_PREX_WITH_REQUEST, upg->module_info->vendor_name);
+        ret = request_firmware(&fw, fwname, upg->ts_data->dev);
+        if (ret == 0) {
+            FTS_INFO("firmware(%s) request successfully", fwname);
+            fw_buf = fw->data;
+            fwlen = fw->size;
+            get_fw_i_flag = false;
+        } else {
+            FTS_ERROR("%s:firmware(%s) request fail,ret=%d\n",
+                      __func__, fwname, ret);
+        }
+    }
+
+    if (get_fw_i_flag) {
+        FTS_INFO("download fw from bootimage");
+        fw_buf = upg->fw;
+        fwlen = upg->fw_length;
+    }
+
+    if (!fw_buf || (fwlen < FTS_MIN_LEN)) {
+        FTS_ERROR("fw/len(%d) is invalid", fwlen);
+        return -EINVAL;
+    }
+
+    if ((fw_type == FW_GESTURE) ||
+        ((fw_type == FW_AUTO) && upg->ts_data->gesture_support && upg->ts_data->suspended)) {
+        /*Need download gesture firmware*/
+        if (fwlen <= (upg->setting_nf->app2_offset * 2)) {
+            FTS_INFO("not support gesture-app");
+            ret = 0;
+            goto _release_firmware;
+        }
+        FTS_INFO("get gesture-app");
+        app_off = upg->setting_nf->app2_offset * 2;
+    }
+
+    ret = fts_fw_download(fw_buf + app_off, fwlen - app_off, need_reset);
+    if (ret < 0) {
+        FTS_ERROR("upgrade fw(resume) failed");
+        goto _release_firmware;
+    }
+
+    /* update to newest fw if needed */
+    if (fw != NULL) {
+        u8 *tmpbuf = NULL;
+        if (upg->fw_from_request)
+            vfree(upg->fw);
+        tmpbuf = vmalloc(fw->size);
+        if (NULL == tmpbuf) {
+            FTS_ERROR("fw buffer vmalloc fail");
+            ret = -ENOMEM;
+            goto FTS_FW_RESUME_VMALLOC_ERROR;
+        } else {
+            memcpy(tmpbuf, fw->data, fw->size);
+            upg->fw = tmpbuf;
+            upg->fw_length = fw->size;
+            upg->fw_from_request = 1;
+            FTS_INFO("upg->fw_length = %d", upg->fw_length);
+        }
+    }
+
+    ret = 0;
+_release_firmware:
+FTS_FW_RESUME_VMALLOC_ERROR:
+    if (FTS_FW_REQUEST_SUPPORT && fw != NULL) {
+        release_firmware(fw);
+        fw = NULL;
+    }
+
+    return ret;
+}
+
+static bool fts_check_fw_normal(void)
+{
+    int i = 0;
+    int max_retries = 5;
+    u8 val = 0;
+    u8 boot_state = 0;
+    struct fts_upgrade *upg = fwupgrade;
+    struct ft_chip_t *chip_id = &upg->ts_data->ic_info.ids;
+
+    for (i = 0; i < max_retries; i++) {
+        fts_read_reg(FTS_REG_CHIP_ID, &val);
+        if ((val == chip_id->chip_idh) || (fts_check_cid(upg->ts_data, val) == 0)) {
+            FTS_INFO("TP Ready,Read ID=0x%02x", val);
+#if (FTS_MULTI_FW_NUM > 1)
+            fts_read_reg(0xB4, &val);
+            if ((0x55 == val) || (0x66 == val)) {
+                FTS_INFO("FW(%x) need upgrade", val);
+                return false;
+            }
+#endif
+            return true;
+        } else {
+            upg->ts_data->fw_is_running = false;
+            fts_read_reg(0xD0, &boot_state);
+            FTS_INFO("Read BOOT state=0x%02x", boot_state);
+            if ((boot_state == upg->setting_nf->upgsts_boot) && (0 == fts_check_bootid())) {
+                FTS_INFO("boot state:0x%x,need upgrade", boot_state);
+                upg->ts_data->fw_is_running = true;
+                return false;
+            }
+            upg->ts_data->fw_is_running = true;
+        }
+
+        if ((i + 1) < max_retries) msleep((i + 1) * 20);
+    }
+
+    return false;
+}
+
+int fts_enter_gesture_fw(void)
+{
+    u8 fw_mode = 0;
+    struct fts_upgrade *upg = fwupgrade;
+
+    FTS_FUNC_ENTER();
+    if (fts_fw_resume(true, FW_GESTURE) == 0) {
+        fts_tp_state_recovery(upg->ts_data);
+        fts_read_reg(0xB4, &fw_mode);
+        FTS_INFO("FW Mode:0x%02x", fw_mode);
+    } else {
+        FTS_ERROR("download gesture firmware failed");
+    }
+    FTS_FUNC_EXIT();
+    return 0;
+}
+
+int fts_enter_normal_fw(void)
+{
+    FTS_FUNC_ENTER();
+    if (fts_check_fw_normal()) {
+        FTS_INFO("FW works normally");
+    } else {
+        if (fts_fw_resume(true, FW_NORMAL) == 0) {
+            fts_wait_tp_to_valid();
+        } else {
+            FTS_ERROR("download normal firmware failed");
+        }
+    }
+    FTS_FUNC_EXIT();
+    return 0;
+}
+
+/* work thread for TP driver to recover FW when TP FW is lost */
+static void fts_fwrecover_work(struct work_struct *work)
+{
+    u8 boot_state = 0;
+    struct fts_ts_data *ts_data = container_of(work, struct fts_ts_data, fwrecover_work);
+
+    FTS_FUNC_ENTER();
+    ts_data->fw_is_running = false;
+    fts_read_reg(0xD0, &boot_state);
+    if ((boot_state == fwupgrade->setting_nf->upgsts_boot) && (0 == fts_check_bootid())) {
+        FTS_INFO("abnormal situation,to download fw");
+        fts_fw_resume(false, FW_AUTO);
+        fts_tp_state_recovery(ts_data);
+        FTS_INFO("FW recovery pass");
+    }
+    ts_data->fw_is_running = true;
+    FTS_FUNC_EXIT();
+}
+
+/* work thread for LCD driver to call fw loading of TP driver */
+static void fts_fwload_work(struct work_struct *work)
+{
+    u8 chip_id = 0xFF;
+
+    FTS_FUNC_ENTER();
+    fts_fw_resume(true, FW_NORMAL);
+    fts_read_reg(FTS_REG_CHIP_ID, &chip_id);
+    FTS_INFO("read chip id:0x%02x", chip_id);
+    FTS_FUNC_EXIT();
+}
+
+#ifdef IDC_LOADFW_IN_LCD_DRIVER
+/* Only for LCD driver to call, only for IDC chip */
+int fts_load_fw_init(void)
+{
+    struct fts_upgrade *upg = fwupgrade;
+
+    FTS_INFO("LCD driver calls FW loading function of TP driver.");
+    if (!upg || !upg->ts_data) {
+        FTS_ERROR("upg/ts_data is null");
+        return -EINVAL;
+    }
+
+    if (!upg->ts_data->ts_workqueue || !upg->ts_data->fwload_work.func) {
+        FTS_ERROR("ts_workqueue/work.func is NULL, can't upgrade");
+        return -EINVAL;
+    }
+
+    queue_work(upg->ts_data->ts_workqueue, &upg->ts_data->fwload_work);
+    return 0;
+}
+EXPORT_SYMBOL(fts_load_fw_init);
+#endif
+#else
 int fts_fw_resume(bool need_reset)
 {
     int ret = 0;
@@ -1006,12 +1234,14 @@ FTS_FW_RESUME_VMALLOC_ERROR:
 
     return ret;
 }
-
+#endif
 int fts_fw_recovery(void)
 {
     int ret = 0;
     u8 boot_state = 0;
+#ifndef CONFIG_FTS_MULTI_FW
     u8 chip_id = 0;
+#endif
     struct fts_upgrade *upg = fwupgrade;
 
     FTS_INFO("check if boot recovery");
@@ -1020,6 +1250,12 @@ int fts_fw_recovery(void)
         return -EINVAL;
     }
 
+#ifdef CONFIG_FTS_MULTI_FW
+    if (!upg->ts_data->ts_workqueue || !upg->ts_data->fwrecover_work.func) {
+        FTS_ERROR("ts_workqueue/work.func is NULL");
+        return -EINVAL;
+    }
+#endif
     if (upg->ts_data->fw_loading) {
         FTS_INFO("fw is loading, not download again");
         return -EINVAL;
@@ -1049,7 +1285,10 @@ int fts_fw_recovery(void)
 
     FTS_INFO("abnormal situation,need download fw");
   } //!force_reflash
-
+#ifdef CONFIG_FTS_MULTI_FW
+    queue_work(upg->ts_data->ts_workqueue, &upg->ts_data->fwrecover_work);
+    return 0;
+#else
     ret = fts_fw_resume(false);
     if (ret < 0) {
         FTS_ERROR("fts_fw_resume fail");
@@ -1063,6 +1302,7 @@ int fts_fw_recovery(void)
 
     FTS_INFO("boot recovery pass");
     return ret;
+#endif
 }
 
 static int fts_fwupg_get_module_info(struct fts_upgrade *upg)
@@ -1094,6 +1334,7 @@ static int fts_fwupg_get_module_info(struct fts_upgrade *upg)
     return 0;
 }
 
+#ifndef CONFIG_FTS_MULTI_FW
 int fts_fw_update_vendor_name(const char* name) {
     struct fts_upgrade *upg = fwupgrade;
     char* pos;
@@ -1130,6 +1371,7 @@ int fts_fw_update_vendor_name(const char* name) {
     FTS_INFO("upgrade name=%s", name);
     return 0;
 }
+#endif
 
 static int fts_get_fw_file_via_request_firmware(struct fts_upgrade *upg)
 {
@@ -1337,6 +1579,10 @@ int fts_fwupg_init(struct fts_ts_data *ts_data)
 
     fwupgrade->ts_data = ts_data;
     INIT_WORK(&ts_data->fwupg_work, fts_fwupg_work);
+#ifdef CONFIG_FTS_MULTI_FW
+	INIT_WORK(&ts_data->fwrecover_work, fts_fwrecover_work);
+    INIT_WORK(&ts_data->fwload_work, fts_fwload_work);
+#endif
     queue_work(ts_data->ts_workqueue, &ts_data->fwupg_work);
 
     FTS_FUNC_EXIT();
@@ -1347,7 +1593,10 @@ int fts_fwupg_exit(struct fts_ts_data *ts_data)
 {
     FTS_FUNC_ENTER();
     cancel_work_sync(&ts_data->fwupg_work);
-
+#ifdef CONFIG_FTS_MULTI_FW
+    cancel_work_sync(&ts_data->fwrecover_work);
+    cancel_work_sync(&ts_data->fwload_work);
+#endif
     if (fwupgrade) {
         if (fwupgrade->fw_from_request) {
             vfree(fwupgrade->fw);

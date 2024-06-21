@@ -1295,7 +1295,9 @@ static ssize_t doreflash_store(struct device *dev,
     fwname[count - 1] = '\0';
 
     mutex_lock(&input_dev->mutex);
+#ifndef CONFIG_FTS_MULTI_FW
     fts_fw_update_vendor_name(fwname);
+#endif
     fts_fw_recovery();
     mutex_unlock(&input_dev->mutex);
     fts_data->force_reflash = false;

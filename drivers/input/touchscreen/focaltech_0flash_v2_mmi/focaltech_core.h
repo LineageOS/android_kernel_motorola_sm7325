@@ -212,6 +212,10 @@ struct fts_ts_data {
     struct ts_ic_info ic_info;
     struct workqueue_struct *ts_workqueue;
     struct work_struct fwupg_work;
+#if defined(CONFIG_FTS_MULTI_FW)
+    struct work_struct fwload_work;
+    struct work_struct fwrecover_work;
+#endif
     struct delayed_work esdcheck_work;
     struct delayed_work prc_work;
     struct work_struct resume_work;
@@ -397,12 +401,21 @@ void fts_prc_queue_work(struct fts_ts_data *ts_data);
 /* FW upgrade */
 int fts_fwupg_init(struct fts_ts_data *ts_data);
 int fts_fwupg_exit(struct fts_ts_data *ts_data);
+#ifndef CONFIG_FTS_MULTI_FW
 int fts_fw_resume(bool need_reset);
 int fts_fw_recovery(void);
+#endif
+
 int fts_upgrade_bin(char *fw_name, bool force);
 int fts_enter_test_environment(bool test_state);
-int fts_fw_update_vendor_name(const char* name);
 
+#ifdef CONFIG_FTS_MULTI_FW
+int fts_enter_normal_fw(void);
+int fts_fw_recovery(void);
+int fts_enter_gesture_fw(void);
+#else
+int fts_fw_update_vendor_name(const char* name);
+#endif
 /* Other */
 int fts_reset_proc(int hdelayms);
 int fts_check_cid(struct fts_ts_data *ts_data, u8 id_h);

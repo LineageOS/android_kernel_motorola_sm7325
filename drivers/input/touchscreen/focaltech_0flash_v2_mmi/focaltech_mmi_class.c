@@ -282,7 +282,9 @@ static int fts_mmi_post_resume(struct device *dev)
 #if FTS_PINCTRL_EN && (!FTS_POWER_SOURCE_CUST_EN)
 	fts_pinctrl_select_normal(ts_data);
 #endif
-
+#ifdef CONFIG_FTS_MULTI_FW
+	fts_enter_normal_fw();
+#endif
 	fts_wait_tp_to_valid();
 	fts_ex_mode_recovery(ts_data);
 

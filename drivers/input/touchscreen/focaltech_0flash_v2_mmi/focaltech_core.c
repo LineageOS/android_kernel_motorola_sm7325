@@ -2463,6 +2463,9 @@ static int fts_ts_resume(struct device *dev)
     fts_pinctrl_select_normal(ts_data);
 #endif
 
+#if defined(CONFIG_FTS_MULTI_FW)
+    fts_enter_normal_fw();
+#endif
     fts_wait_tp_to_valid();
     fts_ex_mode_recovery(ts_data);
 

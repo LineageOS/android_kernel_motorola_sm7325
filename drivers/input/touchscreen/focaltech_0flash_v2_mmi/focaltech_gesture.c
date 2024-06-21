@@ -604,6 +604,11 @@ int fts_gesture_suspend(struct fts_ts_data *ts_data)
     u8 state = 0xFF;
 
     FTS_FUNC_ENTER();
+#ifdef CONFIG_FTS_MULTI_FW
+#if (FTS_MULTI_FW_NUM == 3)
+    fts_enter_gesture_fw();
+#endif
+#endif
     /* gesture not enable, return immediately */
     if (!ts_data->gesture_support) {
         FTS_INFO("gesture is disabled");

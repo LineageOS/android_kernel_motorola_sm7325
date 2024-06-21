@@ -133,7 +133,13 @@ enum UPGRADE_SPEC {
     UPGRADE_SPEC_V_1_1 = 0x0101,
     UPGRADE_SPEC_V_1_2 = 0x0102,
 };
-
+#ifdef CONFIG_FTS_MULTI_FW
+enum FW_TYPE {
+    FW_AUTO,
+    FW_GESTURE,
+    FW_NORMAL,
+};
+#endif
 /*****************************************************************************
 * Private enumerations, structures and unions using typedef
 *****************************************************************************/

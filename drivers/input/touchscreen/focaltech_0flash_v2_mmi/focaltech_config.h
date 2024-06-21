@@ -273,6 +273,11 @@
 /*
  * auto upgrade
  */
+
+#if defined(CONFIG_FTS_MULTI_FW)
+#define FTS_MULTI_FW_NUM                        3
+#endif
+
 #if defined(CONFIG_INPUT_FOCALTECH_0FLASH_MMI_IC_NAME_FT8725)
 #define FTS_AUTO_UPGRADE_EN                     1
 #else
