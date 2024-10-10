@@ -234,18 +234,18 @@ static int ufshid_get_analyze_and_issue_execute(struct ufshid_dev *hid)
 if(IS_MICRON_DEVICE(storage_mfrid)){
 	if (ufshid_read_attr(hid, QUERY_ATTR_IDN_HID_FRAG_STATUS, &frag_level))
 		return -EINVAL;
-		if (ufshid_read_attr(hid, QUERY_ATTR_IDN_HID_PROGRESS, &attr_val))
-			return -EINVAL;
-		if(attr_val != HID_PROG_ONGOING) {
-			if(frag_level!= HID_LEV_GREEN_MICRON) {
-				ufshid_set_flag(hid, QUERY_FLAG_IDN_HID_EN);
-				return HID_REQUIRED;
-			} else {
-				return HID_NOT_REQUIRED;
-			}
-		} else {
+	if (ufshid_read_attr(hid, QUERY_ATTR_IDN_HID_PROGRESS, &attr_val))
+		return -EINVAL;
+	if(attr_val != HID_PROG_ONGOING) {
+		if(frag_level!= HID_LEV_GREEN_MICRON) {
+			ufshid_set_flag(hid, QUERY_FLAG_IDN_HID_EN);
 			return HID_REQUIRED;
+		} else {
+			return HID_NOT_REQUIRED;
 		}
+	} else {
+		return HID_REQUIRED;
+	}
 	} else if(IS_SAMSUNG_DEVICE(storage_mfrid)) {
 		if (ufshid_write_attr(hid, QUERY_ATTR_IDN_HID_OPERATION,
 					  HID_OP_EXECUTE))
