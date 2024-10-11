@@ -137,6 +137,13 @@ struct cam_cmd_ois_info {
 	__u8                  cmd_type;
 	__u8                  ois_fw_flag;
 	__u8                  is_ois_calib;
+	__u8                  ois_preprog_flag;
+	__u8                  ois_precoeff_flag;
+	__u8                  ois_postcalib_flag;
+	__u8                  ois_fw_txn_data_sz;
+	__u8                  ois_fw_inc_addr;
+	__u8                  ois_fw_addr_type;
+	__u8                  ois_fw_data_type;
 	char                  ois_name[MAX_OIS_NAME_SIZE];
 	struct cam_ois_opcode opcode;
 } __attribute__((packed));
@@ -165,6 +172,22 @@ struct cam_cmd_probe {
 	__u32    data_mask;
 	__u16    camera_id;
 	__u16    reserved;
+	__u8   probe_sub_device;
+	__u32  sub_device_addr;
+	__u8   sub_device_data_type;
+	__u8   sub_device_addr_type;
+	__u32  sub_device_id_addr;
+	__u32  expected_sub_device_id;
+	__u8   sub_device_cci_master;
+	__u8   sub_device_cci_device;
+	__u8   sub_device_i2c_freq_mode;
+	__u8     i2c_addr_switch;
+	__u32    second_i2c_address;
+	__u8     i2c_switch_reg_addr_Type;
+	__u8     i2c_switch_reg_data_Type;
+	__u32    i2c_switch_reg_addr;
+	__u32    i2c_switch_reg_data;
+	__u32    i2c_switch_reg_delayMs;
 } __attribute__((packed));
 
 /**
@@ -485,6 +508,7 @@ struct cam_flash_query_cap_info {
 	__u32    max_duration_flash[CAM_FLASH_MAX_LED_TRIGGERS];
 	__u32    max_current_torch[CAM_FLASH_MAX_LED_TRIGGERS];
 	__u32    flash_type;
+	__u32    flash_supplier;
 } __attribute__ ((packed));
 
 #endif

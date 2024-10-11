@@ -20,9 +20,13 @@
 #include "cam_cci_dev.h"
 #include "cam_sensor_dev.h"
 #include "cam_actuator_dev.h"
+#ifdef CONFIG_AF_NOISE_ELIMINATION
+#include "mot_actuator.h"
+#endif
 #include "cam_csiphy_dev.h"
 #include "cam_eeprom_dev.h"
 #include "cam_ois_dev.h"
+#include "pm6125_flash_gpio.h"
 
 #if IS_REACHABLE(CONFIG_LEDS_QPNP_FLASH_V2) || \
 	IS_REACHABLE(CONFIG_LEDS_QTI_FLASH)
@@ -105,12 +109,18 @@ static const struct camera_submodule_component camera_sensor[] = {
 	{&cam_cci_init_module, &cam_cci_exit_module},
 	{&cam_csiphy_init_module, &cam_csiphy_exit_module},
 	{&cam_actuator_driver_init, &cam_actuator_driver_exit},
+#ifdef CONFIG_AF_NOISE_ELIMINATION
+	{&mot_actuator_driver_init, &mot_actuator_driver_exit},
+#endif
 	{&cam_sensor_driver_init, &cam_sensor_driver_exit},
 	{&cam_eeprom_driver_init, &cam_eeprom_driver_exit},
 	{&cam_ois_driver_init, &cam_ois_driver_exit},
 #if IS_REACHABLE(CONFIG_LEDS_QPNP_FLASH_V2) || \
 	IS_REACHABLE(CONFIG_LEDS_QTI_FLASH)
 	{&cam_flash_init_module, &cam_flash_exit_module},
+#endif
+#if IS_REACHABLE(CONFIG_CAMERA_FLASH_PWM)
+    {&pm6125_flash_gpio_init_module, &pm6125_flash_gpio_exit_module},
 #endif
 #endif
 };

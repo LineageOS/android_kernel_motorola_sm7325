@@ -111,6 +111,26 @@ struct cam_sensor_ctrl_t {
 	bool bob_pwm_switch;
 	uint32_t last_flush_req;
 	uint16_t pipeline_delay;
+	uint8_t   probe_sub_device;
+	uint16_t  sub_device_addr;
+	uint8_t   sub_device_data_type;
+	uint8_t   sub_device_addr_type;
+	uint16_t  sub_device_id_addr;
+	uint16_t  expected_sub_device_id;
+	uint8_t   sub_device_cci_master;
+	uint8_t   sub_device_cci_device;
+	uint8_t   sub_device_i2c_freq_mode;
+	bool need_change_cci_master;
+	uint8_t i2c_addr_switch;
+	uint16_t second_i2c_address;
+	uint8_t i2c_switch_reg_addr_Type;
+	uint8_t i2c_switch_reg_data_Type;
+	uint16_t i2c_switch_reg_addr;
+	uint16_t i2c_switch_reg_data;
+	uint16_t i2c_switch_reg_delayMs;
+#ifdef CONFIG_MOT_SENSOR_PRE_POWERUP
+	bool    sensor_power_up_done;
+#endif
 };
 
 /**

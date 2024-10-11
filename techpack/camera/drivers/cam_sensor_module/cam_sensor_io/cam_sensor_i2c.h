@@ -49,6 +49,12 @@ int32_t cam_camera_cci_i2c_read_seq(struct cam_sensor_cci_client *client,
 	enum camera_sensor_i2c_type data_type,
 	uint32_t num_byte);
 
+int32_t cam_camera_cci_i2c_ois_read_seq(struct cam_sensor_cci_client *client,
+	uint32_t addr, uint8_t *data,
+	enum camera_sensor_i2c_type addr_type,
+	enum camera_sensor_i2c_type data_type,
+	uint32_t num_byte);
+
 /**
  * @client: CCI client structure
  * @write_setting: I2C register setting
