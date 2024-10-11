@@ -72,6 +72,11 @@
 #include <wlan_crypto_global_api.h>
 #include "cdp_txrx_host_stats.h"
 
+// IKSWS-90973 BEGIN
+#include <linux/fdtable.h>
+#include <linux/signal.h>
+// IKSWS-90973 END
+
 /**
  * WMA_SET_VDEV_IE_SOURCE_HOST - Flag to identify the source of VDEV SET IE
  * command. The value is 0x0 for the VDEV SET IE WMI commands from mobile
@@ -85,7 +90,7 @@
 #define ADDBA_TXAGGR_SIZE_HELIUM 64
 #define ADDBA_TXAGGR_SIZE_LITHIUM 256
 
-static bool is_wakeup_event_console_logs_enabled;
+static bool is_wakeup_event_console_logs_enabled = 1;
 
 void wma_set_wakeup_logs_to_console(bool value)
 {
@@ -2032,6 +2037,87 @@ wma_wow_get_pkt_proto_subtype(uint8_t *data, uint32_t len)
 	}
 }
 
+// IKSWS-90973 BEGIN, print the process that causing the wow wakeup
+static int wow_check_task = 0;
+module_param(wow_check_task, int, 0644);
+MODULE_PARM_DESC(wow_check_task, "Check wow wakeup process");
+
+static void check_task(uint16_t dport)
+{
+	struct task_struct *p = NULL;
+	struct file *file = NULL;
+	struct files_struct *files = NULL;
+	struct inode *inode = NULL;
+	struct socket *sock = NULL;
+	struct sock *sk = NULL;
+	struct inet_sock *inet = NULL;
+	struct fdtable *fdt = NULL;
+	int i = 0;
+
+	for_each_process(p)
+	{
+		files = p->files;
+		if (files != NULL) {
+			spin_lock(&files->file_lock);
+			for (i = 0; i < NR_OPEN_DEFAULT; i++)
+			{
+				file = rcu_dereference(files->fd_array[i]);
+				if (file != NULL) {
+					inode = file_inode(file);
+					if (inode && S_ISSOCK(inode->i_mode)) {
+						sock = file->private_data;
+					} else {
+						sock = NULL;
+					}
+					if (sock) {
+						sk = sock->sk;
+						if (!sk)
+							continue;
+						if (sk->sk_family == AF_INET || sk->sk_family == AF_INET6) {
+							inet = inet_sk(sock->sk);
+							if(inet->inet_sport == dport) {
+								wma_info("task pid[%d], comm[%s], inet_sport[%u], inet_dport[%u]",
+										p->pid, p->comm, qdf_cpu_to_be16(inet->inet_sport), qdf_cpu_to_be16(inet->inet_dport));
+								spin_unlock(&files->file_lock);
+								return;
+							}
+						}
+					}
+				}
+			}
+			fdt = files_fdtable(files);
+			for (i = 0; i < fdt->max_fds; i++) {
+				file = rcu_dereference_check_fdtable(files, fdt->fd[i]);
+				if (!file)
+					continue;
+				inode = file_inode(file);
+				if (inode && S_ISSOCK(inode->i_mode)) {
+					sock = file->private_data;
+				} else {
+					sock = NULL;
+				}
+				if (sock) {
+					sk = sock->sk;
+					if (!sk)
+						continue;
+					if (sk->sk_family == AF_INET || sk->sk_family == AF_INET6) {
+						inet = inet_sk(sock->sk);
+						if(inet->inet_sport == dport) {
+							wma_info("task pid[%d], comm[%s], inet_sport[%u], inet_dport[%u]",
+									p->pid, p->comm, qdf_cpu_to_be16(inet->inet_sport), qdf_cpu_to_be16(inet->inet_dport));
+							spin_unlock(&files->file_lock);
+							return;
+						}
+					}
+				}
+			}
+			spin_unlock(&files->file_lock);
+		}
+	}
+	wma_info("No process have the dport[%u]", qdf_cpu_to_be16(dport));
+}
+// IKSWS-90973 END
+
 static void wma_log_pkt_eapol(uint8_t *data, uint32_t length)
 {
 	uint16_t pkt_len, key_len;
@@ -2095,10 +2181,10 @@ static void wma_log_pkt_ipv4(uint8_t *data, uint32_t length)
 
 	pkt_len = *(uint16_t *)(data + IPV4_PKT_LEN_OFFSET);
 	ip_addr = (char *)(data + IPV4_SRC_ADDR_OFFSET);
-	wma_nofl_debug("src addr %d:%d:%d:%d", ip_addr[0], ip_addr[1],
+	wma_info("src addr %d:%d:%d:%d", ip_addr[0], ip_addr[1],
 		      ip_addr[2], ip_addr[3]);
 	ip_addr = (char *)(data + IPV4_DST_ADDR_OFFSET);
-	wma_nofl_debug("dst addr %d:%d:%d:%d", ip_addr[0], ip_addr[1],
+	wma_info("dst addr %d:%d:%d:%d", ip_addr[0], ip_addr[1],
 		      ip_addr[2], ip_addr[3]);
 	src_port = *(uint16_t *)(data + IPV4_SRC_PORT_OFFSET);
 	dst_port = *(uint16_t *)(data + IPV4_DST_PORT_OFFSET);
@@ -2106,6 +2192,10 @@ static void wma_log_pkt_ipv4(uint8_t *data, uint32_t length)
 		qdf_cpu_to_be16(pkt_len),
 		qdf_cpu_to_be16(src_port),
 		qdf_cpu_to_be16(dst_port));
+	// IKSWS-90973 BEGIN
+	if (wow_check_task)
+		check_task(dst_port);
+	// IKSWS-90973 END
 }
 
 static void wma_log_pkt_ipv6(uint8_t *data, uint32_t length)
@@ -2118,14 +2208,14 @@ static void wma_log_pkt_ipv6(uint8_t *data, uint32_t length)
 
 	pkt_len = *(uint16_t *)(data + IPV6_PKT_LEN_OFFSET);
 	ip_addr = (char *)(data + IPV6_SRC_ADDR_OFFSET);
-	wma_nofl_debug("src addr "IPV6_ADDR_STR, ip_addr[0],
+	wma_info("src addr "IPV6_ADDR_STR, ip_addr[0],
 		 ip_addr[1], ip_addr[2], ip_addr[3], ip_addr[4],
 		 ip_addr[5], ip_addr[6], ip_addr[7], ip_addr[8],
 		 ip_addr[9], ip_addr[10], ip_addr[11],
 		 ip_addr[12], ip_addr[13], ip_addr[14],
 		 ip_addr[15]);
 	ip_addr = (char *)(data + IPV6_DST_ADDR_OFFSET);
-	wma_nofl_debug("dst addr "IPV6_ADDR_STR, ip_addr[0],
+	wma_info("dst addr "IPV6_ADDR_STR, ip_addr[0],
 		 ip_addr[1], ip_addr[2], ip_addr[3], ip_addr[4],
 		 ip_addr[5], ip_addr[6], ip_addr[7], ip_addr[8],
 		 ip_addr[9], ip_addr[10], ip_addr[11],
@@ -2137,6 +2227,10 @@ static void wma_log_pkt_ipv6(uint8_t *data, uint32_t length)
 		 qdf_cpu_to_be16(pkt_len),
 		 qdf_cpu_to_be16(src_port),
 		 qdf_cpu_to_be16(dst_port));
+	// IKSWS-90973 BEGIN
+	if (wow_check_task)
+		check_task(dst_port);
+	// IKSWS-90973 END
 }
 
 static void wma_log_pkt_tcpv4(uint8_t *data, uint32_t length)
