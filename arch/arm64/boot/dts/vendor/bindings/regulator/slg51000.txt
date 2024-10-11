@@ -3,17 +3,6 @@
 Required properties:
 - compatible : Should be "dlg,slg51000" for SLG51000
 - reg : Specifies the I2C slave address.
-- xxx-supply: Input voltage supply regulator for ldo3 to ldo7.
-  These entries are required if regulators are enabled for a device.
-  An absence of these properties can cause the regulator registration to fail.
-  If some of input supply is powered through battery or always-on supply then
-  also it is required to have these parameters with proper node handle of always
-  on power supply.
-    vin3-supply: Input supply for ldo3
-    vin4-supply: Input supply for ldo4
-    vin5-supply: Input supply for ldo5
-    vin6-supply: Input supply for ldo6
-    vin7-supply: Input supply for ldo7
 
 Optional properties:
 - interrupt-parent : Specifies the reference to the interrupt controller.
@@ -35,24 +24,30 @@ Sub-nodes:
     ldo7
 
 Optional properties for regulators:
-- enable-gpios : Specify a valid GPIO for platform control of the regulator.
+- enable-gpios : Specify a valid GPIO for platform control of the regualtor.
 
 Example:
 	pmic: slg51000@75 {
 		compatible = "dlg,slg51000";
 		reg = <0x75>;
 
+		interrupt-parent = <&gpio6>;
+		interrupts = <11 IRQ_TYPE_LEVEL_HIGH>;
+
 		regulators {
 			ldo1 {
 			        regulator-name = "ldo1";
 			        regulator-min-microvolt = <2400000>;
 			        regulator-max-microvolt = <3300000>;
+			        regulator-boot-on;
 			};
 
 			ldo2 {
 			        regulator-name = "ldo2";
 			        regulator-min-microvolt = <2400000>;
 			        regulator-max-microvolt = <3300000>;
+			        regulator-boot-on;
+			        enable-gpios = <&gpio6 14 GPIO_ACTIVE_HIGH>
 			};
 
 			ldo3 {
@@ -83,6 +78,7 @@ Example:
 			        regulator-name = "ldo7";
 			        regulator-min-microvolt = <1200000>;
 			        regulator-max-microvolt = <3750000>;
+			        regulator-boot-on;
 			};
 		};
 	};
