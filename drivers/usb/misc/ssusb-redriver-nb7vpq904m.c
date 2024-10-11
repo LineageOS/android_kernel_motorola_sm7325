@@ -15,6 +15,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/usb/redriver.h>
+#include <linux/regulator/consumer.h>
 
 /* priority: INT_MAX >= x >= 0 */
 #define NOTIFIER_PRIORITY		1
@@ -61,6 +62,7 @@
 #define CHND_INDEX		3
 
 enum plug_orientation {
+	ORIENTATION_NONE,
 	ORIENTATION_CC1,
 	ORIENTATION_CC2,
 };
@@ -84,6 +86,7 @@ struct ssusb_redriver {
 	struct regmap		*regmap;
 	struct i2c_client	*client;
 
+	struct regulator *vcc;
 	int orientation_gpio;
 	enum plug_orientation typec_orientation;
 	enum operation_mode op_mode;
@@ -413,7 +416,9 @@ static int ssusb_redriver_read_orientation(struct ssusb_redriver *redriver)
 		return -EINVAL;
 	}
 
-	if (ret == 0)
+	if (redriver->op_mode == OP_MODE_NONE)
+		redriver->typec_orientation = ORIENTATION_NONE;
+	else if (ret == 0)
 		redriver->typec_orientation = ORIENTATION_CC1;
 	else
 		redriver->typec_orientation = ORIENTATION_CC2;
@@ -482,7 +487,7 @@ static int ssusb_redriver_ucsi_notifier(struct notifier_block *nb,
 	if (redriver->op_mode == op_mode)
 		return NOTIFY_OK;
 
-	dev_dbg(redriver->dev, "op mode %s -> %s\n",
+	dev_info(redriver->dev, "op mode %s -> %s\n",
 		OPMODESTR(redriver->op_mode), OPMODESTR(op_mode));
 	redriver->op_mode = op_mode;
 
@@ -490,7 +495,7 @@ static int ssusb_redriver_ucsi_notifier(struct notifier_block *nb,
 			redriver->op_mode == OP_MODE_USB_AND_DP) {
 		ssusb_redriver_read_orientation(redriver);
 
-		dev_dbg(redriver->dev, "orientation %s\n",
+		dev_info(redriver->dev, "orientation %s\n",
 			redriver->typec_orientation == ORIENTATION_CC1 ?
 			"CC1" : "CC2");
 	}
@@ -606,7 +611,9 @@ int redriver_release_usb_lanes(struct device_node *node)
 	if (redriver->op_mode == OP_MODE_DP)
 		return 0;
 
-	dev_dbg(redriver->dev, "display notify 4 lane mode\n");
+	dev_info(redriver->dev, "display notify 4 lane mode\n");
+	dev_info(redriver->dev, "op mode %s -> %s\n",
+		OPMODESTR(redriver->op_mode), OPMODESTR(OP_MODE_DP));
 	redriver->op_mode = OP_MODE_DP;
 
 	ssusb_redriver_channel_update(redriver);
@@ -679,6 +686,23 @@ static const struct regmap_config redriver_regmap = {
 	.val_bits = 8,
 };
 
+static ssize_t typec_cc_orientation_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct ssusb_redriver *redriver = dev_get_drvdata(dev);
+
+	ssusb_redriver_read_orientation(redriver);
+
+	if (redriver->typec_orientation == ORIENTATION_CC1)
+		return scnprintf(buf, PAGE_SIZE, "CC1\n");
+	if (redriver->typec_orientation == ORIENTATION_CC2)
+		return scnprintf(buf, PAGE_SIZE, "CC2\n");
+
+	return scnprintf(buf, PAGE_SIZE, "NONE\n");
+}
+
+static DEVICE_ATTR_RO(typec_cc_orientation);
+
 static int redriver_i2c_probe(struct i2c_client *client,
 			       const struct i2c_device_id *dev_id)
 {
@@ -698,6 +722,15 @@ static int redriver_i2c_probe(struct i2c_client *client,
 		return ret;
 	}
 
+	redriver->vcc = devm_regulator_get_optional(&client->dev, "vcc");
+	if (IS_ERR(redriver->vcc) || redriver->vcc == NULL) {
+		dev_err(&client->dev, "Could not get vcc power regulator\n");
+	} else {
+		ret = regulator_enable(redriver->vcc);
+		if (ret)
+			dev_err(&client->dev, "Could not enable vcc power regulator\n");
+	}
+
 	redriver->dev = &client->dev;
 	i2c_set_clientdata(client, redriver);
 
@@ -712,15 +745,18 @@ static int redriver_i2c_probe(struct i2c_client *client,
 		redriver->op_mode = OP_MODE_NONE;
 	else
 		redriver->op_mode = OP_MODE_DEFAULT;
-	ssusb_redriver_channel_update(redriver); /* a little expensive ??? */
-	ssusb_redriver_gen_dev_set(redriver);
 
 	ssusb_redriver_orientation_gpio_init(redriver);
+	ssusb_redriver_read_orientation(redriver);
+	ssusb_redriver_channel_update(redriver); /* a little expensive ??? */
+	ssusb_redriver_gen_dev_set(redriver);
 
 	redriver->ucsi_nb.notifier_call = ssusb_redriver_ucsi_notifier;
 	register_ucsi_glink_notifier(&redriver->ucsi_nb);
 
 	ssusb_redriver_debugfs_entries(redriver);
+
+	device_create_file(redriver->dev, &dev_attr_typec_cc_orientation);
 
 	return 0;
 }
@@ -730,7 +766,14 @@ static int redriver_i2c_remove(struct i2c_client *client)
 	struct ssusb_redriver *redriver = i2c_get_clientdata(client);
 
 	debugfs_remove(redriver->debug_root);
+	device_remove_file(redriver->dev, &dev_attr_typec_cc_orientation);
 	unregister_ucsi_glink_notifier(&redriver->ucsi_nb);
+
+	if (redriver->vcc) {
+		if (regulator_is_enabled(redriver->vcc))
+			regulator_disable(redriver->vcc);
+		devm_regulator_put(redriver->vcc);
+	}
 
 	return 0;
 }

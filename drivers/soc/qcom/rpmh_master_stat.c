@@ -91,6 +91,91 @@ static void __iomem *rpmh_unit_base;
 
 static DEFINE_MUTEX(rpmh_stats_mutex);
 
+#ifdef CONFIG_RPMH_STATS_DBG
+struct msm_rpmh_master_dbg {
+	char *name;
+	uint32_t counts;
+};
+
+static struct msm_rpmh_master_dbg rpmh_masters_dbg[] = {
+	{"MPSS", 0},
+	{"ADSP", 0}, /* can't to change the sequence*/
+};
+#endif
+
+static ssize_t print_msm_rpmh_master_stats(int i, struct msm_rpmh_master_stats *record,
+				const char *name)
+{
+	static uint64_t prev_duration[ARRAY_SIZE(rpmh_masters)];
+	uint64_t accumulated_duration = record->accumulated_duration;
+	uint64_t delta_duration;
+#ifdef CONFIG_RPMH_STATS_DBG
+	int idx;
+#endif
+
+	if (record->last_entered > record->last_exited)
+		accumulated_duration +=
+				(__arch_counter_get_cntvct()
+				- record->last_entered);
+
+	delta_duration = accumulated_duration - prev_duration[i];
+	prev_duration[i] = accumulated_duration;
+
+#ifdef CONFIG_RPMH_STATS_DBG
+	if (delta_duration == 0) {
+		for (idx = 0; idx < ARRAY_SIZE(rpmh_masters_dbg); idx++) {
+			if (strncmp(name, rpmh_masters_dbg[idx].name, strlen(name)) == 0) {
+				printk("%s: %s subsystem sleep debug\n", __func__, name);
+				rpmh_masters_dbg[idx].counts++;
+				/* Avoid call case will be to trigger ramdump */
+				if (idx == 0)
+					rpmh_masters_dbg[1].counts = 0;
+				break;
+			}
+		}
+		if (rpmh_masters_dbg[1].counts > 20)
+			panic("%s: %s subsystem long time can't goto sleep!!!\n", __func__, name);
+	}
+#endif
+	return printk("%s:\tSleep Accumulated Duration:0x%llx, %lu.%03lu\n\n",
+			name, accumulated_duration, delta_duration / 19200000L, delta_duration % 19200000L * 1000 / 19200000L);
+}
+
+ssize_t show_msm_rpmh_master_stats(void)
+{
+	ssize_t length = 0;
+	int i = 0;
+	struct msm_rpmh_master_stats *record = NULL;
+	bool skip_apss = false;
+
+	mutex_lock(&rpmh_stats_mutex);
+
+	/* First Read APSS master stats */
+
+	if (rpmh_unit_base) {
+		length = print_msm_rpmh_master_stats(0, &apss_master_stats,
+							  "APSS");
+		skip_apss = true;
+	}
+	/* Read SMEM data written by other masters */
+
+	for (i = 0; i < ARRAY_SIZE(rpmh_masters); i++) {
+		if (skip_apss && i == 0)
+			continue;
+
+		record = (struct msm_rpmh_master_stats *) qcom_smem_get(
+					rpmh_masters[i].pid,
+					rpmh_masters[i].smem_id, NULL);
+		if (!IS_ERR_OR_NULL(record))
+			length += print_msm_rpmh_master_stats(i, record,
+					rpmh_masters[i].master_name);
+	}
+
+	mutex_unlock(&rpmh_stats_mutex);
+
+	return length;
+}
+
 static ssize_t msm_rpmh_master_stats_print_data(char *prvbuf, ssize_t length,
 				struct msm_rpmh_master_stats *record,
 				const char *name)

@@ -57,7 +57,9 @@ struct uvc_format {
 
 static struct uvc_format uvc_formats[] = {
 	{ 16, V4L2_PIX_FMT_YUYV  },
+	{ 12, V4L2_PIX_FMT_NV12},
 	{ 0,  V4L2_PIX_FMT_MJPEG },
+	{ 0,  V4L2_PIX_FMT_H264 },
 };
 
 static int
@@ -169,7 +171,10 @@ uvc_v4l2_qbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 	if (ret < 0)
 		return ret;
 
-	return uvcg_video_pump(video);
+	if (uvc->state == UVC_STATE_STREAMING)
+		schedule_work(&video->pump);
+
+	return ret;
 }
 
 static int
@@ -290,6 +295,8 @@ uvc_v4l2_open(struct file *file)
 	handle->device = &uvc->video;
 	file->private_data = &handle->vfh;
 
+	uvc->open_count++;
+
 	uvc_function_connect(uvc);
 	return 0;
 }
@@ -313,6 +320,8 @@ uvc_v4l2_release(struct file *file)
 	v4l2_fh_del(&handle->vfh);
 	v4l2_fh_exit(&handle->vfh);
 	kfree(handle);
+
+	uvc->open_count--;
 
 	return 0;
 }

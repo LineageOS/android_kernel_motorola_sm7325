@@ -44,7 +44,7 @@ MODULE_PARM_DESC(trace, "Trace level bitmask");
 #define UVC_STRING_STREAMING_IDX		1
 
 static struct usb_string uvc_en_us_strings[] = {
-	[UVC_STRING_CONTROL_IDX].s = "UVC Camera",
+	[UVC_STRING_CONTROL_IDX].s = "Moto Webcam",
 	[UVC_STRING_STREAMING_IDX].s = "Video Streaming",
 	{  }
 };
@@ -394,7 +394,7 @@ uvc_function_disconnect(struct uvc_device *uvc)
 	int ret;
 
 	if ((ret = usb_function_deactivate(&uvc->func)) < 0)
-		uvcg_info(&uvc->func, "UVC disconnect failed with %d\n", ret);
+		pr_err("UVC disconnect failed with %d\n", ret);
 }
 
 /* --------------------------------------------------------------------------
@@ -875,13 +875,25 @@ static struct usb_function_instance *uvc_alloc_inst(void)
 	return &opts->func_inst;
 }
 
+static void usb_uvc_free_work_func(struct work_struct *w)
+{
+	struct uvc_device *uvc =
+		container_of(w, struct uvc_device, free_work.work);
+
+	if (!uvc->open_count)
+		kfree(uvc);
+	else
+		schedule_delayed_work(&uvc->free_work, msecs_to_jiffies(2000));
+}
+
 static void uvc_free(struct usb_function *f)
 {
 	struct uvc_device *uvc = to_uvc(f);
 	struct f_uvc_opts *opts = container_of(f->fi, struct f_uvc_opts,
 					       func_inst);
 	--opts->refcnt;
-	kfree(uvc);
+
+	schedule_delayed_work(&uvc->free_work, msecs_to_jiffies(500));
 }
 
 static void uvc_unbind(struct usb_configuration *c, struct usb_function *f)
@@ -912,6 +924,7 @@ static struct usb_function *uvc_alloc(struct usb_function_instance *fi)
 		return ERR_PTR(-ENOMEM);
 
 	mutex_init(&uvc->video.mutex);
+	INIT_DELAYED_WORK(&uvc->free_work, usb_uvc_free_work_func);
 	uvc->state = UVC_STATE_DISCONNECTED;
 	opts = fi_to_f_uvc_opts(fi);
 

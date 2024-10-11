@@ -1914,3 +1914,93 @@ source "arch/arm64/kvm/Kconfig"
 if CRYPTO
 source "arch/arm64/crypto/Kconfig"
 endif
+
+config AF_NOISE_ELIMINATION
+	bool "For elimnating AF resonance noise"
+	default n
+	help
+	Enable it only for produts that suffering AF resonance noise.
+
+config MULTI_CAM_FLASH_STATUS
+	bool "For multi camera flash turn to dark issue"
+	default n
+	help
+	Enable it only for multi camera flash turn to dark issue.
+
+config HDMI_YUV_TO_RGB
+	bool "For tundra to convert YUV to RGB when connected 4K TV with HDMI"
+	default n
+	help
+	Enable it only for 8350 tundra to fix can not select 4K when connect 4K TV.
+
+config CAMERA_VOLTAGE_COMPATIBLE
+	bool "For camera voltage compatible"
+	default n
+	help
+	Enable it only for produts that need voltage compatible.
+
+config CAM_SENSOR_PROBE_RETRY
+        bool "For sensor probe fail"
+        default n
+        help
+        Add retries for sensor id matching.
+
+config CAMERA_DISABLE_VSYNC_IRQ
+	bool "For cam disable vsync irq"
+	default n
+	help
+	Enable it to disable cam vsync irq.
+
+config CAM_DISTINGUISH_SENSOR_VERSION
+        bool "For distinguish sensor version"
+        default n
+        help
+        Add for distinguish sensor version.
+
+config CAM_CTLE_ENABLE
+	bool "For cam enable ctle"
+	default n
+	help
+	Enable it to slove signal interference.
+
+config SND_PRI_MI2S_AW882XX
+	bool "For aw882xx smartpa pri mi2s config"
+	default n
+	help
+	Enable it only aw882xx smartpa is connected on pri mi2s.
+
+config SND_ENABLE_QCOM_PMIC_HAPTIC
+	bool "Enable qcom pmic haptic"
+	default n
+	help
+	Enable it when qcom pmic haptic is used.
+
+config HAPTIC_POWER_ON
+	bool "haptic when power on"
+	default n
+	help
+	Enable it when haptic power on.
+
+config SPI_SUSPEND
+	bool "set spi bus suspend"
+	default n
+	help
+	Enable it when need spi suspend.
+
+config AW882XX_DRIVER_V1
+        bool "Use aw882xx driver version 1.*"
+        default n
+        help
+        Enable it only use aw882xx driver version 1.*.
+
+config AW882XX_DUAL_SMARTPA
+        bool "Use dual smartpa"
+        default n
+        help
+        Enable it only use dual smartpa.
+
+config AW882XX_PARAMS_FROM_BIN
+        bool "params is stored in bin file"
+        default n
+        help
+        Enable it only for params of smartPA is stored in bin file.

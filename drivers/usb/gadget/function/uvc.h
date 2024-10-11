@@ -65,7 +65,7 @@ extern unsigned int uvc_gadget_trace_param;
  * Driver specific constants
  */
 
-#define UVC_NUM_REQUESTS			4
+#define UVC_NUM_REQUESTS			32
 #define UVC_MAX_REQUEST_SIZE			64
 #define UVC_MAX_EVENTS				4
 
@@ -76,6 +76,8 @@ extern unsigned int uvc_gadget_trace_param;
 struct uvc_video {
 	struct uvc_device *uvc;
 	struct usb_ep *ep;
+
+	struct work_struct pump;
 
 	/* Frame parameters */
 	u8 bpp;
@@ -135,6 +137,9 @@ struct uvc_device {
 	/* Events */
 	unsigned int event_length;
 	unsigned int event_setup_out : 1;
+
+	struct delayed_work free_work;
+	int open_count;
 };
 
 static inline struct uvc_device *to_uvc(struct usb_function *f)

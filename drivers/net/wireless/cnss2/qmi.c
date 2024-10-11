@@ -7,6 +7,8 @@
 #include <linux/module.h>
 #include <linux/soc/qcom/qmi.h>
 
+#include <linux/of.h> //IKSWR-95990
+
 #include "bus.h"
 #include "debug.h"
 #include "main.h"
@@ -58,6 +60,147 @@ void cnss_ignore_qmi_failure(bool ignore)
 #define CNSS_QMI_ASSERT() do { } while (0)
 void cnss_ignore_qmi_failure(bool ignore) { }
 #endif
+
+// BEGIN IKSWR-1888 Support loading different bdwlan.elf
+#define NV_EPA "epa"
+#define NV_IPA "ipa"
+#define MOTO_STRING_LEN 32
+static char device_ptr[MOTO_STRING_LEN] = {0};
+static char radio_ptr[MOTO_STRING_LEN] = {0};
+
+typedef struct moto_product {
+	char hw_device[32];
+	char hw_radio[32];
+	char nv_name[64];
+} moto_product;
+
+static moto_product products_list[] = {
+	{"xpeng",	"all",	NV_EPA},
+	{"tundra",	"all",	NV_EPA},
+	/* Terminator */
+	{{0}, {0}, {0}},
+};
+
+static char *bootargs_str;
+
+static int cnss_get_bootarg(char *key, char **value)
+{
+	const char *bootargs_ptr = NULL;
+	char *idx = NULL;
+	char *kvpair = NULL;
+	int err = 1;
+	struct device_node *n = of_find_node_by_path("/chosen");
+	size_t bootargs_ptr_len = 0;
+
+	if (n == NULL)
+		goto err;
+
+	if (of_property_read_string(n, "bootargs", &bootargs_ptr) != 0)
+		goto err_putnode;
+
+	bootargs_ptr_len = strlen(bootargs_ptr);
+	if (!bootargs_str) {
+		/* Following operations need a non-const version of bootargs */
+		bootargs_str = kzalloc(bootargs_ptr_len + 1, GFP_KERNEL);
+		if (!bootargs_str)
+			goto err_putnode;
+	}
+	strlcpy(bootargs_str, bootargs_ptr, bootargs_ptr_len + 1);
+
+	idx = strnstr(bootargs_str, key, strlen(bootargs_str));
+	if (idx) {
+		kvpair = strsep(&idx, " ");
+		if (kvpair)
+			if (strsep(&kvpair, "=")) {
+				*value = strsep(&kvpair, " ");
+				if (*value)
+					err = 0;
+			}
+	}
+
+err_putnode:
+	of_node_put(n);
+err:
+	return err;
+}
+
+static int is_void_product(moto_product *entry)
+{
+	return entry && !strlen(entry->hw_device) && !strlen(entry->hw_radio);
+}
+
+static int num_of_products(moto_product *list)
+{
+	int num = 0;
+	if (!list) return 0;
+	while (!is_void_product(list + num)) num++;
+	return num;
+}
+
+static int get_moto_device()
+{
+	char *bootdevice = NULL;
+	int rc = 0;
+	rc = cnss_get_bootarg("androidboot.device=", &bootdevice);
+	if (rc || !bootdevice){
+		cnss_pr_dbg("string is error");
+		return -ENOMEM;
+	}else{
+		strlcpy(device_ptr, bootdevice,MOTO_STRING_LEN);
+		return 0;
+	}
+}
+
+
+static int get_moto_radio()
+{
+	char *radiodevice = NULL;
+	int rc = 0;
+	rc = cnss_get_bootarg("androidboot.radio=", &radiodevice);
+	if (rc || !radiodevice){
+		cnss_pr_dbg("string is error");
+		return -ENOMEM;
+	}else{
+		strlcpy(radio_ptr, radiodevice,MOTO_STRING_LEN);
+		return 0;
+	}
+}
+
+static int selectFileNameByProduct(struct cnss_plat_data *plat_priv, char *filename)
+{
+	int i, num, ret = 0;
+	if(get_moto_radio() != 0 || get_moto_device() != 0){
+		cnss_pr_dbg("device or radio not present ");
+	}
+
+	if ((device_ptr == NULL) || (radio_ptr == NULL)) {
+		cnss_pr_dbg("%s: device or radio not present cmd line argc",__func__);
+		return -ENODEV;
+	} else {
+		cnss_pr_dbg("device:%s, radio:%s \n", device_ptr, radio_ptr);
+	}
+
+	num = num_of_products(products_list);
+	for (i = 0; i < num; i++) {
+		if (strncmp(device_ptr, (products_list+i)->hw_device, strlen((products_list+i)->hw_device)) == 0) {
+			if(strncmp(radio_ptr, (products_list+i)->hw_radio, strlen((products_list+i)->hw_radio)) == 0 ||
+				strncmp((products_list+i)->hw_radio, "all", strlen((products_list+i)->hw_radio)) == 0) {
+				if (plat_priv->chip_info.chip_id & CHIP_ID_GF_MASK) {
+					sprintf(filename, "%s.%s.%s", ELF_BDF_FILE_NAME_GF,
+							(products_list+i)->hw_device, (products_list+i)->nv_name);
+				} else {
+					sprintf(filename, "%s.%s.%s", ELF_BDF_FILE_NAME,
+							(products_list+i)->hw_device, (products_list+i)->nv_name);
+				}
+				ret = 1;
+				break;
+			}
+		}
+	}
+
+        return ret;
+}
+// END IKSWR-1888 Support loading different bdwlan.elf
 
 static char *cnss_qmi_mode_to_str(enum cnss_driver_mode mode)
 {
@@ -521,8 +664,12 @@ static int cnss_get_bdf_file_name(struct cnss_plat_data *plat_priv,
 
 	switch (bdf_type) {
 	case CNSS_BDF_ELF:
+		// BEGIN IKSWR-1888 Support loading different bdwlan.elf
+		if (selectFileNameByProduct(plat_priv, filename_tmp) > 0) {
+			break;
 		/* Board ID will be equal or less than 0xFF in GF mask case */
-		if (plat_priv->board_info.board_id == 0xFF) {
+		} else if (plat_priv->board_info.board_id == 0xFF) {
+		// END IKSWR-1888 Support loading different bdwlan.elf
 			if (plat_priv->chip_info.chip_id & CHIP_ID_GF_MASK)
 				snprintf(filename_tmp, filename_len,
 					 ELF_BDF_FILE_NAME_GF);

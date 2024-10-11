@@ -55,6 +55,10 @@
 #include "xhci.h"
 
 #define SDP_CONNECTION_CHECK_TIME 10000 /* in ms */
+#undef dev_dbg
+#undef pr_debug
+#define dev_dbg dev_err
+#define pr_debug pr_err
 
 /* time out to wait for USB cable status notification (in ms)*/
 #define SM_INIT_TIMEOUT 30000
@@ -535,6 +539,7 @@ struct dwc3_msm {
 
 	bool			perf_mode;
 	bool			usb_data_enabled;
+	bool			ext_typec_switch;
 };
 
 #define USB_HSPHY_3P3_VOL_MIN		3050000 /* uV */
@@ -3003,6 +3008,9 @@ static void dwc3_set_ssphy_orientation_flag(struct dwc3_msm *mdwc)
 
 	if (mdwc->orientation_override) {
 		mdwc->ss_phy->flags |= mdwc->orientation_override;
+	} else if (mdwc->ext_typec_switch) {
+		dev_dbg(mdwc->dev, "%s: DWC3 ext_typec_switch set in device tree forcing PHY_LANE_A\n", __func__);
+		mdwc->ss_phy->flags |= PHY_LANE_A;
 	} else if (mdwc->ss_redriver_node) {
 		ret = redriver_orientation_get(mdwc->ss_redriver_node);
 		if (ret == 0)
@@ -3284,7 +3292,11 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool force_power_collapse,
 	if (dwc->irq)
 		disable_irq(dwc->irq);
 
+#ifdef CONFIG_USB_DWC3_RT_AFFINITY
+	if (!list_empty(&dwc->kt_worker.work_list))
+#else
 	if (work_busy(&dwc->bh_work))
+#endif
 		dbg_event(0xFF, "pend evt", 0);
 
 	/* disable power event irq, hs and ss phy irq is used as wake up src */
@@ -4233,6 +4245,9 @@ static enum usb_role dwc3_msm_usb_get_role(struct device *dev)
 	return role;
 }
 
+
+bool dp_state = false;
+struct device	*g_dev = NULL;
 static int dwc3_msm_usb_set_role(struct device *dev, enum usb_role role)
 {
 	struct dwc3_msm *mdwc = dev_get_drvdata(dev);
@@ -4241,6 +4256,11 @@ static int dwc3_msm_usb_set_role(struct device *dev, enum usb_role role)
 
 	cur_role = dwc3_msm_usb_get_role(dev);
 
+	printk("dwc3 msm usb set role cur role = %d, state = %d, role = %d.\n",cur_role, dp_state,role);
+	if(cur_role == USB_ROLE_HOST && dp_state) { //see if dp is active?
+		pr_info("%s:dp is active", __func__);
+		return 0;
+	}
 	switch (role) {
 	case USB_ROLE_HOST:
 		mdwc->vbus_active = false;
@@ -4283,6 +4303,18 @@ static int dwc3_msm_usb_set_role(struct device *dev, enum usb_role role)
 	dwc3_ext_event_notify(mdwc);
 	return 0;
 }
+
+void set_dp_state(bool state){
+	dp_state = state;
+	if (IS_ERR_OR_NULL(g_dev)){
+		pr_err("%s:g_dev is null", __func__);
+		return;
+	}
+	if (!state)
+		dwc3_msm_usb_set_role(g_dev, USB_ROLE_NONE);
+	pr_info("%s:dp_state=%d", __func__, dp_state);
+};
+EXPORT_SYMBOL(set_dp_state);
 
 static struct usb_role_switch_desc role_desc = {
 	.set = dwc3_msm_usb_set_role,
@@ -4726,6 +4758,9 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mdwc);
 	mdwc->dev = &pdev->dev;
 
+	g_dev = dev;
+	pr_info("%s:get g_dev=%p", __func__, g_dev);
+
 	INIT_LIST_HEAD(&mdwc->req_complete_list);
 	INIT_WORK(&mdwc->resume_work, dwc3_resume_work);
 	INIT_WORK(&mdwc->restart_usb_work, dwc3_restart_usb_work);
@@ -4763,6 +4798,7 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	set_bit(ID, &mdwc->inputs);
 
 	mdwc->dual_port = of_property_read_bool(node, "qcom,dual-port");
+	mdwc->ext_typec_switch = of_property_read_bool(node, "mmi,ext-typec-switch");
 
 	ret = of_property_read_u32(node, "qcom,lpm-to-suspend-delay-ms",
 				&mdwc->lpm_to_suspend_delay);

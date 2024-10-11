@@ -71,6 +71,70 @@ void end_swap_bio_write(struct bio *bio)
 	bio_put(bio);
 }
 
+/* Moto huangzq2: check sync_io state on swap entry */
+bool swap_slot_has_sync_io(swp_entry_t entry)
+{
+	struct swap_info_struct *sis;
+	struct gendisk *disk;
+
+	sis = swp_swap_info(entry);
+	disk = sis->bdev->bd_disk;
+	if (disk->fops->ioctl) {
+		return disk->fops->ioctl(sis->bdev, 0,
+			SWP_SYNCHRONOUS_IO, swp_offset(entry)) == 1;
+	}
+
+	return (sis->flags & SWP_SYNCHRONOUS_IO) == SWP_SYNCHRONOUS_IO;
+}
+
+static void swap_slot_free_notify(struct page *page)
+{
+	struct swap_info_struct *sis;
+	struct gendisk *disk;
+	swp_entry_t entry;
+
+	/*
+	 * There is no guarantee that the page is in swap cache - the software
+	 * suspend code (at least) uses end_swap_bio_read() against a non-
+	 * swapcache page.  So we must check PG_swapcache before proceeding with
+	 * this optimization.
+	 */
+	if (unlikely(!PageSwapCache(page)))
+		return;
+
+	sis = page_swap_info(page);
+	if (!(sis->flags & SWP_BLKDEV))
+		return;
+
+	/*
+	 * The swap subsystem performs lazy swap slot freeing,
+	 * expecting that the page will be swapped out again.
+	 * So we can avoid an unnecessary write if the page
+	 * isn't redirtied.
+	 * This is good for real swap storage because we can
+	 * reduce unnecessary I/O and enhance wear-leveling
+	 * if an SSD is used as the as swap device.
+	 * But if in-memory swap device (eg zram) is used,
+	 * this causes a duplicated copy between uncompressed
+	 * data in VM-owned memory and compressed data in
+	 * zram-owned memory.  So let's free zram-owned memory
+	 * and make the VM-owned decompressed page *dirty*,
+	 * so the page should be swapped out somewhere again if
+	 * we again wish to reclaim it.
+	 */
+	disk = sis->bdev->bd_disk;
+	entry.val = page_private(page);
+	if (disk->fops->swap_slot_free_notify && __swap_count(entry) == 1) {
+		unsigned long offset;
+
+		offset = swp_offset(entry);
+
+		SetPageDirty(page);
+		disk->fops->swap_slot_free_notify(sis->bdev,
+				offset);
+	}
+}
+
 static void end_swap_bio_read(struct bio *bio)
 {
 	struct page *page = bio_first_page_all(bio);
@@ -86,6 +150,7 @@ static void end_swap_bio_read(struct bio *bio)
 	}
 
 	SetPageUptodate(page);
+	swap_slot_free_notify(page);
 out:
 	unlock_page(page);
 	WRITE_ONCE(bio->bi_private, NULL);
@@ -303,6 +368,7 @@ int swap_readpage(struct page *page, bool synchronous)
 	blk_qc_t qc;
 	struct gendisk *disk;
 	unsigned long pflags;
+	swp_entry_t entry;
 
 	VM_BUG_ON_PAGE(!PageSwapCache(page) && !synchronous, page);
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
@@ -331,10 +397,24 @@ int swap_readpage(struct page *page, bool synchronous)
 		goto out;
 	}
 
-	ret = bdev_read_page(sis->bdev, swap_page_sector(page), page);
-	if (!ret) {
-		count_vm_event(PSWPIN);
-		goto out;
+	/* Moto huangzq2: Use rw_page for zram page but submit_bio for zram wb page.
+	 * Since reading zram wb page is an async operation, we can not immediately
+	 * free the slot here. So we need to read the page via submit_bio and free
+	 * the slot in end_swap_bio_read. (bio chain will be used to handle bio here
+	 * and bio in zram driver for wb page).
+	 */
+	entry.val = page_private(page);
+	if (swap_slot_has_sync_io(entry)) {
+		ret = bdev_read_page(sis->bdev, swap_page_sector(page), page);
+		if (!ret) {
+			if (trylock_page(page)) {
+				swap_slot_free_notify(page);
+				unlock_page(page);
+			}
+
+			count_vm_event(PSWPIN);
+			goto out;
+		}
 	}
 
 	ret = 0;

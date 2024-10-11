@@ -73,10 +73,20 @@
 #include "ufs_quirks.h"
 #include "ufshci.h"
 
+
+#if defined(CONFIG_SCSI_SKHPB)
+#include "ufshpb_skh.h"
+#endif
+
 #define UFSHCD "ufshcd"
 #define UFSHCD_DRIVER_VERSION "0.2"
 
 #define UFSHCD_QUIRK_BROKEN_AUTO_HIBERN8                0x40000
+extern unsigned int storage_mfrid;
+#define IS_SAMSUNG_DEVICE(mfrid)   (UFS_VENDOR_SAMSUNG == (mfrid))
+#define IS_SKHYNIX_DEVICE(mfrid)   (UFS_VENDOR_SKHYNIX == (mfrid))
+#define IS_MICRON_DEVICE(mfrid)    (UFS_VENDOR_MICRON == (mfrid))
+#define IS_TOSHIBA_DEVICE(mfrid)   (UFS_VENDOR_TOSHIBA == (mfrid))
 
 struct ufs_hba;
 
@@ -468,6 +478,18 @@ struct ufs_clk_gating {
 	int active_reqs;
 	struct workqueue_struct *clk_gating_workq;
 };
+
+#if defined(CONFIG_SCSI_SKHID)
+/* for manual gc */
+struct ufs_manual_gc {
+	int state;
+	bool hagc_support;
+	struct hrtimer hrtimer;
+	unsigned long delay_ms;
+	struct work_struct hibern8_work;
+	struct workqueue_struct *mgc_workq;
+};
+#endif
 
 struct ufs_saved_pwr_info {
 	struct ufs_pa_layer_attr info;
@@ -921,6 +943,9 @@ struct ufs_hba {
 	/* Keeps information of the UFS device connected to this host */
 	struct ufs_dev_info dev_info;
 	bool auto_bkops_enabled;
+#if defined(CONFIG_SCSI_SKHID)
+	struct ufs_manual_gc manual_gc;
+#endif
 	struct ufs_vreg_info vreg_info;
 	struct list_head clk_list_head;
 
@@ -1016,6 +1041,24 @@ struct ufs_hba {
 	struct device		bsg_dev;
 	struct request_queue	*bsg_queue;
 
+#if defined(CONFIG_SCSI_SKHPB)
+	/* HPB support */
+	u32 skhpb_feat;
+	int skhpb_state;
+	int skhpb_max_regions;
+	struct delayed_work skhpb_init_work;
+	bool issue_ioctl;
+	struct skhpb_lu *skhpb_lup[UFS_UPIU_MAX_GENERAL_LUN];
+	struct work_struct skhpb_eh_work;
+	u32 skhpb_quirk;
+	u8 hpb_control_mode;
+#define SKHPB_U8_MAX 0xFF
+	u8 skhpb_quicklist_lu_enable[UFS_UPIU_MAX_GENERAL_LUN];
+#endif
+
+#if defined(CONFIG_SCSI_SKHPB)|| defined(CONFIG_UFSHPB_TOSHIBA)
+	struct scsi_device *sdev_ufs_lu[UFS_UPIU_MAX_GENERAL_LUN];
+#endif
 #ifdef CONFIG_SCSI_UFS_CRYPTO
 	/* crypto */
 	union ufs_crypto_capabilities crypto_capabilities;
@@ -1028,6 +1071,19 @@ struct ufs_hba {
 	bool wb_buf_flush_enabled;
 	bool wb_enabled;
 	struct delayed_work rpm_dev_flush_recheck_work;
+
+#if defined(CONFIG_UFSFEATURE)
+		struct ufsf_feature *ufsf;
+#endif
+#if defined(CONFIG_UFSHPB_TOSHIBA)
+	   /* HPB support */
+	   u32 ufshpb_feat;
+	   int ufshpb_state;
+	   int ufshpb_max_regions;
+	   struct delayed_work ufshpb_init_work;
+	   struct ufshpb_lu *ufshpb_lup[UFS_UPIU_MAX_GENERAL_LUN];
+	   struct work_struct ufshpb_eh_work;
+#endif
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
@@ -1215,6 +1271,12 @@ extern int ufshcd_dme_get_attr(struct ufs_hba *hba, u32 attr_sel,
 			       u32 *mib_val, u8 peer);
 extern int ufshcd_config_pwr_mode(struct ufs_hba *hba,
 			struct ufs_pa_layer_attr *desired_pwr_mode);
+#if defined(CONFIG_SCSI_SKHID)
+extern int ufshcd_query_attr_retry(struct ufs_hba *hba,
+	enum query_opcode opcode, enum attr_idn idn, u8 index, u8 selector,
+	u32 *attr_val);
+extern int ufshcd_bkops_ctrl(struct ufs_hba *hba, enum bkops_status status);
+#endif
 /* UIC command interfaces for DME primitives */
 #define DME_LOCAL	0
 #define DME_PEER	1
@@ -1297,6 +1359,10 @@ void ufshcd_fixup_dev_quirks(struct ufs_hba *hba, struct ufs_dev_fix *fixups);
 #define SD_ASCII_STD true
 #define SD_RAW false
 
+#if defined(CONFIG_UFSFEATURE)
+int ufshcd_exec_dev_cmd(struct ufs_hba *hba,
+			enum dev_cmd_type cmd_type, int timeout);
+#endif
 int ufshcd_hold(struct ufs_hba *hba, bool async);
 void ufshcd_release(struct ufs_hba *hba);
 
@@ -1500,6 +1566,16 @@ static inline u8 ufshcd_scsi_to_upiu_lun(unsigned int scsi_lun)
 		return scsi_lun & UFS_UPIU_MAX_UNIT_NUM_ID;
 }
 
+#if defined(CONFIG_SCSI_SKHPB) || defined(CONFIG_SCSI_SKHID)
+int ufshcd_query_flag_retry(struct ufs_hba *hba,
+	enum query_opcode opcode, enum flag_idn idn, u8 index, bool *flag_res);
+#endif
+int ufshcd_wait_for_doorbell_clr(struct ufs_hba *hba, u64 wait_timeout_us);
+int ufshcd_change_power_mode(struct ufs_hba *hba,
+                             struct ufs_pa_layer_attr *pwr_mode);
+
+void ufshcd_scsi_block_requests(struct ufs_hba *hba);
+void ufshcd_scsi_unblock_requests(struct ufs_hba *hba);
 
 int ufshcd_dump_regs(struct ufs_hba *hba, size_t offset, size_t len,
 		     const char *prefix);
