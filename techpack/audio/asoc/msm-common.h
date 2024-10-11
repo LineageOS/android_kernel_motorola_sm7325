@@ -27,6 +27,10 @@ struct msm_asoc_mach_data {
 	struct device_node *dmic01_gpio_p; /* used by pinctrl API */
 	struct device_node *dmic23_gpio_p; /* used by pinctrl API */
 	struct device_node *dmic45_gpio_p; /* used by pinctrl API */
+	struct device_node *dmic_supply; /* used by dmic power supply */
+	struct cdc_regulator *regulator;
+	int num_supplies;
+	struct regulator_bulk_data *supplies;
 	struct device_node *mi2s_gpio_p[MI2S_MAX]; /* used by pinctrl API */
 	atomic_t mi2s_gpio_ref_count[MI2S_MAX]; /* used by pinctrl API */
 	struct device_node *us_euro_gpio_p; /* used by pinctrl API */
