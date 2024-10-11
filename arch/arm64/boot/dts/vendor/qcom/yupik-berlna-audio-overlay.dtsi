@@ -1,0 +1,158 @@
+/* Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&tlmm {
+	aw882xx_reset_default: aw882xx_reset_default {
+		mux {
+			pins = "gpio68";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio68";
+			drive-strength = <2>; /* 2 MA */
+			bias-pull-up;
+			output-high;
+		};
+	};
+
+	aw882xx_irq_default: aw882xx_irq_default {
+		mux {
+			pins = "gpio45";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio45";
+			drive-strength = <2>; /* 2 MA */
+			bias-pull-up;
+		};
+	};
+};
+
+&dai_mi2s0_rx {
+	status = "disabled";
+};
+
+&dai_mi2s0_tx {
+	status = "disabled";
+};
+
+&dai_mi2s1_rx {
+	status = "disabled";
+};
+
+&dai_mi2s1_tx {
+	status = "disabled";
+};
+
+&dai_mi2s2_rx {
+	status = "disabled";
+};
+
+&dai_mi2s2_tx {
+	status = "disabled";
+};
+
+&dai_mi2s3_rx {
+	status = "disabled";
+};
+
+&dai_mi2s3_tx {
+	status = "disabled";
+};
+
+&dai_mi2s4_rx {
+	status = "disabled";
+};
+
+&dai_mi2s4_tx {
+	status = "disabled";
+};
+
+&dai_mi2s5_rx {
+	status = "ok";
+	qcom,msm-mi2s-lines = <1>;
+};
+
+&dai_mi2s5_tx {
+        status = "ok";
+        qcom,msm-mi2s-lines = <2>;
+};
+
+&soc {
+	cdc_sen_mi2s_gpios: msm_cdc_pinctrl_pri {
+		compatible = "qcom,msm-cdc-pinctrl";
+		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-0 = <&lpi_i2s2_sck_active &lpi_i2s2_ws_active &lpi_i2s2_sd0_active &lpi_i2s2_sd1_active>;
+		pinctrl-1 = <&lpi_i2s2_sck_sleep &lpi_i2s2_ws_sleep &lpi_i2s2_sd0_sleep &lpi_i2s2_sd1_sleep>;
+	};
+};
+
+&qupv3_se1_i2c {
+	status = "ok";
+	aw882xx: aw882xx_smartpa@34 {
+		status = "okay";
+		compatible = "awinic,aw882xx_smartpa";
+		reg = <0x34>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&aw882xx_irq_default>, <&aw882xx_reset_default>;
+		reset-gpio = <&tlmm 68 0>;
+		irq-gpio = <&tlmm 45 0x2008>;
+		monitor-flag = <1>;
+		afe-profile = <1>;
+		monitor-timer-val = <3000>;
+		afe-rx-portid = <0x1018>;
+		afe-tx-portid = <0x1019>;
+		low-vol-table-down = <3500 9 3 3600 9 2 3700 9 1>;
+		low-vol-table-up = <3750 9 0 3650 9 1 3550 9 2>;
+		low-temp-table-down = <0xFFFFFFFB 0x4 0x10 0xFFBEAE7E 0x0 0x5 0x9 0xFFD80505 0x5 0x6 0x6 0xFFED714D>;
+		low-temp-table-up = <0x7 0x9 0x0 0x00000000 0x2 0x6 0x06 0xFFED714D 0xFFFFFFE 0x05 0x09 0xFFD80505>;
+	};
+};
+
+&yupik_snd {
+	qcom,model = "lahaina-yupik-snd-card";
+	awinic,aw882xx-max-devs = <1>;
+	qcom,ext-disp-audio-rx = <0x0>;
+	qcom,sen-mi2s-gpios = <&cdc_sen_mi2s_gpios>;
+
+	/*  Primary   AMIC3  PRI_MIC_BIAS  MIC_BIAS3
+		Secondary AMIC1  SEC_MIC_BIAS  MIC_BIAS1
+		Third     AMIC4  SEC_MIC_BIAS  MIC_BIAS1
+		HS        AMIC2  HS_MIC_BIAS   MIC_BIAS2
+	*/
+	qcom,audio-routing =
+		"AMIC1", "Analog Mic1",
+		"Analog Mic1", "MIC BIAS1",
+		"AMIC2", "Analog Mic2",
+		"Analog Mic2", "MIC BIAS2",
+		"AMIC3", "Analog Mic3",
+		"Analog Mic3", "MIC BIAS3",
+		"AMIC4", "Analog Mic4",
+		"Analog Mic4", "MIC BIAS1",
+		"IN1_HPHL", "HPHL_OUT",
+		"IN2_HPHR", "HPHR_OUT",
+		"IN3_AUX", "AUX_OUT",
+		"RX_TX DEC0_INP", "TX DEC0 MUX",
+		"RX_TX DEC1_INP", "TX DEC1 MUX",
+		"RX_TX DEC2_INP", "TX DEC2 MUX",
+		"RX_TX DEC3_INP", "TX DEC3 MUX",
+		"TX SWR_INPUT", "WCD_TX_OUTPUT",
+		"VA SWR_INPUT", "VA_SWR_CLK",
+		"VA SWR_INPUT", "WCD_TX_OUTPUT",
+		"VA_AIF1 CAP", "VA_SWR_CLK",
+		"VA_AIF2 CAP", "VA_SWR_CLK",
+		"VA_AIF3 CAP", "VA_SWR_CLK";
+	asoc-codec  = <&stub_codec>, <&bolero>,
+		<&wcd937x_codec>, <&aw882xx>;
+	asoc-codec-names = "msm-stub-codec.1", "bolero_codec",
+		"wcd937x_codec", "aw882xx_codec";
+};

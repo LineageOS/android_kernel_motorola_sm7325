@@ -1,0 +1,134 @@
+/*
+ * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+&tlmm {
+	touch_int_mux {
+		touch_int_active: active {
+			mux {
+				pins = "gpio81";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio81";
+				drive-strength = <4>;
+				bias-pull-up;
+			};
+		};
+
+		touch_int_suspend: default {
+			mux {
+				pins = "gpio81";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio81";
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+	};
+
+	touch_reset_mux {
+		touch_reset_active: active {
+			mux {
+				pins = "gpio105";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio105";
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		touch_reset_active_output_high: active_output_high {
+			mux {
+				pins = "gpio105";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio105";
+				drive-strength = <2>;
+				bias-disable;
+				output-high;
+			};
+		};
+
+		touch_reset_suspend: default {
+			mux {
+				pins = "gpio105";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio105";
+				drive-strength = <2>;
+				bias-pull-down;
+				output-low;
+			};
+		};
+	};
+};
+
+&pm8350c_l3 {
+	qcom,init-voltage = <3300000>;
+};
+
+&pm8350c_l8 {
+	qcom,init-voltage = <1800000>;
+};
+
+&qupv3_se13_spi {
+	status = "disabled";
+};
+
+&qupv3_se13_i2c {
+	status = "ok";
+	st_fts@49 {
+		mmi,status = "/chosen","mmi,panel_name","contains","nt37701";
+		compatible = "st,fts";
+		reg = <0x49>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <81 0x2008>;
+		st,reset-gpio = <&tlmm 105 0>;
+		st,irq-gpio = <&tlmm 81 0x2008>;
+		st,regulator_avdd = "pm8350c_l3";
+		st,regulator_dvdd = "pm8350c_l8";
+		st,x-max = <1080>;
+		st,y-max = <2400>;
+		/* support report rate interpolation */
+		st,interpolation_cmd = /bits/ 8 <0xC0 0x05 0x00 0x01 0x50 0x0C 0x04 0x0E 0x01 0x10>;
+		/* support report rate switching */
+		st,report_rate_cmd = /bits/ 8 <0xC0 0x1C 0x00>;
+		/* support edge suppression switching */
+		st,edge_cmd = /bits/ 8 <0xC0 0x1F 0x00 0x00>;
+		/* support film sensitivity switching */
+		st,sensitivity_cmd = /bits/ 8 <0xC0 0x20 0x00>;
+		//st,jitter_cmd = /bits/ 8 <0xC0 0x18 0x00 0x00 0x00 0x00 0x00 0x00>;
+		//st,linearity_cmd = /bits/ 8 <0xC0 0x19 0x00>;
+		st,first_filter_cmd = /bits/ 8 <0xC0 0x17 0x01 0x03
+                                        0xC0 0x17 0x00 0x00>;
+		panel = <&mot_csot_nt37701_667_1080x2400_dsc_cmd_v0
+                         &mot_csot_nt37701_667_1080x2400_dsc_cmd_v1
+                         &mot_csot_nt37701_667_1080x2400_dsc_cmd_v2
+                         &mot_vx_nt37701_667_1080x2400_dsc_cmd_v0
+                         &mot_vx_nt37701_667_1080x2400_dsc_cmd_v2
+                         &mot_vx_nt37701_667_1080x2400_dsc_cmd_v3>;
+		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
+		pinctrl-0 = <&touch_reset_active_output_high &touch_int_active>;
+		pinctrl-1 = <&touch_reset_suspend &touch_int_suspend>;
+		/* touchscreen_mmi class entries */
+		mmi,enable-gestures;
+		mmi,power-off-suspend;
+		mmi,usb-charger-detection;
+		mmi,refresh-rate-update;
+	};
+};

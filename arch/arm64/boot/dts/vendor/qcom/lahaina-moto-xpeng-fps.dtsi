@@ -1,0 +1,168 @@
+/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+&tlmm {
+
+	fps {
+		rst_active: rst_active {
+			/* RESET */
+			mux {
+				pins = "gpio39";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio39";
+				drive-strength = <2>; /* 2 MA */
+				bias-disable;
+				output-low;
+			};
+		};
+
+		rst_suspend: rst_suspend{
+			/* RESET */
+			mux {
+				pins = "gpio39";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio39";
+				drive-strength = <2>; /* 2 MA */
+			};
+		};
+
+		int_active: int_active {
+			/* INTERRUPT */
+			mux {
+				pins = "gpio38";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio38";
+				drive-strength = <2>; /* 2 MA */
+				bias-disable; /* no pull */
+				input-enable;
+			};
+		};
+
+		int_suspend: int_suspend{
+			/* INTERRUPT */
+			mux {
+				pins = "gpio38";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio38";
+				drive-strength = <2>; /* 2 MA */
+				bias-disable;
+				input-enable;
+			};
+		};
+
+		fingerfp_rst_high: fingerfp_rst_high {
+			mux {
+				pins = "gpio39";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio39";
+				drive-strength = <8>;
+				output-high;
+				bias-pull-up;
+			};
+		};
+
+		fingerfp_rst_low: fingerfp_rst_low {
+			mux {
+				pins = "gpio39";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio39";
+				drive-strength = <8>;
+				output-low;
+				bias-pull-down;
+			};
+		};
+
+		fingerfp_irq_active: fingerfp_irq_active {
+			mux {
+				pins = "gpio38";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio38";
+				drive-strength = <2>;
+				bias-disable;
+				input-enable;
+			};
+		};
+	};
+
+};
+&L3C {
+	//regulator-boot-on;
+	//regulator-always-on;
+	qcom,init-voltage = <3008000>;
+	regulator-min-microvolt = <3008000>;
+	regulator-max-microvolt = <3300000>;
+	status = "ok";
+};
+
+&soc {
+	fpc: fpc_fpc1020 {
+		compatible = "fpc,fpc1020";
+		status = "ok";
+		irq = <&tlmm 38 0>;
+		rst = <&tlmm 39 0>;
+		rgltr-ctrl-support;
+		fp,vdd-supply=<&L3C>;
+		fp,voltage-range = <3300000 3300000>;
+		pinctrl-names = "default", "suspend";
+		pinctrl-0 = <&int_active &rst_active>;
+		pinctrl-1 = < &int_suspend &rst_suspend>;
+	};
+
+	goodix_fingerprint{
+		status = "ok";
+		compatible = "goodix,fingerprint";
+		fp-gpio-irq = <&tlmm 38 0x00>;
+		fp-gpio-reset = <&tlmm 39 0x00>;
+		rgltr-ctrl-support;
+		fp,vdd-supply=<&L3C>;
+		fp,voltage-range = <3300000 3300000>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <38 0>;
+		interrupt-controller;
+		pinctrl-names = "default", "suspend";
+		pinctrl-0 = <&int_active &rst_active>;
+		pinctrl-1 = <&int_suspend &rst_suspend>;
+	};
+	et528: et528 {
+		status = "ok";
+		compatible = "fp-egistec";
+		fp-ctrl-power;
+
+		egistec,gpio_irq = <&tlmm 38 0x00>;
+		egistec,gpio_reset = <&tlmm 39 0x00>;
+		vcc_fp-supply=<&L3C>;
+		egis-fp,vcc-voltage = <3008000 3008000>;
+		egis-fp,vcc-current = <100000>;
+		pinctrl-names = "egis_rst_high", "egis_rst_low", "egis_irq_active";
+		pinctrl-0 = <&fingerfp_rst_high>;
+		pinctrl-1 = <&fingerfp_rst_low>;
+		pinctrl-2 = <&fingerfp_irq_active>;
+	};
+};

@@ -1,0 +1,23 @@
+&soc {
+	mmi_charger: mmi,charger {
+		compatible = "mmi,mmi-charger";
+		mmi,enable-charging-limit;
+		mmi,upper-limit-capacity = <75>;
+		mmi,lower-limit-capacity = <60>;
+		mmi,heartbeat-interval = <60000>;
+		mmi,dcp-power-max = <10000>;
+		mmi,hvdcp-power-max = <20000>;
+	};
+
+	qcom,pmic_glink {
+		qti_glink_charger: mmi,qti-glink-charger {
+			compatible = "mmi,qti-glink-charger";
+			mmi,df-serialnum = "unknown-sn";
+			mmi,chrg-iterm-ma = <300>;
+			mmi,fg-iterm-ma = <350>;
+			mmi,max-fv-mv = <4400>;
+			mmi,max-fcc-ma = <4000>;
+			mmi,demo-fv-mv = <4000>;
+		};
+	};
+};

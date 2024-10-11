@@ -1,3 +1,52 @@
+# Only include Motorola DTBs
+ifeq ($(CONFIG_MMI_DEVICE_DTBS),y)
+ifneq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
+$(error Moto DT w/o overlay is undefined!!!)
+endif
+
+# Motorola Device Trees
+dtbo-$(CONFIG_ARCH_LAHAINA) += \
+		lahaina-jordan-evb-overlay.dtbo \
+		lahaina-dubai-evb-overlay.dtbo \
+		lahaina-dubai-evb3-overlay.dtbo \
+		lahaina-xpeng-evb-overlay.dtbo \
+		lahaina-tundra-evb-overlay.dtbo \
+		lahaina-tundra-dvt1-overlay.dtbo \
+		lahaina-tundra-dvt2-overlay.dtbo \
+		lahaina-banks-evt1-overlay.dtbo \
+		lahaina-banks-evt1b-overlay.dtbo \
+		lahaina-banks-evt2-overlay.dtbo \
+		lahaina-banks-evt2b-overlay.dtbo \
+		lahaina-banks-dvt1-overlay.dtbo
+
+
+lahaina-jordan-evb-overlay.dtbo-base := lahaina-moto-base.dtb
+lahaina-dubai-evb-overlay.dtbo-base := lahaina-moto-base.dtb
+lahaina-dubai-evb3-overlay.dtbo-base := lahaina-moto-base.dtb
+lahaina-banks-evt1-overlay.dtbo-base := lahaina-moto-base.dtb
+lahaina-banks-evt1b-overlay.dtbo-base := lahaina-moto-base.dtb
+lahaina-banks-evt2-overlay.dtbo-base := lahaina-moto-base.dtb
+lahaina-banks-evt2b-overlay.dtbo-base := lahaina-moto-base.dtb
+lahaina-banks-dvt1-overlay.dtbo-base := lahaina-moto-base.dtb
+lahaina-xpeng-evb-overlay.dtbo-base := lahaina-moto-base-v2.1.dtb
+lahaina-tundra-evb-overlay.dtbo-base := lahaina-moto-base-v2.1.dtb
+lahaina-tundra-dvt1-overlay.dtbo-base := lahaina-moto-base-v2.1.dtb
+lahaina-tundra-dvt2-overlay.dtbo-base := lahaina-moto-base-v2.1.dtb
+
+dtbo-$(CONFIG_ARCH_YUPIK) += \
+		yupik-dubai-evb-overlay.dtbo \
+		yupik-berlin-evb-overlay.dtbo \
+		yupik-berlin-dvt1-overlay.dtbo \
+		yupik-berlin-dvt1b-overlay.dtbo \
+		yupik-berlna-evb-overlay.dtbo
+
+yupik-berlin-evb-overlay.dtbo-base := yupik-moto-base.dtb
+yupik-berlin-dvt1-overlay.dtbo-base := yupik-moto-base.dtb
+yupik-berlin-dvt1b-overlay.dtbo-base := yupik-moto-base.dtb
+yupik-berlna-evb-overlay.dtbo-base := yupik-moto-base.dtb
+yupik-dubai-evb-overlay.dtbo-base := yupik-moto-base.dtb
+
+else
 ifneq ($(CONFIG_ARCH_QTI_VM), y)
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 dtbo-$(CONFIG_ARCH_LAHAINA) += lahaina-rumi-overlay.dtbo \
@@ -91,6 +140,7 @@ dtb-$(CONFIG_ARCH_LAHAINA) += lahaina-rumi.dtb \
 	lahaina-v2.1-mtp-hsp-pro.dts \
 	lahaina-v2.1-cdp-hsp-pro.dts \
 	lahaina-v2.1-qrd-hsp-pro.dts
+endif
 endif
 
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)

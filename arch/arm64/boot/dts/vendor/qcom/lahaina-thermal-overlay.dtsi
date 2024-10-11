@@ -38,7 +38,7 @@
 		cooling-maps {
 			vbat_modem_l3 {
 				trip = <&b_bcl_lvl0>;
-				cooling-device = <&modem_tj 3 3>;
+				cooling-device = <&modem_tj 1 1>;
 			};
 
 			vbat_gpu0 {

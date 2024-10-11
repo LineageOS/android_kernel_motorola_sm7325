@@ -421,22 +421,22 @@
 
 	pil_trustedvm_mem: pil_trustedvm_region@d0800000 {
 		no-map;
-		reg = <0x0 0xd0800000 0x0 0x76f7000>;
+		//reg = <0x0 0xd0800000 0x0 0x76f7000>;
 	};
 
 	qrtr_shbuf: qrtr-shmem {
 		no-map;
-		reg = <0x0 0xd7ef7000 0x0 0x9000>;
+		//reg = <0x0 0xd7ef7000 0x0 0x9000>;
 	};
 
 	chan0_shbuf: neuron_block@0 {
 		no-map;
-		reg = <0x0 0xd7f00000 0x0 0x80000>;
+		//reg = <0x0 0xd7f00000 0x0 0x80000>;
 	};
 
 	chan1_shbuf: neuron_block@1 {
 		no-map;
-		reg = <0x0 0xd7f80000 0x0 0x80000>;
+		//reg = <0x0 0xd7f80000 0x0 0x80000>;
 	};
 
 	user_contig_mem: user_contig_region {
@@ -452,7 +452,7 @@
 		alloc-ranges = <0x0 0x00000000 0x0 0xffffffff>;
 		reusable;
 		alignment = <0x0 0x400000>;
-		size = <0x0 0x1400000>;
+		size = <0x0 0x2000000>;
 	};
 
 	non_secure_display_memory: non_secure_display_region {
@@ -1552,15 +1552,6 @@
 				<DCC_READ 0x18378f90 6 0>,
 				<DCC_READ 0x18379010 6 0>,
 				<DCC_READ 0x18379a10 4 0>,
-				<DCC_READ 0xa310220 3 0>,
-				<DCC_READ 0xa3102a0 3 0>,
-				<DCC_READ 0xa3104a0 6 0>,
-				<DCC_READ 0xa310520 1 0>,
-				<DCC_READ 0xa310588 1 0>,
-				<DCC_READ 0xa310d10 8 0>,
-				<DCC_READ 0xa310f90 6 0>,
-				<DCC_READ 0xa311010 6 0>,
-				<DCC_READ 0xa311a10 3 0>,
 				<DCC_READ 0x17a00104 29 0>,
 				<DCC_READ 0x17a00204 29 0>,
 				<DCC_READ 0x01741008 1 0>,
@@ -4102,6 +4093,9 @@
 				qcom,intents = <0x800  5
 						0x2000 3
 						0x4400 2>;
+				qcom,non-wake-svc = <0x51
+						0x190>;
+
 			};
 
 			qcom,adsp_glink_ssr {
@@ -4468,7 +4462,7 @@
 		status = "ok";
 		qcom,pas-id = <28>;
 		qcom,firmware-name = "trustedvm";
-		memory-region = <&pil_trustedvm_mem>;
+		//memory-region = <&pil_trustedvm_mem>;
 	};
 
 	qcom,guestvm_loader {
@@ -4495,7 +4489,7 @@
 			class = "message-queue";
 			direction = "receive";
 			max-size = <0 65536>;
-			shared-buffer = <&chan0_shbuf>;
+			//shared-buffer = <&chan0_shbuf>;
 			qcom,primary;
 			haven-label = <1>;
 			peer-name = <2>;
@@ -4507,7 +4501,7 @@
 			class = "message-queue";
 			direction = "send";
 			max-size = <0 65536>;
-			shared-buffer = <&chan1_shbuf>;
+			//shared-buffer = <&chan1_shbuf>;
 			qcom,primary;
 			haven-label = <2>;
 			peer-name = <2>;
@@ -4519,7 +4513,7 @@
 		qcom,master;
 		haven-label = <3>;
 		peer-name = <2>;
-		shared-buffer = <&qrtr_shbuf>;
+		//shared-buffer = <&qrtr_shbuf>;
 	};
 
 	pil_modem: qcom,mss@4080000 {

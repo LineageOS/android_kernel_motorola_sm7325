@@ -1,0 +1,329 @@
+/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include "lahaina-moto-dubai-overlay.dtsi"
+
+/ {
+	model = "Dubai";
+	compatible = "qcom,lahaina-Dubai", "qcom,lahaina-moto", "qcom,lahaina";
+	qcom,msm-id = <415 0x10000>;
+	qcom,board-id = <0x41 0xA200>;
+};
+
+&stmvl53l5_spi {
+	avdd-vl53l5-supply = <&L11C>;
+	iovdd-vl53l5-supply = <&tof_iovdd>;
+	pinctrl-0 = <&laser_int_active>;
+	pinctrl-1 = <&laser_int_suspend>;
+
+};
+
+/*
+*  Begin: override EVB board camera dts config
+*/
+
+&tlmm {
+	cam_sensor_active_tele2: cam_sensor_active_tele2 {
+		mux {
+			pins = "gpio116";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio116";
+			bias-disable; /* No PULL */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	cam_sensor_suspend_tele2: cam_sensor_suspend_tele2 {
+		mux {
+			pins = "gpio116";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio116";
+			bias-pull-down; /* PULL DOWN */
+			drive-strength = <2>; /* 2 MA */
+			output-low;
+		};
+	};
+
+	camera_iovdd_en_default: camera_iovdd_en_default {
+		mux {
+			pins = "gpio12";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio12";
+			bias-disable; /* No PULL */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	tof_iovdd_en_default: tof_iovdd_en_default {
+		mux {
+			pins = "gpio2";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio2";
+			bias-disable; /* No PULL */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+};
+
+&soc {
+	camera_iovdd: gpio-regulator@0 {
+		compatible = "regulator-fixed";
+		reg = <0x00 0x00>;
+		regulator-name = "camera_iovdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-enable-ramp-delay = <233>;
+		enable-active-high;
+		gpio = <&tlmm 12 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&camera_iovdd_en_default>;
+		vin-supply = <&pm8350c_bob>;
+	};
+
+	tof_iovdd: gpio-regulator@2 {
+		compatible = "regulator-fixed";
+		reg = <0x2 0x00>;
+		regulator-name = "tof_iovdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-enable-ramp-delay = <233>;
+		enable-active-high;
+		gpio = <&tlmm 2 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tof_iovdd_en_default>;
+		vin-supply = <&S10B>;
+	};
+};
+
+&eeprom_main {
+	cam_vio-supply = <&camera_iovdd>;
+};
+
+&sensor_main {
+	cam_vio-supply = <&camera_iovdd>;
+	rgltr-min-voltage = <1800000 2800000 1150000 0>;
+	rgltr-max-voltage = <1800000 2800000 1150000 0>;
+};
+
+&eeprom_front {
+	cam_vio-supply = <&camera_iovdd>;
+};
+
+&sensor_front {
+	cam_vio-supply = <&camera_iovdd>;
+};
+
+/delete-node/ &sensor_tele;
+
+/delete-node/ &eeprom_tele;
+
+/delete-node/ &actuator_tele;
+
+/delete-node/ &eeprom_wide;
+
+/delete-node/ &actuator_wide;
+
+/delete-node/ &sensor_wide;
+
+&cam_cci0 {
+	eeprom_wide_cam: qcom,eeprom2 {
+		cell-index = <2>;
+		reg = <0x2>;
+		compatible = "qcom,eeprom";
+		cam_vio-supply = <&camera_iovdd>;
+		cam_vaf-supply = <&camera_ldo4>;
+		regulator-names = "cam_vio", "cam_vaf";
+		rgltr-cntrl-support;
+		rgltr-min-voltage = <1800000 2800000>;
+		rgltr-max-voltage = <1800000 2800000>;
+		rgltr-load-current = <3000 105000>;
+		cci-master = <1>;
+		status = "ok";
+	};
+
+	actuator_wide_cam: qcom,actuator1 {
+		cell-index = <1>;
+		reg = <0x1>;
+		compatible = "qcom,actuator";
+		cam_vaf-supply = <&camera_ldo4>;
+		regulator-names = "cam_vaf";
+		rgltr-cntrl-support;
+		rgltr-min-voltage = <2800000>;
+		rgltr-max-voltage = <2800000>;
+		rgltr-load-current = <105000>;
+		cci-master = <1>;
+		status = "ok";
+	};
+
+	sensor_wide_cam: qcom,cam-sensor2 {
+		cell-index = <2>;
+		compatible = "qcom,cam-sensor";
+		csiphy-sd-index = <4>;
+		sensor-position-roll = <90>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		eeprom-src = <&eeprom_wide_cam>;
+		actuator-src = <&actuator_wide_cam>;
+		led-flash-src = <&led_flash_rear_wide>;
+		cam_vio-supply = <&camera_iovdd>;
+		cam_vana-supply = <&camera_ldo2>;
+		cam_vdig-supply = <&camera_ldo5>;
+		cam_clk-supply = <&cam_cc_titan_top_gdsc>;
+		regulator-names = "cam_vio", "cam_vana", "cam_vdig",
+			"cam_clk";
+		rgltr-cntrl-support;
+		rgltr-min-voltage = <1800000 2800000 1150000 0>;
+		rgltr-max-voltage = <1800000 2800000 1150000 0>;
+		rgltr-load-current = <3000 50000 180000 0>;
+		gpio-no-mux = <0>;
+		pinctrl-names = "cam_default", "cam_suspend";
+		pinctrl-0 = <&cam_sensor_mclk4_active
+				&cam_sensor_active_wide>;
+		pinctrl-1 = <&cam_sensor_mclk4_suspend
+				&cam_sensor_suspend_wide>;
+		gpios = <&tlmm 104 0>,
+			<&tlmm 117 0>;
+		gpio-reset = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <1 0>;
+		gpio-req-tbl-label = "CAMIF_MCLK4",
+					"CAM_RESET2";
+		cci-master = <1>;
+		status = "ok";
+		clocks = <&clock_camcc CAM_CC_MCLK4_CLK>;
+		clock-names = "cam_clk";
+		clock-cntl-level = "nominal";
+		clock-rates = <24000000>;
+	};
+};
+
+&cam_cci1 {
+	eeprom_tele_cam: qcom,eeprom3 {
+		cell-index = <3>;
+		reg = <0x3>;
+		compatible = "qcom,eeprom";
+		cam_vio-supply = <&camera_iovdd>;
+		cam_vaf-supply = <&camera_ldo3>;
+		regulator-names = "cam_vio", "cam_vaf";
+		rgltr-cntrl-support;
+		rgltr-min-voltage = <1800000 2800000>;
+		rgltr-max-voltage = <1800000 2800000>;
+		rgltr-load-current = <3000 105000>;
+		cci-master = <1>;
+		status = "ok";
+	};
+
+	actuator_tele_cam: qcom,actuator2 {
+		cell-index = <2>;
+		reg = <0x2>;
+		compatible = "qcom,actuator";
+		cam_vaf-supply = <&camera_ldo3>;
+		regulator-names = "cam_vaf";
+		rgltr-cntrl-support;
+		rgltr-min-voltage = <2800000>;
+		rgltr-max-voltage = <2800000>;
+		rgltr-load-current = <105000>;
+		cci-master = <1>;
+		status = "ok";
+	};
+
+	sensor_tele_cam: qcom,cam-sensor3 {
+		cell-index = <3>;
+		compatible = "qcom,cam-sensor";
+		csiphy-sd-index = <3>;
+		sensor-position-roll = <90>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		eeprom-src = <&eeprom_tele_cam>;
+		actuator-src = <&actuator_tele_cam>;
+		led-flash-src = <&led_flash_rear_tele>;
+		cam_vio-supply = <&camera_iovdd>;
+		cam_vana-supply = <&camera_ldo7>;
+		cam_vdig-supply = <&camera_ldo6>;
+		cam_clk-supply = <&cam_cc_titan_top_gdsc>;
+		regulator-names = "cam_vio", "cam_vana", "cam_vdig",
+			"cam_clk";
+		rgltr-cntrl-support;
+		rgltr-min-voltage = <1800000 2800000 1200000 0>;
+		rgltr-max-voltage = <1800000 2800000 1200000 0>;
+		rgltr-load-current = <3000 28000 95000 0>;
+		gpio-no-mux = <0>;
+		pinctrl-names = "cam_default", "cam_suspend";
+		pinctrl-0 = <&cam_sensor_mclk3_active
+				&cam_sensor_active_tele2>;
+		pinctrl-1 = <&cam_sensor_mclk3_suspend
+				&cam_sensor_suspend_tele2>;
+		gpios = <&tlmm 103 0>,
+			<&tlmm 116 0>;
+		gpio-reset = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <1 0>;
+		gpio-req-tbl-label = "CAMIF_MCLK3",
+					"CAM_RESET3";
+		cci-master = <1>;
+		status = "ok";
+		clocks = <&clock_camcc CAM_CC_MCLK3_CLK>;
+		clock-names = "cam_clk";
+		clock-cntl-level = "nominal";
+		clock-rates = <24000000>;
+	};
+};
+
+&qupv3_se8_spi {
+	status = "disabled";
+};
+
+&qupv3_se8_i2c {
+	status = "ok";
+	#include "lahaina-moto-common-redriver.dtsi"
+};
+
+&redriver_diodes {
+	status = "disabled";
+};
+
+&redriver {
+	status = "ok";
+};
+
+&usb0 {
+	ssusb_redriver = <&redriver>;
+};
+
+&cirrus_cs35l45 {
+	status = "ok";
+};
+
+&lahaina_snd {
+	qcom,msm-mbhc-usbc-audio-supported = <1>;
+	qcom,msm-mbhc-hphl-swh = <0>;
+	qcom,msm-mbhc-gnd-swh = <0>;
+};
+/*
+*  End: override EVB board camera dts config
+*/
+

@@ -1,0 +1,302 @@
+/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "lahaina-moto-common-overlay.dtsi"
+#include "lahaina-dubai-fingerprint.dtsi"
+#include "lahaina-moto-dubai-display.dtsi"
+#include "lahaina-dubai-vibrator.dtsi"
+#include "lahaina-dubai-touchscreen.dtsi"
+#include "lahaina-dubai-audio.dtsi"
+#include "camera/lahaina-camera-sensor-mot-dubai-overlay.dtsi"
+#include <dt-bindings/clock/qcom,rpmh.h>
+#include "lahaina-moto-common-charger.dtsi"
+
+&pm8008i_8 {
+	status = "disabled";
+};
+
+&pm8008i_9 {
+	status = "disabled";
+};
+
+&pm8008j_c {
+	status = "disabled";
+};
+
+&pm8008j_d {
+	status = "disabled";
+};
+
+&pm8350c_rgb {
+	red {
+		label = "charging";
+	};
+	green {
+		status = "disabled";
+	};
+	blue {
+		status = "disabled";
+	};
+};
+
+&tlmm{
+	cam_pmic_irq_default: cam_pmic_irq_default {
+		mux {
+			pins = "gpio32";
+			function = "gpio";
+		};
+		config {
+		        pins = "gpio32";
+			drive-strength = <2>; /* 2 mA */
+			bias-pull-up;
+		};
+	};
+};
+
+&qupv3_se13_i2c {
+	status = "ok";
+
+	cam_pmic: slg51000@75 {
+		compatible = "dlg,slg51000";
+		reg = <0x75>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <32 IRQ_TYPE_LEVEL_LOW>;
+
+		dlg,cs-gpios = <&tlmm 33 0>;
+
+		pinctrl-names = "pmic_default";
+		pinctrl-0 = <&cam_pmic_irq_default>;
+
+		vin3-supply = <&pm8350c_bob>;
+		vin4-supply = <&pm8350c_bob>;
+		vin5-supply = <&pm8350_s10>;
+		vin6-supply = <&pm8350_s10>;
+		vin7-supply = <&pm8350c_bob>;
+
+		regulators {
+			camera_ldo1: ldo1 {
+				regulator-name = "ldo1";
+				regulator-min-microvolt = <2400000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			camera_ldo2: ldo2 {
+				regulator-name = "ldo2";
+				regulator-min-microvolt = <2400000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			camera_ldo3: ldo3 {
+				regulator-name = "ldo3";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			camera_ldo4: ldo4 {
+				regulator-name = "ldo4";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			camera_ldo5: ldo5 {
+				regulator-name = "ldo5";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			camera_ldo6: ldo6 {
+				regulator-name = "ldo6";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			camera_ldo7: ldo7 {
+				regulator-name = "ldo7";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+		};
+	};
+};
+
+&tlmm {
+	laser_xsdn_active: laser_xsdn_active {
+		mux {
+			pins = "gpio2";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio2";
+			drive-strength = <2>;
+			bias-disable; /* NO PULL */
+			input-enable;
+		};
+	};
+	laser_xsdn_suspend: laser_xsdn_suspend {
+		mux {
+			pins = "gpio2";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio2";
+			drive-strength = <2>;
+			bias-pull-down; /* PULL DOWN */
+			input-enable;
+		};
+	};
+	laser_int_active: laser_int_active {
+		mux {
+			pins = "gpio3";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio3";
+			drive-strength = <2>;
+			bias-disable; /* NO PULL */
+			input-enable;
+		};
+	};
+	laser_int_suspend: laser_int_suspend {
+		mux {
+			pins = "gpio3";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio3";
+			drive-strength = <2>;
+			bias-pull-down; /* PULL DOWN */
+			input-enable;
+		};
+	};
+	redriver_enable: redriver_enable {
+		mux {
+			pins = "gpio27";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio27";
+			drive-strength = <2>;
+			bias-disable; /* NO PULL */
+			input-enable;
+		};
+	};
+	redriver_disable: redriver_disable {
+		mux {
+			pins = "gpio27";
+				function = "gpio";
+			};
+
+		config {
+			pins = "gpio27";
+			drive-strength = <2>;
+			output-low;
+		};
+	};
+
+};
+
+&qupv3_se1_i2c {
+	status = "disabled";
+};
+
+&qupv3_se1_spi {
+	status = "ok";
+	stmvl53l5_spi: stmvl53l5@0 {
+		compatible = "st,stmvl53l5";
+		reg = <0x0>;
+		spi-max-frequency = <6400000>;
+		avdd-vl53l5-supply = <&L11C>;
+		iovdd-vl53l5-supply = <&S10B>;
+		pinctrl-names = "laser_default", "laser_suspend";
+		pinctrl-0 = <&laser_xsdn_active &laser_int_active>;
+		pinctrl-1 = <&laser_xsdn_suspend &laser_int_suspend>;
+	};
+};
+
+&qupv3_se5_spi {
+	status = "disabled";
+};
+
+&qupv3_se5_i2c {
+	status = "disabled";
+};
+
+&qupv3_se15_i2c {
+        status = "ok";
+        qcom,clk-freq-out = <1000000>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+	st21nfc@8 {
+		compatible = "st,st21nfc";
+		mmi,status = "/chosen", "mmi,nfc", "st";
+		status = "ok";
+		reg = <0x08>;
+		st,irq_gpio = <&tlmm 87 0x00>;
+		st,reset_gpio = <&tlmm 62 0x00>;
+		st,clkreq_gpio = <&tlmm 63 0x00>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <87 0>;
+		interrupt-names = "nfc_irq";
+		pinctrl-names = "nfc_active", "nfc_suspend";
+		pinctrl-0 = <&nfc_int_active &nfc_enable_active
+				&nfc_clk_req_active>;
+		pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend
+				&nfc_clk_req_suspend>;
+	};
+
+        nq@28 {
+                compatible = "qcom,sn-nci";
+		mmi,status = "/chosen", "mmi,nfc", "ese_nq";
+		status = "ok";
+                reg = <0x28>;
+                qcom,sn-irq = <&tlmm 87 0x00>;
+                qcom,sn-ven = <&tlmm 62 0x00>;
+                qcom,sn-firm = <&tlmm 86 0x00>;
+                qcom,sn-clkreq = <&tlmm 63 0x00>;
+                interrupt-parent = <&tlmm>;
+                interrupts = <87 0>;
+                interrupt-names = "nfc_irq";
+                pinctrl-names = "nfc_active", "nfc_suspend";
+                pinctrl-0 = <&nfc_int_active &nfc_enable_active
+                                &nfc_clk_req_active &nfc_fwdl_active>;
+                pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend
+                                &nfc_clk_req_suspend &nfc_fwdl_suspend>;
+        };
+};
+
+&qupv3_se6_spi {
+        status = "ok";
+        spi-max-frequency = <20000000>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        sr100@0 {
+                compatible = "nxp,sr100";
+                mmi,status = "/chosen", "mmi,uwb", "true";
+                reg = <0>;
+                nxp,sr100-irq = <&tlmm 51 0x00>;
+                nxp,sr100-ce = <&tlmm 132 0x00>;
+                nxp,sr100-ri = <&tlmm 131 0x00>;
+                nxp,sr100-rtc = <&tlmm 155 0x00>;
+                interrupt-parent = <&tlmm>;
+                interrupts = <51 0>;
+                spi-max-frequency = <20000000>;
+                clocks = <&clock_rpmh RPMH_RF_CLK2>;
+                clock-names = "rf_clk2";
+        };
+};
+

@@ -1,0 +1,51 @@
+/* Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "yupik-berlin-common-overlay.dtsi"
+#include "berlin-slim-sde-display.dtsi"
+#include "yupik-berlin-sensor-overlay.dtsi"
+#include "yupik-berlin-fingerprint.dtsi"
+#include "yupik-berlin-audio-overlay.dtsi"
+#include "yupik-berlin-touchscreen.dtsi"
+#include "camera/yupik-camera-sensor-mot-berlin-overlay.dtsi"
+#include "yupik-berlin-charger-overlay.dtsi"
+
+&soc {
+	gpio_keys {
+		pinctrl-0 = <&key_vol_up_default &google_key_default>;
+
+		google_key {
+			label = "google_key";
+			gpios = <&tlmm 43 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_SEARCH>;
+			gpio-key,wakeup;
+			debounce-interval = <15>;
+			linux,can-disable;
+		};
+	};
+};
+
+&tlmm{
+	google_key_default: google_key_default {
+		mux {
+			pins = "gpio43";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio43";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+};

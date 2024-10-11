@@ -1,0 +1,390 @@
+/* Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+#include "lahaina-audio-overlay.dtsi"
+
+&tlmm {
+	cirrus_spk_reset_default: cirrus_spk_reset_default {
+		mux {
+			pins = "gpio15";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio15";
+			drive-strength = <2>; /* 2 MA */
+			bias-pull-up;
+			output-high;
+		};
+	};
+
+	cirrus_spk_irq_default: cirrus_spk_irq_default {
+		mux {
+			pins = "gpio14";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio14";
+			drive-strength = <2>; /* 2 MA */
+			bias-pull-up;
+			input-enable;
+		};
+	};
+
+	cirrus_rcv_reset_default: cirrus_rcv_reset_default {
+		mux {
+			pins = "gpio42";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio42";
+			drive-strength = <2>; /* 2 MA */
+			bias-pull-up;
+			output-high;
+		};
+	};
+
+	cirrus_rcv_irq_default: cirrus_rcv_irq_default {
+		mux {
+			pins = "gpio48";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio48";
+			drive-strength = <2>; /* 2 MA */
+			bias-pull-up;
+			input-enable;
+		};
+	};
+};
+
+/* enable gpio67 as qup19 L6 to connect receiver spi cs3*/
+&qupv3_se19_spi_pins {
+	qupv3_se19_spi_cs3_active: qupv3_se19_spi_cs3_active {
+		mux {
+			pins = "gpio67";
+			function = "qup_l6";
+		};
+		config {
+			pins = "gpio67";
+			drive-strength = <6>;
+			bias-disable;
+		};
+	};
+
+	qupv3_se19_spi_cs3_sleep: qupv3_se19_spi_cs3_sleep {
+		mux {
+			pins = "gpio67";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio67";
+			drive-strength = <6>;
+			bias-disable;
+		};
+	};
+};
+
+&qupv3_se19_spi {
+	pinctrl-0 = <&qupv3_se19_spi_active &qupv3_se19_spi_cs3_active>;
+	pinctrl-1 = <&qupv3_se19_spi_sleep &qupv3_se19_spi_cs3_sleep>;
+	status = "okay";
+
+	cirrus_cs35l45: cs35l45@0 {
+		compatible = "cirrus,cs35l45";
+		spi-max-frequency = <9600000>;
+		reg = <0x0>;
+		reset-gpios = <&tlmm 15 0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <14 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupt-names = "cirrus_spk_irq";
+		sound-name-prefix = "SPK";
+		status = "disabled";
+
+		VA-supply = <&S10B>;
+		VP-supply = <&S10B>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cirrus_spk_irq_default>, <&cirrus_spk_reset_default>;
+
+		cirrus,asp-sdout-hiz = <3>;
+
+		cirrus,gpio-ctrl1 {
+			gpio-ctrl = <0x0>;
+			gpio-dir = <0x1>;
+		};
+
+		cirrus,gpio-ctrl2 {
+			gpio-ctrl = <0x02>;
+		};
+
+		adsps {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			adsp@2b80000 {
+				reg = <0x2b80000>;
+				firmware {
+					protection {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l45-dsp1-spk-prot.wmfw";
+						cirrus,bin-file = "cs35l45-dsp1-spk-prot.bin";
+					};
+					calibration {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l45-dsp1-spk-prot.wmfw";
+						cirrus,bin-file = "cs35l45-dsp1-spk-cali.bin";
+					};
+				};
+			};
+		};
+	};
+
+	cirrus_cs35l41: cs35l41@0 {
+		compatible = "cirrus,cs35l41";
+		spi-max-frequency = <19200000>;
+		reg = <0x0>;
+		reset-gpios = <&tlmm 15 0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <14 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupt-names = "cirrus_spk_irq";
+		sound-name-prefix = "SPK";
+		status = "disabled";
+
+		VA-supply = <&S10B>;
+		VP-supply = <&S10B>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cirrus_spk_irq_default>, <&cirrus_spk_reset_default>;
+
+		cirrus,right-channel-amp;
+		cirrus,boost-ind-nanohenry = <1000>; /* 1uH */
+		cirrus,boost-ctl-millivolt = <11000>;
+		cirrus,boost-peak-milliamp = <4000>;
+		cirrus,boost-cap-microfarad = <21>;
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,amp-gain-zc;
+
+		cirrus,gpio-config2 {
+			cirrus,gpio-output-enable = <0x01>;
+			cirrus,gpio-src-select = <0x04>;
+		};
+
+		adsps {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			adsp@2b80000 {
+				reg = <0x2b80000>;
+				firmware {
+					protection {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-spk-prot.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-spk-prot.bin";
+					};
+					calibration {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-spk-prot.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-spk-cali.bin";
+					};
+					diagnostic {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-spk-diag.wmfw";
+					};
+				};
+			};
+		};
+	};
+
+	cirrus_rcv: cs35l41@3 {
+		compatible = "cirrus,cs35l41";
+		spi-max-frequency = <19200000>;
+		reg = <0x3>;
+		reset-gpios = <&tlmm 42 0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <48 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupt-names = "cirrus_rcv_irq";
+		sound-name-prefix = "RCV";
+
+		VA-supply = <&S10B>;
+		VP-supply = <&S10B>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cirrus_rcv_irq_default>, <&cirrus_rcv_reset_default>;
+
+		cirrus,boost-ind-nanohenry = <1000>; /* 1uH */
+		cirrus,boost-ctl-millivolt = <11000>;
+		cirrus,boost-peak-milliamp = <4000>;
+		cirrus,boost-cap-microfarad = <21>;
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,amp-gain-zc;
+
+		cirrus,gpio-config2 {
+			cirrus,gpio-output-enable = <0x01>;
+			cirrus,gpio-src-select = <0x04>;
+		};
+
+		cirrus,gpio-config1 {
+			cirrus,gpio-src-select = <0x0>;
+		};
+
+		adsps {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			adsp@2b80000 {
+				reg = <0x2b80000>;
+				firmware {
+					protection {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-spk-prot.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-rcv-prot.bin";
+					};
+					calibration {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-spk-prot.wmfw";
+						cirrus,bin-file = "cs35l41-dsp1-rcv-cali.bin";
+					};
+					diagnostic {
+						cirrus,full-name;
+						cirrus,wmfw-file = "cs35l41-dsp1-spk-diag.wmfw";
+					};
+				};
+			};
+		};
+	};
+};
+
+&wsa_spkr_en1 {
+	status = "disabled";
+};
+
+&wsa_spkr_en2 {
+	status = "disabled";
+};
+
+&swr_haptics {
+	status = "disabled";
+};
+
+&wsa883x_0221 {
+	status = "disabled";
+};
+
+&wsa883x_0222 {
+	status = "disabled";
+};
+
+&swr_dmic_01 {
+        status = "disabled";
+};
+
+&swr_dmic_02 {
+        status = "disabled";
+};
+
+&swr_dmic_03 {
+        status = "disabled";
+};
+
+&swr_dmic_04 {
+        status = "disabled";
+};
+
+&dai_mi2s0_rx {
+	qcom,msm-mi2s-rx-lines = <1>;
+};
+
+&dai_mi2s0_tx {
+	qcom,msm-mi2s-tx-lines = <2>;
+};
+
+&dai_mi2s2_rx {
+	qcom,msm-mi2s-rx-lines = <1>;
+};
+
+&dai_mi2s2_tx {
+	qcom,msm-mi2s-tx-lines = <0>;
+};
+
+&q6core {
+	cdc_pri_mi2s_gpios: cdc_pri_mi2s_gpios {
+		compatible = "qcom,msm-cdc-pinctrl";
+		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-0 = <&pri_mi2s_sck_active &pri_mi2s_ws_active
+				&pri_mi2s_sd0_active &pri_mi2s_sd1_active>;
+		pinctrl-1 = <&pri_mi2s_sck_sleep &pri_mi2s_ws_sleep
+				&pri_mi2s_sd0_sleep &pri_mi2s_sd1_sleep>;
+		#gpio-cells = <0>;
+	};
+
+	cdc_tert_mi2s_gpios: cdc_tert_mi2s_gpios {
+		compatible = "qcom,msm-cdc-pinctrl";
+		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-0 = <&tert_mi2s_sck_active &tert_mi2s_ws_active
+				&tert_mi2s_sd0_active>;
+		pinctrl-1 = <&tert_mi2s_sck_sleep &tert_mi2s_ws_sleep
+				&tert_mi2s_sd0_sleep>;
+		#gpio-cells = <0>;
+	};
+};
+
+&lahaina_snd {
+	qcom,model = "lahaina-dubai-snd-card";
+	cirrus,franklin-max-devs = <1>;
+	cirrus,prince-max-devs = <1>;
+	awinic,haptic-supported;
+	qcom,wsa-max-devs = <0x0>;
+	qcom,wcn-bt = <0x1>;
+	qcom,swr-dmic-max-devs = <0>;
+	qcom,pri-mi2s-gpios = <&cdc_pri_mi2s_gpios>;
+	qcom,tert-mi2s-gpios = <&cdc_tert_mi2s_gpios>;
+	qcom,audio-routing =
+		"AMIC1", "Analog Mic1",
+		"Analog Mic1", "MIC BIAS1",
+		"AMIC2", "Analog Mic2",
+		"Analog Mic2", "MIC BIAS2",
+		"AMIC3", "Analog Mic3",
+		"Analog Mic3", "MIC BIAS3",
+		"AMIC4", "Analog Mic4",
+		"Analog Mic4", "MIC BIAS4",
+		"IN1_HPHL", "HPHL_OUT",
+		"IN2_HPHR", "HPHR_OUT",
+		"IN3_AUX", "AUX_OUT",
+		"RX_TX DEC0_INP", "TX DEC0 MUX",
+		"RX_TX DEC1_INP", "TX DEC1 MUX",
+		"RX_TX DEC2_INP", "TX DEC2 MUX",
+		"RX_TX DEC3_INP", "TX DEC3 MUX",
+		"TX SWR_INPUT", "WCD_TX_OUTPUT",
+		"VA SWR_INPUT", "VA_SWR_CLK",
+		"VA SWR_INPUT", "WCD_TX_OUTPUT",
+		"VA_AIF1 CAP", "VA_SWR_CLK",
+		"VA_AIF2 CAP", "VA_SWR_CLK",
+		"VA_AIF3 CAP", "VA_SWR_CLK";
+
+	asoc-codec  = <&stub_codec>, <&bolero>,
+		<&wcd938x_codec>,
+		<&ext_disp_audio_codec>,
+		<&cirrus_cs35l45>, <&cirrus_rcv>,
+		<&aw869xx_haptic>;
+	asoc-codec-names = "msm-stub-codec.1", "bolero_codec",
+		"wcd938x_codec",
+		"msm-ext-disp-audio-codec-rx",
+		"cirrus-spk", "cirrus-rcv",
+		"awinic-hapic";
+
+	/delete-node/ qcom,cdc-dmic01-gpios;
+	/delete-node/ qcom,cdc-dmic23-gpios;
+	/delete-node/ qcom,cdc-dmic45-gpios;
+};
+

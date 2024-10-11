@@ -1,0 +1,140 @@
+/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&tlmm {
+	fps_rst_active: fps_rst_active {
+		/* active state */
+		mux {
+			pins = "gpio35";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio35";
+			drive-strength = <2>; /* 2 MA */
+			output-low;
+		};
+	};
+
+	fps_rst_suspend: fps_rst_suspend {
+		/* sleep state */
+		mux {
+			pins = "gpio35";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio35";
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	fps_int_active: fps_int_active {
+		/* active state */
+		mux {
+			pins = "gpio34";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio34";
+			drive-strength = <2>; /* 2 MA */
+			bias-disable;
+			input-enable;
+		};
+	};
+
+	fps_int_suspend: fps_int_suspend {
+		/* sleep state */
+		mux {
+			pins = "gpio34";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio34";
+			drive-strength = <2>; /* 2 MA */
+			bias-disable;
+			input-enable;
+		};
+	};
+
+	ets {
+		ets_int_active: ets_int_active {
+			/* INTERRUPT */
+			mux {
+				pins = "gpio34";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio34";
+				drive-strength = <2>; /* 2 MA */
+				bias-pull-down; /* pull down */
+				input-enable;
+			};
+		};
+		ets_int_suspend: ets_int_suspend {
+			/* INTERRUPT */
+			mux {
+				pins = "gpio34";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio34";
+				drive-strength = <2>; /* 2 MA */
+				bias-pull-down; /* pull down */
+				input-enable;
+			};
+		};
+	};
+};
+
+&L9C {
+	//regulator-boot-on;
+	//regulator-always-on;
+	qcom,init-voltage = <3000000>;
+	status = "ok";
+};
+
+&soc {
+	goodix_fingerprint{
+		compatible = "goodix,fingerprint";
+		fp-gpio-reset = <&tlmm 35 0x00>;
+		fp-gpio-irq = <&tlmm 34 0x00>;
+		//fp-gpio-ven = <&tlmm 45 0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <34 0>;
+		interrupt-controller;
+		pinctrl-names = "default", "suspend";
+		pinctrl-0 = <&fps_rst_active &fps_int_active>;
+		pinctrl-1 = <&fps_rst_suspend &fps_int_suspend>;
+		rgltr-ctrl-support;
+		fp,vdd-supply=<&L9C>;
+		fp,voltage-range = <3000000 3000000>;
+	};
+
+	et528: et528 {
+		compatible = "egistec,et516";
+		status = "ok";
+		reg = <0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <34 0x0>;
+		egistec,gpio_irq = <&tlmm 34 0x2>;
+		egistec,gpio_rst = <&tlmm 35 0x2>;
+		pinctrl-names = "default", "suspend";
+		pinctrl-0 = <&ets_int_active>;
+		pinctrl-1 = <&ets_int_suspend>;
+                vcc_3v3_io-supply = <&L9C>;
+	};
+};
