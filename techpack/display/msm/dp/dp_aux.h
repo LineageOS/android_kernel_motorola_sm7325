@@ -42,6 +42,9 @@ struct dp_aux {
 
 	bool read;
 
+	int dp_aux_switch_enable_gpio;
+	int dp_aux_switch_flip_gpio;
+
 	struct mutex *access_lock;
 
 	struct drm_dp_aux *drm_aux;

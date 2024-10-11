@@ -13,6 +13,8 @@
 #include <linux/soc/qcom/fsa4480-i2c.h>
 #include <linux/usb/phy.h>
 #include <linux/jiffies.h>
+#include <linux/pm_wakeup.h>
+#include <linux/of_gpio.h>
 
 #include "sde_connector.h"
 
@@ -213,6 +215,8 @@ struct dp_display_private {
 	bool process_hpd_connect;
 
 	struct notifier_block usb_nb;
+
+	struct wakeup_source *dp_wakelock;
 
 	u32 cell_idx;
 	u32 intf_idx[DP_STREAM_MAX];
@@ -663,15 +667,21 @@ static void dp_display_hdcp_cb_work(struct work_struct *work)
 		return;
 	}
 
+	__pm_stay_awake(dp->dp_wakelock);
+
 	dp_display_hdcp_process_delayed_off(dp);
 
 	rc = dp_display_hdcp_process_sink_sync(dp);
-	if (rc)
+	if (rc) {
+		__pm_relax(dp->dp_wakelock);
 		return;
+	}
 
 	rc = dp_display_hdcp_start(dp);
-	if (!rc)
+	if (!rc) {
+		__pm_relax(dp->dp_wakelock);
 		return;
+	}
 
 	dp_display_hdcp_print_auth_state(dp);
 
@@ -682,6 +692,8 @@ static void dp_display_hdcp_cb_work(struct work_struct *work)
 	dp_display_update_hdcp_status(dp, false);
 
 	dp_display_hdcp_process_state(dp);
+
+	__pm_relax(dp->dp_wakelock);
 }
 
 static void dp_display_notify_hdcp_status_cb(void *ptr,
@@ -1133,6 +1145,7 @@ static void dp_display_set_mst_mgr_state(struct dp_display_private *dp,
 	DP_MST_DEBUG("mst_mgr_state: %d\n", state);
 }
 
+extern void set_dp_state(bool state);
 static int dp_display_host_init(struct dp_display_private *dp)
 {
 	bool flip = false;
@@ -1146,6 +1159,7 @@ static int dp_display_host_init(struct dp_display_private *dp)
 		return rc;
 	}
 
+	set_dp_state(true);
 	if (dp->hpd->orientation == ORIENTATION_CC2)
 		flip = true;
 
@@ -1277,6 +1291,10 @@ static void dp_display_host_deinit(struct dp_display_private *dp)
 		SDE_EVT32_EXTERNAL(dp->state, dp->active_stream_cnt);
 		DP_DEBUG("active stream present\n");
 		return;
+	}
+
+	if (!dp_display_state_is(DP_STATE_CONNECTED)){
+		set_dp_state(false);
 	}
 
 	if (!dp_display_state_is(DP_STATE_INITIALIZED)) {
@@ -2153,6 +2171,38 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		goto error_aux;
 	}
 
+	dp->aux->dp_aux_switch_enable_gpio = of_get_named_gpio(dp->pdev->dev.of_node,
+			"mmi,aux-switch-enable-gpio", 0);
+	if (gpio_is_valid(dp->aux->dp_aux_switch_enable_gpio)) {
+		rc = devm_gpio_request(dev, dp->aux->dp_aux_switch_enable_gpio,
+				"aux-switch-enable-gpio");
+		if (rc < 0) {
+			DP_ERR("Failed to request switch_enable_gpio: %d\n",
+					dp->aux->dp_aux_switch_enable_gpio);
+			dp->aux->dp_aux_switch_enable_gpio = -EINVAL;
+		}
+	}
+	dp->aux->dp_aux_switch_flip_gpio = of_get_named_gpio(dp->pdev->dev.of_node,
+			"mmi,aux-switch-flip-gpio", 0);
+	if (gpio_is_valid(dp->aux->dp_aux_switch_flip_gpio)) {
+		rc = devm_gpio_request(dev, dp->aux->dp_aux_switch_flip_gpio,
+				"aux-switch-flip-gpio");
+		if (rc < 0) {
+			DP_ERR("Failed to request switch_flip_gpio: %d\n",
+					dp->aux->dp_aux_switch_flip_gpio);
+			dp->aux->dp_aux_switch_flip_gpio = -EINVAL;
+		}
+	}
+	if (gpio_is_valid(dp->aux->dp_aux_switch_flip_gpio)) {
+		if (gpio_is_valid(dp->aux->dp_aux_switch_enable_gpio))
+			gpio_direction_output(dp->aux->dp_aux_switch_enable_gpio, 1);
+		gpio_direction_output(dp->aux->dp_aux_switch_flip_gpio, 0);
+	} else {
+		if (gpio_is_valid(dp->aux->dp_aux_switch_enable_gpio))
+			devm_gpio_free(dev, dp->aux->dp_aux_switch_enable_gpio);
+		dp->aux->dp_aux_switch_enable_gpio = -EINVAL;
+	}
+
 	rc = dp->aux->drm_aux_register(dp->aux);
 	if (rc) {
 		DP_ERR("DRM DP AUX register failed\n");
@@ -2672,6 +2722,7 @@ static int dp_display_enable(struct dp_display *dp_display, void *panel)
 
 	dp_display_update_dsc_resources(dp, panel, true);
 	dp_display_state_add(DP_STATE_ENABLED);
+	set_dp_state(true);
 end:
 	mutex_unlock(&dp->session_lock);
 	SDE_EVT32_EXTERNAL(SDE_EVTLOG_FUNC_EXIT, dp->state, rc);
@@ -4131,6 +4182,11 @@ static int dp_display_probe(struct platform_device *pdev)
 		goto error;
 	}
 
+	dp->dp_wakelock = wakeup_source_register(&pdev->dev, "dp_wakelock");
+	if(!dp->dp_wakelock){
+		DP_ERR("failed to create dp_wakelock!\n");
+		goto error;
+	}
 	return 0;
 error:
 	devm_kfree(&pdev->dev, dp);
@@ -4238,6 +4294,8 @@ static int dp_display_remove(struct platform_device *pdev)
 		return -EINVAL;
 
 	dp = platform_get_drvdata(pdev);
+
+	wakeup_source_unregister(dp->dp_wakelock);
 
 	dp_display_deinit_sub_modules(dp);
 
