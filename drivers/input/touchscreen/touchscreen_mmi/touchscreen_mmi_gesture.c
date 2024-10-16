@@ -213,7 +213,7 @@ static inline void update_poison_center(struct touch_event_data *tev)
 
 static void ts_mmi_single_tap_handler(struct ts_mmi_dev *touch_cdev)
 {
-	unsigned char mode_type = touch_cdev->gesture_mode_type;
+	unsigned char __maybe_unused mode_type = touch_cdev->gesture_mode_type;
 	ktime_t now, tmp;
 
 	if (!touch_cdev->single_tap_pressed) {
