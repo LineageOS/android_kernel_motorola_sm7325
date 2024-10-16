@@ -896,6 +896,14 @@ config LEDS_QPNP_VIBRATOR_LDO
 	  peripheral found on Qualcomm Technologies, Inc. QPNP PMICs.
 	  The vibrator-ldo peripheral is capable of driving ERM vibrators.
 
+config LEDS_INDICATOR_PWM
+	tristate "LED driver to control pm6375 gpio8 for charging leds"
+	depends on LEDS_CLASS
+	help
+	  add leds-indicator-pwm.c driver to control pm6375 gpio8
+	  for charGing leds.
+	  Module will be named leds-indicator-pwm.ko
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 
