@@ -140,8 +140,8 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 	if (brightness > c_conn->thermal_max_brightness)
 		brightness = c_conn->thermal_max_brightness;
 
-	if (brightness && brightness < display->panel->bl_config.bl_min_level)
-		brightness = display->panel->bl_config.bl_min_level;
+	if (brightness && brightness < dsi_display->panel->bl_config.bl_min_level)
+		brightness = dsi_display->panel->bl_config.bl_min_level;
 
 	/* map UI brightness into driver backlight level with rounding */
 	bl_lvl = mult_frac(brightness, bl_max_level, brightness_max_level);
@@ -149,9 +149,11 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 	if (!bl_lvl && brightness)
 		bl_lvl = 1;
 
-	if (display->panel->bl_config.bl_remap) {
-		pr_debug("%s: remap bl_lvl from %d to %d", __func__, bl_lvl, bl_lut[bl_lvl]);
-		bl_lvl = bl_lut[bl_lvl];
+	if (c_conn->connector_type == DRM_MODE_CONNECTOR_DSI) {
+		if (dsi_display->panel->bl_config.bl_remap) {
+			pr_debug("%s: remap bl_lvl from %d to %d", __func__, bl_lvl, bl_lut[bl_lvl]);
+			bl_lvl = bl_lut[bl_lvl];
+		}
 	}
 
 	if (!c_conn->allow_bl_update) {
@@ -258,7 +260,10 @@ static int sde_backlight_setup(struct sde_connector *c_conn,
 	props.type = BACKLIGHT_RAW;
 	props.power = FB_BLANK_UNBLANK;
 	props.max_brightness = brightness_max_level;
-	props.brightness = brightness_default_level;
+	if (c_conn->connector_type == DRM_MODE_CONNECTOR_DSI)
+		props.brightness = dsi_bl_config->brightness_default_level;
+	else
+		props.brightness = brightness_max_level;
 	snprintf(bl_node_name, BL_NODE_NAME_SIZE, "panel%u-backlight",
 							display_count);
 	c_conn->bl_device = backlight_device_register(bl_node_name, dev->dev,
