@@ -639,7 +639,7 @@ static ssize_t fts_driver_test_write(struct file *file, const char __user *buf,
 	struct fts_ts_info *info = dev_get_drvdata(getDev());
 	char *p = NULL;
 	char *pbuf = NULL;
-	char path[100] = { 0 };
+	char path[101] = { 0 };
 	int res = -1, j, index = 0;
 	int size = 6;
 	int temp, byte_call = 0;
@@ -1884,7 +1884,7 @@ static ssize_t fts_driver_test_write(struct file *file, const char __user *buf,
 				else
 					logError(0,
 						 "%s Read FW File Finished!\n",
-						 tag);				
+						 tag);
 				logError(0,
 					 "%s Starting Flashing Page Erase...\n",
 					 tag);
