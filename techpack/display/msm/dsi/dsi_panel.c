@@ -1042,7 +1042,7 @@ end:
 	return rc;
 };
 
-static int dsi_panel_set_local_hbm_param(struct dsi_panel *panel,
+static int __maybe_unused dsi_panel_set_local_hbm_param(struct dsi_panel *panel,
                         struct msm_param_info *param_info,
                         struct dsi_panel_lhbm_config *lhbm_config)
 {

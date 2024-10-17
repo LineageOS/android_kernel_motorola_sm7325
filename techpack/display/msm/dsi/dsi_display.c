@@ -1124,7 +1124,7 @@ static int dsi_display_dispUtil_get_datatype (char dsi_cmd, u8 cmd_type,
 	return rc;
 }
 
-static int dsi_display_dispUtil_prepare(const char *cmd_buf, u32 cmd_buf_len,
+static int __maybe_unused dsi_display_dispUtil_prepare(const char *cmd_buf, u32 cmd_buf_len,
 	struct dsi_cmd_desc *cmd, u8 *payload, u32 payload_len_max,
 	struct motUtil *motUtil_data)
 {
