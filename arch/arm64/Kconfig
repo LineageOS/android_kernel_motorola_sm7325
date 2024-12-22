@@ -2019,3 +2019,9 @@ config AW882XX_PARAMS_FROM_BIN
         default n
         help
         Enable it only for params of smartPA is stored in bin file.
+
+config UDFPS_USES_LHBM
+        bool "UDFPS uses LHBM"
+        default n
+        help
+        Enable it only if UDFPS uses LHBM instead of GHBM.

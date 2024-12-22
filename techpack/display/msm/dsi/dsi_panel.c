@@ -874,8 +874,10 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 	if (dsi_panel_set_hbm_backlight(panel, &bl_lvl))
 		return 0;
 
+#ifdef UDFPS_USES_LHBM
 	if (panel->fod_hbm_enabled || panel->hbm_state)
 		goto skip_set;
+#endif
 
 	DSI_DEBUG("backlight type:%d lvl:%d\n", bl->type, bl_lvl);
 	switch (bl->type) {
@@ -904,10 +906,16 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 		rc = -ENOTSUPP;
 	}
 
+#ifndef UDFPS_USES_LHBM
+	bl->real_bl_level = bl_lvl;
+#endif
+
 	panel->fod_dim_alpha = dsi_panel_calc_fod_dim_alpha(panel, bl_lvl);
 
+#ifdef UDFPS_USES_LHBM
 skip_set:
 	bl->real_bl_level = bl_lvl;
+#endif
 
 	return rc;
 }
@@ -4612,6 +4620,7 @@ static ssize_t sysfs_hbm_off_delay_write(struct device *dev,
 	return count;
 }
 
+#ifdef UDFPS_USES_LHBM
 static int dsi_panel_update_hbm_cmd(struct dsi_panel_cmd_set *cmd_set,
 				    unsigned int index, unsigned int value)
 {
@@ -4754,6 +4763,7 @@ exit:
 
 	return rc ?: count;
 }
+#endif
 
 static DEVICE_ATTR(fod_ui, 0444, sysfs_fod_ui_read, NULL);
 static DEVICE_ATTR(hbm_on_delay, 0644,
@@ -4762,13 +4772,17 @@ static DEVICE_ATTR(hbm_on_delay, 0644,
 static DEVICE_ATTR(hbm_off_delay, 0644,
 		   sysfs_hbm_off_delay_read,
 		   sysfs_hbm_off_delay_write);
+#ifdef UDFPS_USES_LHBM
 static DEVICE_ATTR(fod_hbm, 0644, sysfs_fod_hbm_read, sysfs_fod_hbm_write);
+#endif
 
 static struct attribute *panel_attrs[] = {
 	&dev_attr_hbm_on_delay.attr,
 	&dev_attr_hbm_off_delay.attr,
 	&dev_attr_fod_ui.attr,
+#ifdef UDFPS_USES_LHBM
 	&dev_attr_fod_hbm.attr,
+#endif
 	NULL,
 };
 
@@ -5371,7 +5385,9 @@ int dsi_panel_get_mode(struct dsi_panel *panel,
 			int topology_override)
 {
 	struct device_node *timings_np, *child_np;
+#ifdef UDFPS_USES_LHBM
 	struct device_node *parent_np;
+#endif
 	struct dsi_parser_utils *utils;
 	struct dsi_display_mode_priv_info *prv_info;
 	u32 child_idx = 0;
@@ -5387,7 +5403,9 @@ int dsi_panel_get_mode(struct dsi_panel *panel,
 
 	mutex_lock(&panel->panel_lock);
 	utils = &panel->utils;
+#ifdef UDFPS_USES_LHBM
 	parent_np = utils->data;
+#endif
 
 	mode->priv_info = kzalloc(sizeof(*mode->priv_info), GFP_KERNEL);
 	if (!mode->priv_info) {
@@ -5448,6 +5466,7 @@ int dsi_panel_get_mode(struct dsi_panel *panel,
 			goto parse_fail;
 		}
 
+#ifdef UDFPS_USES_LHBM
 		utils->data = parent_np;
 		rc = dsi_panel_parse_cmd_sets(prv_info, utils);
 		if (rc) {
@@ -5455,6 +5474,7 @@ int dsi_panel_get_mode(struct dsi_panel *panel,
 			goto parse_fail;
 		}
 		utils->data = child_np;
+#endif
 
 		rc = dsi_panel_parse_cmd_sets(prv_info, utils);
 		if (rc) {
@@ -6320,11 +6340,13 @@ int dsi_panel_post_enable(struct dsi_panel *panel)
 
 	PANEL_NOTIFY(PANEL_EVENT_DISPLAY_ON);
 
+#ifdef UDFPS_USES_LHBM
 	if (panel->hbm_state) {
 		rc = dsi_panel_apply_hbm_status(panel);
 		if (rc)
 			goto error;
 	}
+#endif
 
 error:
 	mutex_unlock(&panel->panel_lock);
