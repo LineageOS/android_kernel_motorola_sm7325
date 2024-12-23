@@ -22,6 +22,30 @@
       },
       "revId": "cb92b5c55829dd066152c341124b94725065b505",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "39ad4772_fe46abb5",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 7,
+      "author": {
+        "id": 10067
+      },
+      "writtenOn": "2024-12-23T21:41:43Z",
+      "side": 1,
+      "message": "also shouldn\u0027t be treewide if it\u0027s only touching a single file.",
+      "parentUuid": "5e2511a2_e54df79d",
+      "range": {
+        "startLine": 7,
+        "startChar": 14,
+        "endLine": 7,
+        "endChar": 22
+      },
+      "revId": "cb92b5c55829dd066152c341124b94725065b505",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
