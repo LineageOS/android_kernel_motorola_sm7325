@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "abb77438_e3b0a340",
+        "filename": "drivers/usb/dwc3/gadget.c",
+        "patchSetId": 2
+      },
+      "lineNbr": 236,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2025-02-15T14:20:58Z",
+      "side": 1,
+      "message": "This doesn\u0027t look correct",
+      "range": {
+        "startLine": 228,
+        "startChar": 1,
+        "endLine": 236,
+        "endChar": 11
+      },
+      "revId": "15f704adaeed208eb90fa108c2fc7508e1d47fde",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
