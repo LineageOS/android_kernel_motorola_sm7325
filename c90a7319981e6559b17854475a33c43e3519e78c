@@ -16,6 +16,24 @@
       "message": "to restore LTO stuff",
       "revId": "c90a7319981e6559b17854475a33c43e3519e78c",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "afa54cad_689091fa",
+        "filename": "arch/arm64/configs/vendor/lahaina-qgki_defconfig",
+        "patchSetId": 2
+      },
+      "lineNbr": 110,
+      "author": {
+        "id": 16185
+      },
+      "writtenOn": "2025-02-24T02:20:40Z",
+      "side": 0,
+      "message": "Done",
+      "parentUuid": "727ab06d_0d5b498b",
+      "revId": "c90a7319981e6559b17854475a33c43e3519e78c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
