@@ -16,6 +16,23 @@
       "message": "WIP testing",
       "revId": "ca100db174116fdfa1b9522a2eb03d7150c43a30",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "3618552b_a7992668",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19252
+      },
+      "writtenOn": "2025-05-07T19:54:13Z",
+      "side": 1,
+      "message": "Works well",
+      "revId": "ca100db174116fdfa1b9522a2eb03d7150c43a30",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
