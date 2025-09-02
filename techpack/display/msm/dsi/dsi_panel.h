@@ -408,8 +408,6 @@ struct dsi_panel {
 	int paramNum;
 
 	bool hbm_state;
-	bool acl_state;
-	bool cabc_state;
 
 	struct brightness_alpha_pair *fod_dim_lut;
 	unsigned int fod_dim_lut_len;
