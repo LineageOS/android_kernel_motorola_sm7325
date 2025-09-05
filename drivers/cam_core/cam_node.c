@@ -854,7 +854,7 @@ int cam_node_handle_ioctl(struct cam_node *node, struct cam_control *cmd)
 					"Unmatched struct api version %u and struct version %u",
 					api_version, struct_version);
 				rc = -EINVAL;
-				goto acquire_free;
+				goto acquire_kfree;
 			}
 
 			rc = __cam_node_handle_acquire_hw_v1(node, acquire_ptr);
@@ -871,7 +871,7 @@ int cam_node_handle_ioctl(struct cam_node *node, struct cam_control *cmd)
 					"Unmatched struct api version %u and struct version %u",
 					api_version, struct_version);
 				rc = -EINVAL;
-				goto acquire_free;
+				goto acquire_kfree;
 			}
 
 			rc = __cam_node_handle_acquire_hw_v2(node, acquire_ptr);
