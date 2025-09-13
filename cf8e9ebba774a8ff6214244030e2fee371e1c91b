@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "79b78065_0a92e964",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19252
+      },
+      "writtenOn": "2025-09-13T05:26:46Z",
+      "side": 1,
+      "message": "../../../../../../kernel/motorola/sm7325/techpack/display/msm/dsi/dsi_panel.c:1154:9: error: no member named \u0027hbm_state\u0027 in \u0027struct dsi_panel\u0027\n 1154 |         panel-\u003ehbm_state \u003d param_info-\u003evalue;\n      |         ~~~~~  ^\n1 error generated.",
+      "revId": "cf8e9ebba774a8ff6214244030e2fee371e1c91b",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
