@@ -1279,16 +1279,16 @@ static DEVICE_ATTR(dsi_display_parse_para, 0664,
 			dsi_display_parse_para_get,
 			dsi_display_parse_para_update);
 
-static DEVICE_ATTR(dsi_display_hbm, 0644,
+static DEVICE_ATTR(hbm, 0644,
 			dsi_display_hbm_get,
 			dsi_display_hbm_set);
-static DEVICE_ATTR(dsi_display_acl, 0644,
+static DEVICE_ATTR(acl, 0644,
 			dsi_display_acl_get,
 			dsi_display_acl_set);
-static DEVICE_ATTR(dsi_display_cabc, 0644,
+static DEVICE_ATTR(cabc, 0644,
 			dsi_display_cabc_get,
 			dsi_display_cabc_set);
-static DEVICE_ATTR(dsi_display_dc, 0644,
+static DEVICE_ATTR(dc, 0644,
 			dsi_display_dc_get,
 			dsi_display_dc_set);
 
@@ -1304,28 +1304,28 @@ static struct attribute_group dsi_display_mot_ext_fs_attrs_group = {
 };
 
 static struct attribute *dsi_display_mot_ext_fs_hbm_attrs[] = {
-	&dev_attr_dsi_display_hbm.attr,
+	&dev_attr_hbm.attr,
 	NULL,
 };
 static struct attribute_group dsi_display_mot_ext_fs_hbm_attrs_group = {
 	.attrs = dsi_display_mot_ext_fs_hbm_attrs,
 };
 static struct attribute *dsi_display_mot_ext_fs_acl_attrs[] = {
-	&dev_attr_dsi_display_acl.attr,
+	&dev_attr_acl.attr,
 	NULL,
 };
 static struct attribute_group dsi_display_mot_ext_fs_acl_attrs_group = {
 	.attrs = dsi_display_mot_ext_fs_acl_attrs,
 };
 static struct attribute *dsi_display_mot_ext_fs_cabc_attrs[] = {
-	&dev_attr_dsi_display_cabc.attr,
+	&dev_attr_cabc.attr,
 	NULL,
 };
 static struct attribute_group dsi_display_mot_ext_fs_cabc_attrs_group = {
 	.attrs = dsi_display_mot_ext_fs_cabc_attrs,
 };
 static struct attribute *dsi_display_mot_ext_fs_dc_attrs[] = {
-	&dev_attr_dsi_display_dc.attr,
+	&dev_attr_dc.attr,
 	NULL,
 };
 static struct attribute_group dsi_display_mot_ext_fs_dc_attrs_group = {
