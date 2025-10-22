@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "955dd803_a5d60341",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19252
+      },
+      "writtenOn": "2025-10-22T02:51:56Z",
+      "side": 1,
+      "message": "Please test on berl* as this works fine on dubai\n\ndubai:/sys/devices/platform/soc/soc:qcom,dsi-display-primary # ls -1\ndc\ndriver\ndriver_override\ndsi_display_early_power\ndsi_display_parse_para\ndsi_display_wakeup\nearly_test_en\nfod_ui\nhbm\nhbm_off_delay\nhbm_on_delay\nmodalias\nof_node\npower\nsubsystem\nsupplier:18200000.rsc:rpmh-regulator-ldoc12\nsupplier:18200000.rsc:rpmh-regulator-ldoc13\nsupplier:ae94400.qcom,mdss_dsi_phy0\nsupplier:af00000.clock-controller\nsupplier:f000000.pinctrl\nsupplier:regulator.47\nsupplier:regulator.48\nsupplier:regulator.57\nsupplier:soc:disp_dvdd\nuevent\nwakeup",
+      "revId": "3cd2c696d4316bded8e9635e97c7596b3ed43cb7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
