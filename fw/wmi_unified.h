@@ -10256,6 +10256,12 @@ typedef enum {
 
     /** Beacon antenna for smart antenna */
     WMI_PDEV_PARAM_SMART_ANTENNA_BEACON_ANTENNA,
+
+    /*
+     * The extra early rx duration (in usec units) when
+     * adaptive early rx is disabled
+     */
+    WMI_PDEV_PARAM_ADAPTIVE_EARLY_RX_EXTRA_SLEEP_SLOP,
 } WMI_PDEV_PARAM;
 
 #define WMI_PDEV_ONLY_BSR_TRIG_IS_ENABLED(trig_type) WMI_GET_BITS(trig_type, 0, 1)
@@ -27932,13 +27938,36 @@ typedef struct {
      *     0 - need check sub channel marking
      *     1 - full bandwidth need put to NOL
      *     Refer to WMI_RADAR_FLAGS_FULL_BW_NOL_GET and _SET macros
-     * [1:31] reserved
+     *
+     * Bits 1-7:
+     *     RADAR TYPE field (currently reserved for future use)
+     *     When implemented, this field will indicate the type of
+     *     radar detected.
+     *     The meaning of the different values of this radar type field
+     *     will be specified in the future.
+     *     Refer to WMI_RADAR_FLAGS_RADAR_TYPE_GET and _SET macros.
+     *
+     * Bits 8-15:
+     *     RADAR RSSI in dBm in the range of -128 to +127.
+     *     This 8-bit value is interpreted as a twos-complement signed number
+     *     (so for example, 0x80 = -128, 0x0 = 0, and 0x7f = 127).
+     *     This bit field is valid only if the
+     *     WMI_SERVICE_RADAR_FLAGS_RSSI_DBM_SUPPORT
+     *     wmi service flag is set.
+     *
+     * [16:31] reserved
      */
     A_UINT32 flags;
 }  WMI_RADAR_FLAGS;
 
 #define WMI_RADAR_FLAGS_FULL_BW_NOL_BITPOS    0
 #define WMI_RADAR_FLAGS_FULL_BW_NOL_NUM_BITS  1
+
+#define WMI_RADAR_FLAGS_RADAR_TYPE_BITPOS     1
+#define WMI_RADAR_FLAGS_RADAR_TYPE_NUM_BITS   7
+
+#define WMI_RADAR_FLAGS_RSSI_DBM_BITPOS       8
+#define WMI_RADAR_FLAGS_RSSI_DBM_NUM_BITS     8
 
 #define WMI_RADAR_FLAGS_FULL_BW_NOL_GET(flag) \
     WMI_GET_BITS(flag, \
@@ -27948,6 +27977,25 @@ typedef struct {
     WMI_SET_BITS(flag, \
         WMI_RADAR_FLAGS_FULL_BW_NOL_BITPOS, \
         WMI_RADAR_FLAGS_FULL_BW_NOL_NUM_BITS, val)
+
+#define WMI_RADAR_FLAGS_RADAR_TYPE_GET(flag) \
+    WMI_GET_BITS(flag, \
+        WMI_RADAR_FLAGS_RADAR_TYPE_BITPOS, \
+        WMI_RADAR_FLAGS_RADAR_TYPE_NUM_BITS)
+#define WMI_RADAR_FLAGS_RADAR_TYPE_SET(flag, val) \
+    WMI_SET_BITS(flag, \
+        WMI_RADAR_FLAGS_RADAR_TYPE_BITPOS, \
+        WMI_RADAR_FLAGS_RADAR_TYPE_NUM_BITS, val)
+
+#define WMI_RADAR_FLAGS_RSSI_DBM_GET(flag) \
+    ((A_INT8)WMI_GET_BITS(flag, \
+        WMI_RADAR_FLAGS_RSSI_DBM_BITPOS, \
+        WMI_RADAR_FLAGS_RSSI_DBM_NUM_BITS))
+#define WMI_RADAR_FLAGS_RSSI_DBM_SET(flag, val) \
+    WMI_SET_BITS(flag, \
+        WMI_RADAR_FLAGS_RSSI_DBM_BITPOS, \
+        WMI_RADAR_FLAGS_RSSI_DBM_NUM_BITS, val)
+
 
 typedef enum {
     OCAC_COMPLETE = 0,

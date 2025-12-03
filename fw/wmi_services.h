@@ -745,6 +745,7 @@ typedef  enum  {
     WMI_SERVICE_CFR_ASSOC_TX_CAPTURE_SUPPORT = 481, /* Indicates FW supports TX-based CFR capture */
     WMI_SERVICE_VDEV_UNIFIED_CONNECT_DISCONNECT_SUPPORT = 482, /* Indicates FW support for unified connect and disconnect vdev cmds for link switch */
     WMI_SERVICE_ENHANCED_STATS_SUPPORT = 483, /* Indicates FW supports "enhanced stats" */
+    WMI_SERVICE_RADAR_FLAGS_RSSI_DBM_SUPPORT = 484, /* Indicates FW support to add RSSI in dBm units in WMI radar event */
 
 
     WMI_MAX_EXT2_SERVICE
