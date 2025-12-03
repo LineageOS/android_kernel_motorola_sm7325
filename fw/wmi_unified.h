@@ -10256,6 +10256,12 @@ typedef enum {
 
     /** Beacon antenna for smart antenna */
     WMI_PDEV_PARAM_SMART_ANTENNA_BEACON_ANTENNA,
+
+    /*
+     * The extra early rx duration (in usec units) when
+     * adaptive early rx is disabled
+     */
+    WMI_PDEV_PARAM_ADAPTIVE_EARLY_RX_EXTRA_SLEEP_SLOP,
 } WMI_PDEV_PARAM;
 
 #define WMI_PDEV_ONLY_BSR_TRIG_IS_ENABLED(trig_type) WMI_GET_BITS(trig_type, 0, 1)
