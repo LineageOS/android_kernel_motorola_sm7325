@@ -17752,10 +17752,10 @@ typedef enum {
 } wmi_vdev_update_mac_addr_conf_status;
 
 /** values for vdev_type */
-#define WMI_VDEV_TYPE_AP         0x1
-#define WMI_VDEV_TYPE_STA        0x2
-#define WMI_VDEV_TYPE_IBSS       0x3
-#define WMI_VDEV_TYPE_MONITOR    0x4
+#define WMI_VDEV_TYPE_AP            0x1
+#define WMI_VDEV_TYPE_STA           0x2
+#define WMI_VDEV_TYPE_IBSS          0x3
+#define WMI_VDEV_TYPE_MONITOR       0x4
 
 /** VDEV type is for social wifi interface.This VDEV is Currently mainly needed
 * by FW to execute the NAN specific WMI commands and also implement NAN specific
@@ -17764,14 +17764,16 @@ typedef enum {
 * WMI command to create this VDEV once during initialization and host is not
 * expected to use any VDEV specific WMI commands on this VDEV.
 **/
-#define WMI_VDEV_TYPE_NAN        0x5
+#define WMI_VDEV_TYPE_NAN           0x5
 
-#define WMI_VDEV_TYPE_OCB        0x6
+#define WMI_VDEV_TYPE_OCB           0x6
 
 /* NAN Data Interface */
-#define WMI_VDEV_TYPE_NDI        0x7
+#define WMI_VDEV_TYPE_NDI           0x7
 
-#define WMI_VDEV_TYPE_MESH_POINT 0x8
+#define WMI_VDEV_TYPE_MESH_POINT    0x8
+
+#define WMI_VDEV_TYPE_WIFI_PASSTHRU 0x9
 
 /*
  * Param values to be sent for WMI_VDEV_PARAM_SGI command
