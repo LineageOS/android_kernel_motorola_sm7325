@@ -1300,6 +1300,9 @@ typedef struct {
     } bytes_sent;
     /* increment array based on AC */
     A_UINT32 num_ppdu_tried_ota_per_ac[HTT_NUM_AC_WMM];
+    A_UINT32 hw_reaped_lpi;
+    A_UINT32 hw_reaped_sp;
+    A_UINT32 hw_reaped_vlp;
 } htt_stats_tx_pdev_cmn_tlv;
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_tx_pdev_cmn_tlv htt_tx_pdev_stats_cmn_tlv;
