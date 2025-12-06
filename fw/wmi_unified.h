@@ -21057,6 +21057,15 @@ enum wmi_sta_powersave_param {
      *  Value determines the ITO level to apply
      */
     WMI_STA_PS_PARAM_ITO_LEVEL = 13,
+
+    /**
+     * TX/RX inactivity time in msec before going to sleep in wow.
+     *
+     * The power save SM will monitor tx/rx activity on the VDEV, if no
+     * activity for the specified msec of the parameter the Power save SM will
+     * go to sleep.
+     */
+    WMI_STA_PS_PARAM_INACTIVITY_TIME_WOW = 14,
 };
 
 typedef struct {
