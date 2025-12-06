@@ -746,6 +746,7 @@ typedef  enum  {
     WMI_SERVICE_VDEV_UNIFIED_CONNECT_DISCONNECT_SUPPORT = 482, /* Indicates FW support for unified connect and disconnect vdev cmds for link switch */
     WMI_SERVICE_ENHANCED_STATS_SUPPORT = 483, /* Indicates FW supports "enhanced stats" */
     WMI_SERVICE_RADAR_FLAGS_RSSI_DBM_SUPPORT = 484, /* Indicates FW support to add RSSI in dBm units in WMI radar event */
+    WMI_SERVICE_WOW_STA_PS_PARAM_CACHE_SUPPORT = 485,  /* Indicates FW support for WOW timeline optimization feature */
 
 
     WMI_MAX_EXT2_SERVICE

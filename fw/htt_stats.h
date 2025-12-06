@@ -1300,8 +1300,11 @@ typedef struct {
     } bytes_sent;
     /* increment array based on AC */
     A_UINT32 num_ppdu_tried_ota_per_ac[HTT_NUM_AC_WMM];
+    /** Number of hardware reaped (Tx completed) packets in LPI mode */
     A_UINT32 hw_reaped_lpi;
+    /** Number of hardware reaped (Tx completed) packets in SP mode */
     A_UINT32 hw_reaped_sp;
+    /** Number of hardware reaped (Tx completed) packets in VLP mode */
     A_UINT32 hw_reaped_vlp;
 } htt_stats_tx_pdev_cmn_tlv;
 /* preserve old name alias for new name consistent with the tag name */
@@ -5365,6 +5368,8 @@ typedef struct {
     A_UINT32 num_subcycles_with_sort;
     /** Num of subcycles without sort for this Txq */
     A_UINT32 num_subcycles_no_sort;
+    /** num of times DPS client is scheduled */
+    A_UINT32 num_dps_client_scheduled;
 } htt_stats_tx_pdev_scheduler_txq_stats_tlv;
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_tx_pdev_scheduler_txq_stats_tlv
