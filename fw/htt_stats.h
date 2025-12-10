@@ -858,6 +858,14 @@ enum htt_dbg_ext_stats_type {
      */
     HTT_DBG_EXT_STATS_OPTIONAL_CONFIGS = 77,
 
+    /** HTT_DBG_EXT_STATS_PDEV_SAM
+     * PARAMS:
+     *   - No Params
+     * RESP MSG:
+     *   - htt_stats_pdev_sam_tlv
+     */
+    HTT_DBG_EXT_STATS_PDEV_SAM = 78,
+
 
     /* keep this last */
     HTT_DBG_NUM_EXT_STATS = 256,
@@ -14782,5 +14790,52 @@ typedef struct {
     A_UINT32 mcs_tpc_diff[HTT_NUM_MCS_PER_NSS]; /* shows current MCS's difference between maximum and minimum TPC in 0.25dB unit*/
 } htt_stats_gtx_tlv;
 /*===================== End GTX stats ====================*/
+
+
+#define HTT_TX_PDEV_SAM_STATS_MAX_CMD_STATUS_TYPE 16
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    A_UINT32 pdev_id;
+    /*
+     * Number of commands posted on the FW -> SAM Command Ring. The index has
+     * an internal firmware meaning (this stat is primarily provided for
+     * internal debug), but is related to the type of command that has been
+     * posted.
+     */
+    A_UINT32 cmd_posted[HTT_TX_PDEV_SAM_STATS_MAX_CMD_STATUS_TYPE];
+    /*
+     * Number of statuses reaped on the SAM -> FW Status Ring. The index has an
+     * internal firmware meaning (this stat is primarily provided for internal
+     * debug), but is related to the type of status that is being processed.
+     */
+    A_UINT32 status_reaped[HTT_TX_PDEV_SAM_STATS_MAX_CMD_STATUS_TYPE];
+    /*
+     * Incremented each time a first_summary_bitmap_change_seen TLV is
+     * processed on the SAM -> FW Status ring.
+     */
+    A_UINT32 first_seen_tlv_reaped;
+    /*
+     * Number of MSDUQ Empty -> Not Empty transitions observed through SAM
+     * Queue Bitmaps.
+     */
+    A_UINT32 msduq_to_not_empty_cnt;
+    /*
+     * Number of MSDUQ Not Empty -> Empty transitions observed through SAM
+     * Queue Bitmaps.
+     */
+    A_UINT32 msduq_to_empty_cnt;
+    /*
+     * Number of MPDUQ Empty -> Not Empty transitions observed through SAM
+     * Queue Bitmaps.
+     */
+    A_UINT32 mpduq_to_not_empty_cnt;
+    /*
+     * Number of MPDUQ Not Empty -> Empty transitions observed through SAM
+     * Queue Bitmaps.
+     */
+    A_UINT32 mpduq_to_empty_cnt;
+} htt_stats_pdev_sam_tlv;
+
 
 #endif /* __HTT_STATS_H__ */
