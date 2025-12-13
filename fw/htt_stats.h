@@ -866,6 +866,22 @@ enum htt_dbg_ext_stats_type {
      */
     HTT_DBG_EXT_STATS_PDEV_SAM = 78,
 
+    /** HTT_DBG_EXT_STATS_FTM
+     * PARAMS:
+     *   - No Params
+     * RESP MSG:
+     *   - htt_stats_ftm_tlv
+     */
+    HTT_DBG_EXT_STATS_FTM = 79,
+
+    /** HTT_DBG_EXT_STATS_PDEV_FTM_TPCCAL_EXT
+     * PARAMS:
+     *   - No Params
+     * RESP MSG:
+     *    - htt_stats_pdev_ftm_tpccal_ext_tlv
+     */
+    HTT_DBG_EXT_STATS_PDEV_FTM_TPCCAL_EXT = 80,
+
 
     /* keep this last */
     HTT_DBG_NUM_EXT_STATS = 256,
@@ -10727,6 +10743,8 @@ typedef struct {
  */
 #define HTT_MAX_TPCCAL_STATS 25
 #define HTT_STATS_TPC_CAL_MAX_NUM_POINTS 64
+#define HTT_STATS_NUM_CAL_GAINS_SELECTED_4_GLUT 16
+#define HTT_STATS_NUM_CAL_GAINS_SELECTED_4_PLUT 10
 
 typedef struct {
     htt_tlv_hdr_t   tlv_hdr;
@@ -10859,7 +10877,185 @@ typedef struct {
             };
         };
     } tpccal_stats_postproc;
+
+    /* cal DB timeout in ms */
+    A_UINT32 calDbTimeoutMs;
+
+    struct{
+        /* tgtMeasPwr uses dBm units */
+        A_INT32  tgtMeasPwr[HTT_STATS_NUM_CAL_GAINS_SELECTED_4_GLUT];
+        A_UINT32 tgtPdadc[HTT_STATS_NUM_CAL_GAINS_SELECTED_4_PLUT];
+    } tpcTargets;
 } htt_stats_pdev_ftm_tpccal_tlv;
+
+
+#define HTT_STATS_TPCCAL_PDADC_LAST_IDX_M 0x000000ff
+#define HTT_STATS_TPCCAL_PDADC_LAST_IDX_S 0
+
+#define HTT_STATS_TPCCAL_PDADC_LAST_IDX_GET(_var) \
+    (((_var) & HTT_STATS_TPCCAL_PDADC_LAST_IDX_M) >> \
+     HTT_STATS_TPCCAL_PDADC_LAST_IDX_S)
+
+#define HTT_STATS_TPCCAL_PDADC_NUMGAIN_M 0x000000ff
+#define HTT_STATS_TPCCAL_PDADC_NUMGAIN_S 0
+
+#define HTT_STATS_TPCCAL_PDADC_NUMGAIN_GET(_var) \
+    (((_var) & HTT_STATS_TPCCAL_PDADC_NUMGAIN_M) >> \
+     HTT_STATS_TPCCAL_PDADC_NUMGAIN_S)
+
+#define HTT_STATS_TPCCAL_PDADC_BAND_M 0x000000ff
+#define HTT_STATS_TPCCAL_PDADC_BAND_S 0
+
+#define HTT_STATS_TPCCAL_PDADC_BAND_GET(_var) \
+    (((_var) & HTT_STATS_TPCCAL_PDADC_BAND_M) >> \
+     HTT_STATS_TPCCAL_PDADC_BAND_S)
+
+#define HTT_STATS_TPCCAL_PDADC_CHANNEL_M 0x00ffff00
+#define HTT_STATS_TPCCAL_PDADC_CHANNEL_S 8
+
+#define HTT_STATS_TPCCAL_PDADC_CHANNEL_GET(_var) \
+    (((_var) & HTT_STATS_TPCCAL_PDADC_CHANNEL_M) >> \
+     HTT_STATS_TPCCAL_PDADC_CHANNEL_S)
+
+#define HTT_STATS_TPCCAL_PDADC_CHAIN_M 0xff000000
+#define HTT_STATS_TPCCAL_PDADC_CHAIN_S 24
+
+#define HTT_STATS_TPCCAL_PDADC_CHAIN_GET(_var) \
+    (((_var) & HTT_STATS_TPCCAL_PDADC_CHAIN_M) >> \
+     HTT_STATS_TPCCAL_PDADC_CHAIN_S)
+
+#define HTT_STATS_TPCCAL_RES_PDADC_GAINIDX_M 0x000000ff
+#define HTT_STATS_TPCCAL_RES_PDADC_GAINIDX_S 0
+
+#define HTT_STATS_TPCCAL_RES_PDADC_GAINIDX_GET(_var) \
+    (((_var) & HTT_STATS_TPCCAL_RES_PDADC_GAINIDX_M) >> \
+     HTT_STATS_TPCCAL_RES_PDADC_GAINIDX_S)
+
+#define HTT_STATS_TPCCAL_RES_PDADC_VAL_M 0x0000ff00
+#define HTT_STATS_TPCCAL_RES_PDADC_VAL_S 8
+
+#define HTT_STATS_TPCCAL_RES_PDADC_VAL_GET(_var) \
+    (((_var) & HTT_STATS_TPCCAL_RES_PDADC_VAL_M) >> \
+     HTT_STATS_TPCCAL_RES_PDADC_VAL_S)
+
+#define HTT_STATS_TPCCAL_RES_PDADC_MEASPWR_M 0x0000ffff
+#define HTT_STATS_TPCCAL_RES_PDADC_MEASPWR_S 0
+
+#define HTT_STATS_TPCCAL_RES_PDADC_MEASPWR_GET(_var) \
+    (((_var) & HTT_STATS_TPCCAL_RES_PDADC_MEASPWR_M) >> \
+     HTT_STATS_TPCCAL_RES_PDADC_MEASPWR_S)
+
+#define HTT_STATS_TPC_CAL_PDADC_BUF_LEN 3
+
+#define  HTT_STATS_FTM_TPCCAL_CALDATA   (1 << 0)
+#define  HTT_STATS_FTM_TPCCAL_CALINFO   (1 << 1)
+#define  HTT_STATS_FTM_TPCCAL_CALERROR  (1 << 2)
+
+#define  HTT_STATS_FTM_TPCCAL_DONE_MASK (1 << 7)
+
+#define  HTT_STATS_FTM_TPCCALRSP_MISCFLAGS_CALERROR_GLUTS_NOT_FILLED  (1 << 16)
+#define  HTT_STATS_FTM_TPCCALRSP_MISCFLAGS_CALERROR_PLUT_NON_LINEAR   (1 << 17)
+#define  HTT_STATS_FTM_TPCCALRSP_MISCFLAGS_CALERROR_ATTEMPTS_EXCEEDED (1 << 18)
+#define  HTT_STATS_FTM_TPCCALRSP_MISCFLAGS_CALERROR_PLUT_NOT_FILLED   (1 << 19)
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+
+    /*
+     * calStatus can be intrepreted with the below values:
+     *   TPCCAL_CALDATA                                 (1 << 0)
+     *   TPCCAL_CALINFO                                 (1 << 1)
+     *   TPCCAL_CALERROR                                (1 << 2)
+     *   bits 6:4 - reserved
+     *   TPCCAL_DONE_MASK                               (1 << 7)
+     *   bits 15:8 - reserved
+     *   TPCCALRSP_MISCFLAGS_CALERROR_GLUTS_NOT_FILLED  (1 << 16)
+     *   TPCCALRSP_MISCFLAGS_CALERROR_PLUT_NON_LINEAR   (1 << 17)
+     *   TPCCALRSP_MISCFLAGS_CALERROR_ATTEMPTS_EXCEEDED (1 << 18)
+     *   TPCCALRSP_MISCFLAGS_CALERROR_PLUT_NOT_FILLED   (1 << 19)
+     *   bits 31:20 - reserved
+     */
+    A_UINT32 calStatus;
+
+    /* dword__tpccal_pdadc_last_idx:
+     * Hold the last updated index for pdadc buffer which holds
+     * band,chain,chanIdx,gainIdx for pdadc non-linearity
+     * BIT [7 : 0]   :- tpcccal_pdadc_last_idx
+     * BIT [31 : 8]  :- rsvd
+     */
+    union {
+        A_UINT32 dword__tpccal_pdadc_last_idx;
+        struct {
+            A_UINT32 tpccal_pdadc_last_idx:8,
+                     rsvd:24;
+        };
+    };
+
+    struct {
+        /* dword__tpccal_pdadc_numgain:
+         * Hold the number of gainIdx for band for which PDADC
+         * non-linearity is observed
+         * BIT [7 : 0]   :- tpccal_pdadc_numgain
+         * BIT [31 : 8]  :- rsvd1
+         */
+        union {
+            A_UINT32 dword__tpccal_pdadc_numgain;
+            struct {
+                A_UINT32 tpccal_pdadc_numgain:8,
+                         rsvd1:24;
+            };
+        };
+
+        /*
+         * dword__band_channel_chain:
+         * band, channel, chain for which pdadc is non-linear
+         * BIT [7 : 0]   :- band
+         * BIT [23 : 8]  :- channel
+         * BIT [31 : 24] :- chain
+         */
+        union {
+            A_UINT32 dword__band_channel_chain;
+            struct {
+                A_UINT32 band:8,
+                         channel:16,
+                         chain:8;
+            };
+        };
+    } tpccal_stats_pdadc[HTT_STATS_TPC_CAL_PDADC_BUF_LEN];
+
+    struct {
+        /* dword__calres_gainIdx_pdadc:
+         * holds pdadc, gainindex from tpcCalResult for
+         * band, channel, chain, gainIdx for which pdadc is non-linear
+         * dword__calres_gainIdx_pdadc
+         * BIT [7 : 0]  :- gainIdx
+         * BIT [15 : 8] :- pdadc
+         * BIT [31 : 16] :- rsvd2
+         */
+        union {
+            A_UINT32 dword__calres_gainIdx_pdadc;
+            struct {
+                A_UINT32 gainIdx:8,
+                         pdadc:8,
+                         rsvd2:16;
+            };
+        };
+
+        /*
+         * dword__measPwr:
+         * BIT [15 : 0]  :- measPwr
+         * BIT [31 : 16] :- rsvd3
+         */
+        union {
+            A_INT32 dword__measPwr;
+            struct {
+                A_INT32 measPwr:16, /* dBm units */
+                        rsvd3:16;
+            };
+        };
+    } tpccal_stats_tpcCalResult[HTT_STATS_TPC_CAL_PDADC_BUF_LEN][HTT_STATS_TPC_CAL_MAX_NUM_POINTS];
+} htt_stats_pdev_ftm_tpccal_ext_tlv;
+
 
 #define HTT_DLPAGER_STATS_MAX_HIST            10
 #define HTT_DLPAGER_ASYNC_LOCKED_PAGE_COUNT_M 0x000000FF
@@ -11230,6 +11426,13 @@ typedef htt_stats_phy_counters_tlv htt_phy_counters_tlv;
         ((_var) |= ((_val) << HTT_STATS_ANI_MODE_S)); \
     } while (0)
 
+#define HTT_STATS_CURR_EANI_MODE_M 0x000000ff
+#define HTT_STATS_CURR_EANI_MODE_S 0
+
+#define HTT_STATS_CURR_EANI_MODE_GET(_var) \
+    (((_var) & HTT_STATS_CURR_EANI_MODE_M) >> \
+     HTT_STATS_CURR_EANI_MODE_S)
+
 typedef struct {
     htt_tlv_hdr_t tlv_hdr;
     /** per chain hw noise floor values in dBm */
@@ -11298,6 +11501,36 @@ typedef struct {
             A_UINT32
                 ani_mode: 8,
                 reserved: 24;
+        };
+    };
+
+    /* dl_max_ANI:
+     * Maximum ANI level that would be allowable for algorithm
+     * to choose the desense levels and its in dB units,
+     * higher values indicating more noise interference/more desense.
+     */
+    A_INT32 dl_max_ANI;
+
+    /* Minimum RSSI of connected clients - dBm units */
+    A_INT32 ani_dl_max_for_rssi;
+
+    /*
+     * BIT [ 7 :  0]   :- curEANIMode
+     * BIT [31 :  8]   :- rsvd
+     *
+     * curEANIMode:
+     * EANI_MODE_MIN_DESENSE = 0,
+     * EANI_MODE_MAX_DESENSE = 1,
+     * EANI_MODE_DEFAULT_DESENSE = 2,
+     * EANI_MODE_MAX,
+     * EANI_MODE_TYPE_INVALID = 0xFF
+     */
+    union {
+        A_UINT32 dword_curEANIMode;
+        struct {
+            A_UINT32
+                curEANIMode: 8,
+                rsvd: 24;
         };
     };
 } htt_stats_phy_stats_tlv;
@@ -12063,6 +12296,306 @@ typedef struct {
     (((word) & 0x100) >> 8)
 #define HTT_STATS_OPT_CONF_SET_MULTIGAIN_RSSI(word, value) \
     ((word) = ((word) & ~0x100) | (((value) & 0x1) << 8))
+
+
+/* FTM STATS */
+/* ================= dword_txparams ================= */
+#define HTT_STATS_XTAL_GAIN_IDX_M        0x000000FF
+#define HTT_STATS_XTAL_GAIN_IDX_S        0
+#define HTT_STATS_GET_XTAL_GAIN_IDX(word) \
+    (((word) & HTT_STATS_XTAL_GAIN_IDX_M) >> HTT_STATS_XTAL_GAIN_IDX_S)
+
+#define HTT_STATS_INFINITE_BURST_MODE_M  0x0000FF00
+#define HTT_STATS_INFINITE_BURST_MODE_S  8
+#define HTT_STATS_GET_INFINITE_BURST_MODE(word) \
+    (((word) & HTT_STATS_INFINITE_BURST_MODE_M) >> HTT_STATS_INFINITE_BURST_MODE_S)
+
+#define HTT_STATS_FTM_MODE_M             0x00FF0000
+#define HTT_STATS_FTM_MODE_S             16
+#define HTT_STATS_GET_FTM_MODE(word) \
+    (((word) & HTT_STATS_FTM_MODE_M) >> HTT_STATS_FTM_MODE_S)
+
+#define HTT_STATS_SIFS_US_M              0xFF000000
+#define HTT_STATS_SIFS_US_S              24
+#define HTT_STATS_GET_SIFS_US(word) \
+    (((word) & HTT_STATS_SIFS_US_M) >> HTT_STATS_SIFS_US_S)
+
+/* ================= dword_txparams_ext_1 ================= */
+#define HTT_STATS_AGG_STATUS_M           0x00000001
+#define HTT_STATS_AGG_STATUS_S           0
+#define HTT_STATS_GET_AGG_STATUS(word) \
+    (((word) & HTT_STATS_AGG_STATUS_M) >> HTT_STATS_AGG_STATUS_S)
+
+#define HTT_STATS_DPD_FLAG_M             0x00000002
+#define HTT_STATS_DPD_FLAG_S             1
+#define HTT_STATS_GET_DPD_FLAG(word) \
+    (((word) & HTT_STATS_DPD_FLAG_M) >> HTT_STATS_DPD_FLAG_S)
+
+/* Bits [9:2] -> 8-bit field */
+#define HTT_STATS_PPDU_DUR_LAST_IDX_M    0x000003FC
+#define HTT_STATS_PPDU_DUR_LAST_IDX_S    2
+#define HTT_STATS_GET_PPDU_DUR_LAST_IDX(word) \
+    (((word) & HTT_STATS_PPDU_DUR_LAST_IDX_M) >> HTT_STATS_PPDU_DUR_LAST_IDX_S)
+
+/* ================= dword_txparams_ext_2 ================= */
+#define HTT_STATS_TARGET_TX_DUTY_M       0x000000FF
+#define HTT_STATS_TARGET_TX_DUTY_S       0
+#define HTT_STATS_GET_TARGET_TX_DUTY(word) \
+    (((word) & HTT_STATS_TARGET_TX_DUTY_M) >> HTT_STATS_TARGET_TX_DUTY_S)
+
+#define HTT_STATS_PPDU_TYPE_M            0x0000FF00
+#define HTT_STATS_PPDU_TYPE_S            8
+#define HTT_STATS_GET_PPDU_TYPE(word) \
+    (((word) & HTT_STATS_PPDU_TYPE_M) >> HTT_STATS_PPDU_TYPE_S)
+
+#define HTT_STATS_NUM_USERS_OFDMA_M      0x00FF0000
+#define HTT_STATS_NUM_USERS_OFDMA_S      16
+#define HTT_STATS_GET_NUM_USERS_OFDMA(word) \
+    (((word) & HTT_STATS_NUM_USERS_OFDMA_M) >> HTT_STATS_NUM_USERS_OFDMA_S)
+
+#define HTT_STATS_NUM_USERS_OFDMA_EHT_M  0xFF000000
+#define HTT_STATS_NUM_USERS_OFDMA_EHT_S  24
+#define HTT_STATS_GET_NUM_USERS_OFDMA_EHT(word) \
+    (((word) & HTT_STATS_NUM_USERS_OFDMA_EHT_M) >> HTT_STATS_NUM_USERS_OFDMA_EHT_S)
+
+/* ================= dword_TimingStats ================= */
+#define HTT_STATS_TLV_TIMESTAMP_CNT_M    0x000000FF
+#define HTT_STATS_TLV_TIMESTAMP_CNT_S    0
+#define HTT_STATS_GET_TLV_TIMESTAMP_CNT(word) \
+    (((word) & HTT_STATS_TLV_TIMESTAMP_CNT_M) >> HTT_STATS_TLV_TIMESTAMP_CNT_S)
+
+/* ================= dword_TlvcmdInfo ================= */
+#define HTT_STATS_TLV_CMD_ENTRY_M        0x0000FFFF
+#define HTT_STATS_TLV_CMD_ENTRY_S        0
+#define HTT_STATS_GET_TLV_CMD_ENTRY(word) \
+    (((word) & HTT_STATS_TLV_CMD_ENTRY_M) >> HTT_STATS_TLV_CMD_ENTRY_S)
+
+#define HTT_STATS_TLV_CAL_TYPE_M         0x00FF0000
+#define HTT_STATS_TLV_CAL_TYPE_S         16
+#define HTT_STATS_GET_TLV_CAL_TYPE(word) \
+    (((word) & HTT_STATS_TLV_CAL_TYPE_M) >> HTT_STATS_TLV_CAL_TYPE_S)
+
+/* ================= dword_TlvCmdParsing ================= */
+#define HTT_STATS_FLAG_TLV_CMD_PARSING_M 0x00000001
+#define HTT_STATS_FLAG_TLV_CMD_PARSING_S 0
+#define HTT_STATS_GET_FLAG_TLV_CMD_PARSING(word) \
+    (((word) & HTT_STATS_FLAG_TLV_CMD_PARSING_M) >> HTT_STATS_FLAG_TLV_CMD_PARSING_S)
+
+#define HTT_STATS_NUM_TLV_CMD_DROPPED_M  0x000001FE
+#define HTT_STATS_NUM_TLV_CMD_DROPPED_S  1
+#define HTT_STATS_GET_NUM_TLV_CMD_DROPPED(word) \
+    (((word) & HTT_STATS_NUM_TLV_CMD_DROPPED_M) >> HTT_STATS_NUM_TLV_CMD_DROPPED_S)
+
+/* ================= dword_rxGaincalMaxNumchan ================= */
+#define HTT_STATS_RXGAINCAL_MAX_NUMCHAN_M     0x000000FF
+#define HTT_STATS_RXGAINCAL_MAX_NUMCHAN_S     0
+#define HTT_STATS_GET_RXGAINCAL_MAX_NUMCHAN(word) \
+    (((word) & HTT_STATS_RXGAINCAL_MAX_NUMCHAN_M) >> HTT_STATS_RXGAINCAL_MAX_NUMCHAN_S)
+
+/* ================= dword_rxgainCalRefISS ================= */
+#define HTT_STATS_RXGAINCAL_REF_ISS_M         0x000000FF
+#define HTT_STATS_RXGAINCAL_REF_ISS_S         0
+#define HTT_STATS_GET_RXGAINCAL_REF_ISS(word) \
+    (((word) & HTT_STATS_RXGAINCAL_REF_ISS_M) >> HTT_STATS_RXGAINCAL_REF_ISS_S)
+
+
+#define HTT_STATS_FTM_TIMESTAMP_TOTAL_CNT 50
+#define HTT_STATS_FTM_PPDU_DUR_CIRCULAR_BUF_CNT 10
+#define HTT_STATS_FTM_RXGAINCAL_MAX_NUM_CHAN_TLV2 16
+#define HTT_STATS_FTM_FPC_TIMING_SHIFT    32ULL
+
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+
+    struct {
+        /* TX PARAMS
+         *
+         * BIT [7 : 0]   :- gain idx used for xtal cal CW tone
+         * BIT [15 : 8]  :- infinite_bursting_mode
+         * BIT [23 : 16] :- ftm_mode
+         * BIT [31 : 24] :- sifs_us
+         */
+        union {
+            A_UINT32 dword_txparams;
+            struct {
+                A_UINT32
+                     xtalCal_gain_idx:       8,
+                     infinite_bursting_mode: 8,
+                     ftm_mode:               8,
+                     sifs_us:                8;
+            };
+        };
+
+        /* dword_txparams_ext_1
+         * BIT [0]       :- agg_status
+         * BIT [1]       :- dpdFlag
+         * BIT [9 : 2]   :- ppdu_dur_buf_last_idx (last idx of ppdu duration
+         *                  circular buffer - 'actual_ppdu_dur_us')
+         * BIT [31 : 10] :- rsvd
+         */
+        union {
+            A_UINT32 dword_txparams_ext_1;
+            struct {
+                A_UINT32
+                    agg_status:             1,
+                    dpdFlag:                1,
+                    ppdu_dur_buf_last_idx:  8,
+                    rsvd:                  22;
+            };
+        };
+
+        /* Circular buffer containing actual ppdu duration_us */
+        A_UINT32 actual_ppdu_dur_us[HTT_STATS_FTM_PPDU_DUR_CIRCULAR_BUF_CNT];
+
+        A_UINT32 target_fes_duration_us;  /* TX time */
+        A_UINT32 target_txoff_duration_us; /* TX OFF duration */
+        A_UINT32 phy_mode; /* PHY mode selected */
+        A_UINT32 pkt_len_post_truncation; /* Packet length post truncation */
+
+        /* dword_txparams_ext_2
+         * BIT [7 : 0]   :- target_tx_duty (TX ON ratio)
+         * BIT [15 : 8]  :- PpduType
+         * BIT [23 : 16] :- numUsers_ofdmaTonePlan
+         * BIT [31 : 24] :- numUsers_ofdmaTonePlanEHT
+         */
+        union {
+            A_UINT32 dword_txparams_ext_2;
+            struct {
+                A_UINT32
+                    target_tx_duty:            8,
+                    PpduType:                  8,
+                    numUsers_ofdmaTonePlan:    8,
+                    numUsers_ofdmaTonePlanEHT: 8;
+            };
+        };
+    } tx_params;
+
+    /* CALIBRATION VERIFICATION FW ONLY TIMING STATS (uS) */
+    struct {
+        /*
+         * ts_FPC - 64 bits,
+         * ts_FPC_low  - bits[31:0] of 64 bits
+         * ts_FPC_high - bits[63:32] of 64 bits
+         */
+        A_UINT32 ts_FPC_low;
+        A_UINT32 ts_FPC_high;
+
+        A_UINT32 ts_calDbRegenTime; /* calDb regeneration time for FPC */
+        A_UINT32 ts_OPC;
+        A_UINT32 ts_xtalcal;
+        A_UINT32 ts_rxgaincal;
+        A_UINT32 ts_nfcal;
+        A_UINT32 ts_tx_ver;
+        A_UINT32 ts_rx_ver;
+
+        /* Overall channel change time for tx/rx verification */
+        A_UINT32 tx_ver_OverallChanChangeTiming_ts;
+        A_UINT32 rx_ver_OverallChanChangeTiming_ts;
+
+        /* dword_TimingStats:
+         * Number of TLVs for which TlvCmdInfo to be dumped
+         * BIT [7:0]      :- TlvTimeStampCntFilled
+         * BIT [31 :8]   :- rsvd1
+         */
+        union {
+            A_UINT32 dword_TimingStats;
+            struct {
+                A_UINT32
+                    TlvTimeStampCntFilled:  8,
+                    rsvd1:                 24;
+            };
+        };
+
+        /* TLV cmd and timing info */
+        struct {
+            A_UINT32 TlvTimeStamp_delta; /* Time of TLV CMD entry in ts */
+
+            /* dword_TlvcmdInfo
+             * TLV CMD ID and calType corresponding to TLV
+             * BIT [15:0]       :- TlvCmd_entry - TLV cmd ID
+             * BIT [23 : 16]    :- TlvCalType - calType
+             * BIT [31 : 24]    :- rsvd2
+             */
+            union {
+                A_UINT32 dword_TlvcmdInfo;
+                struct {
+                    A_UINT32
+                        TlvCmd_entry: 16,
+                        TlvCalType:    8,
+                        rsvd2:         8;
+                };
+            };
+        } TlvCmdTimingInfo[HTT_STATS_FTM_TIMESTAMP_TOTAL_CNT];
+    } timingStats;
+
+    /* TLV params */
+    struct {
+        /* Total number of TLV parameters for last TLV */
+        A_UINT32 LastTlv_numParams;
+
+        /* Number of TLV params parsed for last TLV */
+        A_UINT32 LastTlv_numParamsParsed;
+
+        A_UINT32 LastTlvCmd; /* Last TLV CMD being executed */
+        A_UINT32 LastTlvRspCmd; /* Last TLV CMD for which RSP is sent */
+
+        /* dword_TlvCmdParsing
+         * BIT [0]      :- flagTlvCmdParsing - Flag indicating entire TLV CMD
+         *                 being parsed/dropped
+         * BIT [8 : 1]  :- numTlvCmdDropped  - count of entire TLV CMDs dropped
+         * BIT [31 : 9] :- rsvd3
+         */
+        union {
+            A_UINT32 dword_TlvCmdParsing;
+            struct {
+                A_UINT32
+                    flagTlvCmdParsing:  1,
+                    numTlvCmdDropped:   8,
+                    rsvd3:             23;
+            };
+        };
+
+        A_UINT32 LastTlvCmdDropped; /* Last TLV CMD dropped */
+    } tlvParams;
+
+    /* RX gain cal params */
+    struct{
+        /* dword_rxGaincalMaxNumchan
+         * Num channels for which goodPktCnt for RX gain cal to be dumped
+         * BIT [7 : 0]     :- rxGaincalMaxNumchan
+         * BIT [31 : 8]    :- rsvd4
+         */
+        union {
+            A_UINT32 dword_rxGaincalMaxNumchan;
+            struct {
+                A_UINT32
+                    rxGaincalMaxNumchan:  8,
+                    rsvd4:               24;
+            };
+        };
+
+        A_UINT32 goodPktCnt[HTT_STATS_FTM_RXGAINCAL_MAX_NUM_CHAN_TLV2];
+
+        /* dword_rxgainCalRefISS
+         * Reference Input Signal Strength for Rx gain cal in dBm
+         * BIT [7 : 0]     :- RxGainCal_refISS
+         * BIT [31 : 8]    :- rsvd
+         */
+        union {
+            A_INT32 dword_rxgainCalRefISS;
+            struct {
+                A_INT32
+                    RxGainCal_refISS:  8,
+                    rsvd5:            24;
+            };
+        };
+    } rxGainCalParams;
+
+    /* Miscellaneous params */
+
+    A_UINT32 bdReadRsp;
+} htt_stats_ftm_tlv;
 
 
 typedef struct {
