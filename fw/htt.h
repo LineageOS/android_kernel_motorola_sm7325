@@ -883,6 +883,8 @@ typedef enum {
     HTT_STATS_TXBF_OFDMA_BN_PARBW_TAG               = 231, /* htt_stats_txbf_ofdma_bn_parbw_tlv */
     HTT_STATS_OPTIONAL_CONFIGS_TAG                  = 232, /* htt_stats_optional_configs_tlv */
     HTT_STATS_PDEV_SAM_TAG                          = 233, /* htt_stats_pdev_sam_tlv */
+    HTT_STATS_FTM_TAG                               = 234, /* htt_stats_ftm_tlv */
+    HTT_STATS_PDEV_FTM_TPCCAL_EXT_TAG               = 235, /* htt_stats_pdev_ftm_tpccal_ext_tlv */
 
 
     HTT_STATS_MAX_TAG,
