@@ -23006,6 +23006,19 @@ typedef struct {
      * If per_chain_noise_floor value is 0 then it should be ignored.
      */
     A_UINT32 per_chain_noise_floor[WMI_MAX_CHAINS];
+    /**
+     * FW will update the Noise Floor in dBr and send it to host
+     * if this field is set then host will display NF value in dBr
+     */
+    A_UINT32 nf_db_is_valid;
+    /**
+     * Noise Floor (NF) value in dBr. If the NF is not converged then
+     * NF value is returned as 0 to host. Theoretical minimum NF value
+     * is -101 dB for 20 MHz bandwidth and the max value can be 0.
+     * PHY reports 0 incase of very high NF values.
+     * This field should be ignored unless the nf_db_is_valid flag is set.
+     */
+    A_UINT32 noise_floor_in_db;
 
 /**
  * Following this structure is the optional TLV:
@@ -38041,6 +38054,7 @@ typedef enum {
     WMI_REQUEST_CTRL_PATH_ML_RECONFIG_STAT  = 22,
     WMI_REQUEST_CTRL_PATH_STA_DAR_STAT      = 23,
     WMI_REQUEST_ENHANCED_STAT               = 24,
+    WMI_REQUEST_CTRL_PATH_EM_PCIE_STAT      = 25,
 } wmi_ctrl_path_stats_id;
 
 typedef enum {
@@ -47341,6 +47355,35 @@ typedef struct {
     /* Set of RX BW counters for data PPDUs */
     A_UINT32 rx_bw_data_ppdu[WMI_STATS_EXT_EVENT_VDEV_EXT_BW_COUNTERS_MAX];
 } wmi_vdev_data_stats;
+
+
+#define WMI_EM_PCIE_MAX_CHIP 4
+#define WMI_EM_PCIE_MAX_NUM_MAC 3
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_em_pcie_stats */
+    A_UINT32 is_cumac; /* set to '1' if SoC has CUMAC, else set to '0' */
+    A_UINT32 enable;   /* set to '1' if feature enable, else set to '0' */
+    A_UINT32 config_type; /* feature configuration type */
+    /* mlo_partner_chip_bw:
+     * MLO partner chip BW information, represented as a FW-internal BW enum
+     * (Thus, this field is intended only for interactive debugging, and not
+     * for interpretation by the host SW.)
+     */
+    A_UINT32 mlo_partner_bw[WMI_EM_PCIE_MAX_CHIP];
+    /* mlo_partner_nss: MLO partner chip NSS information */
+    A_UINT32 mlo_partner_nss[WMI_EM_PCIE_MAX_CHIP];
+    /* pdev_bw:
+     * Per PDEV BW, represented as a FW-internal BW enum
+     * (Thus, this field is intended only for interactive debugging, and not
+     * for interpretation by the host SW.)
+     */
+    A_UINT32 pdev_bw[WMI_EM_PCIE_MAX_NUM_MAC];
+    A_UINT32 curr_pcie_gen;      /* current PCIe generation number */
+    A_UINT32 curr_pcie_lanes;    /* current number of PCIe lanes */
+    A_UINT32 pending_pcie_gen;   /* pending PCIe generation number */
+    A_UINT32 pending_pcie_lanes; /* pending number of PCIe lanes */
+} wmi_em_pcie_stats;
 
 
 #define WMI_UNIFIED_CHAIN_PHASE_MASK 0x0000ffff

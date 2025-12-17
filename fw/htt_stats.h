@@ -3515,6 +3515,36 @@ typedef enum {
     HTT_RU_ALLOC_NUM_MODES
 } HTT_RU_ALLOC_MODE;
 
+typedef enum {
+    HTT_TX_PDEV_STATS_BN_DRU_SIZE_26,
+    HTT_TX_PDEV_STATS_BN_DRU_SIZE_52,
+    HTT_TX_PDEV_STATS_BN_DRU_SIZE_106,
+    HTT_TX_PDEV_STATS_BN_DRU_SIZE_242,
+    HTT_TX_PDEV_STATS_BN_DRU_SIZE_484,
+
+    HTT_TX_PDEV_STATS_NUM_BN_DRU_SIZE_COUNTERS
+} HTT_TX_PDEV_STATS_BN_DRU_SIZE;
+
+typedef enum {
+    HTT_BN_UL_OFDMA_RRU_ONLY_ALLOC_MODE,
+    HTT_BN_UL_OFDMA_DRU_ONLY_ALLOC_MODE,
+    HTT_BN_UL_OFDMA_HYBRID_RU_ALLOC_MODE,
+
+    /* Reserving additional modes for future use */
+    HTT_BN_UL_OFDMA_RU_ALLOC_MODE_RESERVED_1,
+    HTT_BN_UL_OFDMA_RU_ALLOC_MODE_RESERVED_2,
+
+    HTT_BN_UL_OFDMA_NUM_RU_ALLOC_MODES
+} HTT_BN_UL_OFDMA_RU_ALLOC_MODE;
+
+typedef enum {
+    HTT_BN_UL_OFDMA_DRU_SBW_20MHZ,
+    HTT_BN_UL_OFDMA_DRU_SBW_40MHZ,
+    HTT_BN_UL_OFDMA_DRU_SBW_80MHZ,
+
+    HTT_BN_UL_OFDMA_NUM_DRU_SBW_COUNT
+} HTT_BN_UL_OFDMA_DRU_SBW_SIZE;
+
 typedef struct {
     htt_tlv_hdr_t tlv_hdr;
 
@@ -3829,6 +3859,9 @@ typedef struct {
     A_UINT32 manual_bn_mu_ulofdma_basic_trigger[HTT_NUM_AC_WMM];
     /** 11BN UHR Manual Multi-User UL OFDMA Trigger completed with error(s) */
     A_UINT32 manual_bn_mu_ulofdma_basic_trigger_err[HTT_NUM_AC_WMM];
+
+    /** 11BN UHR UL OFDMA RU allocation mode */
+    A_UINT32 bn_basic_trig_ru_alloc_mode[HTT_BN_UL_OFDMA_NUM_RU_ALLOC_MODES];
 } htt_stats_tx_selfgen_bn_tlv;
 
 typedef struct { /* DEPRECATED */
@@ -7727,6 +7760,11 @@ typedef struct {
      * response to basic trigger. Typically a data response is expected.
      */
     A_UINT32 bn_ul_ofdma_basic_trigger_rx_qos_null_only;
+
+    /* UL OFDMA DRU spreading BW size */
+    A_UINT32 bn_ul_ofdma_rx_dru_sbw[HTT_BN_UL_OFDMA_NUM_DRU_SBW_COUNT];
+    /* UL OFDMA DRU size of data PPDU */
+    A_UINT32 bn_rx_ulofdma_data_dru_size_ppdu[HTT_TX_PDEV_STATS_NUM_BN_DRU_SIZE_COUNTERS];
 } htt_stats_rx_pdev_be_bn_ul_trig_tlv;
 /* preserve old names as aliases */
 typedef htt_stats_rx_pdev_be_bn_ul_trig_tlv
@@ -9534,6 +9572,9 @@ typedef struct {
 
     /* PER stats for iMCS 1.1, 3.1, 4.1, 7.1 */
     htt_tx_rate_stats_t per_mcs_ext_3[HTT_TX_PDEV_STATS_NUM_EXTRA3_MCS_COUNTERS];
+
+    /* PER stats per DRU size */
+    htt_tx_rate_stats_t per_dru[HTT_TX_PDEV_STATS_NUM_BN_DRU_SIZE_COUNTERS];
 } htt_stats_per_rate_stats_tlv;
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_per_rate_stats_tlv htt_tx_rate_stats_per_tlv;
