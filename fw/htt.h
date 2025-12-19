@@ -276,9 +276,10 @@
  * 3.146 Add HTT_RXOLE_ASE_STATUS_RING def.
  * 3.147 Add direct_refill flag in SRING_SETUP msg.
  * 3.148 Add HTT_PEER_CFR_CAPTURE_BW_320MHZ def.
+ * 3.149 Add SAM fields in MPDUQ_OR_MSDUQ_INFO.
  */
 #define HTT_CURRENT_VERSION_MAJOR 3
-#define HTT_CURRENT_VERSION_MINOR 148
+#define HTT_CURRENT_VERSION_MINOR 149
 
 #define HTT_NUM_TX_FRAG_DESC  1024
 
@@ -11783,6 +11784,19 @@ PREPACK struct htt_h2t_mpduq_and_msduq_info_hdr {
  *              tid_num (in bits 16:12)
  *              msduq_mpduq_type (in bits 21:17)
  * dword3 - b'31:0  - pn_addr_0_31: Lower 32 bits of 40 bit pn physical address
+ * dword4 - b'0:0   - sam_mpduq_allocated: Indicates whether a SAM MPDUQ has
+ *                    been allocated for this TQM MPDUQ.
+ *          b'11:1  - sam_mpduq_id: The SAM MPDUQ ID assigned by the host for
+ *                    this TQM MPDUQ. The value in this field is ignored if
+ *                    sam_mpduq_allocated is 0.
+ *          b'13:12 - sam_mpduq_priority: The SAM priority assigned by the
+ *                    host. A SAM priority MUST ALWAYS be provided for chipsets
+ *                    that have SAM support, regardless of whether or not a SAM
+ *                    MPDUQ has been allocated.
+ *          b'14:14 - sam_mpduq_sched_eligible: Indicates that this SAM MPDUQ
+ *                    is eligible for autonomous SAM scheduling. The value in
+ *                    this field is ignored if sam_mpduq_allocated is 0.
+ *          b'31:15 – reserved
  * Additional reserved dwords for future use cases
  *
  *
@@ -11807,6 +11821,24 @@ PREPACK struct htt_h2t_mpduq_and_msduq_info_hdr {
  * dword2 - b'31:0  - msduq_address_39_8: 256 byte aligned msduq physical
  *                    address, since lowest octet is zero for 256 byte aligned
  *                    addresses just passing upper 32 bits of 40 bit address
+ * dword3 - b'0:0   - svc_inst_req_type_valid: Indicates whether
+ *                    svc_inst_req_type is valid.
+ *          b'3:1   - svc_inst_req_type: Contains one of the values from
+ *                    HTT_SAWF_SVC_INST_REQ_TYPE. Only valid if
+ *                    svc_inst_req_type_valid is 1.
+ *          b'4:4   - sam_msduq_allocated: Indicates whether a SAM MSDUQ has
+ *                    been allocated for this TQM MSDUQ.
+ *          b'17:5  - sam_msduq_id: The SAM MSDUQ ID assigned by the host for
+ *                    this TQM MSDUQ. The value in this field is ignored if
+ *                    sam_msduq_allocated is 0.
+ *          b'19:18 - sam_msduq_priority: The SAM priority assigned by the
+ *                    host. A SAM priority MUST ALWAYS be provided for chipsets
+ *                    that have SAM support, regardless of whether or not a SAM
+ *                    MSDUQ has been allocated.
+ *          b'20:20 - sam_msduq_sched_eligible: Indicates that this SAM MSDUQ
+ *                    is eligible for autonomous SAM scheduling. The value in
+ *                    this field is ignored if sam_msduq_allocated is 0.
+ *          b'31:21 – reserved
  * Additional reserved dwords for future use cases
  */
 
@@ -11869,7 +11901,11 @@ PREPACK struct htt_h2t_mpduq_or_msduq_info {
             A_UINT32 mpduq_number:            24, /* bits 23:0  */
                      pn_addr_39_32:            8; /* bits 31:24 */
             A_UINT32 pn_addr_31_0;                /* bits 31:0  */
-            A_UINT32 reserved1a;                  /* bits 31:0  */
+            A_UINT32 sam_mpduq_allocated:      1, /* bit     0  */
+                     sam_mpduq_id:            11, /* bits 11:1  */
+                     sam_mpduq_priority:       2, /* bits 13:12 */
+                     sam_mpduq_sched_eligible: 1, /* bit     14 */
+                     reserved1a:              17; /* bits 31:15 */
             A_UINT32 reserved1b;                  /* bits 31:0  */
             A_UINT32 reserved1c;                  /* bits 31:0  */
             A_UINT32 reserved1d;                  /* bits 31:0  */
@@ -11885,7 +11921,11 @@ PREPACK struct htt_h2t_mpduq_or_msduq_info {
                       * contains a HTT_SAWF_SVC_INST_REQ_TYPE value
                       */
                      svc_inst_req_type:        3, /* bits  3:1  */
-                     reserved2a:              28; /* bits 31:4  */
+                     sam_msduq_allocated:      1, /* bit     4  */
+                     sam_msduq_id:            13, /* bits 17:5  */
+                     sam_msduq_priority:       2, /* bits 19:18 */
+                     sam_msduq_sched_eligible: 1, /* bit     20 */
+                     reserved2a:              11; /* bits 31:21 */
             A_UINT32 reserved2b;                  /* bits 31:0  */
             A_UINT32 reserved2c;                  /* bits 31:0  */
             A_UINT32 reserved2d;                  /* bits 31:0  */
@@ -11895,6 +11935,8 @@ PREPACK struct htt_h2t_mpduq_or_msduq_info {
         };
     };
 } POSTPACK;
+
+/* MPDUQ/MSDUQ shared fields of HTT_H2T_MSG_TYPE_MPDUQ_OR_MSDUQ_INFO */
 
 #define HTT_H2T_MSG_TYPE_MPDUQ_OR_MSDUQ_INFO_MSDUQ_MPDUQ_TYPE_M    0x00001F00
 #define HTT_H2T_MSG_TYPE_MPDUQ_OR_MSDUQ_INFO_MSDUQ_MPDUQ_TYPE_S             8
@@ -11953,6 +11995,9 @@ PREPACK struct htt_h2t_mpduq_or_msduq_info {
         ((_var) |= ((_val) << HTT_H2T_MSG_TYPE_MPDUQ_OR_MSDUQ_NUMBER_MSDUQ_MPDUQ_TYPE_S)); \
     } while (0)
 
+
+/* MPDUQ Variant of HTT_H2T_MSG_TYPE_MPDUQ_OR_MSDUQ_INFO */
+
 #define HTT_H2T_MSG_TYPE_MPDUQ_INFO_MPDUQ_ADDRESS_39_8_M   0xFFFFFFFF
 #define HTT_H2T_MSG_TYPE_MPDUQ_INFO_MPDUQ_ADDRESS_39_8_S            0
 #define HTT_H2T_MSG_TYPE_MPDUQ_INFO_MPDUQ_ADDRESS_39_8_GET(_var) \
@@ -11998,6 +12043,53 @@ PREPACK struct htt_h2t_mpduq_or_msduq_info {
         HTT_CHECK_SET_VAL(HTT_H2T_MSG_TYPE_MPDUQ_INFO_PN_ADDRESS_31_0, _val);  \
         ((_var) |= ((_val) << HTT_H2T_MSG_TYPE_MPDUQ_INFO_PN_ADDRESS_31_0_S)); \
     } while (0)
+
+#define HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_ALLOCATED_M    0x00000001
+#define HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_ALLOCATED_S             0
+#define HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_ALLOCATED_GET(_var) \
+        (((_var) & HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_ALLOCATED_M) >> \
+                HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_ALLOCATED_S)
+#define HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_ALLOCATED_SET(_var, _val) \
+    do {                                                     \
+        HTT_CHECK_SET_VAL(HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_ALLOCATED, _val);  \
+        ((_var) |= ((_val) << HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_ALLOCATED_S)); \
+    } while (0)
+
+#define HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_ID_M    0x00000FFE
+#define HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_ID_S             1
+#define HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_ID_GET(_var) \
+        (((_var) & HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_ID_M) >> \
+                HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_ID_S)
+#define HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_ID_SET(_var, _val) \
+    do {                                                     \
+        HTT_CHECK_SET_VAL(HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_ID, _val);  \
+        ((_var) |= ((_val) << HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_ID_S)); \
+    } while (0)
+
+#define HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_PRIORITY_M    0x00003000
+#define HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_PRIORITY_S            12
+#define HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_PRIORITY_GET(_var) \
+        (((_var) & HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_PRIORITY_M) >> \
+                HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_PRIORITY_S)
+#define HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_PRIORITY_SET(_var, _val) \
+    do {                                                     \
+        HTT_CHECK_SET_VAL(HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_PRIORITY, _val);  \
+        ((_var) |= ((_val) << HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_PRIORITY_S)); \
+    } while (0)
+
+#define HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_SCHED_ELIGIBLE_M    0x00004000
+#define HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_SCHED_ELIGIBLE_S            14
+#define HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_SCHED_ELIGIBLE_GET(_var) \
+        (((_var) & HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_SCHED_ELIGIBLE_M) >> \
+                HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_SCHED_ELIGIBLE_S)
+#define HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_SCHED_ELIGIBLE_SET(_var, _val) \
+    do {                                                     \
+        HTT_CHECK_SET_VAL(HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_SCHED_ELIGIBLE, _val);  \
+        ((_var) |= ((_val) << HTT_H2T_MSG_TYPE_MPDUQ_INFO_SAM_MPDUQ_SCHED_ELIGIBLE_S)); \
+    } while (0)
+
+
+/* MSDUQ Variant of HTT_H2T_MSG_TYPE_MPDUQ_OR_MSDUQ_INFO */
 
 #define HTT_H2T_MSG_TYPE_MSDUQ_INFO_TX_MSDUQ_NUMBER_M           0x00FFFFFF
 #define HTT_H2T_MSG_TYPE_MSDUQ_INFO_TX_MSDUQ_NUMBER_S                    0
@@ -12052,6 +12144,50 @@ PREPACK struct htt_h2t_mpduq_or_msduq_info {
     do {                                                     \
         HTT_CHECK_SET_VAL(HTT_H2T_MSG_TYPE_MSDUQ_INFO_SVC_INST_REQ_TYPE, _val);  \
         ((_var) |= ((_val) << HTT_H2T_MSG_TYPE_MSDUQ_INFO_SVC_INST_REQ_TYPE_S)); \
+    } while (0)
+
+#define HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_ALLOCATED_M    0x00000010
+#define HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_ALLOCATED_S             4
+#define HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_ALLOCATED_GET(_var) \
+        (((_var) & HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_ALLOCATED_M) >> \
+                HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_ALLOCATED_S)
+#define HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_ALLOCATED_SET(_var, _val) \
+    do {                                                     \
+        HTT_CHECK_SET_VAL(HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_ALLOCATED, _val);  \
+        ((_var) |= ((_val) << HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_ALLOCATED_S)); \
+    } while (0)
+
+#define HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_ID_M    0x0003FFE0
+#define HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_ID_S             5
+#define HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_ID_GET(_var) \
+        (((_var) & HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_ID_M) >> \
+                HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_ID_S)
+#define HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_ID_SET(_var, _val) \
+    do {                                                     \
+        HTT_CHECK_SET_VAL(HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_ID, _val);  \
+        ((_var) |= ((_val) << HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_ID_S)); \
+    } while (0)
+
+#define HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_PRIORITY_M    0x000C0000
+#define HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_PRIORITY_S            18
+#define HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_PRIORITY_GET(_var) \
+        (((_var) & HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_PRIORITY_M) >> \
+                HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_PRIORITY_S)
+#define HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_PRIORITY_SET(_var, _val) \
+    do {                                                     \
+        HTT_CHECK_SET_VAL(HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_PRIORITY, _val);  \
+        ((_var) |= ((_val) << HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_PRIORITY_S)); \
+    } while (0)
+
+#define HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_SCHED_ELIGIBLE_M    0x00100000
+#define HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_SCHED_ELIGIBLE_S            20
+#define HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_SCHED_ELIGIBLE_GET(_var) \
+        (((_var) & HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_SCHED_ELIGIBLE_M) >> \
+                HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_SCHED_ELIGIBLE_S)
+#define HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_SCHED_ELIGIBLE_SET(_var, _val) \
+    do {                                                     \
+        HTT_CHECK_SET_VAL(HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_SCHED_ELIGIBLE, _val);  \
+        ((_var) |= ((_val) << HTT_H2T_MSG_TYPE_MSDUQ_INFO_SAM_MSDUQ_SCHED_ELIGIBLE_S)); \
     } while (0)
 
 

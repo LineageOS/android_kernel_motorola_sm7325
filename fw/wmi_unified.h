@@ -22808,7 +22808,8 @@ typedef struct {
                       */
                      peer_cck_rx_support_5ghz : 1,
                      peer_cck_tx_support_5ghz : 1,
-                     reserved                 :28;
+                     sam_peer_id_valid        : 1,
+                     reserved                 :27;
         };
         A_UINT32 flags;
     };
@@ -22818,7 +22819,8 @@ typedef struct {
     A_UINT32 hw_peer_id;
     /** peer type: see enum values above */
     A_UINT32 peer_type;
-
+    /** Global SAM Peer ID, valid only if sam_peer_id_valid is set */
+    A_UINT32 sam_peer_id;
 
 /* Following this struct are the TLV's:
  *     A_UINT8 peer_legacy_rates[];
