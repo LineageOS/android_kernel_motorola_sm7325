@@ -7148,6 +7148,56 @@ typedef struct {
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_tx_pdev_ppdu_dur_tlv htt_tx_pdev_ppdu_dur_stats_tlv;
 
+
+#define HTT_TX_PDEV_BN_RATE_STATS_MAC_ID_M 0x000000ff
+#define HTT_TX_PDEV_BN_RATE_STATS_MAC_ID_S 0
+#define HTT_TX_PDEV_BN_RATE_STATS_MAC_ID_GET(_var) \
+    (((_var) & HTT_TX_PDEV_BN_RATE_STATS_MAC_ID_M) >> \
+     HTT_TX_PDEV_BN_RATE_STATS_MAC_ID_S)
+#define HTT_TX_PDEV_BN_RATE_STATS_MAC_ID_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_TX_PDEV_BN_RATE_STATS_MAC_ID, _val); \
+        ((_var) |= ((_val) << HTT_TX_PDEV_BN_RATE_STATS_MAC_ID_S)); \
+    } while (0)
+
+#define HTT_TX_PDEV_BN_RATE_STATS_WIFI_VERSION_M 0x00000f00
+#define HTT_TX_PDEV_BN_RATE_STATS_WIFI_VERSION_S 8
+#define HTT_TX_PDEV_BN_RATE_STATS_WIFI_VERSION_GET(_var) \
+    (((_var) & HTT_TX_PDEV_BN_RATE_STATS_WIFI_VERSION_M) >> \
+     HTT_TX_PDEV_BN_RATE_STATS_WIFI_VERSION_S)
+#define HTT_TX_PDEV_BN_RATE_STATS_WIFI_VERSION_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_TX_PDEV_BN_RATE_STATS_WIFI_VERSION, _val); \
+        ((_var) |= ((_val) << HTT_TX_PDEV_BN_RATE_STATS_WIFI_VERSION_S)); \
+    } while (0)
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    /**
+     * BIT [ 7 :  0]   :- mac_id
+     * BIT [11 :  8]   :- wifi_version
+     * BIT [31 : 12]   :- reserved
+     */
+    union {
+        struct {
+            A_UINT32 mac_id:        8,
+                     /* wifi_version:
+                      * Holds a HTT_RX_TX_PDEV_STATS_WIFI_VERSION value.
+                      * Refer to HTT_TX_PDEV_RATE_STATS_WIFI_VERSION_GET
+                      * / _SET macros for accessing this bitfield.
+                      */
+                     wifi_version:  4,
+                     reserved:     20;
+        };
+        A_UINT32 mac_id__word;
+    };
+    /* Stats for iMCS 1.1, 3.1, 4.1, 7.1 */
+    A_UINT32 tx_mcs_ext_3[HTT_TX_PDEV_STATS_NUM_EXTRA3_MCS_COUNTERS];
+    A_UINT32 tx_gi_ext_3[HTT_TX_PDEV_STATS_NUM_GI_COUNTERS][HTT_TX_PDEV_STATS_NUM_EXTRA3_MCS_COUNTERS];
+    A_UINT32 tx_stbc_ext_3[HTT_TX_PDEV_STATS_NUM_EXTRA3_MCS_COUNTERS];
+} htt_stats_tx_pdev_bn_rate_tlv;
+
+
 /* STATS_TYPE : HTT_DBG_EXT_STATS_PDEV_TX_RATE
  * TLV_TAGS:
  *      - HTT_STATS_TX_PDEV_RATE_STATS_TAG
@@ -7158,6 +7208,7 @@ typedef htt_stats_tx_pdev_ppdu_dur_tlv htt_tx_pdev_ppdu_dur_stats_tlv;
  */
 #ifdef ATH_TARGET
 typedef struct {
+    htt_stats_tx_pdev_bn_rate_tlv rate_bn_tlv;
     htt_stats_tx_pdev_rate_stats_tlv rate_tlv;
     htt_stats_tx_pdev_be_rate_stats_tlv rate_be_tlv;
     htt_stats_tx_pdev_sawf_rate_stats_tlv rate_sawf_tlv;
