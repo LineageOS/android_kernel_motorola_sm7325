@@ -27406,26 +27406,47 @@ typedef struct {
 } wmi_pdev_set_rx_filter_promiscuous_cmd_fixed_param;
 
 typedef enum {
-    WMI_BEACON_INFO_PRESENCE_OUI_EXT            = 1 <<  0,
-    WMI_BEACON_INFO_PRESENCE_MAC_ADDRESS        = 1 <<  1,
-    WMI_BEACON_INFO_PRESENCE_AP_CAPABILITY_NSS  = 1 <<  2,
-    WMI_BEACON_INFO_PRESENCE_AP_CAPABILITY_HT   = 1 <<  3,
-    WMI_BEACON_INFO_PRESENCE_AP_CAPABILITY_VHT  = 1 <<  4,
-    WMI_BEACON_INFO_PRESENCE_AP_CAPABILITY_BAND = 1 <<  5,
+    WMI_BEACON_INFO_PRESENCE_OUI_EXT               = 1 << 0,
+    WMI_BEACON_INFO_PRESENCE_MAC_ADDRESS           = 1 << 1,
+    WMI_BEACON_INFO_PRESENCE_AP_CAPABILITY_NSS     = 1 << 2,
+    WMI_BEACON_INFO_PRESENCE_AP_CAPABILITY_HT      = 1 << 3,
+    WMI_BEACON_INFO_PRESENCE_AP_CAPABILITY_VHT     = 1 << 4,
+    WMI_BEACON_INFO_PRESENCE_AP_CAPABILITY_BAND    = 1 << 5,
+    WMI_BEACON_INFO_PRESENCE_EXCLUSIVE_MAC_ADDRESS = 1 << 6,
 } wmi_beacon_info_presence_items;
 
 typedef struct _wmi_vendor_oui_ext {
     A_UINT32 tlv_header;
-    A_UINT32 buf_data_length;        /* length of data in bytes for this OUI including index byte */
-    A_UINT32 info_presence_bit_mask; /* see enum wmi_beacon_info_presence_items */
-    A_UINT32 oui_header_length;      /* either 3 or 5 bytes */
-    A_UINT32 oui_data_length;        /* length of oui_data to compare in beacon which follows OUI header. Max length is capped to WMI_MAX_VENDOR_OUI_DATA_LENGTH bytes */
-    A_UINT32 mac_address_length;     /* MAC address length in bytes
-                                     ** (This value will always be 6,
-                                     ** but is explicitly specified for sake
-                                     ** of uniformity and completeness).
-                                     */
+
+    /* length of data in bytes for this OUI including index byte */
+    A_UINT32 buf_data_length;
+
+    /* see enum wmi_beacon_info_presence_items */
+    A_UINT32 info_presence_bit_mask;
+
+    A_UINT32 oui_header_length; /* either 3 or 5 bytes */
+
+    /* oui_data_length:
+     * Length of oui_data to compare in beacon which follows OUI header.
+     * Max length is capped to WMI_MAX_VENDOR_OUI_DATA_LENGTH bytes.
+     */
+    A_UINT32 oui_data_length;
+
+    /* mac_address_length:
+     * MAC address length in bytes
+     * (This value will always be 6, but is explicitly specified for sake
+     * of uniformity and completeness).
+     */
+    A_UINT32 mac_address_length;
+
     A_UINT32 capability_data_length; /* length of capability in bytes */
+
+    /* exclusive_mac_address_length:
+     * Exclusive MAC address length in bytes
+     * (This value will always be 6, but is explicitly specified for sake
+     * of uniformity and completeness).
+     */
+    A_UINT32 exclusive_mac_address_length;
 } wmi_vendor_oui_ext;
 
 #define WMI_INFO_CAPABILITY_NSS_MASK                       0x0f
