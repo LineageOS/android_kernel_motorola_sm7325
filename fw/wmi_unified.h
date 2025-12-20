@@ -10869,6 +10869,21 @@ typedef struct {
      * ack_rssi is reported in dBm.
      */
     A_INT32    ack_rssi;
+
+    /* ieee_link_id_valid:
+     * For MLO cases, ieee_link_id_valid is set to 1, which indicates that
+     * the ieee_link_id field contains a valid value.
+     * For non-MLO and legacy cases, ieee_link_id_valid is set to 0, which
+     * means ignore the ieee_link_id field.
+     */
+    A_UINT32   ieee_link_id_valid;
+    /* ieee_link_id:
+     * For MLO cases, this indicates the link on which the QoS Null frame
+     * is sent.
+     * For non-MLO cases, this is not required because the QoS Null frame
+     * is sent on the connected link.
+     */
+    A_UINT32   ieee_link_id;
 } wmi_qos_null_frame_tx_compl_event_fixed_param;
 
 typedef struct {
