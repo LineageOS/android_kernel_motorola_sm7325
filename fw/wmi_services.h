@@ -748,6 +748,7 @@ typedef  enum  {
     WMI_SERVICE_RADAR_FLAGS_RSSI_DBM_SUPPORT = 484, /* Indicates FW support to add RSSI in dBm units in WMI radar event */
     WMI_SERVICE_WOW_STA_PS_PARAM_CACHE_SUPPORT = 485,  /* Indicates FW support for WOW timeline optimization feature */
     WMI_SERVICE_VENDOR_OUI_SUPPORT_EXCLUSIVE_MAC_ADDRESS = 486, /* FW supports parse exclusive_mac_address in wmi_vendor_oui_ext */
+    WMI_SERVICE_P2P_CANCEL_ONE_SHOT_NOA_SUPPORT = 487, /* Indicates FW support for P2P GO/GC cancel one-shot NOA feature */
 
 
     WMI_MAX_EXT2_SERVICE
