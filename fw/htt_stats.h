@@ -1330,6 +1330,18 @@ typedef struct {
     A_UINT32 hw_reaped_sp;
     /** Number of hardware reaped (Tx completed) packets in VLP mode */
     A_UINT32 hw_reaped_vlp;
+    /** num_combined_sched_cmds_success_per_ac:
+     * Total number of successfully transmitted combined sched_cmd
+     * sequences per AC
+     */
+    A_UINT32 num_combined_sched_cmds_success_per_ac[HTT_NUM_AC_WMM];
+    /** Total number of failed combined sched_cmd sequences per AC */
+    A_UINT32 num_combined_sched_cmds_failed_per_ac[HTT_NUM_AC_WMM];
+    /** num_aborted_comb_sched_cmds_per_ac:
+     * Total number of aborted sched_cmds by scheduler before posting
+     * to TAC per AC
+     */
+    A_UINT32 num_aborted_comb_sched_cmds_per_ac[HTT_NUM_AC_WMM];
 } htt_stats_tx_pdev_cmn_tlv;
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_tx_pdev_cmn_tlv htt_tx_pdev_stats_cmn_tlv;
