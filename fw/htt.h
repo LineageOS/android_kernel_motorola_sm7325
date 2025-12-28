@@ -887,7 +887,9 @@ typedef enum {
     HTT_STATS_FTM_TAG                               = 234, /* htt_stats_ftm_tlv */
     HTT_STATS_PDEV_FTM_TPCCAL_EXT_TAG               = 235, /* htt_stats_pdev_ftm_tpccal_ext_tlv */
     HTT_STATS_TX_PDEV_BN_RATE_TAG                   = 236, /* htt_stats_tx_pdev_bn_rate_tlv */
-
+    HTT_STATS_RX_PDEV_UL_MUMIMO_TRIG_BN_TAG         = 237, /* htt_stats_rx_pdev_ul_mumimo_trig_bn_tlv, TOPIC=advanced */
+    HTT_STATS_RX_PDEV_BN_UL_MIMO_USER_TAG           = 238, /* htt_stats_rx_pdev_bn_ul_mimo_user_tlv */
+    HTT_STATS_TX_PDEV_BN_UL_MU_MIMO_TAG             = 239, /* htt_stats_tx_pdev_bn_ul_mu_mimo_tlv */
 
     HTT_STATS_MAX_TAG,
 } htt_stats_tlv_tag_t;
