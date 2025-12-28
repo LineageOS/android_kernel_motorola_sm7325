@@ -753,6 +753,9 @@ typedef enum {
     /** WMI cmd for unified disconnect */
     WMI_VDEV_UNIFIED_DISCONNECT_CMDID,
 
+    /** WMI cmd for response of wmi_vdev_repurpose_request_tlv_param */
+    WMI_VDEV_REPURPOSE_RESP_CMDID,
+
 
     /* peer specific commands */
 
@@ -1033,6 +1036,10 @@ typedef enum {
     WMI_ROAM_ENABLE_VENDOR_CONTROL_CMDID,
     /** Get firmware ini value */
     WMI_ROAM_GET_VENDOR_CONTROL_PARAM_CMDID,
+    /** configure SMD parameters for roaming */
+    WMI_ROAM_SMD_CONFIG_CMDID,
+    /** SMD preparation completion status command */
+    WMI_ROAM_SMD_START_STATUS_CMDID,
 
     /** offload scan specific commands */
     /** set offload scan AP profile   */
@@ -5147,8 +5154,14 @@ typedef struct {
      *      This bit will be set by host to inform FW that HOST will be
      *      expecting and will be able to handle DCS stats event sent
      *      by FW for concurrent vdevs (event can support max 2 vdevs data).
+     *  Bit 25
+     *      This bit will be set by host to inform FW that HOST will support
+     *      SMD BSS transition.
+     *      Refer to the below definitions of
+     *      WMI_RSRC_CFG_HOST_SERVICE_FLAG_SMD_BSS_TRANSITION_GET and _SET
+     *      macros.
      *
-     *  Bits 31:25 - Reserved
+     *  Bits 31:26 - Reserved
      */
     A_UINT32 host_service_flags;
 
@@ -5761,6 +5774,12 @@ typedef struct {
 #define WMI_RSRC_CFG_DCS_STATS_FOR_2VDEVS_ENABLE_SET(host_service_flags, value) \
     WMI_SET_BITS(host_service_flags, 24, 1, value)
 
+/* This bit will be used to inform FW that HOST enables SMD BSS transition */
+#define WMI_RSRC_CFG_HOST_SERVICE_FLAG_SMD_BSS_TRANSITION_GET(host_service_flags) \
+    WMI_GET_BITS(host_service_flags, 25, 1)
+#define WMI_RSRC_CFG_HOST_SERVICE_FLAG_SMD_BSS_TRANSITION_SET(host_service_flags, value) \
+    WMI_SET_BITS(host_service_flags, 25, 1, value)
+
 #define WMI_RSRC_CFG_CARRIER_CFG_CHARTER_ENABLE_GET(carrier_config) \
     WMI_GET_BITS(carrier_config, 0, 1)
 #define WMI_RSRC_CFG_CARRIER_CFG_CHARTER_ENABLE_SET(carrier_config, val) \
@@ -5811,6 +5830,7 @@ typedef enum {
     WMI_WIFI_STANDARD_6     = 2,
     WMI_WIFI_STANDARD_6E    = 3,
     WMI_WIFI_STANDARD_7     = 4,
+    WMI_WIFI_STANDARD_8     = 5,
 } WMI_WIFI_STANDARD;
 
 typedef enum {
@@ -22664,6 +22684,15 @@ typedef struct {
     A_UINT32 cfp_padding_delay;
 } wmi_peer_assoc_cfp_params; /* cfp -> control frame protection */
 
+/* This TLV structure used to pass smd Parameters on peer assoc */
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_peer_assoc_smd_params */
+    /** The SMD Identifier field indicates a unique identifier for the SMD and is in the format of a 48-bit MAC address. */
+    wmi_mac_addr smd_identifier;
+    /** SMD capabilities defined in 802.11BN-SMD Information element */
+    A_UINT32 smd_capabilities;
+} wmi_peer_assoc_smd_params;
+
 /*
  * PEER assoc_flags for assoc complete:
  * Bit 0: Set for peer data flush
@@ -23846,6 +23875,11 @@ typedef struct {
 #define WMI_ROAM_SET_SECURITY_SCORE_PERCENTAGE(value32, score_pcnt, security_index) \
     WMI_SET_BITS(value32, (8 * (security_index)), 8, score_pcnt)
 
+/* Boost the APs that belong to the same SMD as the current AP.*/
+#define WLAN_ROAM_SCORE_INTRA_SMD_INDEX 0
+#define WMI_ROAM_GET_INTRA_SMD_SCORE_PERCENTAGE(value32, index)               WMI_GET_BITS(value32, (8 * (index)), 8)
+#define WMI_ROAM_SET_INTRA_SMD_SCORE_PERCENTAGE(value32, score_pcnt, index)   WMI_SET_BITS(value32, (8 * (index)), 8, score_pcnt)
+
 /**
     best_rssi_threshold: Roamable AP RSSI equal or better than this threshold, full RSSI score 100. Units in dBm.
     good_rssi_threshold: Below this threshold, scoring linear percentage between rssi_good_pcnt and 100. Units in dBm.
@@ -24123,6 +24157,14 @@ typedef struct {
     A_UINT32 mcc_score_factor_pcnt;
     /* Scoring weightage for privacy support like 11bi */
     A_UINT32 privacy_weightage_pcnt;
+    /* uhr_weightage_pcnt:
+     * 11bn weightage out of total score in percentage.
+     */
+    A_UINT32 uhr_weightage_pcnt;
+    /* smd_weightage_pcnt:
+     * give weightage to candidate based on SMD support.
+     */
+    A_UINT32 smd_weightage_pcnt;
 } wmi_roam_cnd_scoring_param;
 
 typedef struct {
@@ -24738,6 +24780,61 @@ typedef struct {
     A_UINT32 deleted_ieee_link_id_bmap;
 } wmi_roam_partner_link_param;
 
+/*
+ * useful macros defined for flags field in wmi_vdev_repurpose_request_tlv_param */
+#define WMI_VDEV_REPURPOSE_REQ_TLV_FLAGS_GET_REQUEST_INACTIVE(flags) \
+    WMI_GET_BITS(flags, 0, 1)
+#define WMI_VDEV_REPURPOSE_REQ_TLV_FLAGS_SET_REQUEST_INACTIVE(flags, val) \
+    WMI_SET_BITS(flags, 0, 1, val)
+#define WMI_VDEV_REPURPOSE_REQ_TLV_FLAGS_GET_REQUEST_DISCONNECT(flags) \
+    WMI_GET_BITS(flags, 1, 1)
+#define WMI_VDEV_REPURPOSE_REQ_TLV_FLAGS_SET_REQUEST_DISCONNECT(flags, val) \
+    WMI_SET_BITS(flags, 1, 1, val)
+#define WMI_VDEV_REPURPOSE_REQ_TLV_FLAGS_GET_REQUEST_CONNECT(flags) \
+    WMI_GET_BITS(flags, 2, 1)
+#define WMI_VDEV_REPURPOSE_REQ_TLV_FLAGS_SET_REQUEST_CONNECT(flags, val) \
+    WMI_SET_BITS(flags, 2, 1, val)
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_repurpose_request_tlv_param */
+    A_UINT32 repurpose_vdev_id; /* repurposed vdev_id */
+    /* flags - refer WMI_VDEV_REPURPOSE_REQ_TLV_FLAGS_GET and _SET macro
+     * BIT 0 -
+     *   Host shall inactive link with sending WMI_MLO_LINK_SET_ACTIVE_CMDID
+     *   before issue  WMI_VDEV_UNIFIED_DISCONNECT_CMDID if the bit is set.
+     * BIT 1 -
+     *   Host shall send WMI_VDEV_UNIFIED_DISCONNECT_CMDID on the
+     *   repurpose_vdev_id if the bit is set.
+     * BIT 2 -
+     *   Host shall send WMI_VDEV_UNIFIED_CONNECT_CMDID on the
+     *   repurpose_vdev_id if the bit is set.
+     */
+    A_UINT32 flags;
+    /* bassid:
+     * repurposed AP bssid, valid when BIT2 is set in flags
+     */
+    wmi_mac_addr bssid;
+    /* mld_addr:
+     * repurposed AP mld address, valid when BIT2 is set in flags
+     */
+    wmi_mac_addr mld_addr;
+    /* smd_addr:
+     * repurposed AP smd address, valid when BIT2 is set in flags
+     */
+    wmi_mac_addr smd_addr;
+} wmi_vdev_repurpose_request_tlv_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_repurpose_resp_cmd_fixed_param */
+    A_UINT32 vdev_id;
+} wmi_vdev_repurpose_resp_cmd_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_repurpose_response_tlv_param */
+    A_UINT32 repurpose_vdev_id; /* repurposed vdev_id */
+    A_UINT32 status;            /* 0 is success */
+} wmi_vdev_repurpose_response_tlv_param;
+
 /* roam_reason: bits 0-3 */
 #define WMI_ROAM_REASON_INVALID   0x0 /** invalid reason. Do not interpret reason field */
 #define WMI_ROAM_REASON_BETTER_AP 0x1 /** found a better AP */
@@ -24797,6 +24894,9 @@ typedef enum
     (((roam_reason) & WMI_ROAM_REQUEST_HOST_HW_MODE_CHANGE_MASK) >> \
      WMI_ROAM_REQUEST_HOST_HW_MODE_CHANGE_SHIFT)
 
+#define WMI_GET_ROAM_SMD_BSS_TRANSITION(roam_reason)      WMI_GET_BITS(roam_reason, 16, 1)
+#define WMI_SET_ROAM_SMD_BSS_TRANSITION(roam_reason, val) WMI_SET_BITS(roam_reason, 16, 1, val)
+
 /* Bits  0-3: stores 4 LSbs of trigger reason.
  *            Old host will get trigger reasons <= 15 from this bitfield.
  * Bit 7 will be 1 always to indicate that bits 8-15 are valid.
@@ -24826,6 +24926,7 @@ typedef enum
 #define WMI_ROAM_NOTIF_SCAN_MODE_SUCCESS_WITH_HO_FAIL 0xb /** indicate that roaming scan mode is successful but cause disconnection and subsequent
                                                            ** WMI_ROAM_REASON_HO_FAILED is event expected */
 #define WMI_ROAM_NOTIF_SCAN_END          0xc /** indicate roam scan end, notif_params to be sent as WMI_ROAM_TRIGGER_REASON_ID */
+#define WMI_ROAM_NOTIF_ROAM_SMD_START    0xd /** indicate that SMD BSS transtion is started, notif_params1 to be sent as requested setup ieee links bitmap for target AP MLD */
 
 /**whenever RIC request information change, host driver should pass all ric related information to firmware (now only support tsepc)
 * Once, 11r roaming happens, firmware can generate RIC request in reassoc request based on this information
@@ -31528,6 +31629,12 @@ typedef struct {
     A_UINT8  replay_counter[GTK_REPLAY_COUNTER_BYTES];
 } wmi_key_material;
 
+#ifndef WMI_MAX_PMK_LEN
+#define WMI_MAX_SMD_KDK_LEN 64
+#else
+#define WMI_MAX_SMD_KDK_LEN WMI_MAX_PMK_LEN
+#endif
+
 typedef struct {
     /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_key_material_ext */
     A_UINT32 tlv_header;
@@ -31541,6 +31648,10 @@ typedef struct {
     A_UINT32 kck_len;
     /* length of kek in key_buffer */
     A_UINT32 kek_len;
+    /* length of smd kdk */
+    A_UINT32 smd_kdk_len;
+    /* smd kdk buffer */
+    A_UINT8  smd_kdk_buffer[WMI_MAX_SMD_KDK_LEN];
 } wmi_key_material_ext;
 
 typedef struct {
@@ -31557,6 +31668,8 @@ typedef struct {
      * bit  7    0x1 to show bits 8-15 are valid
      * bits 8-15 full WMI_ROAM_TRIGGER_REASON_ID/WMI_ROAM_TRIGGER_EXT_REASON_ID
      *           since 4 bits are not enough.
+     * bit 16    SMD BSS transition if it's set, see GET / SET
+     *           ROAM_SMD_BSS_TRANSITION macros
      */
     A_UINT32 roam_reason;
     /** associated AP's RSSI calculated by FW when reason code is WMI_ROAM_REASON_LOW_RSSI. not valid if roam_reason is BMISS */
@@ -31590,6 +31703,11 @@ typedef struct {
      *     EPPKE authentication
      */
     A_UINT32 auth_algo;
+    /** smd_identifier:
+     * The SMD identifier of the roamed AP must not be zero in cases of
+     * an SMD BSS transition or a reassociation with SMD capability.
+     */
+    wmi_mac_addr smd_identifier;
     /**
      * TLV (tag length value) parameters follows roam_synch_event
      * The TLV's are:
@@ -40769,6 +40887,9 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_NAN_ENABLE_CMDID);
         WMI_RETURN_STRING(WMI_NAN_CONFIG_CMDID);
         WMI_RETURN_STRING(WMI_NAN_DISABLE_CMDID);
+        WMI_RETURN_STRING(WMI_ROAM_SMD_CONFIG_CMDID);
+        WMI_RETURN_STRING(WMI_ROAM_SMD_START_STATUS_CMDID);
+        WMI_RETURN_STRING(WMI_VDEV_REPURPOSE_RESP_CMDID);
     }
 
     return (A_UINT8 *) "Invalid WMI cmd";
@@ -44310,6 +44431,10 @@ typedef enum {
     WMI_ROAM_FRAME_INFO_FRAME_TYPE_EXT_SUBTYPE_M4,
     WMI_ROAM_FRAME_INFO_FRAME_TYPE_EXT_SUBTYPE_GTK_M1,
     WMI_ROAM_FRAME_INFO_FRAME_TYPE_EXT_SUBTYPE_GTK_M2,
+    WMI_ROAM_FRAME_INFO_FRAME_TYPE_EXT_SUBTYPE_ST_PREP_REQ,
+    WMI_ROAM_FRAME_INFO_FRAME_TYPE_EXT_SUBTYPE_ST_PREP_RESP,
+    WMI_ROAM_FRAME_INFO_FRAME_TYPE_EXT_SUBTYPE_ST_EXEC_REQ,
+    WMI_ROAM_FRAME_INFO_FRAME_TYPE_EXT_SUBTYPE_ST_EXEC_RESP,
 } WMI_ROAM_FRAME_INFO_FRAME_TYPE_EXT_SUBTYPE;
 
 typedef enum {
@@ -44884,6 +45009,114 @@ typedef enum {
     WLAN_CRYPTO_WPA3_SAE_ALLOW_NON_MLO_EHT_HNP  = 0x00010000,
     WLAN_CRYPTO_WPA3_SAE_ALLOW_MLO_HNP          = 0x00020000,
 } wlan_crypto_roam_eht_config;
+
+typedef enum {
+    /*
+     * Low-latency mode is suitable for applications with strict
+     * latency requirements and is also the default mode in the firmware.
+     * e.g VOIP, Online gaming.
+     */
+    WMI_ROAM_LOWLATENCY_MODE     = 0x0,
+    /*
+     * Packet-loss mode is suitable for applications that do not have
+     * strict latency requirements but have low tolerance for packet loss.
+     * e.g file transfer.
+     */
+    WMI_ROAM_PACKETLOSSLESS_MODE = 0x1,
+    /* This mode is only used for WFA test purpose. */
+    WMI_ROAM_MANUAL_MODE         = 0x2,
+} WMI_ROAM_SMD_MODE_PARAMS;
+
+/*
+ * useful macros defined for flags field in wmi_roam_smd_config_cmd_fixed_param
+ */
+#define WMI_SMD_CONFIG_FLAGS_GET_DISABLE_SMD_ASSOC(flags) \
+    WMI_GET_BITS(flags, 0, 1)
+#define WMI_SMD_CONFIG_FLAGS_SET_DISABLE_SMD_ASSOC(flags, val) \
+    WMI_SET_BITS(flags, 0, 1, val)
+
+#define WMI_SMD_CONFIG_FLAGS_GET_DISABLE_SMD_TRANSITION(flags) \
+    WMI_GET_BITS(flags, 1, 1)
+#define WMI_SMD_CONFIG_FLAGS_SET_DISABLE_SMD_TRANSITION(flags, val) \
+    WMI_SET_BITS(flags, 1, 1, val)
+
+/*
+ * useful macros defined for manual_conf field in
+ * wmi_roam_smd_config_cmd_fixed_param
+ */
+#define WMI_SMD_CONFIG_MANUAL_CONF_GET_EXECUTION_VIA_NEW_AP(conf) \
+    WMI_GET_BITS(conf, 0, 1)
+#define WMI_SMD_CONFIG_MANUAL_CONF_SET_EXECUTION_VIA_NEW_AP(conf, val) \
+    WMI_SET_BITS(conf, 0, 1, val)
+
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_roam_smd_config_cmd_fixed_param */
+    A_UINT32 vdev_id;
+
+    /*
+     * The mode used to control SMD transition involves a trade-off
+     * between low latency and packet loss.
+     * Depending on the upper-layer application, the choice may also vary.
+     * refer WMI_ROAM_SMD_MODE_PARAMS definition
+     */
+    A_UINT32 prefer_mode;
+    /* flags:
+     * refer WMI_SMD_CONFIG_FLAGS_GET and _SET macros
+     * BIT 0 - Disable SMD association.
+     * BIT 1 - Disable SMD BSS transition, invalid when BIT 0 is set.
+     */
+    A_UINT32 flags;
+    /* manual_conf:
+     * Valid only when prefer_mode is WMI_ROAM_MANUAL_MODE
+     * BIT 0 - SMD transition execution via new AP if set.
+     */
+    A_UINT32 manual_conf;
+} wmi_roam_smd_config_cmd_fixed_param;
+
+typedef enum {
+    WMI_SMD_START_STATUS_SUCCESS = 0,
+
+    /* Failure that is not specifically defined  */
+    WMI_SMD_START_STATUS_UNSPECIFIC_FAILURE,
+
+    /* Abort due to disconnection from upper layer */
+    WMI_SMD_START_STATUS_ABORT_DISCONNECTION,
+
+    /* Vdev repurpose failure */
+    WMI_SMD_START_STATUS_VDEV_REPURPOSE_FAILURE,
+
+    /* Preparation request frame no ACK */
+    WMI_SMD_START_STATUS_PREP_REQ_TX_NO_ACK,
+
+   /* No Preparation response frame received */
+    WMI_SMD_START_STATUS_PREP_RESP_RX_TIMEOUT,
+} WMI_SMD_START_STATUS_CODE;
+
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_prep_resp_status_list */
+    A_UINT32 ieee_link_id;
+    A_UINT32 status_code;  /* same value defined in 'status code' in standard */
+} wmi_prep_resp_status_list;
+
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_roam_smd_start_status_cmd_fixed_param */
+
+    A_UINT32 vdev_id;
+    A_UINT32 status; /* Refer WMI_SMD_START_STATUS_CODE */
+    /* kck_len:
+     * Valid when per AP-MLD ptk mode is used, KCK is used to
+     * calculate MIC in ST execution request frame.
+     */
+   A_UINT32 kck_len;
+
+    /*
+     * This fixed_param TLV is followed by the below TLVs:
+     *
+     * A_UINT8 smd_transition_ie[];
+     * wmi_prep_resp_status_list status_list[];
+     * A_UINT8 kck[];
+     */
+} wmi_roam_smd_start_status_cmd_fixed_param;
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_get_big_data_cmd_fixed_param */
