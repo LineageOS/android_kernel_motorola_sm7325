@@ -19956,6 +19956,20 @@ typedef enum {
      */
     WMI_VDEV_PARAM_SET_GO_CANCEL_NOA,                     /* 0xCD */
 
+    /*
+     * WMI command to set ACK rate
+     * param_value refer to rate code (legacy CCK/OFDM rates) definitions
+     * for ACK Rates
+     * valid values:
+     *      ACK_RATE_CODE_6MBPS_OFDM (0x003):   Set 6Mbps OFDM ACK rate
+     *      ACK_RATE_CODE_12MBPS_OFDM (0x002):  Set 12Mbps OFDM ACK rate
+     *      ACK_RATE_CODE_24MBPS_OFDM (0x001):  Set 24Mbps OFDM ACK rate
+     *      ...
+     *      ACK_RATE_RESTORE_ORIGINAL (0xFFFF): Restore original rates
+     */
+    WMI_VDEV_PARAM_ACK_RATE,                              /* 0xCE */
+
+
 
     /*=== ADD NEW VDEV PARAM TYPES ABOVE THIS LINE ===
      * The below vdev param types are used for prototyping, and are
@@ -47402,7 +47416,10 @@ typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_em_pcie_stats */
     A_UINT32 is_cumac; /* set to '1' if SoC has CUMAC, else set to '0' */
     A_UINT32 enable;   /* set to '1' if feature enable, else set to '0' */
-    A_UINT32 config_type; /* feature configuration type */
+    /* config_type:
+     * feature configuration type (holds a wmi_pcie_config_type_e value)
+     */
+    A_UINT32 config_type;
     /* mlo_partner_chip_bw:
      * MLO partner chip BW information, represented as a FW-internal BW enum
      * (Thus, this field is intended only for interactive debugging, and not

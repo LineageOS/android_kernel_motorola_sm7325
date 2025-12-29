@@ -1037,6 +1037,11 @@ typedef enum {
      * TLV: htt_rx_pdev_ul_mumimo_trig_be_stats_tlv
      */
     HTT_RX_UL_MUMIMO_TRIGGER_STATS_UPLOAD_11BE,
+    /*
+     * Upload 11bn UL MUMIMO RX Trigger stats
+     * TLV: htt_rx_pdev_ul_mumimo_trig_bn_stats_tlv
+     */
+    HTT_RX_UL_MUMIMO_TRIGGER_STATS_UPLOAD_11BN,
 } htt_rx_ul_mumimo_trigger_stats_upload_t;
 
 /* htt_tx_pdev_txbf_ofdma_stats_upload_t
@@ -1330,6 +1335,18 @@ typedef struct {
     A_UINT32 hw_reaped_sp;
     /** Number of hardware reaped (Tx completed) packets in VLP mode */
     A_UINT32 hw_reaped_vlp;
+    /** num_combined_sched_cmds_success_per_ac:
+     * Total number of successfully transmitted combined sched_cmd
+     * sequences per AC
+     */
+    A_UINT32 num_combined_sched_cmds_success_per_ac[HTT_NUM_AC_WMM];
+    /** Total number of failed combined sched_cmd sequences per AC */
+    A_UINT32 num_combined_sched_cmds_failed_per_ac[HTT_NUM_AC_WMM];
+    /** num_aborted_comb_sched_cmds_per_ac:
+     * Total number of aborted sched_cmds by scheduler before posting
+     * to TAC per AC
+     */
+    A_UINT32 num_aborted_comb_sched_cmds_per_ac[HTT_NUM_AC_WMM];
 } htt_stats_tx_pdev_cmn_tlv;
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_tx_pdev_cmn_tlv htt_tx_pdev_stats_cmn_tlv;
@@ -3483,6 +3500,7 @@ typedef enum {
 #define HTT_TX_PDEV_STATS_NUM_AC_MUMIMO_USER_STATS 4
 #define HTT_TX_PDEV_STATS_NUM_AX_MUMIMO_USER_STATS 8
 #define HTT_TX_PDEV_STATS_NUM_BE_MUMIMO_USER_STATS 8
+#define HTT_TX_PDEV_STATS_NUM_BN_MUMIMO_USER_STATS 8
 #define HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS 74
 #define HTT_TX_PDEV_STATS_NUM_BN_OFDMA_USER_STATS 16
 #define HTT_TX_PDEV_STATS_NUM_UL_MUMIMO_USER_STATS 8
@@ -3862,6 +3880,28 @@ typedef struct {
 
     /** 11BN UHR UL OFDMA RU allocation mode */
     A_UINT32 bn_basic_trig_ru_alloc_mode[HTT_BN_UL_OFDMA_NUM_RU_ALLOC_MODES];
+
+    /** 11bn UHR MU UL-MUMIMO Trigger frame sent over the air */
+    A_UINT32 bn_ulmumimo_trigger;
+    /**
+     * 11bn UHR UL-MUMIMO Trigger frame for users 0 - 7
+     * successfully sent over the air
+     */
+    A_UINT32 bn_ul_mumimo_trigger[HTT_TX_PDEV_STATS_NUM_BN_MUMIMO_USER_STATS];
+    /** 11BN UHR MU Combined UL MU-MIMO Basic Trigger frame sent over the air */
+    A_UINT32 combined_bn_ulmumimo_trigger_tried[HTT_NUM_AC_WMM];
+    /** 11BN UHR MU Combined UL MU-MIMO Basic Trigger completed with error(s) */
+    A_UINT32 combined_bn_ulmumimo_trigger_err[HTT_NUM_AC_WMM];
+    /**
+     * 11BN UHR MU Standalone UL MU-MIMO Basic Trigger frame
+     * sent over the air
+     */
+    A_UINT32 standalone_bn_ulmumimo_trigger_tried[HTT_NUM_AC_WMM];
+    /**
+     * 11BN UHR MU Standalone UL MU-MIMO Basic Trigger
+     * completed with error(s)
+     */
+    A_UINT32 standalone_bn_ulmumimo_trigger_err[HTT_NUM_AC_WMM];
 } htt_stats_tx_selfgen_bn_tlv;
 
 typedef struct { /* DEPRECATED */
@@ -4630,6 +4670,13 @@ typedef struct {
     A_UINT32 bn_mu_rts_trigger_blocked;
     /** 11BN UHR MU BSR Trigger frame blocked due to partner link TX/RX(eMLSR) */
     A_UINT32 bn_bsr_trigger_blocked;
+
+    /** 11BN UHR MU ULMUMIMO Trigger frame completed with error(s) */
+    A_UINT32 bn_ulmumimo_trigger_err;
+    /**
+     * 11BN UHR UL-MUMIMO Trigger frame for users 0 - 7 completed with error(s)
+     */
+    A_UINT32 bn_ul_mumimo_trigger_err[HTT_TX_PDEV_STATS_NUM_BN_MUMIMO_USER_STATS];
 } htt_stats_tx_selfgen_bn_err_tlv;
 
 /*
@@ -5048,6 +5095,18 @@ typedef struct {
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_tx_pdev_be_ul_mu_mimo_stats_tlv
     htt_tx_pdev_be_ul_mu_mimo_sch_stats_tlv;
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    /**
+     * Represents the count for 11BN UL MU MIMO sequences with Basic Triggers
+     */
+    A_UINT32 bn_ul_mu_mimo_basic_sch_nusers[HTT_TX_PDEV_STATS_NUM_UL_MUMIMO_USER_STATS];
+    /**
+     * Represents the count for 11BN UL MU MIMO sequences with BRP Triggers
+     */
+    A_UINT32 bn_ul_mu_mimo_brp_sch_nusers[HTT_TX_PDEV_STATS_NUM_UL_MUMIMO_USER_STATS];
+} htt_stats_tx_pdev_bn_ul_mu_mimo_tlv;
 
 typedef struct {
     htt_tlv_hdr_t tlv_hdr;
@@ -7924,6 +7983,21 @@ typedef struct {
 typedef htt_stats_rx_pdev_be_ul_mimo_user_stats_tlv
     htt_rx_pdev_be_ul_mimo_user_stats_tlv;
 
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+
+    A_UINT32 user_index;
+    /** PPDU level */
+    A_UINT32 bn_rx_ulmumimo_non_data_ppdu;
+    /** PPDU level */
+    A_UINT32 bn_rx_ulmumimo_data_ppdu;
+    /** MPDU level */
+    A_UINT32 bn_rx_ulmumimo_mpdu_ok;
+    /** MPDU level */
+    A_UINT32 bn_rx_ulmumimo_mpdu_fail;
+} htt_stats_rx_pdev_bn_ul_mimo_user_tlv;
+
+
 /* == RX PDEV/SOC STATS == */
 
 typedef struct {
@@ -8053,15 +8127,76 @@ typedef struct {
 typedef htt_stats_rx_pdev_ul_mumimo_trig_be_stats_tlv
     htt_rx_pdev_ul_mumimo_trig_be_stats_tlv;
 
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+
+    /**
+     * BIT [ 7 :  0]   :- mac_id
+     * BIT [31 :  8]   :- reserved
+     *
+     * Refer to HTT_STATS_CMN_MAC_ID_GET/SET macros.
+     */
+    union {
+        struct {
+            A_UINT32 mac_id:    8,
+                     reserved: 24;
+        };
+        A_UINT32 mac_id__word;
+    };
+
+    /** Number of times UL MUMIMO RX packets received */
+    A_UINT32 rx_11bn_ul_mumimo;
+
+    /** 11BN UHR UL MU-MIMO RX TB PPDU MCS stats */
+    A_UINT32 bn_ul_mumimo_rx_mcs[HTT_RX_PDEV_STATS_NUM_BN_MCS_COUNTERS];
+    /**
+     * 11BN UHR UL MU-MIMO RX GI & LTF stats.
+     * Index 0 indicates 1xLTF + 1.6 msec GI
+     * Index 1 indicates 2xLTF + 1.6 msec GI
+     * Index 2 indicates 4xLTF + 3.2 msec GI
+     */
+    A_UINT32 bn_ul_mumimo_rx_gi[HTT_RX_PDEV_STATS_NUM_GI_COUNTERS][HTT_RX_PDEV_STATS_NUM_BN_MCS_COUNTERS];
+    /**
+     * 11BN UHR UL MU-MIMO RX TB PPDU NSS stats
+     * (Increments the individual user NSS in the UL MU MIMO PPDU received)
+     */
+    A_UINT32 bn_ul_mumimo_rx_nss[HTT_RX_PDEV_STATS_ULMUMIMO_NUM_SPATIAL_STREAMS];
+    /** 11BN UHR UL MU-MIMO RX TB PPDU BW stats */
+    A_UINT32 bn_ul_mumimo_rx_bw[HTT_RX_PDEV_STATS_NUM_BN_BW_COUNTERS];
+    /** Number of times UL MUMIMO TB PPDUs received with STBC */
+    A_UINT32 bn_ul_mumimo_rx_stbc;
+    /** Number of times UL MUMIMO TB PPDUs received with LDPC */
+    A_UINT32 bn_ul_mumimo_rx_ldpc;
+
+    /** RSSI in dBm for Rx TB PPDUs */
+    A_INT8 bn_rx_ul_mumimo_chain_rssi_in_dbm[HTT_RX_PDEV_STATS_ULMUMIMO_NUM_SPATIAL_STREAMS][HTT_RX_PDEV_STATS_NUM_BE_BW_COUNTERS];
+    /** Target RSSI programmed in UL MUMIMO triggers (units dBm) */
+    A_INT8 bn_rx_ul_mumimo_target_rssi[HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER][HTT_RX_PDEV_STATS_NUM_BE_BW_COUNTERS];
+    /** FD RSSI measured for Rx UL TB PPDUs (units dBm) */
+    A_INT8 bn_rx_ul_mumimo_fd_rssi[HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER][HTT_RX_PDEV_STATS_ULMUMIMO_NUM_SPATIAL_STREAMS];
+    /** Average pilot EVM measued for RX UL TB PPDU */
+    A_INT8 bn_rx_ulmumimo_pilot_evm_dB_mean[HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER][HTT_RX_PDEV_STATS_ULMUMIMO_NUM_SPATIAL_STREAMS];
+    /** Number of times UL MUMIMO TB PPDUs received in a punctured mode */
+    A_UINT32 bn_rx_ul_mumimo_punctured_mode[HTT_RX_PDEV_STATS_NUM_PUNCTURED_MODE_COUNTERS];
+    /*
+     * Number of UHR UL MU-MIMO per-user responses containing only a QoS null
+     * in response to basic trigger. Typically a data response is expected.
+     */
+    A_UINT32 bn_ul_mumimo_basic_trigger_rx_qos_null_only;
+} htt_stats_rx_pdev_ul_mumimo_trig_bn_tlv;
+
+
 /* STATS_TYPE : HTT_DBG_EXT_STATS_PDEV_UL_MUMIMO_TRIG_STATS
  * TLV_TAGS:
  *    - HTT_STATS_RX_PDEV_UL_MUMIMO_TRIG_STATS_TAG
  *    - HTT_STATS_RX_PDEV_UL_MUMIMO_TRIG_BE_STATS_TAG
+ *    - HTT_STATS_RX_PDEV_UL_MUMIMO_TRIG_BN_TAG
  */
 #ifdef ATH_TARGET
 typedef struct {
     htt_stats_rx_pdev_ul_mumimo_trig_stats_tlv    ul_mumimo_trig_tlv;
     htt_stats_rx_pdev_ul_mumimo_trig_be_stats_tlv ul_mumimo_trig_be_tlv;
+    htt_stats_rx_pdev_ul_mumimo_trig_bn_tlv       ul_mumimo_trig_bn_tlv;
 } htt_rx_pdev_ul_mumimo_trig_stats_t;
 #endif /* ATH_TARGET */
 
