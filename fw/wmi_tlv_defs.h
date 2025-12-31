@@ -1546,6 +1546,9 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_vdev_repurpose_response_tlv_param,
     WMITLV_TAG_STRUC_wmi_roam_smd_start_status_cmd_fixed_param,
     WMITLV_TAG_STRUC_wmi_prep_resp_status_list,
+    WMITLV_TAG_STRUC_wmi_ipa_ring_stats_req_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_ipa_ring_stats_conf_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_ipa_ring_stat_entry,
 } WMITLV_TAG_ID;
 /*
  * IMPORTANT: Please add _ALL_ WMI Commands Here.
@@ -2134,6 +2137,7 @@ typedef enum {
     OP(WMI_ROAM_SMD_CONFIG_CMDID) \
     OP(WMI_ROAM_SMD_START_STATUS_CMDID) \
     OP(WMI_VDEV_REPURPOSE_RESP_CMDID) \
+    OP(WMI_IPA_RING_STATS_REQ_CMDID) \
     /* add new CMD_LIST elements above this line */
 
 
@@ -2484,6 +2488,7 @@ typedef enum {
     OP(WMI_CFR_CAPTURE_FILTER_RESP_EVENTID) \
     OP(WMI_VDEV_UNIFIED_CONNECT_EVENTID) \
     OP(WMI_VDEV_UNIFIED_DISCONNECT_EVENTID) \
+    OP(WMI_IPA_RING_STATS_CONF_EVENTID) \
     /* add new EVT_LIST elements above this line */
 
 
@@ -6152,6 +6157,11 @@ WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_UNIFIED_DISCONNECT_CMDID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_vdev_repurpose_response_tlv_param, vdev_repurpose_response_tlv, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_REPURPOSE_RESP_CMDID);
 
+/* Get IPA ring stats */
+#define WMITLV_TABLE_WMI_IPA_RING_STATS_REQ_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_ipa_ring_stats_req_cmd_fixed_param, wmi_ipa_ring_stats_req_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_IPA_RING_STATS_REQ_CMDID);
+
 
 
 /************************** TLV definitions of WMI events *******************************/
@@ -8419,6 +8429,12 @@ WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_UNIFIED_CONNECT_EVENTID);
  \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_stopped_event_fixed_param, wmi_vdev_stopped_event_fixed_param, vdev_stop_fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_UNIFIED_DISCONNECT_EVENTID);
+
+/* get IPA ring stats event */
+#define WMITLV_TABLE_WMI_IPA_RING_STATS_CONF_EVENTID(id,op,buf,len) \
+WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_ipa_ring_stats_conf_event_fixed_param, wmi_ipa_ring_stats_conf_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_ipa_ring_stat_entry, ipa_ring_stat_entry, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_IPA_RING_STATS_CONF_EVENTID);
 
 
 
