@@ -38235,6 +38235,7 @@ typedef enum {
     WMI_REQUEST_CTRL_PATH_STA_DAR_STAT      = 23,
     WMI_REQUEST_ENHANCED_STAT               = 24,
     WMI_REQUEST_CTRL_PATH_EM_PCIE_STAT      = 25,
+    WMI_REQUEST_CTRL_PATH_EM_DCVS_STAT      = 26,
 } wmi_ctrl_path_stats_id;
 
 typedef enum {
@@ -47683,6 +47684,42 @@ typedef struct {
     A_UINT32 pending_pcie_gen;   /* pending PCIe generation number */
     A_UINT32 pending_pcie_lanes; /* pending number of PCIe lanes */
 } wmi_em_pcie_stats;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_em_dcvs_stats */
+    A_UINT32 num_mac; /* Number of active MAC */
+    /* DCVS feature config (holds a wmi_dcvs_config_e value) */
+    A_UINT32 dcvs_cfg;
+    A_UINT32 is_cumac; /* set to '1' if SoC has CUMAC, else set to '0' */
+    /* pdev_curr_bw:
+     * Per PDEV BW, represented as a FW-internal BW enum
+     * (Thus, this field is intended only for interactive debugging, and not
+     * for interpretation by the host SW.)
+     */
+    A_UINT32 pdev_curr_bw[WMI_EM_PCIE_MAX_NUM_MAC];
+    /* pdev_sla_status:
+     * SLA active status per pdev.
+     * set to '1' if SLA connection is active per pdev, else set to '0'
+     */
+    A_UINT32 pdev_sla_status[WMI_EM_PCIE_MAX_NUM_MAC];
+    A_UINT32 ofdma_ul_user_limit; /* OFDMA UL user limit for SVS entry */
+    A_UINT32 ofdma_dl_user_limit; /* OFDMA DL user limit for SVS entry */
+    /* set to '1' if OFDMA user limit is applied, else set to '0' */
+    A_UINT32 is_ofdma_limit_applied;
+    A_UINT32 cv_corr_limit; /* CV corr limit for SVS entry */
+    /* set to '1' if cv corr limit is applied, else set to '0' */
+    A_UINT32 is_cv_corr_limit_applied;
+    /* set to '1' if mu sniffer limit is applied, else set to '0' */
+    A_UINT32 is_mu_sniff_limit_applied[WMI_EM_PCIE_MAX_NUM_MAC];
+    A_UINT32 pending_dcvs_vote; /* pending vote level (0-SVS, 1-NOM) */
+    /* pending DCVS BW, represented as a FW-internal BW enum */
+    A_UINT32 pending_dcvs_bw;
+    A_UINT32 pending_dcvs_level_switch; /* pending DCVS level change */
+    A_UINT32 current_dcvs_vote; /* current vote level (0-SVS, 1-NOM) */
+    /* current, DCVS BW, represented as a FW-internal BW enum */
+    A_UINT32 current_dcvs_bw;
+    A_UINT32 current_dcvs_level_switch; /* current DCVS level change */
+} wmi_em_dcvs_stats;
 
 
 #define WMI_UNIFIED_CHAIN_PHASE_MASK 0x0000ffff

@@ -1549,6 +1549,7 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_ipa_ring_stats_req_cmd_fixed_param,
     WMITLV_TAG_STRUC_wmi_ipa_ring_stats_conf_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_ipa_ring_stat_entry,
+    WMITLV_TAG_STRUC_wmi_em_dcvs_stats,
 } WMITLV_TAG_ID;
 /*
  * IMPORTANT: Please add _ALL_ WMI Commands Here.
@@ -7773,7 +7774,8 @@ WMITLV_CREATE_PARAM_STRUC(WMI_PEER_STATS_INFO_EVENTID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_vdev_beacon_stats, vdev_beacon_stats, WMITLV_SIZE_VAR) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_vdev_congestion_stats, vdev_congestion_stats, WMITLV_SIZE_VAR) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_vdev_data_stats, vdev_data_stats, WMITLV_SIZE_VAR) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_em_pcie_stats, ctrl_path_em_pcie_stats, WMITLV_SIZE_VAR)
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_em_pcie_stats, ctrl_path_em_pcie_stats, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_em_dcvs_stats, ctrl_path_em_dcvs_stats, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_CTRL_PATH_STATS_EVENTID);
 
 /*
