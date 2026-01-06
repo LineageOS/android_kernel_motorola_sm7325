@@ -602,6 +602,7 @@ typedef enum {
      */
     WMI_PDEV_POWER_BOOST_MEM_ADDR_CMDID,
     /**
+     * This command is deprecated - DO NOT USE
      * WMI cmd to to Enable/Disable NPCA and its capabilities
      */
     WMI_PDEV_NPCA_AP_CAP_CMDID,
@@ -612,6 +613,11 @@ typedef enum {
     WMI_PDEV_MULTI_VDEV_GET_AC_QUEUE_DEPTH_CMDID,
     /* Event to indicate the status of the set tx chainmask command */
     WMI_PDEV_SET_TX_CHAINMASK_COMP_EVENTID,
+    /**
+     * WMI cmd to send the detailed information of each UHR feature,
+     * that are applicable for critical update.
+     */
+    WMI_PDEV_UHR_CU_CMDID,
 
     /* VDEV (virtual device) specific commands */
     /** vdev create */
@@ -755,6 +761,9 @@ typedef enum {
 
     /** WMI cmd for response of wmi_vdev_repurpose_request_tlv_param */
     WMI_VDEV_REPURPOSE_RESP_CMDID,
+
+    /** WMI cmd for UHR critical update */
+    WMI_VDEV_UHR_CU_CMDID,
 
 
     /* peer specific commands */
@@ -1998,12 +2007,16 @@ typedef enum {
     WMI_PDEV_WIFI_RADAR_CAPABILITIES_EVENTID,
 
     /*
+     * This event is deprecated - DO NOT USE
      * WMI_PDEV_NPCA_AP_CAP_CMDID response event
      */
     WMI_PDEV_NPCA_AP_CAP_RESP_EVENTID,
 
     /* Event to share the per-access-category queue pending packets */
     WMI_PDEV_MULTI_VDEV_AC_QUEUE_DEPTH_EVENTID,
+
+    /* WMI event for the UHR critical Update */
+    WMI_PDEV_UHR_CU_EVENTID,
 
 
     /* VDEV specific events */
@@ -20546,9 +20559,6 @@ typedef struct {
 #define WMI_VDEV_START_RESPONSE_BSS_PEER_NOT_FOUND              0x8 /** bss_peer is null/not found */
 #define WMI_VDEV_START_RESPONSE_INCORRECT_CHANNEL_PARAMS        0x9 /** home channel params are incorrect */
 #define WMI_VDEV_START_RESPONSE_GENERIC_VDEV_START_FAILURE      0xa /** generic reason code for vdev start request reject */
-
-/** NPCA AP CAP response status code */
-#define WMI_PDEV_NPCA_AP_CAP_RESPONSE_STATUS_SUCCESS 0x0 /** NPCA Cap update Success */
 
 
 /** Beacon processing related command and event structures */
@@ -48879,15 +48889,6 @@ typedef struct {
      */
 } wmi_pdev_multiple_vdev_restart_resp_event_fixed_param;
 
-typedef struct {
-    /** TLV tag and len; tag equals
-    * WMITLV_TAG_STRUC_wmi_pdev_npca_ap_cap_resp_event_fixed_param */
-    A_UINT32 tlv_header;
-    A_UINT32 pdev_id; /* ID of the pdev this response belongs to */
-    /** Return status. As per WMI_PDEV_NPCA_AP_CAP_RESPONSE_XXXXX */
-    A_UINT32 status;
-} wmi_pdev_npca_ap_cap_resp_event_fixed_param;
-
 /** WMI event for Firmware to report soundbar audio frame statistics to Host **/
 typedef struct {
     /** TLV tag and len **/
@@ -52841,75 +52842,6 @@ typedef struct {
     A_UINT32 size;
 } wmi_pdev_power_boost_mem_addr_cmd_fixed_param;
 
-typedef struct _wmi_npca_info{
-    /* WMI Non-PrimaryChannelAccess channel
-     * Specifically, this is the "other primary" channel used if the
-     * "main primary" is occupied by low-bandwidth OBSS traffic.
-     */
-    wmi_channel npca_chan;
-    /* NPCA punctured bitmap */
-    A_UINT32 puncture_20mhz_bitmap;
-    /*
-     * flags
-     * Bit0     :  NPCA Enabled/Disabled
-     *             WMI_NPCA_AP_CAP_ENABLED_GET / WMI_NPCA_AP_CAP_ENABLED_SET
-     *
-     * Bit1-3   :  NPCA Types
-     *             0:   Type1 - Two STF detectors
-     *             1:   Type2 - One STF detector
-     *             2-7: Reserved for future purpose
-     *             WMI_NPCA_AP_CAP_TYPE_GET / WMI_NPCA_AP_CAP_TYPE_SET
-     *
-     * Bit4-9   :  NPCA Minium Threshold
-     *             The NPCA minimum duration threshold T, in units of 128
-     *             us, is T = 512 + NMDT x 128, where NMDT is the field
-     *             value, which yields a minimum of 512 us and a maximum of
-     *             2432 us. The minimum is chosen to cover at least the
-     *             transmission time of NPCA ICF and ICR exchange plus a
-     *             typical Data and Ack/BA exchange using non-HT or non-
-     *             HT duplicate PPDU format with 6 Mb/s data rate
-     *             WMI_NPCA_AP_CAP_MIN_THRES_GET / _SET
-     *
-     * Bit10-15 :  NPCA Switch Delay
-     *             The time needed by an NPCA STA to switch from the
-     *             BSS primary channel to the NPCA primary channel,
-     *             in units of 4 us.
-     *             WMI_NPCA_AP_CAP_SWT_DELAY_GET / _SET
-     *
-     * Bit16:21 :  NPCA Switch Back Delay
-     *             The time needed by an NPCA STA to switch from the
-     *             NPCA primary channel to the BSS primary channel,
-     *             in units of 4 us.
-     *             WMI_NPCA_AP_CAP_SWTB_DELAY_GET / _SET
-     *
-     * Bit22:31 :  Reserved
-     */
-    A_UINT32 npca_cap;
-    A_UINT32 reserved; /* reserved for future purpose */
-} wmi_npca_ap_info;
-
-typedef struct {
-    /* WMITLV_TAG_STRUC_wmi_pdev_npca_ap_cap_cmd_fixed_param */
-    A_UINT32 tlv_header;
-    A_UINT32 pdev_id;
-    wmi_npca_ap_info npca_ap_info;
-} wmi_pdev_npca_ap_cap_cmd_fixed_param;
-
-#define WMI_NPCA_AP_CAP_ENABLED_GET(_var)          WMI_GET_BITS(_var, 0, 1)
-#define WMI_NPCA_AP_CAP_ENABLED_SET(_var, _val)    WMI_SET_BITS(_var, 0, 1, _val)
-
-#define WMI_NPCA_AP_CAP_TYPE_GET(_var)             WMI_GET_BITS(_var, 1, 3)
-#define WMI_NPCA_AP_CAP_TYPE_SET(_var, _val)       WMI_SET_BITS(_var, 1, 3, _val)
-
-#define WMI_NPCA_AP_CAP_MIN_THRES_GET(_var)        WMI_GET_BITS(_var, 4, 4)
-#define WMI_NPCA_AP_CAP_MIN_THRES_SET(_var, _val)  WMI_SET_BITS(_var, 4, 4, _val)
-
-#define WMI_NPCA_AP_CAP_SWT_DELAY_GET(_var)        WMI_GET_BITS(_var, 8, 6)
-#define WMI_NPCA_AP_CAP_SWT_DELAY_SET(_var, _val)  WMI_SET_BITS(_var, 8, 6, _val)
-
-#define WMI_NPCA_AP_CAP_SWTB_DELAY_GET(_var)       WMI_GET_BITS(_var, 14, 6)
-#define WMI_NPCA_AP_CAP_SWTB_DELAY_SET(_var, _val) WMI_SET_BITS(_var, 14, 6, _val)
-
 typedef struct {
     /* WMITLV_TAG_STRUC_wmi_get_scan_cache_result_cmd_fixed_param */
     A_UINT32 tlv_header;
@@ -53446,6 +53378,321 @@ typedef struct {
     A_UINT32 tlv_header;
     A_UINT32 version; /* Refer to WMI_RING_STATS_EVENT_VERSIONS */
 } wmi_ipa_ring_stats_conf_event_fixed_param;
+
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     * WMITLV_TAG_STRUC_wmi_uhr_ap_dps_params */
+    A_UINT32 tlv_header;
+    A_UINT32 vdev_id;
+    /*
+     * Bit0    : Mode enable - 1 / disable - 0
+     *           This indicates whether DPS for this VAP is enabled or disabled
+     * Bit1    : Mode Update
+     *           This should be set when any of the DPS params needs an update
+     * Bit2-31 : Reserved
+     */
+    A_UINT32 mode_tuple_field;
+    /* Add the required fields below*/
+} wmi_uhr_ap_dps_params;
+
+#define WMI_DPS_MODE_TUPLE_ENABLE_GET(_var)       WMI_GET_BITS(_var, 0, 1)
+#define WMI_DPS_MODE_TUPLE_ENABLE_SET(_var, _val) WMI_SET_BITS(_var, 0, 1, _val)
+
+#define WMI_DPS_MODE_TUPLE_UPDATE_GET(_var)       WMI_GET_BITS(_var, 1, 1)
+#define WMI_DPS_MODE_TUPLE_UPDATE_SET(_var, _val) WMI_SET_BITS(_var, 1, 1, _val)
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     * WMITLV_TAG_STRUC_wmi_uhr_ap_npca_params */
+    A_UINT32 tlv_header;
+    A_UINT32 vdev_id;
+    /*
+     * Bit0    : Mode enable - 1 / disable - 0
+     *           This indicates whether NPCA for this VAP is enabled or disabled
+     * Bit1    : Mode Update
+     *           This should be set when any of the NPCA params needs an update
+     * Bit2-31 : Reserved
+     */
+    A_UINT32 mode_tuple_field;
+    /* npca_chan:
+     * WMI Non-Primary Channel Access channel
+     * Specifically, this is the "other primary" channel used if the
+     * "main primary" is occupied by low-bandwidth OBSS traffic.
+     */
+    wmi_channel npca_chan;
+    /* NPCA punctured bitmap */
+    A_UINT32 puncture_20mhz_bitmap;
+    /*
+     * Bit0-7  : NPCA Primary Channel
+     *           WMI_NPCA_PRIM_CHAN_GET / WMI_NPCA_PRIM_CHAN_SET
+     *
+     * Bit8-11 : NPCA Minium Threshold
+     *           The NPCA minimum duration threshold T, in units of 128
+     *           us, is T = 512 + NMDT x 128, where NMDT is the field
+     *           value, which yields a minimum of 512 us and a maximum of
+     *           2432 us. The minimum is chosen to cover at least the
+     *           transmission time of NPCA ICF and ICR exchange plus a
+     *           typical Data and Ack/BA exchange using non-HT or non-
+     *           HT duplicate PPDU format with 6 Mb/s data rate
+     *           WMI_NPCA_AP_CAP_MIN_THRES_GET / _SET
+     *
+     * Bit12-17: NPCA Switch Delay
+     *           The time needed by an NPCA STA to switch from the
+     *           BSS primary channel to the NPCA primary channel,
+     *           in units of 4 us.
+     *           WMI_NPCA_AP_CAP_SWT_DELAY_GET / _SET
+     *
+     * Bit18:23: NPCA Switch Back Delay
+     *           The time needed by an NPCA STA to switch from the
+     *           NPCA primary channel to the BSS primary channel,
+     *           in units of 4 us.
+     *           WMI_NPCA_AP_CAP_SWTB_DELAY_GET / _SET
+     *
+     * Bit24:25: The Initial NPCA QSRC field indicates the value
+     *           that is used to initialize the EDCAF QSRC[AC] variables
+     *           when an NPCA STA in the BSS switches to NPCA operation.
+     *           WMI_NPCA_AP_CAP_MIN_THRES_GET / _SET
+     *
+     * Bit26   : The MOPLEN NPCA field indicates which conditions can be used
+     *           to initiate an NPCA operation. A value of 1 in this field
+     *           indicates that both PHYLEN NPCA operation and MOPLEN NPCA
+     *           operations are permitted in the BSS.
+     *           A value of 0 in this field indicates that only PHYLEN NPCA
+     *           operation is allowed in the BSS.
+     *           WMI_NPCA_AP_CAP_MOPLEN_GET / _SET
+     *
+     * Bit27   : The NPCA Disabled Subchannel Bitmap Present field indicates
+     *           whether the NPCA Disabled Subchannel Bitmap field is present.
+     *           This field indicates that the NPCA Disabled Subchannel Bitmap
+     *           field is present.
+     *           WMI_NPCA_AP_CAP_DISABLED_SB_PRESENT_GET / _SET
+     *
+     * Bit28-31: Reserved
+     */
+    A_UINT32 npca_cap1;
+
+    /*
+     * Bit0-15 : The NPCA Disabled Subchannel Bitmap field is a bitmap where
+     *           the lowest numbered bit corresponds to the 20 MHz subchannel
+     *           that lies within the BSS bandwidth and is the lowest in
+     *           frequency of the set of all 20MHz subchannels within the BSS
+     *           bandwidth. Each successive bit in the bitmap corresponds to
+     *           the next higher frequency 20 MHz subchannel. A bit in the
+     *           bitmap that lies within the BSS bandwidth is set to 1 to
+     *           indicate that the corresponding 20MHz subchannel is
+     *           punctured and is set to 0 to indicate that the corresponding
+     *           20 MHz subchannel is not punctured. A bit in the bitmap that
+     *           falls outside of the BSS bandwidth is reserved.
+     *           This field is present when the value of the NPCA Disabled
+     *           Subchannel Bitmap Field Present field is equal to 1, and
+     *           not present, otherwise.
+     *           WMI_NPCA_AP_CAP_DISABLED_SB_GET / _SET
+     *
+     * Bit16-31: Reserved
+     */
+    A_UINT32 npca_cap2;
+} wmi_uhr_ap_npca_params;
+
+#define WMI_NPCA_MODE_TUPLE_ENABLE_GET(_var)                WMI_GET_BITS(_var, 0, 1)
+#define WMI_NPCA_MODE_TUPLE_ENABLE_SET(_var, _val)          WMI_SET_BITS(_var, 0, 1, _val)
+
+#define WMI_NPCA_MODE_TUPLE_UPDATE_GET(_var)                WMI_GET_BITS(_var, 1, 1)
+#define WMI_NPCA_MODE_TUPLE_UPDATE_SET(_var, _val)          WMI_SET_BITS(_var, 1, 1, _val)
+
+#define WMI_NPCA_PRIM_CHAN_GET(_var)                        WMI_GET_BITS(_var, 0, 8)
+#define WMI_NPCA_PRIM_CHAN_SET(_var, _val)                  WMI_SET_BITS(_var, 0, 8, _val)
+
+#define WMI_NPCA_AP_CAP_MIN_THRESH_GET(_var)                WMI_GET_BITS(_var, 8, 4)
+#define WMI_NPCA_AP_CAP_MIN_THRESH_SET(_var, _val)          WMI_SET_BITS(_var, 8, 4, _val)
+
+#define WMI_NPCA_AP_CAP_SWITCH_DELAY_GET(_var)              WMI_GET_BITS(_var, 12, 6)
+#define WMI_NPCA_AP_CAP_SWITCH_DELAY_SET(_var, _val)        WMI_SET_BITS(_var, 12, 6, _val)
+
+#define WMI_NPCA_AP_CAP_SWITCH_BACK_DELAY_GET(_var)         WMI_GET_BITS(_var, 18, 6)
+#define WMI_NPCA_AP_CAP_SWITCH_BACK_DELAY_SET(_var, _val)   WMI_SET_BITS(_var, 18, 6, _val)
+
+#define WMI_NPCA_AP_CAP_QSRC_GET(_var)                      WMI_GET_BITS(_var, 24, 2)
+#define WMI_NPCA_AP_CAP_QSRC_SET(_var, _val)                WMI_SET_BITS(_var, 24, 2, _val)
+
+#define WMI_NPCA_AP_CAP_MOPLEN_GET(_var)                    WMI_GET_BITS(_var, 26, 1)
+#define WMI_NPCA_AP_CAP_MOPLEN_SET(_var, _val)              WMI_SET_BITS(_var, 26, 1, _val)
+
+#define WMI_NPCA_AP_CAP_DISABLED_SB_PRESENT_GET(_var)       WMI_GET_BITS(_var, 27, 1)
+#define WMI_NPCA_AP_CAP_DISABLED_SB_PRESENT_SET(_var, _val) WMI_SET_BITS(_var, 27, 1, _val)
+
+#define WMI_NPCA_AP_CAP_DISABLED_SB_GET(_var)               WMI_GET_BITS(_var, 0, 16)
+#define WMI_NPCA_AP_CAP_DISABLED_SB_SET(_var, _val)         WMI_SET_BITS(_var, 0, 16, _val)
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     * WMITLV_TAG_STRUC_wmi_uhr_ap_duo_params */
+    A_UINT32 tlv_header;
+    A_UINT32 vdev_id;
+    /*
+     * Bit0    : Mode enable - 1 / disable - 0
+     *           This indicates whether NPCA for this VAP is enabled or disabled
+     * Bit1    : Mode Update
+     *           This should be set when any of the NPCA params needs an update
+     * Bit2-31 : Reserved
+     */
+    A_UINT32 mode_tuple_field;
+    /* Add any new required fields below */
+} wmi_uhr_ap_duo_params;
+
+#define WMI_UHR_AP_DUO_PARAMS_ENABLE_GET(_var)       WMI_GET_BITS(_var, 0, 1)
+#define WMI_UHR_AP_DUO_PARAMS_ENABLE_SET(_var, _val) WMI_SET_BITS(_var, 0, 1, _val)
+
+#define WMI_UHR_AP_DUO_PARAMS_UPDATE_GET(_var)       WMI_GET_BITS(_var, 1, 1)
+#define WMI_UHR_AP_DUO_PARAMS_UPDATE_SET(_var, _val) WMI_SET_BITS(_var, 1, 1, _val)
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     * WMITLV_TAG_STRUC_wmi_uhr_ap_pedca_params */
+    A_UINT32 tlv_header;
+    A_UINT32 vdev_id;
+    /*
+     *
+     * Bit0    : Mode enable - 1 / disable - 0
+     *           This indicates whether NPCA for this VAP is enabled or disabled
+     *
+     * Bit1    : Mode Update
+     *           This should be set when any of the NPCA params needs an update
+     *
+     * Bit2-31 : Reserved
+     */
+    A_UINT32 mode_tuple_field;
+    /* Add any new required fields below */
+} wmi_uhr_ap_pedca_params;
+
+#define WMI_UHR_AP_PEDCA_PARAMS_ENABLE_GET(_var)       WMI_GET_BITS(_var, 0, 1)
+#define WMI_UHR_AP_PEDCA_PARAMS_ENABLE_SET(_var, _val) WMI_SET_BITS(_var, 0, 1, _val)
+
+#define WMI_UHR_AP_PEDCA_PARAMS_UPDATE_GET(_var)       WMI_GET_BITS(_var, 1, 1)
+#define WMI_UHR_AP_PEDCA_PARAMS_UPDATE_SET(_var, _val) WMI_SET_BITS(_var, 1, 1, _val)
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     * WMITLV_TAG_STRUC_wmi_uhr_ap_dbe_params */
+    A_UINT32 tlv_header;
+    A_UINT32 vdev_id;
+    /*
+     * Bit0    : Mode enable - 1 / disable - 0
+     *           This indicates whether NPCA for this VAP is enabled or disabled
+     * Bit1    : Mode Update
+     *           This should be set when any of the NPCA params needs an update
+     * Bit2-31 : Reserved
+     */
+    A_UINT32 mode_tuple_field;
+    /* Add any new required fields below */
+} wmi_uhr_ap_dbe_params;
+
+#define WMI_UHR_AP_DBE_PARAMS_ENABLE_GET(_var)       WMI_GET_BITS(_var, 0, 1)
+#define WMI_UHR_AP_DBE_PARAMS_ENABLE_SET(_var, _val) WMI_SET_BITS(_var, 0, 1, _val)
+
+#define WMI_UHR_AP_DBE_PARAMS_UPDATE_GET(_var)       WMI_GET_BITS(_var, 1, 1)
+#define WMI_UHR_AP_DBE_PARAMS_UPDATE_SET(_var, _val) WMI_SET_BITS(_var, 1, 1, _val)
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     * WMITLV_TAG_STRUC_wmi_uhr_ap_puo_params */
+    A_UINT32 tlv_header;
+    A_UINT32 vdev_id;
+    /*
+     * Bit0    : Mode enable - 1 / disable - 0
+     *           This indicates whether NPCA for this VAP is enabled or disabled
+     * Bit1    : Mode Update
+     *           This should be set when any of the NPCA params needs an update
+     * Bit2-31 : Reserved
+     */
+    A_UINT32 mode_tuple_field;
+    /* Add any new required fields below */
+} wmi_uhr_ap_puo_params;
+
+#define WMI_UHR_AP_PUO_PARAMS_ENABLE_GET(_var)       WMI_GET_BITS(_var, 0, 1)
+#define WMI_UHR_AP_PUO_PARAMS_ENABLE_SET(_var, _val) WMI_SET_BITS(_var, 0, 1, _val)
+
+#define WMI_UHR_AP_PUO_PARAMS_UPDATE_GET(_var)       WMI_GET_BITS(_var, 1, 1)
+#define WMI_UHR_AP_PUO_PARAMS_UPDATE_SET(_var, _val) WMI_SET_BITS(_var, 1, 1, _val)
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     * WMITLV_TAG_STRUC_wmi_uhr_ap_elr_reception_params */
+    A_UINT32 tlv_header;
+    A_UINT32 vdev_id;
+    /*
+     * Bit0    : Mode enable - 1 / disable - 0
+     *           This indicates whether NPCA for this VAP is enabled or disabled
+     * Bit1    : Mode Update
+     *           This should be set when any of the NPCA params needs an update
+     * Bit2-31 : Reserved
+     */
+    A_UINT32 mode_tuple_field;
+    /* Add any new required fields below */
+} wmi_uhr_ap_elr_reception_params;
+
+#define WMI_UHR_AP_ELR_RECEPTION_PARAMS_ENABLE_GET(_var)       WMI_GET_BITS(_var, 0, 1)
+#define WMI_UHR_AP_ELR_RECEPTION_PARAMS_ENABLE_SET(_var, _val) WMI_SET_BITS(_var, 0, 1, _val)
+
+#define WMI_UHR_AP_ELR_RECEPTION_PARAMS_UPDATE_GET(_var)       WMI_GET_BITS(_var, 1, 1)
+#define WMI_UHR_AP_ELR_RECEPTION_PARAMS_UPDATE_SET(_var, _val) WMI_SET_BITS(_var, 1, 1, _val)
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     * WMITLV_TAG_STRUC_wmi_vdev_uhr_cu_cmd_fixed_param */
+    A_UINT32 tlv_header;
+    A_UINT32 vdev_id;
+    /* This fixed param TLV will be followed by the below TLVs
+     *   - wmi_uhr_ap_dps_params
+     *   - wmi_uhr_ap_npca_params
+     *   - wmi_uhr_ap_duo_params
+     *   - wmi_uhr_ap_pedca_params
+     *   - wmi_uhr_ap_dbe_params
+     *   - wmi_uhr_ap_ap_puo_params
+     *   - wmi_uhr_ap_elr_reception_params
+     */
+} wmi_vdev_uhr_cu_cmd_fixed_param;
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     * WMITLV_TAG_STRUC_wmi_pdev_uhr_cu_cmd_fixed_param */
+    A_UINT32 tlv_header;
+    /* This fixed param TLV will be followed by the below TLVs
+     *   - wmi_uhr_ap_dps_params[]
+     *   - wmi_uhr_ap_npca_params[]
+     *   - wmi_uhr_ap_duo_params[]
+     *   - wmi_uhr_ap_pedca_params[]
+     *   - wmi_uhr_ap_dbe_params[]
+     *   - wmi_uhr_ap_ap_puo_params[]
+     *   - wmi_uhr_ap_elr_reception_params[]
+     */
+} wmi_pdev_uhr_cu_cmd_fixed_param;
+
+typedef enum {
+    WMI_VDEV_UHR_CU_IN_PROGRESS,
+    WMI_VDEV_UHR_CU_ESTABLISHED,
+    WMI_VDEV_UHR_CU_SESSION_END,
+} wmi_vdev_uhr_cu_state;
+
+typedef struct {
+   /** TLV tag and len; tag equals
+     * WMITLV_TAG_STRUC_wmi_vdev_uhr_cu_status */
+    A_UINT32 tlv_header;
+    A_UINT32 vdev_id;
+    /* Refer wmi_vdev_uhr_cu_state*/
+    A_UINT32 status;
+} wmi_vdev_uhr_cu_status;
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     * WMITLV_TAG_STRUC_wmi_pdev_uhr_cu_event_fixed_param */
+    A_UINT32 tlv_header;
+    A_UINT32 pdev_id;
+
+    /* This fixed param TLV will be followed by the below TLVs
+     *   - wmi_vdev_uhr_cu_status[]
+     */
+} wmi_pdev_uhr_cu_event_fixed_param;
 
 
 
