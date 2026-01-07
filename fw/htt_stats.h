@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2017-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2026 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -881,6 +881,14 @@ enum htt_dbg_ext_stats_type {
      *    - htt_stats_pdev_ftm_tpccal_ext_tlv
      */
     HTT_DBG_EXT_STATS_PDEV_FTM_TPCCAL_EXT = 80,
+
+    /** HTT_DBG_EXT_STATS_ANI_HISTOGRAM
+     * PARAMS:
+     *   - No Params
+     * RESP MSG:
+     *   - htt_stats_phy_ani_hist_tlv
+     *   */
+    HTT_DBG_EXT_STATS_ANI_HISTOGRAM = 81,
 
 
     /* keep this last */
@@ -12329,6 +12337,91 @@ typedef struct {
     htt_stats_vdev_txrx_stats_hw_stats_tlv vdev_hw_stats[1/*or more*/];
 } htt_vdevs_txrx_stats_t;
 #endif /* ATH_TARGET */
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    /** The channel number on which these stats were collected */
+    A_UINT32 chan_num;
+    /** num of records provided */
+    A_UINT32 num_records;
+    /** Indicates the stats collection interval
+     *  Valid Values:
+     *      100  - For the 100 ms interval stats histogram
+     *      1000 - For 1 sec interval histogram
+     */
+    A_UINT32 collection_interval;
+    /** ani_hist_type:
+     * single flag to differentiate histogram type
+     * Valid Values:
+     *      0 - (default) For 1 sec interval histogram
+     *      1 - For granular (100 ms) interval histogram
+     *      2 - 1 sec histogram not enabled
+     *      3 - Granular histogram not enabled
+     */
+    A_UINT32 ani_hist_type;
+} htt_stats_pdev_ani_hist_tlv;
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    A_UINT32 rx_ofdma_timing_err_cnt;
+    A_UINT32 rx_cck_fail_cnt;
+    A_UINT32 rx_cck1_fail_cnt;
+    A_UINT32 rx_cck2_fail_cnt;
+    A_UINT32 rx_cck7_fail_cnt;
+    A_UINT32 mactx_abort_cnt;
+    A_UINT32 macrx_abort_cnt;
+    A_UINT32 phytx_abort_cnt;
+    A_UINT32 phyrx_abort_cnt;
+    A_UINT32 phyrx_defer_abort_cnt;
+    A_UINT32 rx_sizing1_event_cnt; /* a.k.a sizing1 */
+    A_UINT32 rx_sizing2_event_cnt; /* a.k.a sizing2 */
+} htt_stats_ani_scalar_tlv;
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    /* rx_pkt_cnt -
+     * Received EOP (end-of-packet) count per packet type;
+     * [0] = 11a; [1] = 11b; [2] = 11n; [3] = 11ac; [4] = 11ax;
+     * [5] = GF; [6] = EHT; [7] = WUR; [8] = AZ
+     */
+    A_UINT32 rx_pkt_cnt[9];
+} htt_stats_ani_pkt_cnt_tlv;
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    /* rx_pkt_crc_pass_cnt -
+     * CRC pass count per packet type;
+     * [0] = 11a; [1] = 11b; [2] = 11n; [3] = 11ac; [4] = 11ax;
+     * [5] = GF; [6] = EHT; [7] = WUR; [8] = AZ
+     */
+    A_UINT32 rx_pkt_crc_pass_cnt[9];
+} htt_stats_ani_crc_pass_tlv;
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    /* per_blk_err_cnt -
+     * Error count per error source;
+     * [0] = unknown; [1] = LSIG; [2] = HTSIG; [3] = VHTSIG; [4] = HESIG;
+     * [5] = RXTD_OTA; [6] = RXTD_FATAL; [7] = DEMF; [8] = ROBE;
+     * [9] = PMI; [10] = TXFD; [11] = TXTD; [12] = PHYRF
+     * [13-15]=RSVD
+     */
+    A_UINT32 per_blk_err_cnt[16];
+} htt_stats_ani_per_blk_err_tlv;
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    /* rx_ota_err_cnt -
+     * RXTD OTA (over-the-air) error count per error reason;
+     * [0] = voting fail; [1] = weak det fail; [2] = strong sig fail;
+     * [3] = cck fail; [4] = power surge;
+     * [5] = btcf timing timeout error; [6] = btcf packet detect error;
+     * [7] = coarse timing timeout error
+     * [8-9]=RSVD
+     */
+    A_UINT32 rx_ota_err_cnt[10];
+} htt_stats_ani_ota_err_tlv;
+
 
 /* PAPRD and power boost stats and counters */
 typedef struct {

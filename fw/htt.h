@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2011-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2026 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -890,6 +890,20 @@ typedef enum {
     HTT_STATS_RX_PDEV_UL_MUMIMO_TRIG_BN_TAG         = 237, /* htt_stats_rx_pdev_ul_mumimo_trig_bn_tlv, TOPIC=advanced */
     HTT_STATS_RX_PDEV_BN_UL_MIMO_USER_TAG           = 238, /* htt_stats_rx_pdev_bn_ul_mimo_user_tlv */
     HTT_STATS_TX_PDEV_BN_UL_MU_MIMO_TAG             = 239, /* htt_stats_tx_pdev_bn_ul_mu_mimo_tlv */
+    /* HTT_STATS_PDEV_ANI_HIST_TAG:
+     * htt_stats_pdev_ani_hist_tlv
+     * ani_hist_type:
+     *     0 = 1 sec,
+     *     1 = granular
+     *     2 = 1 sec disabled
+     *     3 = granular disabled
+     */
+    HTT_STATS_PDEV_ANI_HIST_TAG                     = 240,
+    HTT_STATS_ANI_SCALAR_TAG                        = 241, /* htt_stats_ani_scalar_tlv */
+    HTT_STATS_ANI_PKT_CNT_TAG                       = 242, /* htt_stats_ani_pkt_cnt_tlv */
+    HTT_STATS_ANI_CRC_PASS_TAG                      = 243, /* htt_stats_ani_crc_pass_tlv */
+    HTT_STATS_ANI_PER_BLK_ERR_TAG                   = 244, /* htt_stats_ani_per_blk_err_tlv */
+    HTT_STATS_ANI_OTA_ERR_TAG                       = 245, /* htt_stats_ani_ota_err_tlv */
 
     HTT_STATS_MAX_TAG,
 } htt_stats_tlv_tag_t;
