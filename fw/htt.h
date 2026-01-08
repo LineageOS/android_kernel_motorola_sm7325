@@ -904,6 +904,7 @@ typedef enum {
     HTT_STATS_ANI_CRC_PASS_TAG                      = 243, /* htt_stats_ani_crc_pass_tlv */
     HTT_STATS_ANI_PER_BLK_ERR_TAG                   = 244, /* htt_stats_ani_per_blk_err_tlv */
     HTT_STATS_ANI_OTA_ERR_TAG                       = 245, /* htt_stats_ani_ota_err_tlv */
+    HTT_STATS_RESET_HISTORY_TAG                     = 246, /* htt_stats_reset_history_tlv */
 
     HTT_STATS_MAX_TAG,
 } htt_stats_tlv_tag_t;

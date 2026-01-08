@@ -890,6 +890,14 @@ enum htt_dbg_ext_stats_type {
      *   */
     HTT_DBG_EXT_STATS_ANI_HISTOGRAM = 81,
 
+    /** HTT_DBG_EXT_STATS_RESET_HISTORY
+     * PARAMS:
+     *   - No Params
+     * RESP MSG:
+     *   - htt_stats_reset_history_tlv
+     */
+    HTT_DBG_EXT_STATS_RESET_HISTORY = 82,
+
 
     /* keep this last */
     HTT_DBG_NUM_EXT_STATS = 256,
@@ -15689,6 +15697,92 @@ typedef struct {
      */
     A_UINT32 mpduq_to_empty_cnt;
 } htt_stats_pdev_sam_tlv;
+
+
+#define HTT_STATS_RESET_HISTORY_MAX_ENTRIES 10
+
+/**
+ * @brief TLV structure for wifistats 82 (reset history)
+ *
+ * This structure holds the last 10 reset history entries.
+ * The entries are copied from the firmware's internal circular buffer.
+ */
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    /**
+     * @brief An array of structures, each holding the details of a single
+     *        reset event. The entries are ordered chronologically from
+     *        oldest to newest.
+     */
+    struct {
+        A_UINT32 timestamp_ms;
+        /* reset_flags is only for debugging, not for host interpretation */
+        A_UINT32 reset_flags;
+        /* reset_cause is only for debugging, not for host interpretation */
+        A_UINT32 reset_cause;
+        /* reset_reason is only for debugging, not for host interpretation */
+        A_UINT32 reset_reason;
+        A_UINT32 phy_mode;
+        union {
+            A_UINT32 channel_freq;
+            struct {
+                A_UINT32
+                    mhz:              16,
+                    band_center_freq1:16;
+            };
+        };
+        union {
+            A_UINT32 channel_info;
+            struct {
+                A_UINT32
+                    flags:    16, /* only for debug, not for host interpret */
+                    phy_id:    8,
+                    swprofile: 8; /* only for debug, not for host interpret */
+            };
+        };
+        union {
+            A_UINT32 home_channel_info;
+            struct {
+                A_UINT32
+                    is_home_chan: 1,
+                    reserved:    31;
+            };
+        };
+        A_UINT32 reserved_dwords[2]; /* reserved for future use */
+    } reset_history[HTT_STATS_RESET_HISTORY_MAX_ENTRIES];
+    A_UINT32 idx;   /** Current write index of the circular buffer */
+    A_UINT32 count; /** Total number of resets captured (up to 10) */
+} htt_stats_reset_history_tlv;
+
+#define HTT_STATS_RESET_HISTORY_MHZ_GET(word) \
+    ((word) & 0x0000ffff)
+#define HTT_STATS_RESET_HISTORY_MHZ_SET(word, value) \
+    ((word) |= ((value) & 0x0000ffff))
+
+#define HTT_STATS_RESET_HISTORY_BAND_CENTER_FREQ1_GET(word) \
+    (((word) & 0xffff0000) >> 16)
+#define HTT_STATS_RESET_HISTORY_BAND_CENTER_FREQ1_SET(word, value) \
+    ((word) |= (((value) << 16) & 0xffff0000))
+
+#define HTT_STATS_RESET_HISTORY_FLAGS_GET(word) \
+    ((word) & 0x0000ffff)
+#define HTT_STATS_RESET_HISTORY_FLAGS_SET(word, value) \
+    ((word) |= ((value) & 0x0000ffff))
+
+#define HTT_STATS_RESET_HISTORY_PHY_ID_GET(word) \
+    (((word) & 0x00ff0000) >> 16)
+#define HTT_STATS_RESET_HISTORY_PHY_ID_SET(word, value) \
+    ((word) |= (((value) << 16) & 0x00ff0000))
+
+#define HTT_STATS_RESET_HISTORY_SWPROFILE_GET(word) \
+    (((word) & 0xff000000) >> 24)
+#define HTT_STATS_RESET_HISTORY_SWPROFILE_SET(word, value) \
+    ((word) |= (((value) << 24) & 0xff000000))
+
+#define HTT_STATS_RESET_HISTORY_IS_HOME_CHAN_GET(word) \
+    (((word) & 0x00000001) >> 0)
+#define HTT_STATS_RESET_HISTORY_IS_HOME_CHAN_SET(word, value) \
+    ((word) |= (((value) << 0) & 0x00000001))
 
 
 #endif /* __HTT_STATS_H__ */
