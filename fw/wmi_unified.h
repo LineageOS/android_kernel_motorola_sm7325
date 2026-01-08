@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2010-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2026 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -611,8 +611,13 @@ typedef enum {
      * for the pdev
      */
     WMI_PDEV_MULTI_VDEV_GET_AC_QUEUE_DEPTH_CMDID,
-    /* Event to indicate the status of the set tx chainmask command */
-    WMI_PDEV_SET_TX_CHAINMASK_COMP_EVENTID,
+    /* WMI_PDEV_RESERVED_CMDID:
+     * The value is now deprecated / reserved - it was initially erroneously
+     * given to WMI_PDEV_SET_TX_CHAINMASK_COMP_EVENTID, but now that
+     * WMI_PDEV_SET_TX_CHAINMASK_COMP_EVENTID has been moved to the EVENTID
+     * enum, this value is available to use for a future PDEV CMDID.
+     */
+    WMI_PDEV_RESERVED_CMDID,
     /**
      * WMI cmd to send the detailed information of each UHR feature,
      * that are applicable for critical update.
@@ -1857,166 +1862,176 @@ typedef enum {
 
     /* PDEV specific events */
     /** TPC config for the current operating channel */
-    WMI_PDEV_TPC_CONFIG_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_PDEV),
+    WMI_PDEV_TPC_CONFIG_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_PDEV), /* 0 */
     /** Channel stats event    */
-    WMI_CHAN_INFO_EVENTID,
+    WMI_CHAN_INFO_EVENTID, /* 1 */
 
     /** PHY Error specific WMI event */
-    WMI_PHYERR_EVENTID,
+    WMI_PHYERR_EVENTID, /* 2 */
 
     /** eeprom dump event  */
-    WMI_PDEV_DUMP_EVENTID,
+    WMI_PDEV_DUMP_EVENTID, /* 3 */
 
     /** traffic pause event */
-    WMI_TX_PAUSE_EVENTID,
+    WMI_TX_PAUSE_EVENTID, /* 4 */
 
     /** DFS radar event  */
-    WMI_DFS_RADAR_EVENTID,
+    WMI_DFS_RADAR_EVENTID, /* 5 */
 
     /** track L1SS entry and residency event */
-    WMI_PDEV_L1SS_TRACK_EVENTID,
+    WMI_PDEV_L1SS_TRACK_EVENTID, /* 6 */
 
     /** Report current temperature of the chip in Celcius degree */
-    WMI_PDEV_TEMPERATURE_EVENTID,
+    WMI_PDEV_TEMPERATURE_EVENTID, /* 7 */
 
     /** Extension of WMI_SERVICE_READY msg with extra target capability info */
-    WMI_SERVICE_READY_EXT_EVENTID,
+    WMI_SERVICE_READY_EXT_EVENTID, /* 8 */
 
     /** FIPS test mode event */
-    WMI_PDEV_FIPS_EVENTID,
+    WMI_PDEV_FIPS_EVENTID, /* 9 */
 
     /** Channel hopping avoidance */
-    WMI_PDEV_CHANNEL_HOPPING_EVENTID,
+    WMI_PDEV_CHANNEL_HOPPING_EVENTID, /* 10 */
 
     /** CCK ANI level event */
-    WMI_PDEV_ANI_CCK_LEVEL_EVENTID,
+    WMI_PDEV_ANI_CCK_LEVEL_EVENTID, /* 11 */
 
     /** OFDM ANI level event */
-    WMI_PDEV_ANI_OFDM_LEVEL_EVENTID,
+    WMI_PDEV_ANI_OFDM_LEVEL_EVENTID, /* 12 */
 
     /** Tx PPDU params */
-    WMI_PDEV_TPC_EVENTID,
+    WMI_PDEV_TPC_EVENTID, /* 13 */
 
     /** NF Cal Power in DBR/DBM for all channels */
-    WMI_PDEV_NFCAL_POWER_ALL_CHANNELS_EVENTID,
+    WMI_PDEV_NFCAL_POWER_ALL_CHANNELS_EVENTID, /* 14 */
 
     /** SOC/PDEV events */
-    WMI_PDEV_SET_HW_MODE_RESP_EVENTID,
-    WMI_PDEV_HW_MODE_TRANSITION_EVENTID,
-    WMI_PDEV_SET_MAC_CONFIG_RESP_EVENTID,
+    WMI_PDEV_SET_HW_MODE_RESP_EVENTID, /* 15 */
+    WMI_PDEV_HW_MODE_TRANSITION_EVENTID, /* 16 */
+    WMI_PDEV_SET_MAC_CONFIG_RESP_EVENTID, /* 17 */
     /** Report ANT DIV feature's status */
-    WMI_PDEV_ANTDIV_STATUS_EVENTID,
+    WMI_PDEV_ANTDIV_STATUS_EVENTID, /* 18 */
     /** Chip level Power stats */
-    WMI_PDEV_CHIP_POWER_STATS_EVENTID,
+    WMI_PDEV_CHIP_POWER_STATS_EVENTID, /* 19 */
     /** Power Save Failure Detected */
-    WMI_PDEV_CHIP_POWER_SAVE_FAILURE_DETECTED_EVENTID,
+    WMI_PDEV_CHIP_POWER_SAVE_FAILURE_DETECTED_EVENTID, /* 20 */
 
     /* Event to report the switch count in csa of one or more VDEVs */
-    WMI_PDEV_CSA_SWITCH_COUNT_STATUS_EVENTID,
+    WMI_PDEV_CSA_SWITCH_COUNT_STATUS_EVENTID, /* 21 */
 
     /** Report the caldata version to host */
-    WMI_PDEV_CHECK_CAL_VERSION_EVENTID,
+    WMI_PDEV_CHECK_CAL_VERSION_EVENTID, /* 22 */
 
     /** Report chain RSSI and antenna index to host */
-    WMI_PDEV_DIV_RSSI_ANTID_EVENTID,
+    WMI_PDEV_DIV_RSSI_ANTID_EVENTID, /* 23 */
 
     /** provide noise floor and cycle counts for a channel */
-    WMI_PDEV_BSS_CHAN_INFO_EVENTID,
+    WMI_PDEV_BSS_CHAN_INFO_EVENTID, /* 24 */
 
     /** Response received the ctl table to host */
-    WMI_PDEV_UPDATE_CTLTABLE_EVENTID,
+    WMI_PDEV_UPDATE_CTLTABLE_EVENTID, /* 25 */
 
-    WMI_PDEV_DMA_RING_CFG_RSP_EVENTID,
+    WMI_PDEV_DMA_RING_CFG_RSP_EVENTID, /* 26 */
 
-    WMI_PDEV_DMA_RING_BUF_RELEASE_EVENTID,
+    WMI_PDEV_DMA_RING_BUF_RELEASE_EVENTID, /* 27 */
 
     /** WMI Event to deliver CTL Failsafe application */
-    WMI_PDEV_CTL_FAILSAFE_CHECK_EVENTID,
+    WMI_PDEV_CTL_FAILSAFE_CHECK_EVENTID, /* 28 */
 
     /* Event to report the switch count in BSS color of one or more VDEVs */
-    WMI_PDEV_CSC_SWITCH_COUNT_STATUS_EVENTID,
+    WMI_PDEV_CSC_SWITCH_COUNT_STATUS_EVENTID, /* 29 */
 
     /* Event to send cold boot calibration data */
-    WMI_PDEV_COLD_BOOT_CAL_DATA_EVENTID,
+    WMI_PDEV_COLD_BOOT_CAL_DATA_EVENTID, /* 30 */
 
     /* Event to report a rogue ap info that is detected in fw */
-    WMI_PDEV_RAP_INFO_EVENTID,
+    WMI_PDEV_RAP_INFO_EVENTID, /* 31 */
 
-    WMI_CHAN_RF_CHARACTERIZATION_INFO_EVENTID,
+    WMI_CHAN_RF_CHARACTERIZATION_INFO_EVENTID, /* 32 */
 
     /** 2nd extension of SERVICE_READY msg with extra target capability info */
-    WMI_SERVICE_READY_EXT2_EVENTID,
+    WMI_SERVICE_READY_EXT2_EVENTID, /* 33 */
 
     /**
      * vdev restart response for multiple vdevs in response to
      * MULTIPLE_VDEV_RESTART_REQUEST
      */
-    WMI_PDEV_MULTIPLE_VDEV_RESTART_RESP_EVENTID,
+    WMI_PDEV_MULTIPLE_VDEV_RESTART_RESP_EVENTID, /* 34 */
 
     /** WMI event in response to TPC STATS command */
-    WMI_PDEV_GET_TPC_STATS_EVENTID,
+    WMI_PDEV_GET_TPC_STATS_EVENTID, /* 35 */
 
     /* Event to get DPD status from HALPHY */
-    WMI_PDEV_GET_DPD_STATUS_EVENTID,
+    WMI_PDEV_GET_DPD_STATUS_EVENTID, /* 36 */
 
     /* Event to get Calibration status from HALPHY */
-    WMI_PDEV_GET_HALPHY_CAL_STATUS_EVENTID,
+    WMI_PDEV_GET_HALPHY_CAL_STATUS_EVENTID, /* 37 */
 
     /* Event to set halphy cal bitmap */
-    WMI_PDEV_SET_HALPHY_CAL_BMAP_EVENTID,
+    WMI_PDEV_SET_HALPHY_CAL_BMAP_EVENTID, /* 38 */
 
     /* Event to get AOA phasedelta values from HALPHY */
-    WMI_PDEV_AOA_PHASEDELTA_EVENTID,
+    WMI_PDEV_AOA_PHASEDELTA_EVENTID, /* 39 */
 
-    WMI_PDEV_FIPS_EXTEND_EVENTID,
+    WMI_PDEV_FIPS_EXTEND_EVENTID, /* 40 */
 
     /* Event to send packet log decode information */
-    WMI_PDEV_PKTLOG_DECODE_INFO_EVENTID,
+    WMI_PDEV_PKTLOG_DECODE_INFO_EVENTID, /* 41 */
 
     /**
      * RSSI dB to dBm conversion params info event
      * sent to host after channel/bw/chainmask change per pdev.
      */
-    WMI_PDEV_RSSI_DBM_CONVERSION_PARAMS_INFO_EVENTID,
+    WMI_PDEV_RSSI_DBM_CONVERSION_PARAMS_INFO_EVENTID, /* 42 */
 
     /* Event to indicate Schedule tid queue suspended info */
-    WMI_PDEV_SCHED_TIDQ_SUSP_INFO_EVENTID,
+    WMI_PDEV_SCHED_TIDQ_SUSP_INFO_EVENTID, /* 43 */
 
     /* Event to send target rate to power table update status */
-    WMI_PDEV_SET_TGTR2P_TABLE_EVENTID,
+    WMI_PDEV_SET_TGTR2P_TABLE_EVENTID, /* 44 */
 
     /* Event to indicate completion on RF path */
-    WMI_PDEV_SET_RF_PATH_RESP_EVENTID,
+    WMI_PDEV_SET_RF_PATH_RESP_EVENTID, /* 45 */
 
     /* Event to get AOA phasedelta values for all gain tables from HALPHY */
-    WMI_PDEV_ENHANCED_AOA_PHASEDELTA_EVENTID,
+    WMI_PDEV_ENHANCED_AOA_PHASEDELTA_EVENTID, /* 46 */
 
     /* Event to indicate the status of WiFi Radar calibration */
-    WMI_PDEV_WIFI_RADAR_CAL_COMPLETION_STATUS_EVENTID,
+    WMI_PDEV_WIFI_RADAR_CAL_COMPLETION_STATUS_EVENTID, /* 47 */
 
     /* Event to indicate xLNA is enabled */
-    WMI_PDEV_ENABLE_XLNA_EVENTID,
+    WMI_PDEV_ENABLE_XLNA_EVENTID, /* 48 */
 
     /* Event to indicate ANN Power Boost update status from Target */
-    WMI_PDEV_POWER_BOOST_EVENTID,
+    WMI_PDEV_POWER_BOOST_EVENTID, /* 49 */
 
     /*
      * WMI event to share Wi-Fi Radar -
      * monostatic Wi-Fi sensing technique capabalites
      */
-    WMI_PDEV_WIFI_RADAR_CAPABILITIES_EVENTID,
+    WMI_PDEV_WIFI_RADAR_CAPABILITIES_EVENTID, /* 50 */
 
     /*
      * This event is deprecated - DO NOT USE
      * WMI_PDEV_NPCA_AP_CAP_CMDID response event
      */
-    WMI_PDEV_NPCA_AP_CAP_RESP_EVENTID,
+    WMI_PDEV_NPCA_AP_CAP_RESP_EVENTID, /* 51 */
 
     /* Event to share the per-access-category queue pending packets */
-    WMI_PDEV_MULTI_VDEV_AC_QUEUE_DEPTH_EVENTID,
+    WMI_PDEV_MULTI_VDEV_AC_QUEUE_DEPTH_EVENTID, /* 52 */
 
     /* WMI event for the UHR critical Update */
-    WMI_PDEV_UHR_CU_EVENTID,
+    WMI_PDEV_UHR_CU_EVENTID, /* 53 */
+
+
+
+    /***
+     *** add new WMI_PDEV EVENTID defs directly above here,
+     *** until EVENTID offset 89 is reached, then continue
+     *** from 90 below WMI_PDEV_SET_TX_CHAINMASK_COMP_EVENTID
+     ***/
+    WMI_PDEV_SET_TX_CHAINMASK_COMP_EVENTID = 0x405a, /* 89 */
+
 
 
     /* VDEV specific events */
