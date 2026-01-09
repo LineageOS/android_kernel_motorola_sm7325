@@ -20027,6 +20027,11 @@ typedef enum {
      */
     WMI_VDEV_PARAM_ACK_RATE,                              /* 0xCE */
 
+    /* Enable TWT in Concurrency for this vdev */
+    WMI_VDEV_PARAM_ENABLE_TWT_CONCURRENCY,                /* 0xCF */
+
+    /* Use BTWT ID0 for this vdev */
+    WMI_VDEV_PARAM_USE_BTWT_ID0,                          /* 0xD0 */
 
 
     /*=== ADD NEW VDEV PARAM TYPES ABOVE THIS LINE ===
