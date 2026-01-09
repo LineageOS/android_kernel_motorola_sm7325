@@ -52614,7 +52614,9 @@ typedef struct {
 #define WMI_PEER_ACTIVE_TRAFFIC_TYPE_WEB_BROWSING_S              19
 #define WMI_PEER_ACTIVE_TRAFFIC_TYPE_APERIODIC_BURST_TRAFFIC_1_M 0x00100000
 #define WMI_PEER_ACTIVE_TRAFFIC_TYPE_APERIODIC_BURST_TRAFFIC_1_S 20
-/* bits 21-31 are reserved for new interactive traffic types */
+#define WMI_PEER_ACTIVE_TRAFFIC_TYPE_LIVECAST_M                  0x00200000
+#define WMI_PEER_ACTIVE_TRAFFIC_TYPE_LIVECAST_S                  21
+/* bits 22-31 are reserved for new interactive traffic types */
 
 typedef struct {
     A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_peer_active_traffic_map_cmd_fixed_param */
