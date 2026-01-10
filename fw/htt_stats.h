@@ -3918,6 +3918,15 @@ typedef struct {
      * completed with error(s)
      */
     A_UINT32 standalone_bn_ulmumimo_trigger_err[HTT_NUM_AC_WMM];
+
+    /** 11bn UHR BSRP trigger to DPS client sent over the air */
+    A_UINT32 sta_dps_bn_bsr_trigger[HTT_NUM_AC_WMM];
+    /** 11bn UHR MU RTS trigger to DPS client sent over the air */
+    A_UINT32 sta_dps_bn_mu_rts_trigger[HTT_NUM_AC_WMM];
+    /** 11bn UHR BSRP trigger to DPS client completed with error(s) */
+    A_UINT32 sta_dps_bn_bsr_trigger_err[HTT_NUM_AC_WMM];
+    /** 11bn UHR MU RTS trigger to DPS client completed with errors(s) */
+    A_UINT32 sta_dps_bn_mu_rts_trigger_err[HTT_NUM_AC_WMM];
 } htt_stats_tx_selfgen_bn_tlv;
 
 typedef struct { /* DEPRECATED */
