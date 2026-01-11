@@ -5511,6 +5511,28 @@ typedef struct {
     A_UINT32 num_subcycles_no_sort;
     /** num of times DPS client is scheduled */
     A_UINT32 num_dps_client_scheduled;
+    /**
+     * Number of first sched_cmd allowed for DL+UL/UL+DL sched_cmd combining
+     */
+    A_UINT32 num_allowed_first_sched_command_for_combining;
+    /**
+     * Number of second sched_cmd allowed for DL+UL/UL+DL sched_cmd combining
+     */
+    A_UINT32 num_allowed_second_command_for_combining;
+    /**
+     * Number of first sched_cmd aborted to avoid DL+UL/UL+DL sched_cmd
+     * combining
+     */
+    A_UINT32 num_aborted_first_sched_command;
+    /**
+     * Number of second sched_cmd aborted to avoid DL+UL/UL+DL sched_cmd
+     * combining
+     */
+    A_UINT32 num_aborted_second_sched_command;
+    /** Number combined sched_cmds sucessfully transmitted */
+    A_UINT32 total_combined_sched_cmds_success;
+    /** Number combined sched_cmds failed to transmit */
+    A_UINT32 total_combined_sched_cmds_failed;
 } htt_stats_tx_pdev_scheduler_txq_stats_tlv;
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_tx_pdev_scheduler_txq_stats_tlv
