@@ -47592,6 +47592,44 @@ typedef struct {
         WMI_SET_BITS(frame_seq_ctrl, 4, 12, value)
 
 /**
+ * CFR capture fix agc gain status codes
+ * These values are sent to host in wmi_cfr_capture_filter_resp_event
+ */
+typedef enum {
+    /** Configuration successful */
+    WMI_CFR_CAPTURE_FIX_AGC_GAIN_STATUS_SUCCESS             = 0,
+
+    /** RX AGC Gain index out of range */
+    WMI_CFR_CAPTURE_FIX_AGC_GAIN_REASON_INDEX_OUT_OF_RANGE  = 1,
+
+    /** Fixed AGC not supported in current PHY mode */
+    WMI_CFR_CAPTURE_FIX_AGC_GAIN_REASON_PHYMODE_REJECT      = 2,
+
+    /** Failed to disable Scan */
+    WMI_CFR_CAPTURE_FIX_AGC_GAIN_REASON_SCAN_DISABLE_FAILED = 3,
+
+    /** Failed to disable ANI */
+    WMI_CFR_CAPTURE_FIX_AGC_GAIN_REASON_ANI_DISABLE_FAILED  = 4,
+
+    /** AGC control is already owned by another module */
+    WMI_CFR_CAPTURE_FIX_AGC_GAIN_REASON_AGC_CONFLICT        = 5,
+
+    /** Another CFR/AGC session is in progress */
+    WMI_CFR_CAPTURE_FIX_AGC_GAIN_REASON_SESSION_BUSY        = 6,
+} wmi_cfr_capture_fix_agc_gain_status_t;
+
+typedef struct {
+    /* Info of the CFR capture fix AGC gain configuration based on wmi_cfr_capture_fix_agc_gain_status_t */
+    A_UINT32 tlv_header;
+
+    /* wmi_cfr_capture_fix_agc_gain_status_t */
+    A_UINT32 status;
+
+    /* RX agc gain index for cfr capture in HW */
+    A_UINT32 cfr_agc_gain_index;
+} wmi_cfr_capture_fix_agc_gain_info;
+
+/**
  * CFR capture filter command response status codes
  * These values are sent to host in wmi_cfr_capture_filter_resp_event
  */
@@ -48487,6 +48525,21 @@ typedef struct {
      */
     A_UINT32 data_subtype_filter;
 } wmi_cfr_filter_group_config;
+
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_cfr_fix_agc_gain_config */
+
+    /*
+     * 0 - disable CFR fix agc gain feature
+     * 1 - enable CFR fix agc gain feature
+     */
+    A_UINT32 cfr_fix_agc_gain_enable;
+
+    /* Forced RX agc gain index for cfr capture, which is set by user in host */
+    A_UINT32 force_cfr_agc_gain_index;
+} wmi_cfr_capture_fix_agc_gain_config;
+
 
 #define WMI_CFR_DIRECTED_FTM_ACK_EN_BIT_POS           0
 #define WMI_CFR_ALL_FTM_ACK_EN_BIT_POS                1

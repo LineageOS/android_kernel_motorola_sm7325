@@ -1561,6 +1561,8 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_pdev_uhr_cu_cmd_fixed_param,
     WMITLV_TAG_STRUC_wmi_vdev_uhr_cu_status,
     WMITLV_TAG_STRUC_wmi_pdev_uhr_cu_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_cfr_capture_fix_agc_gain_config,
+    WMITLV_TAG_STRUC_wmi_cfr_capture_fix_agc_gain_info,
 } WMITLV_TAG_ID;
 /*
  * IMPORTANT: Please add _ALL_ WMI Commands Here.
@@ -5476,7 +5478,8 @@ WMITLV_CREATE_PARAM_STRUC(WMI_AUDIO_AGGR_GET_SCHED_METHOD_CMDID);
 /* CFR Capture Filter cmd */
 #define WMITLV_TABLE_WMI_CFR_CAPTURE_FILTER_CMDID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_cfr_capture_filter_cmd_fixed_param, wmi_cfr_capture_filter_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_cfr_filter_group_config, filter_group_config, WMITLV_SIZE_VAR)
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_cfr_filter_group_config, filter_group_config, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_cfr_capture_fix_agc_gain_config, fix_agc_gain_config, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_CFR_CAPTURE_FILTER_CMDID);
 
 /* VLAN config */
@@ -8431,7 +8434,8 @@ WMITLV_CREATE_PARAM_STRUC(WMI_WLAN_MODE_RESP_EVENTID);
 
 /* CFR capture filter response event */
 #define WMITLV_TABLE_WMI_CFR_CAPTURE_FILTER_RESP_EVENTID(id,op,buf,len) \
-WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_cfr_capture_filter_resp_event_fixed_param, wmi_cfr_capture_filter_resp_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_cfr_capture_filter_resp_event_fixed_param, wmi_cfr_capture_filter_resp_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_cfr_capture_fix_agc_gain_info, fix_agc_gain_info, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_CFR_CAPTURE_FILTER_RESP_EVENTID);
 
 
