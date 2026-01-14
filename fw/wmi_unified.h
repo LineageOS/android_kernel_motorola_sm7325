@@ -50165,6 +50165,8 @@ typedef enum {
     WMI_MAP_SWITCH_TIMER_EXPIRED,
     /* Expected Duration Expired */
     WMI_EXPECTED_DUR_EXPIRED,
+    /* Expected Duration Near to Expiry */
+    WMI_EXPECTED_DUR_NEAR_TO_EXPIRY,
 } WMI_MLO_TID_TO_LINK_MAP_STATUS;
 
 #define WMI_BCAST_T2LM_MAX 16 /* max number of vdevs covered by T2LM stats */
