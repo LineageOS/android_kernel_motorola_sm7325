@@ -623,6 +623,8 @@ typedef enum {
      * that are applicable for critical update.
      */
     WMI_PDEV_UHR_CU_CMDID,
+    /** WMI cmd used to enable/disable and get power and data path stats */
+    WMI_PDEV_POWER_DATAPATH_STATS_CMDID,
 
     /* VDEV (virtual device) specific commands */
     /** vdev create */
@@ -2022,6 +2024,11 @@ typedef enum {
 
     /* WMI event for the UHR critical Update */
     WMI_PDEV_UHR_CU_EVENTID, /* 53 */
+
+    /**
+     * WMI Event to send power and data path stats info to Host
+     */
+    WMI_PDEV_POWER_DATAPATH_STATS_EVENTID, /* 54 */
 
 
 
@@ -37266,6 +37273,39 @@ typedef struct {
     A_UINT32 pdev_id;
 } wmi_pdev_get_chip_power_stats_cmd_fixed_param;
 
+
+typedef enum {
+    /* Enable the stats by default*/
+   WMI_PDEV_POWER_DATAPATH_STATS_OP_DISABLE = 0,
+   WMI_PDEV_POWER_DATAPATH_STATS_OP_ENBLE = 1,
+   WMI_PDEV_POWER_DATAPATH_STATS_OP_RETRIEVE = 2,
+   WMI_PDEV_POWER_DATAPATH_STATS_OP_MAX,
+} WMI_PDEV_POWER_DATAPATH_STATS_OPERATION;
+
+typedef enum {
+   WMI_PDEV_POWER_STATS_TYPE = 0x00000001,
+   WMI_PDEV_DATAPATH_STATS_TYPE = 0x00000002,
+   WMI_PDEV_POWER_DATAPATH_STATS_ALL = 0x00000003,
+   WMI_PDEV_STATS_TYPE_MAX,
+} WMI_PDEV_POWER_DATAPATH_STATS_TYPE;
+
+/* WMI command to enable/disable or get the power/datapath stats */
+typedef struct {
+   A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_power_datapath_stats_cmd_fixed_param */
+
+   /** pdev_id for identifying the MAC
+    * See macros starting with WMI_PDEV_ID_ for values.
+    */
+   A_UINT32 core_index;
+
+   /** Operation type - distinguishes between enable/disable/retrieve */
+   A_UINT32 operation;  /* wmi_pdev_power_datapath_stats_operation */
+
+   /** Stats type bitmap - specifies which stats to enable/disable/retrieve */
+   A_UINT32 stats_type_bitmap; /* wmi_pdev_power_datapath_stats_type */
+} wmi_pdev_power_datapath_stats_cmd_fixed_param;
+
+
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_get_bcn_recv_stats_cmd_fixed_param */
     /** VDEV identifier */
@@ -37425,6 +37465,120 @@ typedef struct {
      *    A_UINT32 debug_registers[num_debug_registers];
      */
 } wmi_pdev_chip_power_stats_event_fixed_param;
+
+
+typedef enum {
+    WMI_PDEV_RATE_CCK_1M,
+    WMI_PDEV_RATE_CCK_2M,
+    WMI_PDEV_RATE_CCK_5M, /* CCK 5.5Mbps */
+    WMI_PDEV_RATE_CCK_11M,
+    WMI_PDEV_RATE_OFDM_6M,
+    WMI_PDEV_RATE_OFDM_9M,
+    WMI_PDEV_RATE_OFDM_12M,
+    WMI_PDEV_RATE_OFDM_18M,
+    WMI_PDEV_RATE_OFDM_24M,
+    WMI_PDEV_RATE_OFDM_36M,
+    WMI_PDEV_RATE_OFDM_48M,
+    WMI_PDEV_RATE_OFDM_54M,
+    WMI_PDEV_RATE_MCS0, /* includes HT MCS 0 (1ss)/8 (2ss)/16 (3ss)/24 (4ss), VHT/HE MCS 0 */
+    WMI_PDEV_RATE_MCS1, /* includes HT MCS 1 (1ss)/9 (2ss)/17 (3ss)/25 (4ss), VHT/HE MCS 1 */
+    WMI_PDEV_RATE_MCS2, /* includes HT MCS 2 (1ss)/10 (2ss)/18 (3ss)/26 (4ss), VHT/HE MCS 2 */
+    WMI_PDEV_RATE_MCS3, /* includes HT MCS 3 (1ss)/11 (2ss)/19 (3ss)/27 (4ss), VHT/HE MCS 3 */
+    WMI_PDEV_RATE_MCS4, /* includes HT MCS 4 (1ss)/12 (2ss)/20 (3ss)/28 (4ss), VHT/HE MCS 4 */
+    WMI_PDEV_RATE_MCS5, /* includes HT MCS 5 (1ss)/13 (2ss)/21 (3ss)/29 (4ss), VHT/HE MCS 5 */
+    WMI_PDEV_RATE_MCS6, /* includes HT MCS 6 (1ss)/14 (2ss)/22 (3ss)/30 (4ss), VHT/HE MCS 6 */
+    WMI_PDEV_RATE_MCS7, /* includes HT MCS 7 (1ss)/15 (2ss)/23 (3ss)/31 (4ss), VHT/HE MCS 7 */
+    WMI_PDEV_RATE_MCS8, /* includes VHT/HE MCS 8 */
+    WMI_PDEV_RATE_MCS9, /* includes VHT/HE MCS 9 */
+    WMI_PDEV_RATE_MCS10, /* includes VHT/HE MCS 10 */
+    WMI_PDEV_RATE_MCS11, /* includes VHT/HE MCS 11 */
+    WMI_PDEV_RATE_MCS12, /* includes BE MCS 12 */
+    WMI_PDEV_RATE_MCS13, /* includes BE MCS 13 */
+    WMI_PDEV_RATE_RATE_IDX_MAX,
+} WMI_PDEV_RATE_IDX;
+
+#define WMI_MAX_SLEEP_LEVELS 5
+
+typedef struct {
+    A_UINT32 tlv_header;/* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_tx_rate_info */
+
+   /** Common element - core_index (PDEV ID) */
+    A_UINT32 core_index;
+
+    /* An index representing a specific transmit data rate */
+    A_UINT32 rate_index;
+
+    /*
+     * The operating band of the transmit rate.
+     * 0: 2.4 GHz, 1: 5 GHz, 2: 6 GHz
+     */
+    A_UINT32 band;
+
+    /*
+     * The bandwidth of the transmit rate.
+     * 0: 20 MHz, 1: 40 MHz, 2: 80 MHz, 3: 160 MHz, 4: 320 MHz
+     */
+    A_UINT32 bw;
+
+    /*
+     * The number of spatial streams (NSS) used for this transmit rate.
+     * 0: NSS1, 1: NSS2, 2: NSS3, 3: NSS4, 4: NSS5
+     */
+    A_UINT32 nss;
+
+    /*
+     * The number of times a transmit occurred with this specific
+     * combination of rate index, band, bandwidth, and NSS
+     */
+    A_UINT32 count;
+    A_UINT32 tx_retry_count; /* accumulated over time */
+} wmi_pdev_tx_rate_info;
+
+/* Power stats in event payload*/
+typedef struct {
+   /** Power Statistics */
+   A_UINT32 tlv_header;    /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_power_stats_info */
+
+   /** Common element - core_index (PDEV ID) */
+   A_UINT32 core_index;
+
+   A_UINT32 radio_on_time;    /* Time radio was on (ms) */
+   A_UINT32 radio_off_time;   /* Time radio was off (ms) */
+   A_UINT32 wlan_pwr_on_time; /* WLAN power on time (ms) */
+   /* tx_time:
+    * ms duration the radio is in a continuous transmit state
+    * encompassing all packet types (management, data, action frames)
+    */
+   A_UINT32 tx_time;
+   /* rx_time:
+    * ms duration the radio is in a continuous receiving data state
+    * Including all Rx packets instead of only collecting for my BSS data
+    */
+   A_UINT32 rx_time;
+
+   /* Number of sleep levels being sent to the host */
+   A_UINT32 sleep_levels_num;
+   A_UINT32 sleep_time_per_levels[WMI_MAX_SLEEP_LEVELS]; /* ms */
+} wmi_pdev_power_stats_info;
+
+typedef struct {
+   A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_power_datapath_stats_event_fixed_param */
+
+   /** Status of the operation */
+   A_UINT32 status; /* 0 = success, non-zero = error */
+
+   /** Stats type bitmap indicating which stats are included */
+   A_UINT32 stats_type_bitmap;
+
+   /*
+    * Following this structure are the TLVs:
+    *     wmi_pdev_power_stats_info[num_cores];
+    *     wmi_pdev_tx_rate_info[num_tx_rate_info]
+    * where num_cores and num_tx_rate_info are determined from the TLV array
+    * (i.e. array size / array element size)
+    */
+} wmi_pdev_power_datapath_stats_event_fixed_param;
+
 
 typedef struct {
     A_UINT32 tlv_header;  /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_get_bcn_recv_stats_fixed_param */
@@ -40932,6 +41086,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_ROAM_SMD_START_STATUS_CMDID);
         WMI_RETURN_STRING(WMI_VDEV_REPURPOSE_RESP_CMDID);
         WMI_RETURN_STRING(WMI_IPA_RING_STATS_REQ_CMDID);
+        WMI_RETURN_STRING(WMI_PDEV_POWER_DATAPATH_STATS_CMDID);
     }
 
     return (A_UINT8 *) "Invalid WMI cmd";
