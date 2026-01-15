@@ -4034,6 +4034,11 @@ typedef struct {
      */
     A_UINT32 supported_wifi_certified_generations;
 
+    /*
+     * max number of CFR filter groups supported by FW.
+     */
+    A_UINT32 max_cfr_filter_groups_supp;
+
     /* Followed by next TLVs:
      *     WMI_DMA_RING_CAPABILITIES          dma_ring_caps[];
      *     wmi_spectral_bin_scaling_params    wmi_bin_scaling_params[];
