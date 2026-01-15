@@ -277,9 +277,10 @@
  * 3.147 Add direct_refill flag in SRING_SETUP msg.
  * 3.148 Add HTT_PEER_CFR_CAPTURE_BW_320MHZ def.
  * 3.149 Add SAM fields in MPDUQ_OR_MSDUQ_INFO.
+ * 3.150 Add htt_reg_write_selection definitions.
  */
 #define HTT_CURRENT_VERSION_MAJOR 3
-#define HTT_CURRENT_VERSION_MINOR 149
+#define HTT_CURRENT_VERSION_MINOR 150
 
 #define HTT_NUM_TX_FRAG_DESC  1024
 
@@ -6262,6 +6263,30 @@ PREPACK struct htt_rx_ring_selection_cfg_t {
      */
     A_UINT32 rdi_based_source_cfg;
 } POSTPACK;
+
+/**
+ * Enumeration for Reg Write block index selection
+ * Each Enum position corresponds to respective
+ * UMAC_UMCMN_R0_REG_ADDR_LSB_IX_n
+ * UMAC_UMCMN_R0_REG_ADDR_MSB_IX_n
+ * UMAC_UMCMN_R2_REG_VALUE_IX_n
+ *
+ * Any value written to the value register will be copied by
+ * Reg Writer Block to Address written in Reg Address Register.
+ *
+ * NOTE: Only value Registers defined in the enum should be used by the Host.
+ * Rest are unconfigured, and if used may result in invalid memory access
+ */
+enum htt_reg_write_selection {
+    HTT_REG_WRITER_RXMON_SW2MON_BUF_RING,
+    HTT_REG_WRITER_TXMON_SW2MON_BUF_RING,
+    HTT_REG_WRITER_RXMON_M0_MON2SW_DEST_RING,
+    HTT_REG_WRITER_RXMON_M1_MON2SW_DEST_RING,
+    HTT_REG_WRITER_TXMON_M0_MON2SW_DEST_RING,
+    HTT_REG_WRITER_TXMON_M1_MON2SW_DEST_RING,
+    HTT_REG_WRITER_RXOLE2SW_ASE_DEST_RING,
+};
+
 
 #define HTT_RX_RING_SELECTION_CFG_SZ    (sizeof(struct htt_rx_ring_selection_cfg_t))
 
