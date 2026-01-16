@@ -751,6 +751,12 @@ typedef  enum  {
     WMI_SERVICE_P2P_CANCEL_ONE_SHOT_NOA_SUPPORT = 487, /* Indicates FW support for P2P GO/GC cancel one-shot NOA feature */
     WMI_SERVICE_SMD_BSS_TRANSITION_SUPPORT = 488, /* Indicates FW supports S(eamless)M(obility)D(omain) BSS transition */
 
+    /* Service caps related to SMD Roaming - start */
+    WMI_SERVICE_SMD_SUPPORT_ROAMING = 489,
+    WMI_SERVICE_SMD_SUPPORT_DL_FORWARD = 490,
+    WMI_SERVICE_SMD_SUPPORT_UL_FORWARD = 491,
+    /* Service caps related to SMD Roaming - end */
+
 
     WMI_MAX_EXT2_SERVICE
 
