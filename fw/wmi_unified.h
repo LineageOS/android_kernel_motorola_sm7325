@@ -3870,6 +3870,22 @@ typedef enum {
 #define WMI_SUPPORTED_WIFI_8_CERTIFIED_GENERATION_SET(wifi_generations, value) \
         WMI_SET_BITS(wifi_generations, 4, 1, value)
 
+/* Begin SAM related capabilities */
+#define WMI_CAP_EXT2_SAM_NUM_SUPPORTED_PEER_GET(sam_capability_1) \
+    WMI_GET_BITS(sam_capability_1, 0, 12)
+#define WMI_CAP_EXT2_SAM_NUM_SUPPORTED_PEER_SET(sam_capability_1, value) \
+    WMI_SET_BITS(sam_capability_1, 0, 12, value)
+
+#define WMI_CAP_EXT2_SAM_NUM_SUPPORTED_MSDUQ_GET(sam_capability_1) \
+    WMI_GET_BITS(sam_capability_1, 12, 13)
+#define WMI_CAP_EXT2_SAM_NUM_SUPPORTED_MSDUQ_SET(sam_capability_1, value) \
+    WMI_SET_BITS(sam_capability_1, 12, 13, value)
+
+#define WMI_CAP_EXT2_SAM_NUM_SUPPORTED_MPDUQ_GET(sam_capability_2) \
+    WMI_GET_BITS(sam_capability_2, 0, 12)
+#define WMI_CAP_EXT2_SAM_NUM_SUPPORTED_MPDUQ_SET(sam_capability_2, value) \
+    WMI_SET_BITS(sam_capability_2, 0, 12, value)
+/* End SAM related capabilities */
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_service_ready_ext2_event_fixed_param.*/
@@ -4055,6 +4071,33 @@ typedef struct {
      * max number of CFR filter groups supported by FW.
      */
     A_UINT32 max_cfr_filter_groups_supp;
+
+    /*
+     * The maximum number of supported SAM Peer/MSDUQ/MPDUQ elements. This does
+     * NOT indicate the support limits for the HW, but rather the FW limit.
+     * Some FW targets may not support the maximum HW capability.
+     *
+     * When the host allocates the associated SAM data structure, it should do
+     * so with IDs strictly less than the limit indicated below. For example if
+     * only 64 SAM Peers are supported by a target, then only SAM Peer IDs 0-63
+     * should be utilized.
+     *
+     * If a target does not support utilizing SAM, all of these SAM
+     * configuration values will be 0.
+     */
+    union {
+        struct {
+            A_UINT32 num_supported_sam_peer  : 12; /* bits  0:11 */
+            A_UINT32 num_supported_sam_msduq : 13; /* bits 12:24 */
+            A_UINT32 sam_reserved_1          :  7; /* bits 25:31 */
+            A_UINT32 num_supported_sam_mpduq : 12; /* bits  0:11 */
+            A_UINT32 sam_reserved_2          : 20; /* bits 12:31 */
+        };
+        struct {
+            A_UINT32 sam_capability_1;
+            A_UINT32 sam_capability_2;
+        };
+    };
 
     /* Followed by next TLVs:
      *     WMI_DMA_RING_CAPABILITIES          dma_ring_caps[];
