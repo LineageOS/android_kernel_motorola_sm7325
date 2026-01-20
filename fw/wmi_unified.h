@@ -15892,6 +15892,11 @@ typedef struct {
      * (end of packet)
      */
     A_UINT32 rx_other_11ax_msdu_cnt;
+    /* pending_mpdu_msdus:
+     * count of the pending MPDUs + MSDUs for all TIDs within all peers
+     * for all the vdev under the specified pdev
+     */
+    A_UINT32 pending_mpdu_msdus;
 } wmi_pdev_extd_stats;
 
 /**
@@ -16056,11 +16061,6 @@ typedef struct {
      * Includes rx_time but not tx_time.
      */
     A_UINT32 cca_time;
-    /* pending_mpdu_msdus:
-     * count of the pending mpdu + msdus for all tids within all peers
-     * for the specified vdev
-     */
-    A_UINT32 pending_mpdu_msdus;
 } wmi_vdev_extd_stats;
 
 /**
