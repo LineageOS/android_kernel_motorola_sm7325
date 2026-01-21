@@ -906,6 +906,11 @@ typedef enum {
     HTT_STATS_ANI_PER_BLK_ERR_TAG                   = 244, /* htt_stats_ani_per_blk_err_tlv */
     HTT_STATS_ANI_OTA_ERR_TAG                       = 245, /* htt_stats_ani_ota_err_tlv */
     HTT_STATS_RESET_HISTORY_TAG                     = 246, /* htt_stats_reset_history_tlv */
+    HTT_STATS_REGDB_CTRY_TAG                        = 247, /* htt_stats_regdb_ctry_tlv */
+    HTT_STATS_REGDB_REGDOMAIN_TAG                   = 248, /* htt_stats_regdb_regdomain_tlv */
+    HTT_STATS_REG_6G_TAG                            = 249, /* htt_stats_reg_6g_tlv*/
+    HTT_STATS_REG_6G_CH_PWR_INFO_TAG                = 250, /* htt_stats_reg_6g_ch_power_info_tlv*/
+    HTT_STATS_REG_6G_OOBE_TAG                       = 251, /* htt_stats_reg_6g_oobe_tlv*/
 
     HTT_STATS_MAX_TAG,
 } htt_stats_tlv_tag_t;

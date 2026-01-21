@@ -898,6 +898,33 @@ enum htt_dbg_ext_stats_type {
      */
     HTT_DBG_EXT_STATS_RESET_HISTORY = 82,
 
+    /** HTT_DBG_EXT_STATS_REGULATORY
+     * PARAMS:
+     *   - config_param0 : Regulatory stats subtype:
+     *                     htt_stats_regulatory_subtype_t
+     *   - config_param1 : (Depends on Subtype)
+     * RESP MSG:
+     *
+     * if (subtype == HTT_STATS_REGULATORY_SUBTYPE_REGDB):
+     *     config_param1 - Bitmap of Regdomains to include
+     *         [bit 0 - 2G,
+     *          bit 1 - 5G,
+     *          bit 2 - unused
+     *          bits 3-5 - 6G AP (LPI/SP/VLP)
+     *          bits 6-8 - 6G CLIENT 1 (LPI/SP/VLP)
+     *          bits 9-11- 6G CLIENT 2 (LPI/SP/VLP)]
+     *     RESP Tags:
+     *       - htt_stats_regdb_ctry_tlv
+     *       - htt_stats_regdb_regdomain_tlv * n (based on config_param1)
+     * else if(subtype == HTT_STATS_REGULATORY_SUBTYPE_6GHZ):
+     *     no params
+     *     RESP Tags:
+     *       - htt_stats_reg_6g_tlv
+     *       - htt_stats_reg_6g_ch_power_info_tlv * n
+     *       - htt_stats_reg_6g_oobe_tlv
+     */
+    HTT_DBG_EXT_STATS_REGULATORY = 83,
+
 
     /* keep this last */
     HTT_DBG_NUM_EXT_STATS = 256,
@@ -12336,6 +12363,8 @@ typedef struct {
      * tx_power_neg[9]: cnt of PPDUs with tx pwr < -9 dBm
      */
     A_UINT32 tx_power_neg[HTT_MAX_NEGATIVE_POWER_LEVEL];
+    /* Tx Power computed for TPC IE for Beacon and related frames, in dBm */
+    A_UINT32 tpc_ie_power;
 } htt_stats_phy_tpc_stats_tlv;
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_phy_tpc_stats_tlv htt_phy_tpc_stats_tlv;
@@ -15802,6 +15831,412 @@ typedef struct {
     (((word) & 0x00000001) >> 0)
 #define HTT_STATS_RESET_HISTORY_IS_HOME_CHAN_SET(word, value) \
     ((word) |= (((value) << 0) & 0x00000001))
+
+
+/*===================== Start Regulatory stats ==================== { */
+
+typedef enum {
+    HTT_STATS_REGULATORY_SUBTYPE_REGDB = 0,
+    HTT_STATS_REGULATORY_SUBTYPE_6GHZ  = 1,
+    HTT_STATS_REGULATORY_SUBTYPE_MAX
+} htt_stats_regulatory_subtype_t;
+
+typedef struct {
+    htt_tlv_hdr_t   tlv_hdr;
+    union {
+        struct {
+            A_UINT32    major_version : 8,
+                        minor_version : 8,
+                        custom_version: 8,
+                        rsvd          : 8;
+        };
+        A_UINT32 regdb_version;
+    };
+    A_UINT32    country_code;
+    A_UINT32    alpha_code; /* [7:0]->alpha[0], [15:8]->alpha[1] and so on */
+    /* RegDomain and SuperDomain IDs are from Regdb */
+    A_UINT32    reg_domain_pair_id;
+    A_UINT32    super_domain_id;
+    A_UINT32    phymode_bitmap;     /* WMI_REGULATORY_PHYBITMAP */
+    A_UINT32    chan_priority_freq; /* in MHz */
+    A_UINT32    tpc_region;
+    A_UINT32    max_bw_2g;          /* in MHz */
+    A_UINT32    max_bw_5g;          /* in MHz */
+    A_UINT32    max_bw_6g;          /* in MHz */
+} htt_stats_regdb_ctry_tlv;
+
+#define HTT_STATS_GET_FIELD(mask,shift,word) (((word) & (mask)) >> (shift))
+#define HTT_STATS_SET_FIELD(mask,shift,word,value) \
+        (word) = (((word) & ~((mask))) | (((value) << (shift)) & (mask)))
+
+#define HTT_STATS_REGDB_CTRY_GET_MAJOR_VERSION(word) \
+    HTT_STATS_GET_FIELD(0xFF, 0, (word))
+#define HTT_STATS_REGDB_CTRY_SET_MAJOR_VERSION(word,value) \
+    HTT_STATS_SET_FIELD(0xFF, 0, (word), (value))
+
+#define HTT_STATS_REGDB_CTRY_GET_MINOR_VERSION(word) \
+    HTT_STATS_GET_FIELD(0xFF00, 8, (word))
+#define HTT_STATS_REGDB_CTRY_SET_MINOR_VERSION(word,value) \
+    HTT_STATS_SET_FIELD(0xFF00, 8, (word), (value))
+
+#define HTT_STATS_REGDB_CTRY_GET_CUSTOM_VERSION(word) \
+    HTT_STATS_GET_FIELD(0xFF0000, 16, (word))
+#define HTT_STATS_REGDB_CTRY_SET_CUSTOM_VERSION(word,value) \
+    HTT_STATS_SET_FIELD(0xFF0000, 16, (word), (value))
+
+#define HTT_STATS_REGDB_CTRY_GET_ALPHA_CODE_CHAR(word, idx) \
+    HTT_STATS_GET_FIELD((0xFF << (8*(idx))), (8*(idx)), (word))
+#define HTT_STATS_REGDB_CTRY_SET_ALPHA_CODE_CHAR(word, idx, value) \
+    HTT_STATS_SET_FIELD((0xFF << (8*(idx))), (8*(idx)), (word), (value))
+
+typedef struct {
+    union {
+        struct {
+            A_UINT32 start_freq : 16, /* in MHz */
+                     end_freq   : 16; /* in MHz */
+        };
+        A_UINT32 freq_info;
+    };
+    union {
+        struct {
+            A_UINT32 max_bw     : 16, /* in MHz */
+                     reg_power  : 8,  /* in dBm */
+                     ant_gain   : 8;  /* in dB */
+        };
+        A_UINT32 bw_pwr_info;
+    };
+    union {
+        struct {
+            A_UINT32 flags      : 16, /* enum WMI_REGULATORY_FLAGS */
+                     ctl_region : 8,  /* enum RegdbCtl */
+                     rsvd       : 8;
+        };
+        A_UINT32 flag_info;
+    };
+    union {
+        struct {
+            A_UINT32 is_psd     : 1,
+                     rsvd1      : 15,
+                     psd_power  : 16; /* dBm / MHz */
+        };
+        A_UINT32 psd_power_info;
+    };
+} htt_stats_regdb_reg_rule_t;
+
+#define HTT_STATS_REGDB_REG_RULE_GET_START_FREQ(word) \
+    HTT_STATS_GET_FIELD(0xFFFF, 0, (word))
+#define HTT_STATS_REGDB_REG_RULE_SET_START_FREQ(word, value) \
+    HTT_STATS_SET_FIELD(0xFFFF, 0, (word), (value))
+
+#define HTT_STATS_REGDB_REG_RULE_GET_END_FREQ(word) \
+    HTT_STATS_GET_FIELD(0xFFFF0000, 16, (word))
+#define HTT_STATS_REGDB_REG_RULE_SET_END_FREQ(word, value) \
+    HTT_STATS_SET_FIELD(0xFFFF0000, 16, (word), (value))
+
+#define HTT_STATS_REGDB_REG_RULE_GET_MAX_BW(word) \
+    HTT_STATS_GET_FIELD(0xFFFF, 0, (word))
+#define HTT_STATS_REGDB_REG_RULE_SET_MAX_BW(word, value) \
+    HTT_STATS_SET_FIELD(0xFFFF, 0, (word), (value))
+
+#define HTT_STATS_REGDB_REG_RULE_GET_REG_POWER(word) \
+    HTT_STATS_GET_FIELD(0xFF0000, 16, (word))
+#define HTT_STATS_REGDB_REG_RULE_SET_REG_POWER(word, value) \
+    HTT_STATS_SET_FIELD(0xFF0000, 16, (word), (value))
+
+#define HTT_STATS_REGDB_REG_RULE_GET_ANT_GAIN(word) \
+    HTT_STATS_GET_FIELD(0xFF000000, 24, (word))
+#define HTT_STATS_REGDB_REG_RULE_SET_ANT_GAIN(word, value) \
+    HTT_STATS_SET_FIELD(0xFF000000, 24, (word), (value))
+
+#define HTT_STATS_REGDB_REG_RULE_GET_FLAGS(word) \
+    HTT_STATS_GET_FIELD(0xFFFF, 0, (word))
+#define HTT_STATS_REGDB_REG_RULE_SET_FLAGS(word, value) \
+    HTT_STATS_SET_FIELD(0xFFFF, 0, (word), (value))
+
+#define HTT_STATS_REGDB_REG_RULE_GET_CTL_REGION(word) \
+    HTT_STATS_GET_FIELD(0xFF0000, 16, (word))
+#define HTT_STATS_REGDB_REG_RULE_SET_CTL_REGION(word, value) \
+    HTT_STATS_SET_FIELD(0xFF0000, 16, (word), (value))
+
+#define HTT_STATS_REGDB_REG_RULE_GET_IS_PSD(word) \
+    HTT_STATS_GET_FIELD(0x1, 0, (word))
+#define HTT_STATS_REGDB_REG_RULE_SET_IS_PSD(word, value) \
+    HTT_STATS_SET_FIELD(0x1, 0, (word), (value))
+
+#define HTT_STATS_REGDB_REG_RULE_GET_PSD_POWER(word) \
+    HTT_STATS_GET_FIELD(0xFFFF0000, 16, (word))
+#define HTT_STATS_REGDB_REG_RULE_SET_PSD_POWER(word, value) \
+    HTT_STATS_SET_FIELD(0xFFFF0000, 16, (word), (value))
+
+typedef enum {
+    HTT_STATS_REGULATORY_REG_DMN_2G             = 0,
+    HTT_STATS_REGULATORY_REG_DMN_5G             = 1,
+    /* 2 is unused to allow octal grouping for 6G */
+    HTT_STATS_REGULATORY_REG_DMN_6G_AP_LPI      = 3,
+    HTT_STATS_REGULATORY_REG_DMN_6G_AP_SP       = 4,
+    HTT_STATS_REGULATORY_REG_DMN_6G_AP_VLP      = 5,
+    HTT_STATS_REGULATORY_REG_DMN_6G_CL1_LPI     = 6,
+    HTT_STATS_REGULATORY_REG_DMN_6G_CL1_SP      = 7,
+    HTT_STATS_REGULATORY_REG_DMN_6G_CL1_VLP     = 8,
+    HTT_STATS_REGULATORY_REG_DMN_6G_CL2_LPI     = 9,
+    HTT_STATS_REGULATORY_REG_DMN_6G_CL2_SP      = 10,
+    HTT_STATS_REGULATORY_REG_DMN_6G_CL2_VLP     = 11,
+} htt_stats_regulatory_rd_type;
+
+#define HTT_STATS_REGULATORY_REG_DMN_6G_AP(power_mode) \
+    (HTT_STATS_REGULATORY_REG_DMN_6G_AP_LPI + (power_mode))
+#define HTT_STATS_REGULATORY_REG_DMN_6G_CL(cl,power_mode) \
+    (HTT_STATS_REGULATORY_REG_DMN_6G_CL1_LPI +(cl)*3 + (power_mode))
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    A_UINT32      rd_type; /* enum htt_stats_regulatory_rd_type */
+    union {
+        struct {
+            A_UINT32 ctl_region : 8, /* enum RegdbCtl */
+                     cca_region : 8, /* enum CCA_REGION_MAP */
+                     dfs_region : 8, /* enum WMI_REG_DFS_REGION */
+                     rsvd       : 8;
+        };
+        A_UINT32 ctl_cca_dfs;
+    };
+    A_UINT32 rd_code; /* from regdb.bin */
+    /*
+     * Due to variable length array at end, this struture cannot be extended
+     * further. Hence use this reserved for any future parameters.
+     */
+    A_UINT32 reserved;
+    union {
+        struct {
+            A_UINT32 num_rules : 16, /* number of elements in 'rules' array */
+                     rule_size : 16; /* size of single 'rule' in bytes */
+        };
+        A_UINT32 rule_num_and_size;
+    };
+    htt_stats_regdb_reg_rule_t rules[1];
+} htt_stats_regdb_regdomain_tlv;
+
+#define HTT_STATS_REGDB_REGDOMAIN_GET_CTL_REGION(word) \
+    HTT_STATS_GET_FIELD(0xFF, 0, (word))
+#define HTT_STATS_REGDB_REGDOMAIN_SET_CTL_REGION(word,value) \
+    HTT_STATS_SET_FIELD(0xFF, 0, (word), (value))
+
+#define HTT_STATS_REGDB_REGDOMAIN_GET_CCA_REGION(word) \
+    HTT_STATS_GET_FIELD(0xFF00, 8, (word))
+#define HTT_STATS_REGDB_REGDOMAIN_SET_CCA_REGION(word,value) \
+    HTT_STATS_SET_FIELD(0xFF00, 8, (word), (value))
+
+#define HTT_STATS_REGDB_REGDOMAIN_GET_DFS_REGION(word) \
+    HTT_STATS_GET_FIELD(0xFF0000, 16, (word))
+#define HTT_STATS_REGDB_REGDOMAIN_SET_DFS_REGION(word,value) \
+    HTT_STATS_SET_FIELD(0xFF0000, 16, (word), (value))
+
+#define HTT_STATS_REGDB_REGDOMAIN_GET_NUM_RULES(word) \
+    HTT_STATS_GET_FIELD(0xFFFF, 0, (word))
+#define HTT_STATS_REGDB_REGDOMAIN_SET_NUM_RULES(word,value) \
+    HTT_STATS_SET_FIELD(0xFFFF, 0, (word), (value))
+
+#define HTT_STATS_REGDB_REGDOMAIN_GET_RULE_SIZE(word) \
+    HTT_STATS_GET_FIELD(0xFFFF0000, 16, (word))
+#define HTT_STATS_REGDB_REGDOMAIN_SET_RULE_SIZE(word,value) \
+    HTT_STATS_SET_FIELD(0xFFFF0000, 16, (word), (value))
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    union {
+        struct {
+            A_UINT32 afc_local_rsvd : 8,
+                     /* enum WMI_AFC_FEATURE_6G_DEPLOYMENT_TYPE */
+                     deployment_type: 8,
+                     /* Bit 0 : LPI, Bit 1 : SP, Bit 2 : VLP, others: rsvd */
+                     power_mode_mask: 8,
+                     reserved       : 8;
+        };
+        A_UINT32 afc_ini_params; /* AFC_INI_CONFIG */
+    };
+    A_UINT32 tx_allowed_reason_code;
+    union {
+        struct {
+            A_UINT32 set_tpc_count      : 16,
+                     set_tpc_pass_count : 16;
+        };
+        A_UINT32 set_tpc_counters;
+    };
+    union {
+        struct {
+            A_UINT32
+                /* enum WMI_6GHZ_REG_PWRMODE_TYPE */
+                current_power_mode              : 4,
+                /* enum WMI_6GHZ_REG_PWRMODE_TYPE */
+                last_best_power_mode            : 4,
+                is_current_mode_best_power_mode : 1,
+                rsvd1                           : 7,
+                best_power_mode_count           : 16;
+        };
+        A_UINT32 power_mode_stats;
+    };
+} htt_stats_reg_6g_tlv;
+
+#define HTT_STATS_REG_6G_GET_AFC_LOCAL_RSVD(word) \
+    HTT_STATS_GET_FIELD(0xFF, 0, (word))
+#define HTT_STATS_REG_6G_SET_AFC_LOCAL_RSVD(word,value) \
+    HTT_STATS_SET_FIELD(0xFF, 0, (word), (value))
+
+#define HTT_STATS_REG_6G_GET_DEPLOYMENT_TYPE(word) \
+    HTT_STATS_GET_FIELD(0xFF00, 8, (word))
+#define HTT_STATS_REG_6G_SET_DEPLOYMENT_TYPE(word,value) \
+    HTT_STATS_SET_FIELD(0xFF00, 8, (word), (value))
+
+#define HTT_STATS_REG_6G_GET_POWER_MODE_MASK(word) \
+    HTT_STATS_GET_FIELD(0xFF0000, 16, (word))
+#define HTT_STATS_REG_6G_SET_POWER_MODE_MASK(word,value) \
+    HTT_STATS_SET_FIELD(0xFF0000, 16, (word), (value))
+
+#define HTT_STATS_REG_6G_GET_SET_TPC_COUNT(word) \
+    HTT_STATS_GET_FIELD(0xFFFF, 0, (word))
+#define HTT_STATS_REG_6G_SET_SET_TPC_COUNT(word,value) \
+    HTT_STATS_SET_FIELD(0xFFFF, 0, (word), (value))
+
+#define HTT_STATS_REG_6G_GET_SET_TPC_PASS_COUNT(word) \
+    HTT_STATS_GET_FIELD(0xFFFF0000, 16, (word))
+#define HTT_STATS_REG_6G_SET_SET_TPC_PASS_COUNT(word,value) \
+    HTT_STATS_SET_FIELD(0xFFFF0000, 16, (word), (value))
+
+#define HTT_STATS_REG_6G_GET_CURRENT_POWER_MODE(word) \
+    HTT_STATS_GET_FIELD(0xF, 0, (word))
+#define HTT_STATS_REG_6G_SET_CURRENT_POWER_MODE(word,value) \
+    HTT_STATS_SET_FIELD(0xF, 0, (word), (value))
+
+#define HTT_STATS_REG_6G_GET_LAST_BEST_POWER_MODE(word) \
+    HTT_STATS_GET_FIELD(0xF0, 4, (word))
+#define HTT_STATS_REG_6G_SET_LAST_BEST_POWER_MODE(word,value) \
+    HTT_STATS_SET_FIELD(0xF0, 4, (word), (value))
+
+#define HTT_STATS_REG_6G_GET_IS_CURRENT_POWER_MODE_BEST(word) \
+    HTT_STATS_GET_FIELD(0x100, 8, (word))
+#define HTT_STATS_REG_6G_SET_IS_CURRENT_POWER_MODE_BEST(word,value) \
+    HTT_STATS_SET_FIELD(0x100, 8, (word), (value))
+
+#define HTT_STATS_REG_6G_GET_BEST_POWER_MODE_COUNT(word) \
+    HTT_STATS_GET_FIELD(0xFFFF0000, 16, (word))
+#define HTT_STATS_REG_6G_SET_BEST_POWER_MODE_COUNT(word,value) \
+    HTT_STATS_SET_FIELD(0xFFFF0000, 16, (word), (value))
+#define HTT_STATS_REG_POWER_INFO_6G_MAX_SUBBANDS 16
+
+typedef struct {
+    union {
+        struct {
+            A_UINT32 freq  : 16, /* in MHz */
+                     power : 16; /* in dBm */
+        };
+        A_UINT32 freq_power_pair;
+    };
+    /*
+     * NOTE: no new fields can be added to this struct
+     * due to backwards-compatibility constraints.
+     */
+} htt_stats_reg_freq_power_pair_t;
+
+#define HTT_STATS_REG_FREQ_POWER_PAIR_GET_FREQ_VALUE(word) \
+    HTT_STATS_GET_FIELD(0xFFFF, 0, (word))
+#define HTT_STATS_REG_FREQ_POWER_PAIR_SET_FREQ_VALUE(word,value) \
+    HTT_STATS_SET_FIELD(0xFFFF, 0, (word), (value))
+
+#define HTT_STATS_REG_FREQ_POWER_PAIR_GET_POWER_VALUE(word) \
+    HTT_STATS_GET_FIELD(0xFFFF0000, 16, (word))
+#define HTT_STATS_REG_FREQ_POWER_PAIR_SET_POWER_VALUE(word,value) \
+    HTT_STATS_SET_FIELD(0xFFFF0000, 16, (word), (value))
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    A_UINT32 index;
+    union {
+        A_UINT32 power_info_word;
+        struct {
+            A_UINT32 power_type_6ghz : 8, /* enum WMI_6GHZ_REG_PWRMODE_TYPE */
+                     eirp_power : 8,      /* in dBm */
+                     is_psd_power : 1,
+                     both_psd_eirp_support : 1,
+                     rsvd :14;
+        };
+    };
+    union {
+        A_UINT32 num_levels_word;
+        struct {
+            A_UINT32 num_power_levels : 8,
+                     num_psd_levels : 8,
+                     num_eirp_levels : 8,
+                     unused : 8;
+        };
+    };
+    A_UINT32 puncture_bitmap;
+    htt_stats_reg_freq_power_pair_t
+        tx_power_freq_pair[HTT_STATS_REG_POWER_INFO_6G_MAX_SUBBANDS];
+    htt_stats_reg_freq_power_pair_t
+        psd_power_freq_pair[HTT_STATS_REG_POWER_INFO_6G_MAX_SUBBANDS];
+    htt_stats_reg_freq_power_pair_t
+        eirp_power_freq_pair[HTT_STATS_REG_POWER_INFO_6G_MAX_SUBBANDS];
+} htt_stats_reg_6g_ch_power_info_tlv;
+
+#define HTT_STATS_REG_6G_GET_POWER_TYPE(word) \
+    HTT_STATS_GET_FIELD(0xFF, 0, (word))
+#define HTT_STATS_REG_6G_SET_POWER_TYPE(word,value) \
+    HTT_STATS_SET_FIELD(0xFF, 0, (word), (value))
+
+#define HTT_STATS_REG_6G_GET_EIRP_POWER(word) \
+    HTT_STATS_GET_FIELD(0xFF00, 8, (word))
+#define HTT_STATS_REG_6G_SET_EIRP_POWER(word,value) \
+    HTT_STATS_SET_FIELD(0xFF00, 8, (word), (value))
+
+#define HTT_STATS_REG_6G_GET_IS_PSD(word) \
+    HTT_STATS_GET_FIELD(0x10000, 16, (word))
+#define HTT_STATS_REG_6G_SET_IS_PSD(word,value) \
+    HTT_STATS_SET_FIELD(0x10000, 16, (word), (value))
+
+#define HTT_STATS_REG_6G_GET_BOTH_PSD_EIRP_SUPPORT(word) \
+    HTT_STATS_GET_FIELD(0x20000, 17, (word))
+#define HTT_STATS_REG_6G_SET_BOTH_PSD_EIRP_SUPPORT(word,value) \
+    HTT_STATS_SET_FIELD(0x20000, 17, (word), (value))
+
+#define HTT_STATS_REG_6G_GET_NUM_POWER_LEVELS(word) \
+    HTT_STATS_GET_FIELD(0xFF, 0, (word))
+#define HTT_STATS_REG_6G_SET_NUM_POWER_LEVELS(word,value) \
+    HTT_STATS_SET_FIELD(0xFF, 0, (word), (value))
+
+#define HTT_STATS_REG_6G_GET_NUM_PSD_LEVELS(word) \
+    HTT_STATS_GET_FIELD(0xFF00, 8, (word))
+#define HTT_STATS_REG_6G_SET_NUM_PSD_LEVELS(word,value) \
+    HTT_STATS_SET_FIELD(0xFF00, 8, (word), (value))
+
+#define HTT_STATS_REG_6G_GET_NUM_EIRP_LEVELS(word) \
+    HTT_STATS_GET_FIELD(0xFF0000, 16, (word))
+#define HTT_STATS_REG_6G_SET_NUM_EIRP_LEVELS(word,value) \
+    HTT_STATS_SET_FIELD(0xFF0000, 16, (word), (value))
+
+#define HTT_STATS_REG_OOBE_MAX_BW 5
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    A_INT32 oobe_psd[HTT_STATS_REG_OOBE_MAX_BW]; /* dBm / MHz */
+    union {
+        struct {
+            A_INT32 oobe_limit_offset : 16,  /* in MHz */
+                    oobe_limit_psd    : 16;  /* in dBm / MHz */
+        };
+        A_UINT32 offset_mask_pair;
+    } oobe_limit[HTT_STATS_REG_OOBE_MAX_BW];
+} htt_stats_reg_6g_oobe_tlv;
+
+#define HTT_STATS_REG_6G_GET_OOBE_LIMIT_OFFSET(word) \
+    HTT_STATS_GET_FIELD(0xFFFF, 0, (word))
+#define HTT_STATS_REG_6G_SET_OOBE_LIMIT_OFFSET(word,value) \
+    HTT_STATS_SET_FIELD(0xFFFF, 0, (word), (value))
+
+#define HTT_STATS_REG_6G_GET_OOBE_LIMIT_PSD(word) \
+    HTT_STATS_GET_FIELD(0xFFFF0000, 16, (word))
+#define HTT_STATS_REG_6G_SET_OOBE_LIMIT_PSD(word,value) \
+    HTT_STATS_SET_FIELD(0xFFFF0000, 16, (word), (value))
+
+/*======================= End Regulatory stats ==================== } */
 
 
 #endif /* __HTT_STATS_H__ */
