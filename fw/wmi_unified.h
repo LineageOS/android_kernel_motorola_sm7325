@@ -20136,6 +20136,20 @@ typedef enum {
     /* Use BTWT ID0 for this vdev */
     WMI_VDEV_PARAM_USE_BTWT_ID0,                          /* 0xD0 */
 
+    /*
+     * Enable or disable UHR ELR capability in Auto rate and
+     * Fixed rate UHR data packet transmissions.
+     * Enable or disable Enhanced Long range
+     * valid values: 0 - Disable ELR, 1 - Enable ELR.
+     */
+    WMI_VDEV_PARAM_UHR_ELR,                               /* 0xD1 */
+
+    /*
+     * Enable or disable Non-data UHR Enhanced Long Range
+     * valid values: 0 - Disable ELR, 1 - Enable ELR.
+     */
+    WMI_VDEV_PARAM_NON_DATA_UHR_ELR,                      /* 0xD2 */
+
 
     /*=== ADD NEW VDEV PARAM TYPES ABOVE THIS LINE ===
      * The below vdev param types are used for prototyping, and are
@@ -41204,6 +41218,8 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_PDEV_POWER_DATAPATH_STATS_CMDID);
         WMI_RETURN_STRING(WMI_SMD_ROAM_CONFIG_CMDID);
         WMI_RETURN_STRING(WMI_SMD_ROAM_PEER_UNIFIED_SETUP_CMDID);
+        WMI_RETURN_STRING(WMI_VDEV_UNIFIED_CONNECT_CMDID);
+        WMI_RETURN_STRING(WMI_VDEV_UNIFIED_DISCONNECT_CMDID);
     }
 
     return (A_UINT8 *) "Invalid WMI cmd";
