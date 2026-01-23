@@ -53083,6 +53083,8 @@ typedef enum {
 typedef enum {
     WMI_PDEV_POWER_BOOST_TS_FIRST_PASS = 0,
     WMI_PDEV_POWER_BOOST_TS_SECOND_PASS,
+    WMI_PDEV_POWER_BOOST_TS_THIRD_PASS,
+    WMI_PDEV_POWER_BOOST_TS_FOURTH_PASS,
 
     WMI_PDEV_POWER_BOOST_TS_MAX
 } wmi_pdev_power_boost_training_stage;
