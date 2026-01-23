@@ -925,6 +925,14 @@ enum htt_dbg_ext_stats_type {
      */
     HTT_DBG_EXT_STATS_REGULATORY = 83,
 
+    /** HTT_DBG_EXT_STATS_TX_SELFGEN_RESP_FRAME_STATS
+     * PARAMS:
+     *   - No Params
+     * RESP MSG:
+     *   - htt_stats_tx_selfgen_resp_frame_stats_tlv
+     */
+    HTT_DBG_EXT_STATS_TX_SELFGEN_RESP_FRAME_STATS = 84,
+
 
     /* keep this last */
     HTT_DBG_NUM_EXT_STATS = 256,
@@ -16237,6 +16245,272 @@ typedef struct {
     HTT_STATS_SET_FIELD(0xFFFF0000, 16, (word), (value))
 
 /*======================= End Regulatory stats ==================== } */
+
+/*
+ * Self response frame types. Aligning with
+ * WHAL_RESP_FRAMES (WHAL_MAX_RESP_FRAMES).
+ */
+typedef enum {
+    HTT_RESP_FRAME_TYPE_ACK_CTS_CCK_11L_MBPS = 0,
+    HTT_RESP_FRAME_TYPE_ACK_CTS_CCK_5_5L_MBPS,
+    HTT_RESP_FRAME_TYPE_ACK_CTS_CCK_2L_MBPS,
+    HTT_RESP_FRAME_TYPE_ACK_CTS_CCK_1L_MBPS,
+    HTT_RESP_FRAME_TYPE_ACK_CTS_CCK_11S_MBPS,
+    HTT_RESP_FRAME_TYPE_ACK_CTS_CCK_5_5S_MBPS,
+    HTT_RESP_FRAME_TYPE_ACK_CTS_CCK_2S_MBPS,
+    HTT_RESP_FRAME_TYPE_ACK_CTS_OFDM_6_MBPS,
+    HTT_RESP_FRAME_TYPE_ACK_CTS_OFDM_9_MBPS,
+    HTT_RESP_FRAME_TYPE_ACK_CTS_OFDM_12_MBPS,
+    HTT_RESP_FRAME_TYPE_ACK_CTS_OFDM_18_MBPS,
+    HTT_RESP_FRAME_TYPE_ACK_CTS_OFDM_24_MBPS,
+    HTT_RESP_FRAME_TYPE_ACK_CTS_OFDM_36_MBPS,
+    HTT_RESP_FRAME_TYPE_ACK_CTS_OFDM_48_MBPS,
+    HTT_RESP_FRAME_TYPE_ACK_CTS_OFDM_54_MBPS,
+    HTT_RESP_FRAME_TYPE_CBF_11AC,
+    HTT_RESP_FRAME_TYPE_CBF_11AX,
+    HTT_RESP_FRAME_TYPE_CBF_11BE,
+    HTT_RESP_FRAME_TYPE_CBF_11AX_EXT,
+    HTT_RESP_FRAME_TYPE_ACK_CTS_11AX_EXT_DCM,
+    HTT_RESP_FRAME_TYPE_RTT_11N_MCS0,
+    HTT_RESP_FRAME_TYPE_RTT_11N_MCS1,
+    HTT_RESP_FRAME_TYPE_RTT_11N_MCS3,
+    HTT_RESP_FRAME_TYPE_RTT_11AC_MCS0,
+    HTT_RESP_FRAME_TYPE_RTT_11AC_MCS1,
+    HTT_RESP_FRAME_TYPE_RTT_11AC_MCS3,
+    HTT_RESP_FRAME_TYPE_RTT_11A_6_MBPS,
+    HTT_RESP_FRAME_TYPE_RTT_11A_12_MBPS,
+    HTT_RESP_FRAME_TYPE_RTT_11A_24_MBPS,
+    HTT_RESP_FRAME_TYPE_RTT_11AX_MCS0,
+    HTT_RESP_FRAME_TYPE_RTT_11AX_MCS1,
+    HTT_RESP_FRAME_TYPE_RTT_11AX_MCS3,
+    HTT_RESP_FRAME_TYPE_AX_BE_EXT_DEF,
+    HTT_RESP_FRAME_TYPE_11BE_MCS14_MCS15,
+    HTT_RESP_FRAME_TYPE_MAX
+} HTT_RESP_FRAME_TYPES;
+
+/*
+ * This structure stores the essential fields from WHAL_RESP_FRAME_PARAMS
+ * that are accessed in the WHAL SELFGEN RESP FRAME STATS.
+ */
+typedef struct {
+    union {
+        A_UINT32 type_rate_chainmask;
+        struct {
+            A_UINT32
+                /* pkt_type:
+                 * 0 = CCK, 1 = OFDM, 2 = HT,
+                 * 3 = VHT, 4 = HE,   5 = EHT,
+                 */
+                pkt_type       : 4,  /* 0-3 */
+                nss            : 3,  /* 4-6:   Number of spatial streams */
+                rate_mcs       : 4,  /* 7-10:  Rate/MCS value */
+                /* bandwith:
+                 * 0 = 20 MHz, 1 = 40 MHz, 2 = 80 MHz, 3 = 160 MHz, 4 = 320 MHz
+                 */
+                bandwidth      : 3,  /* 11-13 */
+                chain_mask     : 8,  /* 14-21: Primary chain mask */
+                alt_chain_mask : 8,  /* 22-29: Alternate chain mask */
+                reserved       : 2;  /* 30-31: Reserved for future use */
+        };
+    };
+
+    union {
+        A_UINT32 tx_pwr_alt;
+        struct {
+            A_UINT32
+                tx_pwr       : 8,  /* 0-7:   Primary TX power (dBm) */
+                tx_pwr_1     : 8,  /* 8-15:  Secondary TX power (dBm) */
+                alt_tx_pwr   : 8,  /* 16-23: Alternate TX power (dBm) */
+                alt_tx_pwr_1 : 8;  /* 24-31: Alternate secondary TX pwr (dBm) */
+        };
+    };
+/*
+ * NOTE: due to backwards-compatibility constraints,
+ * this struct cannot be expanded.
+ */
+} HTT_STATS_WHAL_SELFGEN_RESP_FRAME_ENTRY;
+
+/* Mask and shift definitions for type_rate_chainmask fields */
+#define HTT_STATS_WHAL_SELFGEN_PKT_TYPE_M           0x0000000F
+#define HTT_STATS_WHAL_SELFGEN_PKT_TYPE_S           0
+#define HTT_STATS_WHAL_SELFGEN_NSS_M                0x00000070
+#define HTT_STATS_WHAL_SELFGEN_NSS_S                4
+#define HTT_STATS_WHAL_SELFGEN_RATE_MCS_M           0x00000780
+#define HTT_STATS_WHAL_SELFGEN_RATE_MCS_S           7
+#define HTT_STATS_WHAL_SELFGEN_BANDWIDTH_M          0x00003800
+#define HTT_STATS_WHAL_SELFGEN_BANDWIDTH_S          11
+#define HTT_STATS_WHAL_SELFGEN_CHAIN_MASK_M         0x003FC000
+#define HTT_STATS_WHAL_SELFGEN_CHAIN_MASK_S         14
+#define HTT_STATS_WHAL_SELFGEN_ALT_CHAIN_MASK_M     0x3FC00000
+#define HTT_STATS_WHAL_SELFGEN_ALT_CHAIN_MASK_S     22
+
+#define HTT_STATS_WHAL_SELFGEN_PKT_TYPE_GET(_var) \
+    (((_var) & HTT_STATS_WHAL_SELFGEN_PKT_TYPE_M) >> \
+     HTT_STATS_WHAL_SELFGEN_PKT_TYPE_S)
+#define HTT_STATS_WHAL_SELFGEN_PKT_TYPE_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_WHAL_SELFGEN_PKT_TYPE, _val); \
+        ((_var) |= ((_val) << HTT_STATS_WHAL_SELFGEN_PKT_TYPE_S)); \
+    } while (0)
+
+#define HTT_STATS_WHAL_SELFGEN_NSS_GET(_var) \
+    (((_var) & HTT_STATS_WHAL_SELFGEN_NSS_M) >> \
+     HTT_STATS_WHAL_SELFGEN_NSS_S)
+#define HTT_STATS_WHAL_SELFGEN_NSS_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_WHAL_SELFGEN_NSS, _val); \
+        ((_var) |= ((_val) << HTT_STATS_WHAL_SELFGEN_NSS_S)); \
+    } while (0)
+
+#define HTT_STATS_WHAL_SELFGEN_RATE_MCS_GET(_var) \
+    (((_var) & HTT_STATS_WHAL_SELFGEN_RATE_MCS_M) >> \
+     HTT_STATS_WHAL_SELFGEN_RATE_MCS_S)
+#define HTT_STATS_WHAL_SELFGEN_RATE_MCS_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_WHAL_SELFGEN_RATE_MCS, _val); \
+        ((_var) |= ((_val) << HTT_STATS_WHAL_SELFGEN_RATE_MCS_S)); \
+    } while (0)
+
+#define HTT_STATS_WHAL_SELFGEN_BANDWIDTH_GET(_var) \
+    (((_var) & HTT_STATS_WHAL_SELFGEN_BANDWIDTH_M) >> \
+     HTT_STATS_WHAL_SELFGEN_BANDWIDTH_S)
+#define HTT_STATS_WHAL_SELFGEN_BANDWIDTH_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_WHAL_SELFGEN_BANDWIDTH, _val); \
+        ((_var) |= ((_val) << HTT_STATS_WHAL_SELFGEN_BANDWIDTH_S)); \
+    } while (0)
+
+#define HTT_STATS_WHAL_SELFGEN_CHAIN_MASK_GET(_var) \
+    (((_var) & HTT_STATS_WHAL_SELFGEN_CHAIN_MASK_M) >> \
+     HTT_STATS_WHAL_SELFGEN_CHAIN_MASK_S)
+#define HTT_STATS_WHAL_SELFGEN_CHAIN_MASK_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_WHAL_SELFGEN_CHAIN_MASK, _val); \
+        ((_var) |= ((_val) << HTT_STATS_WHAL_SELFGEN_CHAIN_MASK_S)); \
+    } while (0)
+
+#define HTT_STATS_WHAL_SELFGEN_ALT_CHAIN_MASK_GET(_var) \
+    (((_var) & HTT_STATS_WHAL_SELFGEN_ALT_CHAIN_MASK_M) >> \
+     HTT_STATS_WHAL_SELFGEN_ALT_CHAIN_MASK_S)
+#define HTT_STATS_WHAL_SELFGEN_ALT_CHAIN_MASK_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_WHAL_SELFGEN_ALT_CHAIN_MASK, _val); \
+        ((_var) |= ((_val) << HTT_STATS_WHAL_SELFGEN_ALT_CHAIN_MASK_S)); \
+    } while (0)
+
+/* Mask and shift definitions for tx_pwr_alt fields */
+#define HTT_STATS_WHAL_SELFGEN_TX_PWR_M             0x000000FF
+#define HTT_STATS_WHAL_SELFGEN_TX_PWR_S             0
+#define HTT_STATS_WHAL_SELFGEN_TX_PWR_1_M           0x0000FF00
+#define HTT_STATS_WHAL_SELFGEN_TX_PWR_1_S           8
+#define HTT_STATS_WHAL_SELFGEN_ALT_TX_PWR_M         0x00FF0000
+#define HTT_STATS_WHAL_SELFGEN_ALT_TX_PWR_S         16
+#define HTT_STATS_WHAL_SELFGEN_ALT_TX_PWR_1_M       0xFF000000
+#define HTT_STATS_WHAL_SELFGEN_ALT_TX_PWR_1_S       24
+
+#define HTT_STATS_WHAL_SELFGEN_TX_PWR_GET(_var) \
+    (((_var) & HTT_STATS_WHAL_SELFGEN_TX_PWR_M) >> \
+     HTT_STATS_WHAL_SELFGEN_TX_PWR_S)
+#define HTT_STATS_WHAL_SELFGEN_TX_PWR_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_WHAL_SELFGEN_TX_PWR, _val); \
+        ((_var) |= ((_val) << HTT_STATS_WHAL_SELFGEN_TX_PWR_S)); \
+    } while (0)
+
+#define HTT_STATS_WHAL_SELFGEN_TX_PWR_1_GET(_var) \
+    (((_var) & HTT_STATS_WHAL_SELFGEN_TX_PWR_1_M) >> \
+     HTT_STATS_WHAL_SELFGEN_TX_PWR_1_S)
+#define HTT_STATS_WHAL_SELFGEN_TX_PWR_1_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_WHAL_SELFGEN_TX_PWR_1, _val); \
+        ((_var) |= ((_val) << HTT_STATS_WHAL_SELFGEN_TX_PWR_1_S)); \
+    } while (0)
+
+#define HTT_STATS_WHAL_SELFGEN_ALT_TX_PWR_GET(_var) \
+    (((_var) & HTT_STATS_WHAL_SELFGEN_ALT_TX_PWR_M) >> \
+     HTT_STATS_WHAL_SELFGEN_ALT_TX_PWR_S)
+#define HTT_STATS_WHAL_SELFGEN_ALT_TX_PWR_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_WHAL_SELFGEN_ALT_TX_PWR, _val); \
+        ((_var) |= ((_val) << HTT_STATS_WHAL_SELFGEN_ALT_TX_PWR_S)); \
+    } while (0)
+
+#define HTT_STATS_WHAL_SELFGEN_ALT_TX_PWR_1_GET(_var) \
+    (((_var) & HTT_STATS_WHAL_SELFGEN_ALT_TX_PWR_1_M) >> \
+     HTT_STATS_WHAL_SELFGEN_ALT_TX_PWR_1_S)
+#define HTT_STATS_WHAL_SELFGEN_ALT_TX_PWR_1_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_WHAL_SELFGEN_ALT_TX_PWR_1, _val); \
+        ((_var) |= ((_val) << HTT_STATS_WHAL_SELFGEN_ALT_TX_PWR_1_S)); \
+    } while (0)
+
+/**
+ * HTT_STATS_WHAL_SELFGEN_CHANNEL_CONTEXT - Channel context information
+ *
+ * This structure stores common channel context information that is
+ * NOT per frame.
+ * It contains channel frequency, flags, and PHY mode information that applies
+ * to all self-generated response frames.
+ */
+typedef struct {
+    union {
+        A_UINT32 channel_info;
+        struct {
+            A_UINT32
+                mhz   : 16, /* 0-15:  Channel frequency in MHz */
+                /* flags:
+                 * Channel flags, with a FW-internal definition of flag values.
+                 * This fields is intended only for debugging, since the
+                 * definitions of the flag values are not provided.
+                 */
+                flags : 16; /* 16-31 */
+        };
+    };
+    A_UINT32 phy_mode; /* PHY mode (WLAN_PHY_MODE: 11a/11g/11ax/11be etc.) */
+/*
+ * NOTE: due to backwards-compatibility constraints,
+ * this struct cannot be expanded.
+ */
+} HTT_STATS_WHAL_SELFGEN_CHANNEL_CONTEXT;
+
+#define HTT_STATS_WHAL_SELFGEN_CHANNEL_MHZ_M        0x0000FFFF
+#define HTT_STATS_WHAL_SELFGEN_CHANNEL_MHZ_S        0
+#define HTT_STATS_WHAL_SELFGEN_CHANNEL_FLAGS_M      0xFFFF0000
+#define HTT_STATS_WHAL_SELFGEN_CHANNEL_FLAGS_S      16
+
+#define HTT_STATS_WHAL_SELFGEN_CHANNEL_MHZ_GET(_var) \
+    (((_var).channel_context.channel_info & \
+      HTT_STATS_WHAL_SELFGEN_CHANNEL_MHZ_M) >> \
+     HTT_STATS_WHAL_SELFGEN_CHANNEL_MHZ_S)
+#define HTT_STATS_WHAL_SELFGEN_CHANNEL_MHZ_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_WHAL_SELFGEN_CHANNEL_MHZ, _val); \
+        ((_var).channel_context.channel_info |= \
+         ((_val) << HTT_STATS_WHAL_SELFGEN_CHANNEL_MHZ_S)); \
+    } while (0)
+
+#define HTT_STATS_WHAL_SELFGEN_CHANNEL_FLAGS_GET(_var) \
+    (((_var).channel_context.channel_info & \
+      HTT_STATS_WHAL_SELFGEN_CHANNEL_FLAGS_M) >> \
+     HTT_STATS_WHAL_SELFGEN_CHANNEL_FLAGS_S)
+#define HTT_STATS_WHAL_SELFGEN_CHANNEL_FLAGS_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_WHAL_SELFGEN_CHANNEL_FLAGS, _val); \
+        ((_var).channel_context.channel_info |= \
+         ((_val) << HTT_STATS_WHAL_SELFGEN_CHANNEL_FLAGS_S)); \
+    } while (0)
+
+/*
+ * Statistics for self-generated response frames Rate, Pkt type, Chainmask.
+ * Has context that was captured when it was programmed.
+ */
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    /* Common channel context - NOT per frame */
+    HTT_STATS_WHAL_SELFGEN_CHANNEL_CONTEXT channel_context;
+    /* Array indexed by WHAL_RESP_FRAMES enum values */
+    HTT_STATS_WHAL_SELFGEN_RESP_FRAME_ENTRY frame_data[HTT_RESP_FRAME_TYPE_MAX];
+} htt_stats_tx_selfgen_resp_frame_stats_tlv;
 
 
 #endif /* __HTT_STATS_H__ */

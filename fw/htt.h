@@ -911,6 +911,7 @@ typedef enum {
     HTT_STATS_REG_6G_TAG                            = 249, /* htt_stats_reg_6g_tlv*/
     HTT_STATS_REG_6G_CH_PWR_INFO_TAG                = 250, /* htt_stats_reg_6g_ch_power_info_tlv*/
     HTT_STATS_REG_6G_OOBE_TAG                       = 251, /* htt_stats_reg_6g_oobe_tlv*/
+    HTT_STATS_TX_SELFGEN_RESP_FRAME_STATS_TAG       = 252, /* htt_stats_tx_selfgen_resp_frame_stats_tlv */
 
     HTT_STATS_MAX_TAG,
 } htt_stats_tlv_tag_t;
