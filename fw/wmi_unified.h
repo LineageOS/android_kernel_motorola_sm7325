@@ -32035,6 +32035,12 @@ typedef struct {
      */
     wmi_mac_addr smd_identifier;
     /**
+     * Length of KDE data which is received on EAPOL M3 frame or
+     * reassoc reponse frame.
+     * Ex: SAE PW ID KDE data
+     */
+    A_UINT32 kde_length;
+    /**
      * TLV (tag length value) parameters follows roam_synch_event
      * The TLV's are:
      *     A_UINT8 bcn_probe_rsp_frame[bcn_probe_resp_len];
@@ -32052,6 +32058,7 @@ typedef struct {
      *     wmi_key_material_ext key_ext[];
      *     wmi_roam_pmk_cache_synch_tlv_param roam_pmk_cache_synch_info[];
      *     wmi_pdev_band_to_mac mac_freq_mapping[];
+     *     A_UINT8 kde_data[];
      */
 } wmi_roam_synch_event_fixed_param;
 
