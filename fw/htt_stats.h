@@ -933,6 +933,16 @@ enum htt_dbg_ext_stats_type {
      */
     HTT_DBG_EXT_STATS_TX_SELFGEN_RESP_FRAME_STATS = 84,
 
+    /** HTT_DBG_EXT_STATS_DPD
+     * PARAMS:
+     *   - No Params
+     * RESP MSG:
+     *   - htt_stats_dpd_halphy_tlv
+     *   - htt_stats_dpd_hw_cal_params_tlv
+     *   - htt_stats_dpd_hw_cal_results_tlv
+     */
+    HTT_DBG_EXT_STATS_DPD = 85,
+
 
     /* keep this last */
     HTT_DBG_NUM_EXT_STATS = 256,
@@ -16511,6 +16521,69 @@ typedef struct {
     /* Array indexed by WHAL_RESP_FRAMES enum values */
     HTT_STATS_WHAL_SELFGEN_RESP_FRAME_ENTRY frame_data[HTT_RESP_FRAME_TYPE_MAX];
 } htt_stats_tx_selfgen_resp_frame_stats_tlv;
+
+
+#define HTT_STATS_NUM_DPD_CAL_TABLE 12
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    A_UINT32 pdev_id;
+    A_UINT32 dpd_cal_start_time; /* ms units */
+    A_UINT32 dpd_cal_end_time; /* ms units */
+    A_UINT32 total_tx_pass_cnt;
+    A_UINT32 total_tx_fail_cnt;
+    /* dpd_trigger_reason:
+     * The definition of trigger reasons is internal to the
+     * target FW, hence, this field is opaque to the host and cannot be
+     * interpreted; this field is intended only for manual debugging.
+     */
+    A_UINT32 dpd_trigger_reason;
+    /* dpd_training_temp: units = Celsius degrees */
+    A_INT32  dpd_training_temp[HTT_STATS_MAX_CHAINS][HTT_STATS_NUM_DPD_CAL_TABLE];
+    A_INT32  cal_start_temp; /* Celsius degrees */
+    A_INT32  cal_end_temp; /* Celsius degrees */
+    A_UINT32 cal_channel; /* MHz */
+    A_UINT32 cal_phy_mode; /* WLAN_PHY_MODE */
+    A_UINT32 cal_chan_flags; /* HTT_STATS_CHANNEL_FLAGS */
+    A_UINT32 mem_dpd_post_proc_trigger_cnt;
+    A_UINT32 mem_dpd_post_proc_complete_cnt;
+    /* sch_cmd_result_per_chain:
+     * The definition of scheduler command results is internal to the
+     * target FW, hence, this field is opaque to the host and cannot be
+     * interpreted; this field is intended only for manual debugging.
+     */
+    A_UINT32 sch_cmd_result_per_chain[HTT_STATS_MAX_CHAINS][HTT_STATS_NUM_DPD_CAL_TABLE];
+    /* tx_status_per_chain: 0 = success, 1 = abort, 2 = error */
+    A_UINT32 tx_status_per_chain[HTT_STATS_MAX_CHAINS][HTT_STATS_NUM_DPD_CAL_TABLE];
+    /* dpd_cal_state:
+     * The definition of cal states is internal to the
+     * target FW, hence, this field is opaque to the host and cannot be
+     * interpreted; this field is intended only for manual debugging.
+     */
+    A_UINT32 dpd_cal_state;
+    A_UINT32 dpd_cal_status; /* 1 = success, 0 = failure */
+    /* dpd_fail_reason:
+     * The definition of DPD cal failure reasons is internal to the
+     * target FW, hence, this field is opaque to the host and cannot be
+     * interpreted; this field is intended only for manual debugging.
+     */
+    A_UINT32 dpd_fail_reason;
+} htt_stats_dpd_halphy_tlv;
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    A_UINT32 dpd_rx_gain[HTT_STATS_MAX_CHAINS][HTT_STATS_NUM_DPD_CAL_TABLE];
+    A_UINT32 tpc_gain_idx[HTT_STATS_MAX_CHAINS][HTT_STATS_NUM_DPD_CAL_TABLE];
+    A_UINT32 tpc_glut[HTT_STATS_MAX_CHAINS][HTT_STATS_NUM_DPD_CAL_TABLE];
+} htt_stats_dpd_hw_cal_params_tlv;
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    /* Signal Quality */
+    A_UINT32 sq_value[HTT_STATS_MAX_CHAINS][HTT_STATS_NUM_DPD_CAL_TABLE];
+    A_UINT32 sq_idx[HTT_STATS_MAX_CHAINS][HTT_STATS_NUM_DPD_CAL_TABLE];
+    A_INT32  nmse_chain[HTT_STATS_MAX_CHAINS][HTT_STATS_NUM_DPD_CAL_TABLE];
+} htt_stats_dpd_hw_cal_results_tlv;
 
 
 #endif /* __HTT_STATS_H__ */
