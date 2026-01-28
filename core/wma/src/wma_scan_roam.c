@@ -1617,21 +1617,23 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
 		return status;
 	}
 
+	wma_prevent_pm_during_roam_sync(wma);
+
 	param_buf = (WMI_ROAM_SYNCH_EVENTID_param_tlvs *)event;
 	if (!param_buf) {
 		wma_err_rl("received null buf from target");
-		return status;
+		goto fail;
 	}
 	synch_event = param_buf->fixed_param;
 	if (!synch_event) {
 		wma_err_rl("received null event data from target");
-		return status;
+		goto fail;
 	}
 
 	if (synch_event->vdev_id >= wma->max_bssid) {
 		wma_err_rl("received invalid vdev_id %d",
 			   synch_event->vdev_id);
-		return status;
+		goto fail;
 	}
 
 	iface = &wma->interfaces[synch_event->vdev_id];
@@ -1647,10 +1649,14 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
 	if (QDF_IS_STATUS_ERROR(qdf_status)) {
 		wma_err("Failed to send the EV_ROAM");
 		wma_post_roam_sync_failure(wma, synch_event->vdev_id);
-		return status;
+		goto fail;
 	}
 	wma_debug("Posted EV_ROAM to VDEV SM");
 	return 0;
+
+fail:
+	wma_allow_pm_after_roam_sync(wma);
+	return status;
 }
 
 int wma_roam_auth_offload_event_handler(WMA_HANDLE handle, uint8_t *event,
@@ -2833,6 +2839,7 @@ void wma_process_roam_synch_complete(WMA_HANDLE handle, uint8_t vdev_id)
 	wma_info("LFR3: vdev[%d] Sent ROAM_SYNCH_COMPLETE", vdev_id);
 	wlan_roam_debug_log(vdev_id, DEBUG_ROAM_SYNCH_CNF,
 			    DEBUG_INVALID_PEER_ID, NULL, NULL, 0, 0);
+	wma_allow_pm_after_roam_sync(wma_handle);
 
 }
 #endif /* WLAN_FEATURE_ROAM_OFFLOAD */

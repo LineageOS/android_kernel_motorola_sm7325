@@ -3822,6 +3822,22 @@ void wma_release_wakelock(qdf_wake_lock_t *wl)
 	qdf_runtime_pm_allow_suspend(&wma->wmi_cmd_rsp_runtime_lock);
 }
 
+void wma_prevent_pm_during_roam_sync(t_wma_handle *wma)
+{
+	if (!wma)
+		return;
+
+	qdf_runtime_pm_prevent_suspend(&wma->roam_sync_runtime_lock);
+}
+
+void wma_allow_pm_after_roam_sync(t_wma_handle *wma)
+{
+	if (!wma)
+		return;
+
+	qdf_runtime_pm_allow_suspend(&wma->roam_sync_runtime_lock);
+}
+
 QDF_STATUS wma_send_vdev_stop_to_fw(t_wma_handle *wma, uint8_t vdev_id)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
