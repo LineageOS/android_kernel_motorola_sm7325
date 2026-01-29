@@ -3827,7 +3827,11 @@ void wma_prevent_pm_during_roam_sync(t_wma_handle *wma)
 	if (!wma)
 		return;
 
+	if (wma->is_roam_lock_acquired)
+		return;
+
 	qdf_runtime_pm_prevent_suspend(&wma->roam_sync_runtime_lock);
+	wma->is_roam_lock_acquired = true;
 }
 
 void wma_allow_pm_after_roam_sync(t_wma_handle *wma)
@@ -3835,7 +3839,11 @@ void wma_allow_pm_after_roam_sync(t_wma_handle *wma)
 	if (!wma)
 		return;
 
+	if (!wma->is_roam_lock_acquired)
+		return;
+
 	qdf_runtime_pm_allow_suspend(&wma->roam_sync_runtime_lock);
+	wma->is_roam_lock_acquired = false;
 }
 
 QDF_STATUS wma_send_vdev_stop_to_fw(t_wma_handle *wma, uint8_t vdev_id)

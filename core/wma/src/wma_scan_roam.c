@@ -4558,10 +4558,12 @@ static void wma_invalid_roam_reason_handler(tp_wma_handle wma_handle,
 	if (notif == WMI_ROAM_NOTIF_ROAM_START) {
 		wma_handle->interfaces[vdev_id].roaming_in_progress = true;
 		op_code = SIR_ROAMING_START;
+		wma_prevent_pm_during_roam_sync(wma_handle);
 	} else if (notif == WMI_ROAM_NOTIF_ROAM_ABORT) {
 		wma_handle->interfaces[vdev_id].roaming_in_progress = false;
 		op_code = SIR_ROAMING_ABORT;
 		lim_sae_auth_cleanup_retry(wma_handle->mac_context, vdev_id);
+		wma_allow_pm_after_roam_sync(wma_handle);
 	} else {
 		wma_debug("Invalid notif %d", notif);
 		return;
@@ -4737,6 +4739,7 @@ int wma_roam_event_callback(WMA_HANDLE handle, uint8_t *event_buf,
 									= false;
 		lim_sae_auth_cleanup_retry(wma_handle->mac_context,
 					   wmi_event->vdev_id);
+		wma_allow_pm_after_roam_sync(wma_handle);
 		break;
 #endif
 	case WMI_ROAM_REASON_INVALID:

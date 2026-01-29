@@ -911,6 +911,7 @@ struct wma_wlm_stats_data {
  * @wma_fw_time_sync_timer: timer used for firmware time sync
  * @fw_therm_throt_support: FW Supports thermal throttling?
  * @roam_sync_runtime_lock: roam sync runtime lock
+ * @is_roam_lock_acquired: Is roam_sync_runtime_lock acquired
  *
  * This structure is the global wma context.  It contains global wma
  * module parameters and handles of other modules.
@@ -1046,6 +1047,7 @@ typedef struct {
 	bool fw_therm_throt_support;
 	bool enable_tx_compl_tsf64;
 	qdf_runtime_lock_t roam_sync_runtime_lock;
+	bool is_roam_lock_acquired;
 } t_wma_handle, *tp_wma_handle;
 
 /**
