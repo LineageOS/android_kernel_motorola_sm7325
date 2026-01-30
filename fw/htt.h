@@ -5563,8 +5563,8 @@ enum htt_srng_ring_id {
     HTT_HOST3_TO_FW_RXBUF_RING,    /* used by host for EasyMesh feature */
     HTT_HOST4_TO_FW_RXBUF_RING,    /* fourth ring used by host to provide buffers for MGMT packets */
     HTT_RXDMA_WBM_BUF0_RING,       /* used for SFE Datapath */
-    HTT_RXDMA_WBM_BUF1_RING,       /* used for PPE Datapath */
-    HTT_RXDMA_WBM_BUF2_RING,       /* used for MGMT path */
+    HTT_RXDMA_WBM_BUF1_RING,       /* used for MGMT Datapath */
+    HTT_RXDMA_WBM_BUF2_RING,       /* used for PPE path */
     HTT_RXOLE_ASE_STATUS_RING,     /* RxOLE2SW ASE Status ring */
     /* Add Other SRING which can't be directly configured by host software above this line */
 };
