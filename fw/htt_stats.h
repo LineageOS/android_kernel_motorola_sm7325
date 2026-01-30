@@ -7757,6 +7757,8 @@ typedef struct {
 
 #define HTT_RX_UL_MAX_UPLINK_RSSI_TRACK 5
 
+#define HTT_STATS_MAX_NUM_TCP_IMPLICIT_TRIG_INTR 12
+
 typedef struct {
     htt_tlv_hdr_t tlv_hdr;
 
@@ -7820,6 +7822,17 @@ typedef struct {
      * response to basic trigger. Typically a data response is expected.
      */
     A_UINT32 ul_ofdma_basic_trigger_rx_qos_null_only;
+
+    /* tcp_aware_implicit_trig_hist_ms:
+     * Each histogram bin represents a 3 ms range:
+     * tcp_aware_implicit_trig_hist_ms[0] -> 0-3 ms,
+     * tcp_aware_implicit_trig_hist_ms[1] -> 3-6 ms,
+     * etc.
+     */
+    A_UINT32 tcp_aware_implicit_trig_hist_ms[HTT_STATS_MAX_NUM_TCP_IMPLICIT_TRIG_INTR];
+
+    A_UINT32 ulofdma_implicit_trig_tried;
+    A_UINT32 ulofdma_implicit_trig_qos_null;
 } htt_stats_rx_pdev_ul_trig_stats_tlv;
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_rx_pdev_ul_trig_stats_tlv htt_rx_pdev_ul_trigger_stats_tlv;
@@ -7955,6 +7968,11 @@ typedef struct {
     A_UINT32 bn_ul_ofdma_rx_dru_sbw[HTT_BN_UL_OFDMA_NUM_DRU_SBW_COUNT];
     /* UL OFDMA DRU size of data PPDU */
     A_UINT32 bn_rx_ulofdma_data_dru_size_ppdu[HTT_TX_PDEV_STATS_NUM_BN_DRU_SIZE_COUNTERS];
+
+    A_UINT32 be_ulofdma_implicit_trig_tried;
+    A_UINT32 be_ulofdma_implicit_trig_qos_null;
+    A_UINT32 bn_ulofdma_implicit_trig_tried;
+    A_UINT32 bn_ulofdma_implicit_trig_qos_null;
 } htt_stats_rx_pdev_be_bn_ul_trig_tlv;
 /* preserve old names as aliases */
 typedef htt_stats_rx_pdev_be_bn_ul_trig_tlv
