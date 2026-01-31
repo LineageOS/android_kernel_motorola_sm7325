@@ -21907,6 +21907,102 @@ PREPACK struct htt_rx_peer_metadata_v1b {
         ((_var) |= ((_val) << HTT_RX_PEER_META_DATA_V1B_CHIP_ID_S)); \
     } while (0)
 
+
+/*
+ * htt_rx_peer_metadata_v2 - HTT RX peer metadata version 2
+ *
+ * |31        21|20    13|12|11  9|8   6|  5  |4   0|
+ * |------------+--------+--+-----+-----+-----+-----|
+ * |  reserved  |peer    |Q | Log |VDEV | ML  |Peer |
+ * |            |session |D |Link | ID  |Peer | ID  |
+ * |            |ID      |R | ID  |     |Valid|     |
+ * |------------+--------+--+-----+-----+-----+-----|
+ * Where:
+ *     QDR = queue data refill
+ */
+PREPACK struct htt_rx_peer_metadata_v2 {
+    A_UINT32
+        peer_id:          5,
+        ml_peer_valid:    1,
+        vdev_id:          3,
+        logical_link_id:  3,
+        qdata_refill:     1,
+        peer_session_id:  8,
+        reserved:        11;
+} POSTPACK;
+
+#define HTT_RX_PEER_META_DATA_V2_PEER_ID_S 0
+#define HTT_RX_PEER_META_DATA_V2_PEER_ID_M 0x0000001f
+
+#define HTT_RX_PEER_META_DATA_V2_PEER_ID_GET(_var) \
+    (((_var) & HTT_RX_PEER_META_DATA_V2_PEER_ID_M) >> \
+    HTT_RX_PEER_META_DATA_V2_PEER_ID_S)
+#define HTT_RX_PEER_META_DATA_V2_PEER_ID_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_RX_PEER_META_DATA_V2_PEER_ID, _val); \
+        ((_var) |= ((_val) << HTT_RX_PEER_META_DATA_V2_PEER_ID_S)); \
+    } while (0)
+
+#define HTT_RX_PEER_META_DATA_V2_ML_PEER_VALID_S 5
+#define HTT_RX_PEER_META_DATA_V2_ML_PEER_VALID_M 0x00000020
+#define HTT_RX_PEER_META_DATA_V2_ML_PEER_VALID_GET(_var) \
+    (((_var) & HTT_RX_PEER_META_DATA_V2_ML_PEER_VALID_M) >> \
+    HTT_RX_PEER_META_DATA_V2_ML_PEER_VALID_S)
+#define HTT_RX_PEER_META_DATA_V2_ML_PEER_VALID_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_RX_PEER_META_DATA_V2_ML_PEER_VALID, _val); \
+        ((_var) |= ((_val) << HTT_RX_PEER_META_DATA_V2_ML_PEER_VALID_S)); \
+    } while (0)
+
+#define HTT_RX_PEER_META_DATA_V2_VDEV_ID_S 6
+#define HTT_RX_PEER_META_DATA_V2_VDEV_ID_M 0x000001c0
+
+#define HTT_RX_PEER_META_DATA_V2_VDEV_ID_GET(_var) \
+    (((_var) & HTT_RX_PEER_META_DATA_V2_VDEV_ID_M) >> \
+    HTT_RX_PEER_META_DATA_V2_VDEV_ID_S)
+#define HTT_RX_PEER_META_DATA_V2_VDEV_ID_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_RX_PEER_META_DATA_V2_VDEV_ID, _val); \
+        ((_var) |= ((_val) << HTT_RX_PEER_META_DATA_V2_VDEV_ID_S)); \
+    } while (0)
+
+#define HTT_RX_PEER_META_DATA_V2_LOGICAL_LINK_ID_S 9
+#define HTT_RX_PEER_META_DATA_V2_LOGICAL_LINK_ID_M 0x00000e00
+
+#define HTT_RX_PEER_META_DATA_V2_LOGICAL_LINK_ID_GET(_var) \
+    (((_var) & HTT_RX_PEER_META_DATA_V2_LOGICAL_LINK_ID_M) >> \
+    HTT_RX_PEER_META_DATA_V2_LOGICAL_LINK_ID_S)
+#define HTT_RX_PEER_META_DATA_V2_LOGICAL_LINK_ID_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_RX_PEER_META_DATA_V2_LOGICAL_LINK_ID, _val); \
+        ((_var) |= ((_val) << HTT_RX_PEER_META_DATA_V2_LOGICAL_LINK_ID_S)); \
+    } while (0)
+
+#define HTT_RX_PEER_META_DATA_V2_QDATA_REFILL_S 12
+#define HTT_RX_PEER_META_DATA_V2_QDATA_REFILL_M 0x00001000
+
+#define HTT_RX_PEER_META_DATA_V2_QDATA_REFILL_GET(_var) \
+    (((_var) & HTT_RX_PEER_META_DATA_V2_QDATA_REFILL_M) >> \
+    HTT_RX_PEER_META_DATA_V2_QDATA_REFILL_S)
+#define HTT_RX_PEER_META_DATA_V2_QDATA_REFILL_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_RX_PEER_META_DATA_V2_QDATA_REFILL, _val); \
+        ((_var) |= ((_val) << HTT_RX_PEER_META_DATA_V2_QDATA_REFILL_S)); \
+    } while (0)
+
+#define HTT_RX_PEER_META_DATA_V2_PEER_SESSION_ID_S 13
+#define HTT_RX_PEER_META_DATA_V2_PEER_SESSION_ID_M 0x001fe000
+
+#define HTT_RX_PEER_META_DATA_V2_PEER_SESSION_ID_GET(_var) \
+    (((_var) & HTT_RX_PEER_META_DATA_V2_PEER_SESSION_ID_M) >> \
+    HTT_RX_PEER_META_DATA_V2_PEER_SESSION_ID_S)
+#define HTT_RX_PEER_META_DATA_V2_PEER_SESSION_ID_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_RX_PEER_META_DATA_V2_PEER_SESSION_ID, _val); \
+        ((_var) |= ((_val) << HTT_RX_PEER_META_DATA_V2_PEER_SESSION_ID_S)); \
+    } while (0)
+
+
 /* generic variables for masks and shifts for various fields */
 extern A_UINT32 HTT_RX_PEER_META_DATA_PEER_ID_S;
 extern A_UINT32 HTT_RX_PEER_META_DATA_PEER_ID_M;
@@ -21938,6 +22034,9 @@ extern void (*HTT_RX_PEER_META_DATA_HW_LINK_ID_SET) (A_UINT32 *var, A_UINT32 val
 
 extern A_UINT32 (*HTT_RX_PEER_META_DATA_QDATA_REFILL_GET) (A_UINT32 var);
 extern void (*HTT_RX_PEER_META_DATA_QDATA_REFILL_SET) (A_UINT32 *var, A_UINT32 val);
+
+extern A_UINT32 (*HTT_RX_PEER_META_DATA_PEER_SESSION_ID_GET) (A_UINT32 var);
+extern void (*HTT_RX_PEER_META_DATA_PEER_SESSION_ID_SET) (A_UINT32 *var, A_UINT32 val);
 
 
 /*

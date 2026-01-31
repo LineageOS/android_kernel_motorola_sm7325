@@ -757,6 +757,7 @@ typedef  enum  {
     WMI_SERVICE_SMD_SUPPORT_UL_FORWARD = 491,
     /* Service caps related to SMD Roaming - end */
 
+    WMI_SERVICE_PEER_METADATA_V2_SUPPORT = 492, /* Support rx peer meta data v2 */
 
     WMI_MAX_EXT2_SERVICE
 

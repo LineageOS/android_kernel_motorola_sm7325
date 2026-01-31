@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2017-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2026 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1986,6 +1986,14 @@ typedef enum HTT_PPDU_STATS_RU_SIZE {
     HTT_PPDU_STATS_RU_996x4,
 } HTT_PPDU_STATS_RU_SIZE;
 
+typedef enum HTT_PPDU_STATS_DRU_SIZE {
+    HTT_PPDU_STATS_DRU_26,
+    HTT_PPDU_STATS_DRU_52,
+    HTT_PPDU_STATS_DRU_106,
+    HTT_PPDU_STATS_DRU_242,
+    HTT_PPDU_STATS_DRU_484,
+} HTT_PPDU_STATS_DRU_SIZE;
+
 typedef struct {
     htt_tlv_hdr_t tlv_hdr;
 
@@ -2023,6 +2031,7 @@ typedef struct {
      * Discriminant is field ru_format:
      *     - ru_format = 0: ru_end, ru_start
      *     - ru_format = 1: ru_index, ru_size
+     *     - ru_format = 2: dru_index, dru_size, dru_sbw, dru_sbw_idx
      *     - ru_format = other: reserved for future expansion
      *
      * ru_start and ru_end are RU 26 indices
@@ -2055,10 +2064,15 @@ typedef struct {
      *
      * resp_ru_size is an HTT_PPDU_STATS_RU_SIZE, resp_ru_index
      * is a size specific index for the given ru_size.
+     *
+     * 'is_dru' field indicates if the current RU allocation
+     * is a distributed RU allocation or not.
+     * 'dru_sbw' is the spreading BW size of current dru_size.
      */
     union {
         A_UINT32 resp_ru_start__ru_end;
         A_UINT32 resp_ru_size__ru_index;
+        A_UINT32 dru_size__dru_index__dru_sbw_idx__dru_sbw__is_dru;
         struct {
             A_UINT32 resp_ru_end:   16,
                      resp_ru_start: 16;
@@ -2066,6 +2080,14 @@ typedef struct {
         struct {
             A_UINT32 resp_ru_index: 16,
                      resp_ru_size:  16;
+        };
+        struct {
+            A_UINT32 is_dru:         1,
+                     dru_sbw:        3,
+                     dru_sbw_idx:    2,
+                     dru_index:     16,
+                     dru_size:       4,
+                     reserved5:       6;
         };
     };
 
