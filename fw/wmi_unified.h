@@ -3758,6 +3758,10 @@ typedef struct {
 #define WMI_TARGET_CAP_TOTAL_ML_LINKS_NUM_SET(target_cap_flags, value) \
     WMI_SET_BITS(target_cap_flags, 23, 3, value)
 
+#define WMI_TARGET_CAP_FLAGS_RX_PEER_METADATA_VERSION_EXTENSION_GET(target_cap_flags) \
+    WMI_GET_BITS(target_cap_flags, 26, 3)
+#define WMI_TARGET_CAP_FLAGS_RX_PEER_METADATA_VERSION_EXTENSION_SET(target_cap_flags, value) \
+    WMI_SET_BITS(target_cap_flags, 26, 3, value)
 
 /*
  * wmi_htt_msdu_idx_to_htt_msdu_qtype GET/SET APIs
@@ -3976,7 +3980,8 @@ typedef struct {
      * Bits 19:17 - max number of ML STA BSS supported, range [0-7]
      * Bits 22:20 - max number of ML SAP BSS supported, range [0-7]
      * Bits 25:23 - total number of ML links supported, range [0-7]
-     * Bits 31:26 - Reserved
+     * Bits 28:27 - extended rx peer metadata version capabilities
+     * Bits 31:29 - Reserved
      */
     A_UINT32 target_cap_flags;
 
