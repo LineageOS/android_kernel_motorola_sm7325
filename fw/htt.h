@@ -11898,8 +11898,9 @@ PREPACK struct htt_h2t_mpduq_and_msduq_info_hdr {
 /*
  * Enum describes the various msduq/mpduq types,
  * First 8 types correspond to the standard msduq types for data
- * Next come custom flows for specific purposes
- * enum 30 is reserved for mpduq type
+ * Next come custom flows for specific purposes.
+ * Values 23-29 will be used for MGMT flows.
+ * The value 30 is reserved for mpduq type
  */
 typedef enum {
     HTT_H2T_TID_MSDUQ_NONUDP,                                    /* 0 */
@@ -11916,7 +11917,15 @@ typedef enum {
     HTT_H2T_TID_MSDUQ_MCAST,                                     /* 9 */
     HTT_H2T_TID_MSDUQ_FAST_ROAMING,                              /* 10 */
 
-    HTT_H2T_TID_MSDUQ_DATA_TYPE_END = 29,                        /* 29 */
+    HTT_H2T_TID_MSDUQ_DATA_TYPE_END = 23,                        /* 23 */
+
+    HTT_H2T_TID_MSDUQ_MGMT_LINK_SPECIFIC_0,                      /* 24 */
+    HTT_H2T_TID_MSDUQ_MGMT_LINK_SPECIFIC_1,                      /* 25 */
+    HTT_H2T_TID_MSDUQ_MGMT_LINK_SPECIFIC_2,                      /* 26 */
+    HTT_H2T_TID_MSDUQ_MGMT_LINK_SPECIFIC_3,                      /* 27 */
+    HTT_H2T_TID_MSDUQ_MGMT_LINK_SPECIFIC_4,                      /* 28 */
+    HTT_H2T_TID_MSDUQ_MGMT_LINK_AGNOSTIC,                        /* 29 */
+
     HTT_H2T_TID_MPDUQ_TYPE,                                      /* 30 */
     HTT_H2T_TID_MSDUQ_MPDUQ_TYPE_END,                            /* 31 */
 } HTT_H2T_TID_MSDUQ_MPDUQ_TYPE;
