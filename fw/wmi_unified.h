@@ -3172,7 +3172,7 @@ typedef struct _wmi_ppe_threshold {
 #define WMI_MAX_EHTCAP_PHY_SIZE  3
 
 #define WMI_MAX_UHRCAP_MAC_SIZE  4
-#define WMI_MAX_UHRCAP_PHY_SIZE  3
+#define WMI_MAX_UHRCAP_PHY_SIZE  8 /* as per spec recommendation */
 
 /*
  * 0 – index indicated EHT-MCS map for 20Mhz only sta (4 bytes valid)
@@ -5097,8 +5097,11 @@ typedef struct {
      *      1 -> enable the feature
      *     Refer to below WMI_RSRC_CFG_FLAGS2_RECV_BCN_STATS_ENABLED_GET/SET
      *     macros.
+     *  Bits 28:26 - extension bits for specifing the format version of the
+     *     rx peer metadata the target needs to use (to cover versions V2 and
+     *     beyond).
      *
-     *  Bits 31:26 - Reserved
+     *  Bits 31:29 - Reserved
      */
     A_UINT32 flags2;
     /** @brief host_service_flags - can be used by Host to indicate
@@ -5737,6 +5740,10 @@ typedef struct {
 #define WMI_RSRC_CFG_FLAGS2_RECV_BCN_STATS_ENABLED_SET(flags2, value) \
     WMI_SET_BITS(flags2, 25, 1, value)
 
+#define WMI_RSRC_CFG_FLAGS2_RX_PEER_METADATA_EXTENSION_GET(flags2) \
+    WMI_GET_BITS(flags2, 26, 3)
+#define WMI_RSRC_CFG_FLAGS2_RX_PEER_METADATA_EXTENSION_SET(flags2, value) \
+    WMI_SET_BITS(flags2, 26, 3, value)
 
 #define WMI_RSRC_CFG_HOST_SERVICE_FLAG_NAN_IFACE_SUPPORT_GET(host_service_flags) \
     WMI_GET_BITS(host_service_flags, 0, 1)
@@ -54187,130 +54194,80 @@ typedef enum {
     WMI_UHR_MAX_MODES = 24
 } WMI_UHR_AP_MODE_TUP;
 
-/* ============================================================================
- * Packed layout:
- *   bits [7:0]   -> vdev_id (8 bits)
- *   bits [31:8]  -> mode disable bitmap (24 bits)
- * ========================================================================== */
+typedef enum{
+    WMI_UHR_AP_MODE_TUP_STATE_DISABLE   = 0,
+    WMI_UHR_AP_MODE_TUP_STATE_ENABLE    = 1,
+    WMI_UHR_AP_MODE_TUP_STATE_UPDATE    = 2,
+    WMI_UHR_AP_MODE_TUP_STATE_RESERVED  = 3,
+    WMI_UHR_AP_MODE_TUP_STATE_MAX       = 4
+} WMI_UHR_AP_MODE_TUP_STATE;
 
-#define WMI_UHR_AP_VDEV_ID_MASK                         0x000000FF
-#define WMI_UHR_AP_MODE_TUP_DISABLED_BITS_MASK          0x00FFFFFF
-#define WMI_UHR_AP_MODE_TUP_DISABLED_BITS_SHIFT                  8
+#define WMI_UHR_AP_VDEV_ID_GET(var)             WMI_GET_BITS(var, 0, 8)
+#define WMI_UHR_AP_VDEV_ID_SET(var, val)        WMI_SET_BITS(var, 0, 8, val)
 
-#define WMI_UHR_AP_GET_VDEV_ID(var) \
-    ((var) & WMI_UHR_AP_VDEV_ID_MASK)
 
-#define WMI_UHR_AP_MODE_TUP_GET_BITS(var) \
-    (((var) >> WMI_UHR_AP_MODE_TUP_DISABLED_BITS_SHIFT) & WMI_UHR_AP_MODE_TUP_DISABLED_BITS_MASK)
+#define WMI_UHR_AP_MODE_TUP_DPS_GET(var)        WMI_GET_BITS(var, 8, 2)
+#define WMI_UHR_AP_MODE_TUP_DPS_SET(var, val)   WMI_SET_BITS(var, 8, 2, val)
 
-#define WMI_UHR_AP_VDEV_ID_MODE_TUP_DISABLED_PACK(vdev_id, bits) \
-    (((vdev_id) & WMI_UHR_AP_VDEV_ID_MASK) | \
-     (((bits) & WMI_UHR_AP_MODE_TUP_DISABLED_BITS_MASK) << WMI_UHR_AP_MODE_TUP_DISABLED_BITS_SHIFT))
+#define WMI_UHR_AP_MODE_TUP_NPCA_GET(var)       WMI_GET_BITS(var, 10, 2)
+#define WMI_UHR_AP_MODE_TUP_NPCA_SET(var, val)  WMI_SET_BITS(var, 10, 2, val)
 
-/* Set a disable bit (bit := 1) */
-#define WMI_UHR_AP_MODE_TUP_DISABLED_BIT_SET(var, vdev_id, bit)                  \
-    do {                                                                     \
-        if (WMI_MAX_VDEV_CHECK(vdev_id) && (bit) < WMI_UHR_MAX_MODES) {      \
-            A_UINT32 bits = WMI_UHR_AP_MODE_TUP_GET_BITS(var);                 \
-            bits |= (1 << (bit));                                           \
-            (var) = WMI_UHR_AP_VDEV_ID_MODE_TUP_DISABLED_PACK((vdev_id), bits);                 \
-        }                                                                    \
-    } while (0)
+#define WMI_UHR_AP_MODE_TUP_DUO_GET(var)        WMI_GET_BITS(var, 12, 2)
+#define WMI_UHR_AP_MODE_TUP_DUO_SET(var, val)   WMI_SET_BITS(var, 12, 2, val)
 
-/* Clear a disable bit (bit := 0) */
-#define WMI_UHR_AP_MODE_TUP_DISABLED_BIT_CLR(var, vdev_id, bit)                  \
-    do {                                                                     \
-        if (WMI_MAX_VDEV_CHECK(vdev_id) && (bit) < WMI_UHR_MAX_MODES) {      \
-            A_UINT32 bits = WMI_UHR_AP_MODE_TUP_GET_BITS(var);                 \
-            bits &= ~(1 << (bit));                                          \
-            (var) = WMI_UHR_AP_VDEV_ID_MODE_TUP_DISABLED_PACK((vdev_id), bits);                 \
-        }                                                                    \
-    } while (0)
+#define WMI_UHR_AP_MODE_TUP_PEDCA_GET(var)      WMI_GET_BITS(var, 14, 2)
+#define WMI_UHR_AP_MODE_TUP_PEDCA_SET(var, val) WMI_SET_BITS(var, 14, 2, val)
 
-/* Read a disable bit (returns 0 or 1) */
-#define WMI_UHR_AP_MODE_TUP_DISABLED_BIT_GET(var, bit)                           \
-    (((bit) < WMI_UHR_MAX_MODES) ?                                          \
-     ((WMI_UHR_AP_MODE_TUP_GET_BITS(var) >> (bit)) & 1) : 0)
+#define WMI_UHR_AP_MODE_TUP_DBE_GET(var)        WMI_GET_BITS(var, 16, 2)
+#define WMI_UHR_AP_MODE_TUP_DBE_SET(var, val)   WMI_SET_BITS(var, 16, 2, val)
 
-/* ============================================================================
- *  Per‑MODE Macros to Get/Set/CLR Modes
- * ========================================================================== */
+#define WMI_UHR_AP_MODE_TUP_PUO_GET(var)        WMI_GET_BITS(var, 18, 2)
+#define WMI_UHR_AP_MODE_TUP_PUO_SET(var, val)   WMI_SET_BITS(var, 18, 2, val)
 
-/* NPCA */
-#define WMI_UHR_AP_MODE_TUP_NPCA_DISABLED_BIT_SET(var, vdev_id) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_SET((var), (vdev_id), WMI_UHR_AP_MODE_TUP_NPCA)
-#define WMI_UHR_AP_MODE_TUP_NPCA_DISABLED_BIT_CLR(var, vdev_id) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_CLR((var), (vdev_id), WMI_UHR_AP_MODE_TUP_NPCA)
-#define WMI_UHR_AP_MODE_TUP_NPCA_DISABLED_BIT_GET(var) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_GET((var), WMI_UHR_AP_MODE_TUP_NPCA)
-
-/* DBE */
-#define WMI_UHR_AP_MODE_TUP_DBE_DISABLED_BIT_SET(var, vdev_id) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_SET((var), (vdev_id), WMI_UHR_AP_MODE_TUP_DBE)
-#define WMI_UHR_AP_MODE_TUP_DBE_DISABLED_BIT_CLR(var, vdev_id) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_CLR((var), (vdev_id), WMI_UHR_AP_MODE_TUP_DBE)
-#define WMI_UHR_AP_MODE_TUP_DBE_DISABLED_BIT_GET(var) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_GET((var), WMI_UHR_AP_MODE_TUP_DBE)
-
-/* DPS */
-#define WMI_UHR_AP_MODE_TUP_DPS_DISABLED_BIT_SET(var, vdev_id) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_SET((var), (vdev_id), WMI_UHR_AP_MODE_TUP_DPS)
-#define WMI_UHR_AP_MODE_TUP_DPS_DISABLED_BIT_CLR(var, vdev_id) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_CLR((var), (vdev_id), WMI_UHR_AP_MODE_TUP_DPS)
-#define WMI_UHR_AP_MODE_TUP_DPS_DISABLED_BIT_GET(var) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_GET((var), WMI_UHR_AP_MODE_TUP_DPS)
-
-/* DUO */
-#define WMI_UHR_AP_MODE_TUP_DUO_DISABLED_BIT_SET(var, vdev_id) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_SET((var), (vdev_id), WMI_UHR_AP_MODE_TUP_DUO)
-#define WMI_UHR_AP_MODE_TUP_DUO_DISABLED_BIT_CLR(var, vdev_id) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_CLR((var), (vdev_id), WMI_UHR_AP_MODE_TUP_DUO)
-#define WMI_UHR_AP_MODE_TUP_DUO_DISABLED_BIT_GET(var) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_GET((var), WMI_UHR_AP_MODE_TUP_DUO)
-
-/* PUO */
-#define WMI_UHR_AP_MODE_TUP_PUO_DISABLED_BIT_SET(var, vdev_id) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_SET((var), (vdev_id), WMI_UHR_AP_MODE_TUP_PUO)
-#define WMI_UHR_AP_MODE_TUP_PUO_DISABLED_BIT_CLR(var, vdev_id) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_CLR((var), (vdev_id), WMI_UHR_AP_MODE_TUP_PUO)
-#define WMI_UHR_AP_MODE_TUP_PUO_DISABLED_BIT_GET(var) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_GET((var), WMI_UHR_AP_MODE_TUP_PUO)
-
-/* ELR */
-#define WMI_UHR_AP_MODE_TUP_ELR_DISABLED_BIT_SET(var, vdev_id) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_SET((var), (vdev_id), WMI_UHR_AP_MODE_TUP_ELR)
-#define WMI_UHR_AP_MODE_TUP_ELR_DISABLED_BIT_CLR(var, vdev_id) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_CLR((var), (vdev_id), WMI_UHR_AP_MODE_TUP_ELR)
-#define WMI_UHR_AP_MODE_TUP_ELR_DISABLED_BIT_GET(var) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_GET((var), WMI_UHR_AP_MODE_TUP_ELR)
-
-/* PEDCA */
-#define WMI_UHR_AP_MODE_TUP_PEDCA_DISABLED_BIT_SET(var, vdev_id) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_SET((var), (vdev_id), WMI_UHR_AP_MODE_TUP_PEDCA)
-#define WMI_UHR_AP_MODE_TUP_PEDCA_DISABLED_BIT_CLR(var, vdev_id) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_CLR((var), (vdev_id), WMI_UHR_AP_MODE_TUP_PEDCA)
-#define WMI_UHR_AP_MODE_TUP_PEDCA_DISABLED_BIT_GET(var) \
-    WMI_UHR_AP_MODE_TUP_DISABLED_BIT_GET((var), WMI_UHR_AP_MODE_TUP_PEDCA)
+#define WMI_UHR_AP_MODE_TUP_ELR_GET(var)        WMI_GET_BITS(var, 20, 2)
+#define WMI_UHR_AP_MODE_TUP_ELR_SET(var, val)   WMI_SET_BITS(var, 20, 2, val)
 
 typedef struct {
     /** TLV tag and len; tag equals
-     * WMITLV_TAG_STRUC_wmi_uhr_ap_mode_tup_dis_params */
+     * WMITLV_TAG_STRUC_wmi_uhr_ap_mode_tuple_enable_disable_update_params */
     A_UINT32 tlv_header;
     /*
-     * WMI_UHR_AP_MODE_TUP_NPCA/DBE/DPS/DUO/PUO/ELR/PEDCA
+     * WMI_UHR_AP_MODE_TUP_DPS_GET/_NPCA/DBE/DUO/PUO/ELR/PEDCA
      * Modes are defined in WMI_UHR_AP_MODE_TUP
-     * WMI_UHR_AP_MODE_TUP_NPCA_DISABLED_BIT_SET/CLR/GET
+     * WMI_UHR_AP_MODE_TUP_DPS_SET/
      * similarly for DBE/DPS/DUO/PUO/ELR/PEDCA
      */
     union{
-        A_UINT32 vdev_id_mode_tuple_disabled_bits;
+        /*
+         * Bits 0:7   - vdev_id (8 bits)
+         * Bits 8:31  - mode enable/disable/update bitmap
+         *              (24 bits, using 2 bits for each mode)
+         *     WMI_UHR_AP_MODE_TUP_STATE
+         *     WMI_UHR_MAX_MODES
+         *     Bits 8:9      DPS
+         *     Bits 10:11    NPCA
+         *     Bits 12:13    DUO
+         *     Bits 14:15    PEDCA
+         *     Bits 16:17    DBE
+         *     Bits 18:19    PUO
+         *     Bits 20:21    ELR
+         *     Bits 22:31    reserved
+         */
+        A_UINT32 vdev_id_mode_tuple_enable_disable_update_bits;
         struct{
             A_UINT32 vdev_id:8,
-                     mode_tup_disabled_bits:24;
+                     mode_tup_dps_enable_disable_update_bits:   2,
+                     mode_tup_npca_enable_disable_update_bits:  2,
+                     mode_tup_duo_enable_disable_update_bits:   2,
+                     mode_tup_pedca_enable_disable_update_bits: 2,
+                     mode_tup_dbe_enable_disable_update_bits:   2,
+                     mode_tup_puo_enable_disable_update_bits:   2,
+                     mode_tup_elr_enable_disable_update_bits:   2,
+                     reserved:10;
         };
     };
     /* Add any new required fields below */
-} wmi_uhr_ap_mode_tup_dis_params;
+} wmi_uhr_ap_mode_tuple_enable_disable_update_params;
 
 typedef struct {
     /** TLV tag and len; tag equals
@@ -54325,7 +54282,7 @@ typedef struct {
      *   - wmi_uhr_ap_dbe_params
      *   - wmi_uhr_ap_ap_puo_params
      *   - wmi_uhr_ap_elr_reception_params
-     *   - wmi_uhr_ap_mode_tup_dis_params[]
+     *   - wmi_uhr_ap_mode_tuple_enable_disable_update_params[]
      */
 } wmi_vdev_uhr_cu_cmd_fixed_param;
 
@@ -54342,7 +54299,7 @@ typedef struct {
      *   - wmi_uhr_ap_dbe_params[]
      *   - wmi_uhr_ap_ap_puo_params[]
      *   - wmi_uhr_ap_elr_reception_params[]
-     *   - wmi_uhr_ap_mode_tup_dis_params[]
+     *   - wmi_uhr_ap_mode_tuple_enable_disable_update_params[]
      */
 } wmi_pdev_uhr_cu_cmd_fixed_param;
 

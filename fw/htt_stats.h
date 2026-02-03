@@ -7334,6 +7334,8 @@ typedef struct {
     A_UINT32 tx_mcs_ext_3[HTT_TX_PDEV_STATS_NUM_EXTRA3_MCS_COUNTERS];
     A_UINT32 tx_gi_ext_3[HTT_TX_PDEV_STATS_NUM_GI_COUNTERS][HTT_TX_PDEV_STATS_NUM_EXTRA3_MCS_COUNTERS];
     A_UINT32 tx_stbc_ext_3[HTT_TX_PDEV_STATS_NUM_EXTRA3_MCS_COUNTERS];
+    /* Stats for UHR ELR */
+    A_UINT32 tx_11bn_su_elr; 
 } htt_stats_tx_pdev_bn_rate_tlv;
 
 
@@ -7605,6 +7607,7 @@ typedef struct {
 
     /* Stats for MCS 12/13 */
     A_UINT32 rx_mcs_ext[HTT_RX_PDEV_STATS_NUM_EXTRA_MCS_COUNTERS];
+    A_UINT32 rx_11bn_su_elr;
 /*
  * NOTE - this TLV is already large enough that it causes the HTT message
  * carrying it to be nearly at the message size limit that applies to
