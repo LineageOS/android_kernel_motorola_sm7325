@@ -278,9 +278,10 @@
  * 3.148 Add HTT_PEER_CFR_CAPTURE_BW_320MHZ def.
  * 3.149 Add SAM fields in MPDUQ_OR_MSDUQ_INFO.
  * 3.150 Add htt_reg_write_selection definitions.
+ * 3.151 Add HTT_H2T DAL_MODE_INFO def.
  */
 #define HTT_CURRENT_VERSION_MAJOR 3
-#define HTT_CURRENT_VERSION_MINOR 150
+#define HTT_CURRENT_VERSION_MINOR 151
 
 #define HTT_NUM_TX_FRAG_DESC  1024
 
@@ -994,6 +995,7 @@ enum htt_h2t_msg_type {
     HTT_H2T_MSG_TYPE_MPDUQ_AND_MSDUQ_INFO_HDR               = 0x29,
     HTT_H2T_MSG_TYPE_MPDUQ_OR_MSDUQ_INFO                    = 0x2a,
     HTT_H2T_MSG_TYPE_AST_INFO                               = 0x2b,
+    HTT_H2T_MSG_TYPE_DAL_MODE_INFO                          = 0x2c,
 
     /* keep this last */
     HTT_H2T_NUM_MSGS
@@ -12421,6 +12423,76 @@ PREPACK struct htt_ast_info_t {
         do { \
             HTT_CHECK_SET_VAL(HTT_AST_INFO_AST_CACHE_ONLY_ENTRY_CMD_FIX_DIS, _val); \
             ((_var) |= ((_val) << HTT_AST_INFO_AST_CACHE_ONLY_ENTRY_CMD_FIX_DIS_S)); \
+        } while (0)
+
+
+/*
+ * @brief  host -> target HTT_H2T_MSG_TYPE_DAL_MODE_INFO message
+ *
+ * MSG_TYPE => HTT_H2T_MSG_TYPE_DAL_MODE_INFO (0x2C)
+ *
+ *    The message would appear as follows:
+ *    |31                16|15              8|7                 0|
+ *    |--------------------+-----------------+-------------------|
+ *    |       mode         |     pdev_id     |     msg_type      |
+ *    |----------------------------------------------------------|
+ *    |                    write_data_addr_lo                    |
+ *    |----------------------------------------------------------|
+ *    |                    write_data_addr_hi                    |
+ *    |----------------------------------------------------------|
+ *    |                    write_msi_addr_lo                     |
+ *    |----------------------------------------------------------|
+ *    |                    write_msi_addr_hi                     |
+ *    |----------------------------------------------------------|
+ *    |                    write_msi_data                        |
+ *    |----------------------------------------------------------|
+ *
+ * The message is interpreted as follows:
+ * dword0  - b'7:0   - msg_type
+ *           b'15:8  - pdev_id
+ *           b'31:16 - mode
+ * dword1  - b'31:0  - write_data_addr_lo
+ * dword2  - b'31:0  - write_data_addr_hi
+ * dword3  - b'31:0  - write_msi_addr_lo
+ * dword4  - b'31:0  - write_msi_addr_hi
+ * dword5  - b'31:0  - write_msi_data
+ */
+PREPACK struct htt_h2t_msg_dal_mode_info {
+        A_UINT32 msg_type:  8,
+                 pdev_id:   8,
+                 mode:     16;
+        A_UINT32 write_data_addr_lo;
+        A_UINT32 write_data_addr_hi;
+        A_UINT32 write_msi_addr_lo;
+        A_UINT32 write_msi_addr_hi;
+        A_UINT32 write_msi_data;
+} POSTPACK;
+
+#define HTT_H2T_MSG_DAL_MODE_INFO_SZ (sizeof(struct htt_h2t_msg_dal_mode_info))
+
+/* DWORD0 */
+#define HTT_H2T_MSG_DAL_MODE_INFO_PDEV_ID_M                  0x0000ff00
+#define HTT_H2T_MSG_DAL_MODE_INFO_PDEV_ID_S                  8
+
+#define HTT_H2T_MSG_DAL_MODE_INFO_PDEV_ID_GET(_var) \
+        (((_var) & HTT_H2T_MSG_DAL_MODE_INFO_PDEV_ID_M) >> \
+            HTT_H2T_MSG_DAL_MODE_INFO_PDEV_ID_S)
+#define HTT_H2T_MSG_DAL_MODE_INFO_PDEV_ID_SET(_var, _val) \
+        do { \
+            HTT_CHECK_SET_VAL(HTT_H2T_MSG_DAL_MODE_INFO_PDEV_ID, _val); \
+            ((_var) |= ((_val) << HTT_H2T_MSG_DAL_MODE_INFO_PDEV_ID_S)); \
+        } while (0)
+
+#define HTT_H2T_MSG_DAL_MODE_INFO_MODE_M                  0xffff0000
+#define HTT_H2T_MSG_DAL_MODE_INFO_MODE_S                  16
+
+#define HTT_H2T_MSG_DAL_MODE_INFO_MODE_GET(_var) \
+        (((_var) & HTT_H2T_MSG_DAL_MODE_INFO_MODE_M) >> \
+            HTT_H2T_MSG_DAL_MODE_INFO_MODE_S)
+#define HTT_H2T_MSG_DAL_MODE_INFO_MODE_SET(_var, _val) \
+        do { \
+            HTT_CHECK_SET_VAL(HTT_H2T_MSG_DAL_MODE_INFO_MODE, _val); \
+            ((_var) |= ((_val) << HTT_H2T_MSG_DAL_MODE_INFO_MODE_S)); \
         } while (0)
 
 
