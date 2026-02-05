@@ -410,6 +410,10 @@ typedef enum {
     WMI_SCAN_ADAPTIVE_DWELL_CONFIG_CMDID,
     /** Only applicable to DBS capable product */
     WMI_SET_SCAN_DBS_DUTY_CYCLE_CMDID,
+    /** enable/disable any scan request **/
+    WMI_SCAN_SUPPRESS_CMDID,
+    /** get scan stats**/
+    WMI_GET_SCAN_STATS_CMDID,
 
     /* PDEV(physical device) specific commands */
     /** set regulatorty ctl id used by FW to determine the exact ctl power limits */
@@ -626,6 +630,8 @@ typedef enum {
     WMI_PDEV_UHR_CU_CMDID,
     /** WMI cmd used to enable/disable and get power and data path stats */
     WMI_PDEV_POWER_DATAPATH_STATS_CMDID,
+    /** WMI cmd to get the concurrency info for all vdevs within a pdev */
+    WMI_PDEV_GET_CONC_INFO_CMDID,
 
     /* VDEV (virtual device) specific commands */
     /** vdev create */
@@ -1870,6 +1876,9 @@ typedef enum {
     /** Spectral scan capabilities advertisement */
     WMI_SPECTRAL_CAPABILITIES_EVENTID,
 
+    /** Send scan stats to HOST */
+    WMI_GET_SCAN_STATS_RESP_EVENTID,
+
 
     /* PDEV specific events */
     /** TPC config for the current operating channel */
@@ -2039,6 +2048,8 @@ typedef enum {
      */
     WMI_PDEV_POWER_DATAPATH_STATS_EVENTID, /* 54 */
 
+    /* Event to share the concurrency info to HOST */
+    WMI_PDEV_GET_CONC_INFO_RESP_EVENTID, /* 55 */
 
 
     /***
@@ -7075,6 +7086,37 @@ typedef struct {
     A_UINT32 flags;
 } wmi_scan_event_fixed_param;
 
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_scan_suppress_cmd_fixed_param */
+
+    /** suppress_scan:
+     * set to 0: to enable scan
+     * set to 1: to suppress scan
+     */
+    A_UINT32 suppress_scan;
+    /** Scan client id, refer to enum WMI_SCAN_CLIENT_ID */
+    A_UINT32 scan_client_id;
+} wmi_scan_suppress_cmd_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_get_scan_stats_cmd_fixed_param */
+
+    /** Scan client id, refer to enum WMI_SCAN_CLIENT_ID */
+    A_UINT32 scan_client_id;
+} wmi_get_scan_stats_cmd_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_scan_stats_rsp_fixed_param */
+
+    /** Scan client id, refer to enum WMI_SCAN_CLIENT_ID */
+    A_UINT32 scan_client_id;
+    /** scan_count:
+     * Total number of scans triggered/started for a given scan_clnt_id
+     * which is requested by scan stats command
+     */
+    A_UINT32 scan_count;
+} wmi_get_scan_stats_resp_fixed_param;
+
 /* WMI Diag event */
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag is WMITLV_TAG_STRUC_wmi_diag_event_fixed_param */
@@ -8380,6 +8422,48 @@ typedef struct {
     /** TRUE for scan start and flase for scan end */
     A_UINT32 scan_start;
 } wmi_pdev_scan_cmd;
+
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_get_conc_info_cmd_fixed_param */
+
+    A_UINT32 pdev_id;
+} wmi_pdev_get_conc_info_cmd_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_conc_info */
+
+    A_UINT32     vdev_id;
+    A_UINT32     type; /* interface type : WMI_VDEV_MODE */
+    wmi_mac_addr bssid;
+    A_UINT32     freq; /* in MHz*/
+    /* rssi value (in dBm) valid for STA vdev, for other INVALID_RSSI */
+    A_INT32      rssi;
+} wmi_conc_info;
+
+typedef enum {
+    WMI_VDEV_MODE_STA      = 0,
+    WMI_VDEV_MODE_SAP      = 1,
+    WMI_VDEV_MODE_MLO_STA  = 2,
+    WMI_VDEV_MODE_MLO_SAP  = 3,
+    WMI_VDEV_MODE_P2P_CLI  = 4,
+    WMI_VDEV_MODE_P2P_GO   = 5,
+    WMI_VDEV_MODE_NAN      = 6,
+    WMI_VDEV_MODE_NDI      = 7,
+
+    WMI_VDEV_MODE_MAX
+} WMI_VDEV_MODE;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_get_conc_info_resp_fixed_param */
+
+    A_UINT32 pdev_id;
+    /*
+     * Following this fixed_param TLV is a variable-length TLV array:
+     * wmi_conc_info conc_info_list[];
+     */
+} wmi_pdev_get_conc_info_resp_fixed_param;
+
 
 /* WMI support for setting ratemask in target */
 
@@ -29507,14 +29591,18 @@ typedef enum {
    WMI_LPI_STATUS_MEDIUM_BUSY = 6,
    /** Extscan is the scan client whose scan complete event is triggered */
    WMI_LPI_STATUS_EXTSCAN_CYCLE_AND_SCAN_REQ_COMPLETED = 7,
-} wmi_lpi_staus;
+   /** LPI scan is suspended*/
+   WMI_LPI_STATUS_SCAN_SUSPENDED = 8,
+} wmi_lpi_status;
+/* preserve old name (with typo) as alias for corrected name */
+typedef wmi_lpi_status wmi_lpi_staus;
 
 typedef struct
 {
-    A_UINT32      tlv_header;
-    wmi_lpi_staus status;
+    A_UINT32       tlv_header;
+    wmi_lpi_status status;
     /** Scan requestor ID */
-    A_UINT32      scan_req_id;
+    A_UINT32       scan_req_id;
 }  wmi_lpi_status_event_fixed_param;
 
 typedef struct
