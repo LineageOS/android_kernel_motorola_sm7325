@@ -916,7 +916,8 @@ typedef enum {
     HTT_STATS_DPD_HALPHY_TAG                        = 253, /* htt_stats_dpd_halphy_tlv */
     HTT_STATS_DPD_HW_CAL_PARAMS_TAG                 = 254, /* htt_stats_dpd_hw_cal_params_tlv */
     HTT_STATS_DPD_HW_CAL_RESULTS_TAG                = 255, /* htt_stats_dpd_hw_cal_results_tlv */
-
+    HTT_STATS_TX_PDEV_TXOP_DUR_TAG                  = 256, /* htt_stats_tx_pdev_txop_dur_tlv */
+    HTT_STATS_TXQ_COMBINED_SEQ_STATE_TAG            = 257, /* htt_stats_sched_txq_combined_seq_state_tlv */
 
     HTT_STATS_MAX_TAG,
 } htt_stats_tlv_tag_t;
