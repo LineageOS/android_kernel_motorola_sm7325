@@ -1576,10 +1576,16 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_uhr_ap_mode_tup_enable_disable_update_param,
     WMITLV_TAG_STRUC_wmi_scan_suppress_cmd_fixed_param,
     WMITLV_TAG_STRUC_wmi_get_scan_stats_cmd_fixed_param,
-    WMITLV_TAG_STRUC_wmi_pdev_get_conc_info_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_soc_get_conc_info_cmd_fixed_param,
     WMITLV_TAG_STRUC_wmi_get_scan_stats_resp_fixed_param,
-    WMITLV_TAG_STRUC_wmi_pdev_get_conc_info_resp_fixed_param,
+    WMITLV_TAG_STRUC_wmi_soc_get_conc_info_resp_fixed_param,
     WMITLV_TAG_STRUC_wmi_conc_info,
+    WMITLV_TAG_STRUC_wmi_nan_local_schedule_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_nan_peer_schedule_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_nan_peer_params_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_nan_local_schedule_cnf_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_nan_peer_schedule_cnf_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_nan_peer_params_cnf_event_fixed_param,
 } WMITLV_TAG_ID;
 /*
  * IMPORTANT: Please add _ALL_ WMI Commands Here.
@@ -2175,7 +2181,10 @@ typedef enum {
     OP(WMI_SMD_ROAM_PEER_UNIFIED_SETUP_CMDID) \
     OP(WMI_SCAN_SUPPRESS_CMDID) \
     OP(WMI_GET_SCAN_STATS_CMDID) \
-    OP(WMI_PDEV_GET_CONC_INFO_CMDID) \
+    OP(WMI_SOC_GET_CONC_INFO_CMDID) \
+    OP(WMI_NAN_LOCAL_SCHEDULE_CMDID) \
+    OP(WMI_NAN_PEER_SCHEDULE_CMDID) \
+    OP(WMI_NAN_PEER_PARAMS_CMDID) \
     /* add new CMD_LIST elements above this line */
 
 
@@ -2531,7 +2540,10 @@ typedef enum {
     OP(WMI_SMD_ROAM_CONFIG_EVENTID) \
     OP(WMI_SMD_ROAM_PEER_UNIFIED_SETUP_COMPLETE_EVENTID) \
     OP(WMI_GET_SCAN_STATS_RESP_EVENTID) \
-    OP(WMI_PDEV_GET_CONC_INFO_RESP_EVENTID) \
+    OP(WMI_SOC_GET_CONC_INFO_RESP_EVENTID) \
+    OP(WMI_NAN_LOCAL_SCHEDULE_CNF_EVENTID) \
+    OP(WMI_NAN_PEER_SCHEDULE_CNF_EVENTID) \
+    OP(WMI_NAN_PEER_PARAMS_CNF_EVENTID) \
     /* add new EVT_LIST elements above this line */
 
 
@@ -3971,9 +3983,9 @@ WMITLV_CREATE_PARAM_STRUC(WMI_SCAN_PROB_REQ_OUI_CMDID);
 WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_CONFIG_VENDOR_OUI_ACTION_CMDID);
 
 /* get concurrency info Cmd */
-#define WMITLV_TABLE_WMI_PDEV_GET_CONC_INFO_CMDID(id,op,buf,len) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_pdev_get_conc_info_cmd_fixed_param, wmi_pdev_get_conc_info_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
-WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_GET_CONC_INFO_CMDID);
+#define WMITLV_TABLE_WMI_SOC_GET_CONC_INFO_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_soc_get_conc_info_cmd_fixed_param, wmi_soc_get_conc_info_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_SOC_GET_CONC_INFO_CMDID);
 
 #define WMITLV_TABLE_WMI_CHATTER_ADD_COALESCING_FILTER_CMDID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len,WMITLV_TAG_STRUC_wmi_chatter_coalescing_add_filter_cmd_fixed_param, wmi_chatter_coalescing_add_filter_cmd_fixed_param, fixed_param,WMITLV_SIZE_FIX) \
@@ -4367,6 +4379,26 @@ WMITLV_CREATE_PARAM_STRUC(WMI_NAN_CONFIG_CMDID);
 #define WMITLV_TABLE_WMI_NAN_DISABLE_CMDID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_disable_cmd_fixed_param, wmi_nan_disable_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_NAN_DISABLE_CMDID);
+
+/* NAN local Schedule Command */
+#define WMITLV_TABLE_WMI_NAN_LOCAL_SCHEDULE_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_local_schedule_cmd_fixed_param, wmi_nan_local_schedule_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, nan_schedule_chan_bitmap, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_channel, committed_channel_list, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_NAN_LOCAL_SCHEDULE_CMDID);
+
+/* NAN Peer Schedule Command */
+#define WMITLV_TABLE_WMI_NAN_PEER_SCHEDULE_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_peer_schedule_cmd_fixed_param, wmi_nan_peer_schedule_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, nan_schedule_chan_bitmap, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_channel, committed_channel_list, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_NAN_PEER_SCHEDULE_CMDID);
+
+/* NAN Peer Params Command */
+#define WMITLV_TABLE_WMI_NAN_PEER_PARAMS_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_peer_params_cmd_fixed_param, wmi_nan_peer_params_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, peer_caps_ie_data, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_NAN_PEER_PARAMS_CMDID);
 
 /* NAN Data Get Capabilities Cmd */
 #define WMITLV_TABLE_WMI_NDI_GET_CAP_REQ_CMDID(id,op,buf,len) \
@@ -7255,6 +7287,21 @@ WMITLV_CREATE_PARAM_STRUC(WMI_NAN_DISABLE_CNF_EVENTID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_disable_ind_fixed_param, wmi_nan_disable_ind_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_NAN_DISABLE_IND_EVENTID);
 
+/* NAN Local Schedule Confirm Event */
+#define WMITLV_TABLE_WMI_NAN_LOCAL_SCHEDULE_CNF_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_local_schedule_cnf_event_fixed_param, wmi_nan_local_schedule_cnf_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_NAN_LOCAL_SCHEDULE_CNF_EVENTID);
+
+/* NAN Peer Schedule Confirm Event */
+#define WMITLV_TABLE_WMI_NAN_PEER_SCHEDULE_CNF_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_peer_schedule_cnf_event_fixed_param, wmi_nan_peer_schedule_cnf_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_NAN_PEER_SCHEDULE_CNF_EVENTID);
+
+/* NAN Peer Params Confirm Event */
+#define WMITLV_TABLE_WMI_NAN_PEER_PARAMS_CNF_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_peer_params_cnf_event_fixed_param, wmi_nan_peer_params_cnf_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_NAN_PEER_PARAMS_CNF_EVENTID);
+
 /* Coex report antenna isolation event */
 #define WMITLV_TABLE_WMI_COEX_REPORT_ANTENNA_ISOLATION_EVENTID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_coex_report_isolation_event_fixed_param, wmi_coex_report_isolation_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
@@ -8263,10 +8310,10 @@ WMITLV_CREATE_PARAM_STRUC(WMI_ROAM_CAPABILITY_REPORT_EVENTID);
 WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_GET_TPC_STATS_EVENTID);
 
 /* Send concurrency info to host */
-#define WMITLV_TABLE_WMI_PDEV_GET_CONC_INFO_RESP_EVENTID(id,op,buf,len) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_pdev_get_conc_info_resp_fixed_param, wmi_pdev_get_conc_info_resp_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+#define WMITLV_TABLE_WMI_SOC_GET_CONC_INFO_RESP_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_soc_get_conc_info_resp_fixed_param, wmi_soc_get_conc_info_resp_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_conc_info, conc_info, WMITLV_SIZE_VAR)
-WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_GET_CONC_INFO_RESP_EVENTID);
+WMITLV_CREATE_PARAM_STRUC(WMI_SOC_GET_CONC_INFO_RESP_EVENTID);
 
 /* Send Bcn Latency ie related params to host */
 #define WMITLV_TABLE_WMI_VDEV_BCN_LATENCY_EVENTID(id,op,buf,len) \
