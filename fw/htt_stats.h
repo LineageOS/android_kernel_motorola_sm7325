@@ -1156,6 +1156,7 @@ typedef enum {
 #define HTT_PDEV_STATS_MAX_ACTIVE_SEQ_IN_HWQ_HIST 2
 #define HTT_PDEV_STATS_TXOP_DUR_HIST_BINS 12
 #define HTT_PDEV_STATS_TXOP_DUR_HIST_INTERVAL_US 1000
+#define HTT_PDEV_STATS_MAX_DATA_TID_COUNT 8
 
 typedef enum {
     HTT_STATS_TX_PDEV_NO_DATA_UNDERRUN = 0,
@@ -1398,6 +1399,8 @@ typedef struct {
     A_UINT32 hw_reaped_sp;
     /** Number of hardware reaped (Tx completed) packets in VLP mode */
     A_UINT32 hw_reaped_vlp;
+    A_UINT32 avg_channel_access_latency_per_ac[HTT_NUM_AC_WMM]; /* usec units */
+    A_UINT32 seq_posted_per_tid[HTT_PDEV_STATS_MAX_DATA_TID_COUNT];
 } htt_stats_tx_pdev_cmn_tlv;
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_tx_pdev_cmn_tlv htt_tx_pdev_stats_cmn_tlv;
