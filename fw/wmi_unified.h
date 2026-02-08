@@ -23843,7 +23843,10 @@ typedef struct {
  *              is set
  *  BIT 11    : Detect the missing band from BTM request when compared to
  *              roam scan results and consider them as valid candidate
- *  BIT 12-31 : Reserved
+ *  BIT 12    : Defer BTM roam scan if another roam scan is in progress.
+ *              Applicable only when BTM Disassoc imminent and BSS termination
+ *              is not set
+ *  BIT 13-31 : Reserved
  */
 #define WMI_ROAM_BTM_SET_ENABLE(flags, val)                        WMI_SET_BITS(flags, 0, 1, val)
 #define WMI_ROAM_BTM_GET_ENABLE(flags)                             WMI_GET_BITS(flags, 0, 1)
@@ -23863,6 +23866,8 @@ typedef struct {
 #define WMI_ROAM_BTM_GET_FORWARD_MBO_ASSOC_RETRY_BTM_REQUEST_TO_HOST(flags)      WMI_GET_BITS(flags, 10, 1)
 #define WMI_ROAM_BTM_SET_DETECT_CANDIDATE_FROM_MISSING_BAND_IN_BTM_REQUEST(flags, val) WMI_SET_BITS(flags, 11, 1, val)
 #define WMI_ROAM_BTM_GET_DETECT_CANDIDATE_FROM_MISSING_BAND_IN_BTM_REQUEST(flags)      WMI_GET_BITS(flags, 11, 1)
+#define WMI_ROAM_BTM_SET_DEFER_BTM_SCAN_FLAG(flags, val)           WMI_SET_BITS(flags, 12, 1, val)
+#define WMI_ROAM_BTM_GET_DEFER_BTM_SCAN_FLAG(flags)                WMI_GET_BITS(flags, 12, 1)
 
 
 /** WMI_ROAM_BTM_SET_NON_MATCHING_CNDS_ACTION definition: When BTM candidate is not matched with cache by WMI_ROAM_BTM_SET_CNDS_MATCH_CONDITION, determine what to do */
@@ -31014,6 +31019,24 @@ typedef struct {
 #define WMI_NAN_SCHED_NOT_AVAIL_SLOT 0xFF
 
 typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_nan_channel */
+
+    A_UINT32 chan_freq; /* in MHz */
+    A_UINT32 center_freq1; /* Center frequency 1 in MHz */
+    A_UINT32 center_freq2; /* Center frequency 2 in MHz */
+    /* Channel bandwidth. Possible values are wmi_channel_width */
+    A_UINT32 chan_width;
+    A_UINT32 rx_nss; /* advertised RX NSS */
+    /* chan_entry_fields:
+     * opaque 6-byte bytestream (with a 2-byte alignment suffix)
+     * The host must manually byteswap these bytes within each 4-byte word
+     * if the host's endianness doesn’t match the target’s, to ensure the
+     * network byte order is maintained.
+     */
+    A_UINT8 chan_entry_fields[8];
+} wmi_nan_channel;
+
+typedef struct {
     A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_nan_local_schedule_cmd_fixed_param */
 
     A_UINT32 vdev_id; /* Virtual device ID used for NAN operations (NMI vdev) */
@@ -31025,11 +31048,11 @@ typedef struct {
 /*
  * TLVs following this structure:
  *
- * A_UINT8  nan_schedule_chan_bitmap[];
+ * A_UINT8 nan_schedule_chan_bitmap[];
  *     A mapping of time slots to channel indexes in the schedule's
  *     committed_channel_list. Each slot lasts 16TUs.
  *     An unscheduled slot will be set to WMI_NAN_SCHED_NOT_AVAIL_SLOT.
- * wmi_channel committed_channel_list[];
+ * wmi_nan_channel committed_nan_channel_list[];
  */
 } wmi_nan_local_schedule_cmd_fixed_param;
 
@@ -31052,7 +31075,7 @@ typedef struct {
  *     A mapping of time slots to channel indexes in the schedule's
  *     committed_channel_list. Each slot lasts 16TUs.
  *     An unscheduled slot will be set to WMI_NAN_SCHED_NOT_AVAIL_SLOT.
- * wmi_channel committed_channel_list[];
+ * wmi_nan_channel committed_nan_channel_list[];
  */
 } wmi_nan_peer_schedule_cmd_fixed_param;
 
@@ -31089,6 +31112,9 @@ typedef struct {
  * A_UINT8 peer_caps_ie_data[]:
  *     HT/VHT/HE/EHT etc. capability IEs (along with header)
  *     are sent in stream of bytes (ieee80211 protocol order).
+ *     The host must manually byteswap these bytes within each 4-byte word
+ *     if the host's endianness doesn’t match the target’s, to ensure the
+ *     expected byte order is maintained.
  */
 } wmi_nan_peer_params_cmd_fixed_param;
 
