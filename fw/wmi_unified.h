@@ -630,8 +630,6 @@ typedef enum {
     WMI_PDEV_UHR_CU_CMDID,
     /** WMI cmd used to enable/disable and get power and data path stats */
     WMI_PDEV_POWER_DATAPATH_STATS_CMDID,
-    /** WMI cmd to get the concurrency info for all vdevs within a pdev */
-    WMI_PDEV_GET_CONC_INFO_CMDID,
 
     /* VDEV (virtual device) specific commands */
     /** vdev create */
@@ -1546,6 +1544,22 @@ typedef enum {
     WMI_NAN_CONFIG_CMDID,
     /** Command to disable NAN mode */
     WMI_NAN_DISABLE_CMDID,
+    /**
+     * Command to indicate our committed local discovery schedule
+     * (pre NAN datapath/ranging setup etc.) which FW needs to follow.
+     */
+    WMI_NAN_LOCAL_SCHEDULE_CMDID,
+    /**
+     * Command to indicate negotiated committed schedule which FW
+     * has to follow with a given peer.
+     */
+    WMI_NAN_PEER_SCHEDULE_CMDID,
+    /**
+     * Command to indicate negotiated rate control parameters with a
+     * given peer (during NAN datapath/ranging setup or schedule
+     * negotiation etc.).
+     */
+    WMI_NAN_PEER_PARAMS_CMDID,
 
 
     /** Modem power state command */
@@ -1637,6 +1651,8 @@ typedef enum {
      * and specifiy packets of interest for classification.
      */
     WMI_SOC_TX_PACKET_CUSTOM_CLASSIFY_CMDID,
+    /** WMI cmd to get the concurrency info for all vdevs within the target */
+    WMI_SOC_GET_CONC_INFO_CMDID,
 
     /* packet filter commands */
     WMI_PACKET_FILTER_CONFIG_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_PKT_FILTER),
@@ -2047,9 +2063,6 @@ typedef enum {
      * WMI Event to send power and data path stats info to Host
      */
     WMI_PDEV_POWER_DATAPATH_STATS_EVENTID, /* 54 */
-
-    /* Event to share the concurrency info to HOST */
-    WMI_PDEV_GET_CONC_INFO_RESP_EVENTID, /* 55 */
 
 
     /***
@@ -2633,6 +2646,12 @@ typedef enum {
     WMI_NAN_DISABLE_CNF_EVENTID,
     /** Event notifying FW triggered NAN disable indication */
     WMI_NAN_DISABLE_IND_EVENTID,
+    /** Confirmation event to NAN local schedule command */
+    WMI_NAN_LOCAL_SCHEDULE_CNF_EVENTID,
+    /** Confirmation event to NAN peer schedule command */
+    WMI_NAN_PEER_SCHEDULE_CNF_EVENTID,
+    /* Confirmation event that FW has received WMI_NAN_PEER_PARAMS_CMDID */
+    WMI_NAN_PEER_PARAMS_CNF_EVENTID,
 
     /* Coex Event */
     WMI_COEX_REPORT_ANTENNA_ISOLATION_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_COEX),
@@ -2681,6 +2700,8 @@ typedef enum {
     WMI_SOC_SET_HW_MODE_RESP_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_SOC),
     WMI_SOC_HW_MODE_TRANSITION_EVENTID,
     WMI_SOC_SET_DUAL_MAC_CONFIG_RESP_EVENTID,
+    /* Event to share the concurrency info to HOST */
+    WMI_SOC_GET_CONC_INFO_RESP_EVENTID,
 
     /** Motion Aided WiFi Connectivity (MAWC) events */
     WMI_MAWC_ENABLE_SENSOR_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_MAWC),
@@ -8425,10 +8446,8 @@ typedef struct {
 
 
 typedef struct {
-    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_get_conc_info_cmd_fixed_param */
-
-    A_UINT32 pdev_id;
-} wmi_pdev_get_conc_info_cmd_fixed_param;
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_soc_get_conc_info_cmd_fixed_param */
+} wmi_soc_get_conc_info_cmd_fixed_param;
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_conc_info */
@@ -8455,14 +8474,13 @@ typedef enum {
 } WMI_VDEV_MODE;
 
 typedef struct {
-    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_get_conc_info_resp_fixed_param */
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_soc_get_conc_info_resp_fixed_param */
 
-    A_UINT32 pdev_id;
     /*
      * Following this fixed_param TLV is a variable-length TLV array:
      * wmi_conc_info conc_info_list[];
      */
-} wmi_pdev_get_conc_info_resp_fixed_param;
+} wmi_soc_get_conc_info_resp_fixed_param;
 
 
 /* WMI support for setting ratemask in target */
@@ -30993,6 +31011,87 @@ typedef struct {
     A_UINT32 vdev_id; /* Virtual device ID used for NAN operations */
 } wmi_nan_disable_cmd_fixed_param;
 
+#define WMI_NAN_SCHED_NOT_AVAIL_SLOT 0xFF
+
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_nan_local_schedule_cmd_fixed_param */
+
+    A_UINT32 vdev_id; /* Virtual device ID used for NAN operations (NMI vdev) */
+    /** schedule_chan_bitmap_len:
+     * number of valid bytes (i.e. excluding final alignment-padding)
+     * in the TLV nan_schedule_chan_bitmap[]
+     */
+    A_UINT32 schedule_chan_bitmap_len;
+/*
+ * TLVs following this structure:
+ *
+ * A_UINT8  nan_schedule_chan_bitmap[];
+ *     A mapping of time slots to channel indexes in the schedule's
+ *     committed_channel_list. Each slot lasts 16TUs.
+ *     An unscheduled slot will be set to WMI_NAN_SCHED_NOT_AVAIL_SLOT.
+ * wmi_channel committed_channel_list[];
+ */
+} wmi_nan_local_schedule_cmd_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_nan_peer_schedule_cmd_fixed_param */
+
+    A_UINT32 vdev_id; /* Virtual device ID used for NAN operations (NMI vdev) */
+    wmi_mac_addr peer_nmi_addr;
+    /** schedule_chan_bitmap_len:
+     * number of valid bytes (i.e. excluding final alignment-padding)
+     * in the TLV nan_schedule_chan_bitmap[]
+     */
+    A_UINT32 schedule_chan_bitmap_len;
+    A_UINT32 peer_committed_dw;
+    A_UINT32 peer_max_chan_switch;
+/*
+ * TLVs following this structure:
+ *
+ * A_UINT8 nan_schedule_chan_bitmap[]:
+ *     A mapping of time slots to channel indexes in the schedule's
+ *     committed_channel_list. Each slot lasts 16TUs.
+ *     An unscheduled slot will be set to WMI_NAN_SCHED_NOT_AVAIL_SLOT.
+ * wmi_channel committed_channel_list[];
+ */
+} wmi_nan_peer_schedule_cmd_fixed_param;
+
+typedef enum {
+    WMI_NAN_PEER_FLAG_PMF           = 0x01,
+    WMI_NAN_PEER_FLAG_AUTHENTICATED = 0x02,
+    WMI_NAN_PEER_FLAG_ASSOCIATED    = 0x04,
+    WMI_NAN_PEER_FLAG_AUTHORIZED    = 0x08,
+} WMI_NAN_PEER_PARAMS_FLAGS;
+
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_nan_peer_params_cmd_fixed_param */
+
+    /* Virtual device ID used for NAN operations (either NMI or NDI VDEV) */
+    A_UINT32 vdev_id;
+    /** peer NMI MAC address */
+    wmi_mac_addr peer_nmi_addr;
+    /** peer NDI MAC address */
+    wmi_mac_addr peer_ndi_macaddr;
+    /** peer_flags:
+     * peer station flags, for indicating PMF is enabled,
+     * authorization is done etc..
+     * Possible values are enum WMI_NAN_PEER_PARAMS_FLAGS.
+     */
+    A_UINT32 peer_flags;
+    /** peer_caps_ie_len:
+     * number of valid bytes (i.e. excluding final alignment-padding)
+     * in the TLV peer_caps_ie_data[]
+     */
+    A_UINT32 peer_caps_ie_len;
+/*
+ * TLVs following this structure:
+ *
+ * A_UINT8 peer_caps_ie_data[]:
+ *     HT/VHT/HE/EHT etc. capability IEs (along with header)
+ *     are sent in stream of bytes (ieee80211 protocol order).
+ */
+} wmi_nan_peer_params_cmd_fixed_param;
+
 #define WMI_NAN_GET_RANGING_INITIATOR_ROLE(flag)      WMI_GET_BITS(flag, 0, 1)
 #define WMI_NAN_SET_RANGING_INITIATOR_ROLE(flag, val) WMI_SET_BITS(flag, 0, 1, val)
 #define WMI_NAN_GET_RANGING_RESPONDER_ROLE(flag)      WMI_GET_BITS(flag, 1, 1)
@@ -31141,6 +31240,38 @@ typedef struct {
     A_UINT32 vdev_id; /* Virtual device ID used for NAN operations */
 } wmi_nan_disable_ind_event_fixed_param;
 
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_nan_local_schedule_cnf_event_fixed_param */
+
+    A_UINT32 vdev_id; /* Virtual device ID used for NAN operations (NMI VDEV) */
+    /** Status code; 0 indicates NAN local schedule got applied successfully */
+    A_UINT32 status;
+} wmi_nan_local_schedule_cnf_event_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_nan_peer_schedule_cnf_event_fixed_param */
+
+    A_UINT32 vdev_id; /* Virtual device ID used for NAN operations (NMI VDEV) */
+    /** Status code; 0 indicates NAN peer schedule got applied successfully */
+    A_UINT32 status;
+} wmi_nan_peer_schedule_cnf_event_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_nan_peer_params_cnf_event_fixed_param */
+
+    /** Virtual device ID used for NDP operations(either NMI or NDI VDEV) */
+    A_UINT32 vdev_id;
+    /** peer NMI MAC address */
+    wmi_mac_addr peer_nmi_addr;
+    /** peer NDI MAC address */
+    wmi_mac_addr peer_ndi_macaddr;
+    /** status:
+     * 0 indicates NDP setup/schedule_negotiation peer params
+     * were applied successfully.
+     */
+    A_UINT32 status;
+} wmi_nan_peer_params_cnf_event_fixed_param;
+
 typedef enum {
     WMI_NDP_BAND_CAP_2GHZ = 0x01,
     WMI_NDP_BAND_CAP_5GHZ = 0x02,
@@ -31188,6 +31319,10 @@ typedef enum {
         WMI_GET_BITS(word32, 0, 16)
 #define WMI_DEVICE_CAPS_SET_MAX_CHAN_SWITCH_TIME(word32, val) \
         WMI_SET_BITS(word32, 0, 16, val)
+#define WMI_DEVICE_CAPS_GET_MAX_FAW_CHAN_PER_PEER(word32) \
+        WMI_GET_BITS(word32, 16, 4)
+#define WMI_DEVICE_CAPS_SET_MAX_FAW_CHAN_PER_PEER(word32, val) \
+        WMI_SET_BITS(word32, 16, 4, val)
 
 typedef struct {
     /** TLV tag and len; tag equals WMITLV_TAG_STRUCT_wmi_nan_capabilities */
@@ -31217,9 +31352,12 @@ typedef struct {
         /* Second 32-bit word of device capabilities */
         A_UINT32 device_caps_word1;
         struct {
-            A_UINT32 max_chan_switch_time:16, /* Max channel switch time,
-                                               * in microseconds */
-                     reserved2:           16; /* Reserved bits */
+            A_UINT32
+                /* Max channel switch time, in microseconds */
+                max_chan_switch_time:16,
+                /* Max FAW channels to be allowed for a NDP peer */
+                max_faw_chan_per_peer: 4,
+                reserved2:           12; /* Reserved bits */
         };
     };
 } wmi_nan_capabilities;
@@ -41485,6 +41623,9 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_SMD_ROAM_PEER_UNIFIED_SETUP_CMDID);
         WMI_RETURN_STRING(WMI_VDEV_UNIFIED_CONNECT_CMDID);
         WMI_RETURN_STRING(WMI_VDEV_UNIFIED_DISCONNECT_CMDID);
+        WMI_RETURN_STRING(WMI_NAN_LOCAL_SCHEDULE_CMDID);
+        WMI_RETURN_STRING(WMI_NAN_PEER_SCHEDULE_CMDID);
+        WMI_RETURN_STRING(WMI_NAN_PEER_PARAMS_CMDID);
     }
 
     return (A_UINT8 *) "Invalid WMI cmd";
