@@ -1586,6 +1586,7 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_nan_local_schedule_cnf_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_nan_peer_schedule_cnf_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_nan_peer_params_cnf_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_nan_channel,
 } WMITLV_TAG_ID;
 /*
  * IMPORTANT: Please add _ALL_ WMI Commands Here.
@@ -4384,14 +4385,14 @@ WMITLV_CREATE_PARAM_STRUC(WMI_NAN_DISABLE_CMDID);
 #define WMITLV_TABLE_WMI_NAN_LOCAL_SCHEDULE_CMDID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_local_schedule_cmd_fixed_param, wmi_nan_local_schedule_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, nan_schedule_chan_bitmap, WMITLV_SIZE_VAR) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_channel, committed_channel_list, WMITLV_SIZE_VAR)
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_nan_channel, committed_channel_list, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_NAN_LOCAL_SCHEDULE_CMDID);
 
 /* NAN Peer Schedule Command */
 #define WMITLV_TABLE_WMI_NAN_PEER_SCHEDULE_CMDID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_peer_schedule_cmd_fixed_param, wmi_nan_peer_schedule_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, nan_schedule_chan_bitmap, WMITLV_SIZE_VAR) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_channel, committed_channel_list, WMITLV_SIZE_VAR)
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_nan_channel, committed_channel_list, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_NAN_PEER_SCHEDULE_CMDID);
 
 /* NAN Peer Params Command */
