@@ -1837,6 +1837,8 @@ typedef enum {
     WMI_ENERGY_MGMT_PUO_CONFIG_CMDID,
     /** WMI cmd used to control ECO mode config */
     WMI_ENERGY_MGMT_ECO_MODE_CONFIG_CMDID,
+    /** Command to Handle Energy Management OEM's opaque data */
+    WMI_ENERGY_MGMT_OEM_DATA_CMDID,
 
     /** WMI cmd used to set the SMD Roam config */
     WMI_SMD_ROAM_CONFIG_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_SMD),
@@ -2827,6 +2829,8 @@ typedef enum {
      * used during SMD Roaming
      */
     WMI_SMD_ROAM_PEER_UNIFIED_SETUP_COMPLETE_EVENTID,
+
+    WMI_ENERGY_MGMT_OEM_DATA_EVENTID =WMI_CMD_GRP_START_ID(WMI_GRP_ENERGY_MGMT),
 } WMI_EVT_ID;
 
 /* defines for OEM message sub-types */
@@ -41652,6 +41656,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_NAN_LOCAL_SCHEDULE_CMDID);
         WMI_RETURN_STRING(WMI_NAN_PEER_SCHEDULE_CMDID);
         WMI_RETURN_STRING(WMI_NAN_PEER_PARAMS_CMDID);
+        WMI_RETURN_STRING(WMI_ENERGY_MGMT_OEM_DATA_CMDID);
     }
 
     return (A_UINT8 *) "Invalid WMI cmd";
@@ -54083,6 +54088,32 @@ typedef struct {
     /** holds a wmi_dps_assisting_role_e value */
     A_UINT32 config;
 } wmi_vdev_energy_mgmt_dps_assisting_role_config_cmd_fixed_param;
+
+typedef struct {
+    /** TLV tag and len; */
+    A_UINT32 tlv_header;
+
+    /* content_type:
+     * This OEM-defined value specifies what kind of Energy Management
+     * data is present in the opaque "data" bytestream TLV.
+     */
+    A_UINT32 content_type;
+    /* num bytes to distinguish data bytes from alignment-padding bytes */
+    A_UINT32 num_bytes_valid;
+} wmi_energy_mgmt_oem_data_fixed_param;
+
+typedef struct {
+    /** TLV tag and len; */
+    A_UINT32 tlv_header;
+
+    /* content_type:
+     * This OEM-defined value specifies what kind of Energy Management
+     * data is present in the opaque "data" bytestream TLV.
+     */
+    A_UINT32 content_type;
+    /* num bytes to distinguish data bytes from alignment-padding bytes */
+    A_UINT32 num_bytes_valid;
+} wmi_energy_mgmt_oem_data_event_fixed_param;
 
 
 /* WMI evt to indicate FW is ready */
