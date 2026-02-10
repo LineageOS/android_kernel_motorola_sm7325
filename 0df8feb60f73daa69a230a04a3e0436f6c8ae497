@@ -16,6 +16,23 @@
       "message": "good on dubai, tundra and xpeng. Nolen please test on berl*",
       "revId": "0df8feb60f73daa69a230a04a3e0436f6c8ae497",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "c68d302a_840eb020",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2026-02-10T15:45:47Z",
+      "side": 1,
+      "message": "Would be nice to add some explanation in the commit messages of reverts",
+      "revId": "0df8feb60f73daa69a230a04a3e0436f6c8ae497",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
