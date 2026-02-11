@@ -12479,7 +12479,10 @@ typedef struct {
      * tx_power_neg[9]: cnt of PPDUs with tx pwr < -9 dBm
      */
     A_UINT32 tx_power_neg[HTT_MAX_NEGATIVE_POWER_LEVEL];
-    /* Tx Power computed for TPC IE for Beacon and related frames, in dBm */
+    /*
+     * Tx Power computed for TPC IE for Beacon and related frames,
+     * in 0.25 dBm units
+     */
     A_UINT32 tpc_ie_power;
 } htt_stats_phy_tpc_stats_tlv;
 /* preserve old name alias for new name consistent with the tag name */
@@ -16243,7 +16246,7 @@ typedef struct {
     union {
         struct {
             A_UINT32 freq  : 16, /* in MHz */
-                     power : 16; /* in dBm */
+                     power : 16; /* in 0.25 dBm signed */
         };
         A_UINT32 freq_power_pair;
     };
@@ -16336,7 +16339,7 @@ typedef struct {
     union {
         struct {
             A_INT32 oobe_limit_offset : 16,  /* in MHz */
-                    oobe_limit_psd    : 16;  /* in dBm / MHz */
+                    oobe_limit_psd    : 16;  /* in dBr */
         };
         A_UINT32 offset_mask_pair;
     } oobe_limit[HTT_STATS_REG_OOBE_MAX_BW];
