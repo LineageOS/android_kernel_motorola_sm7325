@@ -1,5 +1,23 @@
 {
-  "comments": [],
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "44e392fd_e4d9d706",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2026-02-12T20:56:01Z",
+      "side": 1,
+      "message": "Taking a closer look, how does this affect anything? It was a patch only for gki, and we are qgki",
+      "revId": "4efb666aac09c7d36af0bf19f69e3a9faa603e09",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ],
   "submitRequirementResults": [
     {
       "submitRequirement": {
