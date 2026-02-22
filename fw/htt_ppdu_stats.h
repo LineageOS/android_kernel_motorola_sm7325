@@ -984,7 +984,8 @@ typedef struct {
                      is_allow_comb_sched_cmd: 1,
                      is_abort_comb_sched_cmd: 1,
                      is_comb_sched_cmd_pending: 1,
-                     reserved3:     24;
+                     is_sched_cmd_combined: 1,
+                     reserved3:     23;
         };
     };
     /* Flag to indicate if the channel chosen is 320_1 / 320_2 */
