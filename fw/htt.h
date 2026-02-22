@@ -22165,7 +22165,10 @@ enum HTT_MSDU_QTYPE {
     HTT_MSDU_QTYPE_USER_SPECIFIED, /* Specifies MSDUQ index used for advertising changeable flow type */
     HTT_MSDU_QTYPE_HI_PRIO,        /* Specifies MSDUQ index used for high priority flow type */
     HTT_MSDU_QTYPE_LO_PRIO,        /* Specifies MSDUQ index used for low priority flow type */
-
+    HTT_MSDU_QTYPE_LATENCY_CRIT_2,
+    HTT_MSDU_QTYPE_LATENCY_CRIT_3,
+    HTT_MSDU_QTYPE_LATENCY_CRIT_4,
+    HTT_MSDU_QTYPE_LATENCY_CRIT_5,
 
     /* New MSDU_QTYPE should be added above this line */
     /*
@@ -22177,7 +22180,19 @@ enum HTT_MSDU_QTYPE {
      * it must regard the unexpected value as a default qtype value,
      * or ignore it.
      */
-    HTT_MSDU_QTYPE_MAX,
+    //HTT_MSDU_QTYPE_MAX,
+/*
+ * TEMPORARY HACK:
+ * The HTT_MSDU_QTYPE_MAX value cannot be modified until a few FW locations
+ * that assume the value of HTT_MSDU_QTYPE_MAX get updated.
+ * In the meantime, provide a temporary HTT_MSDU_QTYPE_MAX_TMP definition
+ * that reflects the extended number of queue types.
+ * After the FW has been updated, the HTT_MSDU_QTYPE_MAX value will also be
+ * updated to reflect the extended number of queue types, and then the
+ * HTT_MSDU_QTYPE_MAX_TMP definition will be removed.
+ */
+    HTT_MSDU_QTYPE_MAX_TMP, /* temporary hack - provide temporary new def */
+    HTT_MSDU_QTYPE_MAX = (HTT_MSDU_QTYPE_LO_PRIO+1), /* temporary hack - retain old value of HTT_MSDU_QTYPE_MAX */
     HTT_MSDU_QTYPE_NOT_IN_USE = 255, /* corresponding MSDU index is not in use */
 };
 
