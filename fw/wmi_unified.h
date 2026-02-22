@@ -39873,6 +39873,8 @@ typedef struct {
         };
         A_UINT32 npca_capability;
     };
+    wmi_ppe_threshold uhr_ppet2G;
+    wmi_ppe_threshold uhr_ppet5G;
 } WMI_MAC_PHY_CAPABILITIES_EXT2;
 
 #define WMI_CAP_EXT2_PDEV_TO_LINK_MAP_PDEV_ID_GET(pdev_to_link_map_word32) \
@@ -39934,6 +39936,166 @@ typedef struct {
     WMI_GET_BITS(uhr_cap_phy[0], 7, 1)
 #define WMI_UHRCAP_PHY_ELR_TX_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 7, 1, value)
+
+/* Bit 8: Partial BW DL MU-MIMO support */
+#define WMI_UHRCAP_PHY_PARTIAL_BW_DL_MU_MIMO_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 8, 1)
+#define WMI_UHRCAP_PHY_PARTIAL_BW_DL_MU_MIMO_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 8, 1, value)
+
+/* Bit 9: Partial BW UL MU-MIMO support */
+#define WMI_UHRCAP_PHY_PARTIAL_BW_UL_MU_MIMO_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 9, 1)
+#define WMI_UHRCAP_PHY_PARTIAL_BW_UL_MU_MIMO_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 9, 1, value)
+
+/* Bit 10: COBF support */
+#define WMI_UHRCAP_PHY_COBF_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 10, 1)
+#define WMI_UHRCAP_PHY_COBF_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 10, 1, value)
+
+/* Bit 11: COBF Joint Sounding Support */
+#define WMI_UHRCAP_PHY_COBF_JOINT_SOUNDING_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 11, 1)
+#define WMI_UHRCAP_PHY_COBF_JOINT_SOUNDING_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 11, 1, value)
+
+/* Bit 12: COSR Mode 1 Support */
+#define WMI_UHRCAP_PHY_COSR_MODE_1_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 12, 1)
+#define WMI_UHRCAP_PHY_COSR_MODE_1_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 12, 1, value)
+
+/* Bit 13: COSR Mode 2 Support */
+#define WMI_UHRCAP_PHY_COSR_MODE_2_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 13, 1)
+#define WMI_UHRCAP_PHY_COSR_MODE_2_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 13, 1, value)
+
+/* Bits 14-15: UEQM Tx Max NSS Tx Support */
+#define WMI_UHRCAP_PHY_UEQM_TX_MAX_NSS_TX_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 14, 2)
+#define WMI_UHRCAP_PHY_UEQM_TX_MAX_NSS_TX_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 14, 2, value)
+
+/* Bits 16-17:UEQM Rx Max NSS Rx Support */
+#define WMI_UHRCAP_PHY_UEQM_RX_MAX_NSS_RX_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 16, 2)
+#define WMI_UHRCAP_PHY_UEQM_RX_MAX_NSS_RX_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 16, 2, value)
+
+/* Bit 18: UEQM LT 242ToneRU support */
+#define WMI_UHRCAP_PHY_UEQM_LT_242TONERU_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 18, 1)
+#define WMI_UHRCAP_PHY_UEQM_LT_242TONERU_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 18, 1, value)
+
+/* Bit 19: DRU DBW 20 PWB 20 support */
+#define WMI_UHRCAP_PHY_DRU_DBW_20_PWB_20_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 19, 1)
+#define WMI_UHRCAP_PHY_DRU_DBW_20_PWB_20_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 19, 1, value)
+
+/* Bit 20: DRU DBW 40 PWB 40 support */
+#define WMI_UHRCAP_PHY_DRU_DBW_40_PWB_40_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 20, 1)
+#define WMI_UHRCAP_PHY_DRU_DBW_40_PWB_40_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 20, 1, value)
+
+/* Bit 21: DRU DBW 80 PWB 80 support */
+#define WMI_UHRCAP_PHY_DRU_DBW_80_PWB_80_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 21, 1)
+#define WMI_UHRCAP_PHY_DRU_DBW_80_PWB_80_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 21, 1, value)
+
+/* Bit 22: DRU DBW 20 PWB 80 support */
+#define WMI_UHRCAP_PHY_DRU_DBW_20_PWB_80_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 22, 1)
+#define WMI_UHRCAP_PHY_DRU_DBW_20_PWB_80_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 22, 1, value)
+
+/* Bit 23: DRU DBW 40 PWB 80 support */
+#define WMI_UHRCAP_PHY_DRU_DBW_40_PWB_80_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 23, 1)
+#define WMI_UHRCAP_PHY_DRU_DBW_40_PWB_80_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 23, 1, value)
+
+/* Bit 24: DRU DBW 60 PWB 80 support */
+#define WMI_UHRCAP_PHY_DRU_DBW_60_PWB_80_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 24, 1)
+#define WMI_UHRCAP_PHY_DRU_DBW_60_PWB_80_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 24, 1, value)
+
+/* Bit 25: DRU RRU HYBRID support */
+#define WMI_UHRCAP_PHY_DRU_RRU_HYBRID_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 25, 1)
+#define WMI_UHRCAP_PHY_DRU_RRU_HYBRID_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 25, 1, value)
+
+/* Bit 26: 2XLDPC Tx Support */
+#define WMI_UHRCAP_PHY_2XLDPC_TX_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 26, 1)
+#define WMI_UHRCAP_PHY_2XLDPC_TX_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 26, 1, value)
+
+/* Bit 27: 2XLDPC Rx Support */
+#define WMI_UHRCAP_PHY_2XLDPC_RX_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 27, 1)
+#define WMI_UHRCAP_PHY_2XLDPC_RX_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 27, 1, value)
+
+/* Bit 28: IM Pilots Tx Support */
+#define WMI_UHRCAP_PHY_IM_PILOTS_TX_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 28, 1)
+#define WMI_UHRCAP_PHY_IM_PILOTS_TX_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 28, 1, value)
+
+/* Bit 29: IM Pilots Rx Support */
+#define WMI_UHRCAP_PHY_IM_PILOTS_RX_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 29, 1)
+#define WMI_UHRCAP_PHY_IM_PILOTS_RX_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 29, 1, value)
+
+/* Bit 30: MCS 15 Support */
+#define WMI_UHRCAP_PHY_MCS_15_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 30, 1)
+#define WMI_UHRCAP_PHY_MCS_15_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 30, 1, value)
+
+/* Bit 31: Intermediate MCS Support */
+#define WMI_UHRCAP_PHY_INTERMEDIATE_MCS_SUPPORT_GET(uhr_cap_phy) \
+    WMI_GET_BITS(uhr_cap_phy[0], 31, 1)
+#define WMI_UHRCAP_PHY_INTERMEDIATE_MCS_SUPPORT_SET(uhr_cap_phy, value) \
+    WMI_SET_BITS(uhr_cap_phy[0], 31, 1, value)
+
+/*
+ * ToDo: Bits 32-63
+ */
+
+/*
+ * ToDo: Bits 64-95
+ */
+
+/*
+ * ToDO: Bits 96-127
+ */
+
+/*
+ * ToDo: Bits 128-159
+ */
+
+/*
+ * ToDo: Bits 160-191
+ */
+
+/*
+ * ToDo: Bits 192-223
+ */
+
+/*
+ * ToDo: Bits 224-255
+ */
 
 /****** End of 11BN UHR PHY Capabilities Information field ******/ /* } */
 
