@@ -279,9 +279,10 @@
  * 3.149 Add SAM fields in MPDUQ_OR_MSDUQ_INFO.
  * 3.150 Add htt_reg_write_selection definitions.
  * 3.151 Add HTT_H2T DAL_MODE_INFO def.
+ * 3.152 Add decap_type in htt_rx_peer_metadata_v1b.
  */
 #define HTT_CURRENT_VERSION_MAJOR 3
-#define HTT_CURRENT_VERSION_MINOR 151
+#define HTT_CURRENT_VERSION_MINOR 152
 
 #define HTT_NUM_TX_FRAG_DESC  1024
 
@@ -21919,10 +21920,10 @@ PREPACK struct htt_rx_peer_metadata_v1a {
  *
  * The following diagram shows the format of the RX PEER METADATA V1B format.
  *
- * |31 29|28   26|25      22|21   14|   13  |12                  0|
- * |--------------------------------------------------------------|
- * |Rsvd2|CHIP ID|hw_link_id|VDEV ID|ML PEER|SW PEER ID/ML PEER ID|
- * |--------------------------------------------------------------|
+ * |31   |30 29|28   26|25      22|21   14|   13  |12                  0|
+ * |--------------------------------------------------------------------|
+ * |Rsvd2|DECAP|CHIP ID|hw_link_id|VDEV ID|ML PEER|SW PEER ID/ML PEER ID|
+ * |--------------------------------------------------------------------|
  */
 PREPACK struct htt_rx_peer_metadata_v1b {
     A_UINT32
@@ -21931,7 +21932,8 @@ PREPACK struct htt_rx_peer_metadata_v1b {
         vdev_id:         8,
         hw_link_id:      4,
         chip_id:         3,
-        reserved2:       3;
+        decap_type:      2,
+        reserved2:       1;
 } POSTPACK;
 
 #define HTT_RX_PEER_META_DATA_V1B_PEER_ID_S    0
@@ -21989,6 +21991,16 @@ PREPACK struct htt_rx_peer_metadata_v1b {
         ((_var) |= ((_val) << HTT_RX_PEER_META_DATA_V1B_CHIP_ID_S)); \
     } while (0)
 
+#define HTT_RX_PEER_META_DATA_V1B_DECAP_TYPE_S 29
+#define HTT_RX_PEER_META_DATA_V1B_DECAP_TYPE_M 0x60000000
+#define HTT_RX_PEER_META_DATA_V1B_DECAP_TYPE_GET(_var) \
+    (((_var) & HTT_RX_PEER_META_DATA_V1B_DECAP_TYPE_M) >> HTT_RX_PEER_META_DATA_V1B_DECAP_TYPE_S)
+
+#define HTT_RX_PEER_META_DATA_V1B_DECAP_TYPE_SET(_var, _val) \
+    do {                                             \
+        HTT_CHECK_SET_VAL(HTT_RX_PEER_META_DATA_V1B_DECAP_TYPE, _val);  \
+        ((_var) |= ((_val) << HTT_RX_PEER_META_DATA_V1B_DECAP_TYPE_S)); \
+    } while (0)
 
 /*
  * htt_rx_peer_metadata_v2 - HTT RX peer metadata version 2
@@ -22119,6 +22131,9 @@ extern void (*HTT_RX_PEER_META_DATA_QDATA_REFILL_SET) (A_UINT32 *var, A_UINT32 v
 
 extern A_UINT32 (*HTT_RX_PEER_META_DATA_PEER_SESSION_ID_GET) (A_UINT32 var);
 extern void (*HTT_RX_PEER_META_DATA_PEER_SESSION_ID_SET) (A_UINT32 *var, A_UINT32 val);
+
+extern A_UINT32 (*HTT_RX_PEER_META_DATA_DECAP_TYPE_GET) (A_UINT32 var);
+extern void (*HTT_RX_PEER_META_DATA_DECAP_TYPE_SET) (A_UINT32 *var, A_UINT32 val);
 
 
 /*
