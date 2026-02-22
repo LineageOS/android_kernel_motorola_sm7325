@@ -1587,6 +1587,8 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_nan_peer_schedule_cnf_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_nan_peer_params_cnf_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_nan_channel,
+    WMITLV_TAG_STRUC_wmi_energy_mgmt_oem_data_fixed_param,
+    WMITLV_TAG_STRUC_wmi_energy_mgmt_oem_data_event_fixed_param,
 } WMITLV_TAG_ID;
 /*
  * IMPORTANT: Please add _ALL_ WMI Commands Here.
@@ -2186,6 +2188,7 @@ typedef enum {
     OP(WMI_NAN_LOCAL_SCHEDULE_CMDID) \
     OP(WMI_NAN_PEER_SCHEDULE_CMDID) \
     OP(WMI_NAN_PEER_PARAMS_CMDID) \
+    OP(WMI_ENERGY_MGMT_OEM_DATA_CMDID) \
     /* add new CMD_LIST elements above this line */
 
 
@@ -2545,6 +2548,7 @@ typedef enum {
     OP(WMI_NAN_LOCAL_SCHEDULE_CNF_EVENTID) \
     OP(WMI_NAN_PEER_SCHEDULE_CNF_EVENTID) \
     OP(WMI_NAN_PEER_PARAMS_CNF_EVENTID) \
+    OP(WMI_ENERGY_MGMT_OEM_DATA_EVENTID) \
     /* add new EVT_LIST elements above this line */
 
 
@@ -6358,6 +6362,12 @@ WMITLV_CREATE_PARAM_STRUC(WMI_SMD_ROAM_PEER_UNIFIED_SETUP_CMDID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_smd_roam_peer_tid_info, smd_roam_peer_tid_info, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_SMD_ROAM_CONFIG_CMDID);
 
+/* WMI Command for Energy management OEM cmd data */
+#define WMITLV_TABLE_WMI_ENERGY_MGMT_OEM_DATA_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_energy_mgmt_oem_data_fixed_param, wmi_energy_mgmt_oem_data_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, data, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_ENERGY_MGMT_OEM_DATA_CMDID);
+
 
 
 /************************** TLV definitions of WMI events *******************************/
@@ -8706,6 +8716,12 @@ WMITLV_CREATE_PARAM_STRUC(WMI_SMD_ROAM_PEER_UNIFIED_SETUP_COMPLETE_EVENTID);
 #define WMITLV_TABLE_WMI_SMD_ROAM_CONFIG_EVENTID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_smd_roam_config_event_fixed_param, wmi_smd_roam_config_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_SMD_ROAM_CONFIG_EVENTID);
+
+/* WMI Command for Energy management OEM cmd data */
+#define WMITLV_TABLE_WMI_ENERGY_MGMT_OEM_DATA_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_energy_mgmt_oem_data_event_fixed_param, wmi_energy_mgmt_oem_data_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, data, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_ENERGY_MGMT_OEM_DATA_EVENTID);
 
 
 #ifdef __cplusplus
