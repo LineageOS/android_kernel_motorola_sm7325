@@ -2598,10 +2598,11 @@ WMITLV_CREATE_PARAM_STRUC(WMI_PEER_CREATE_CMDID);
  * Any new TLV addition in WMI_PEER_DELETE_CMDID needs to be included as
  * TLV in WMI_VDEV_UNIFIED_DISCONNECT_CMDID as well to maintain compatibility.
  *
- * WMI_VDEV_UNIFIED_DISCONNECT_CMDID substitutes for 2 disconnection related
+ * WMI_VDEV_UNIFIED_DISCONNECT_CMDID substitutes for 3 disconnection related
  * cmds:
  *     WMI_PEER_DELETE_CMDID,
- *     WMI_VDEV_STOP_CMDID
+ *     WMI_VDEV_STOP_CMDID,
+ *     WMI_VDEV_DOWN_CMDID
  */
 WMITLV_CREATE_PARAM_STRUC(WMI_PEER_DELETE_CMDID);
 
@@ -3914,17 +3915,27 @@ WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_UP_CMDID);
  * Any new TLV addition in WMI_VDEV_STOP_CMDID needs to be included as
  * TLV in WMI_VDEV_UNIFIED_DISCONNECT_CMDID as well to maintain compatibility.
  *
- * WMI_VDEV_UNIFIED_DISCONNECT_CMDID substitutes for 2 disconnection related
+ * WMI_VDEV_UNIFIED_DISCONNECT_CMDID substitutes for 3 disconnection related
  * cmds:
  *     WMI_PEER_DELETE_CMDID,
- *     WMI_VDEV_STOP_CMDID
+ *     WMI_VDEV_STOP_CMDID,
+ *     WMI_VDEV_DOWN_CMDID
  */
 WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_STOP_CMDID);
 
 /* Vdev down Cmd */
 #define WMITLV_TABLE_WMI_VDEV_DOWN_CMDID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_down_cmd_fixed_param, wmi_vdev_down_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
-
+/* NOTE:
+ * Any new TLV addition in WMI_VDEV_STOP_CMDID needs to be included as
+ * TLV in WMI_VDEV_UNIFIED_DISCONNECT_CMDID as well to maintain compatibility.
+ *
+ * WMI_VDEV_UNIFIED_DISCONNECT_CMDID substitutes for 3 disconnection related
+ * cmds:
+ *     WMI_PEER_DELETE_CMDID,
+ *     WMI_VDEV_STOP_CMDID,
+ *     WMI_VDEV_DOWN_CMDID
+ */
 WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_DOWN_CMDID);
 
 /* Vdev set param Cmd */
@@ -6273,7 +6284,8 @@ WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_UNIFIED_CONNECT_CMDID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_peer_delete_mlo_params, peer_delete_mlo_params, WMITLV_SIZE_VAR) \
  \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_stop_cmd_fixed_param, wmi_vdev_stop_cmd_fixed_param, vdev_stop_fixed_param, WMITLV_SIZE_FIX) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_vdev_stop_mlo_params, vdev_stop_mlo_params, WMITLV_SIZE_VAR)
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_vdev_stop_mlo_params, vdev_stop_mlo_params, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_down_cmd_fixed_param, wmi_vdev_down_cmd_fixed_param, vdev_down_fixed_param, WMITLV_SIZE_FIX)
 
 WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_UNIFIED_DISCONNECT_CMDID);
 
