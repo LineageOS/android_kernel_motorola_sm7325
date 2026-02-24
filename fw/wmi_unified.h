@@ -1721,6 +1721,7 @@ typedef enum {
     WMI_VDEV_SET_TWT_EDCA_PARAMS_CMDID, /* XPAN TWT */
     WMI_VDEV_GET_TWT_SESSION_STATS_INFO_CMDID,
     WMI_TWT_VDEV_CONFIG_CMDID,
+    WMI_TWT_ADD_CH_USAGE_CMDID,
 
     /** WMI commands related to motion detection **/
     WMI_MOTION_DET_CONFIG_PARAM_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_MOTION_DET),
@@ -41862,6 +41863,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_NAN_PEER_SCHEDULE_CMDID);
         WMI_RETURN_STRING(WMI_NAN_PEER_PARAMS_CMDID);
         WMI_RETURN_STRING(WMI_ENERGY_MGMT_OEM_DATA_CMDID);
+        WMI_RETURN_STRING(WMI_TWT_ADD_CH_USAGE_CMDID);
     }
 
     return (A_UINT8 *) "Invalid WMI cmd";
@@ -43484,6 +43486,22 @@ typedef struct {
      */
     A_UINT32 client_id_bitmask;
 } wmi_wlm_config_cmd_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header;
+    A_UINT32 vdev_id;
+    wmi_mac_addr peer_macaddr;
+    A_UINT32 responder_pm_mode;
+    A_UINT32 negotiation_type;
+    A_UINT32 twt_request;
+    A_UINT32 twt_setup_cmd;
+    A_UINT32 is_triggered;
+    A_UINT32 flow_type;
+    A_UINT32 wake_interval_exp;
+    A_UINT32 twt_protection;
+    A_UINT32 nominal_min_wake_duration;
+    A_UINT32 wake_interval_mantisa;
+} wmi_ch_usage_add_dialog_cmd_fixed_param;
 
 /* Broadcast TWT enable/disable for both REQUESTER and RESPONDER */
 #define TWT_EN_DIS_FLAGS_GET_BTWT(flag)         WMI_GET_BITS(flag, 0, 1)
