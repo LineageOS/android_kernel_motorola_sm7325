@@ -1590,6 +1590,7 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_energy_mgmt_oem_data_fixed_param,
     WMITLV_TAG_STRUC_wmi_energy_mgmt_oem_data_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_vdev_channel_hopping_schedule_fixed_param,
+    WMITLV_TAG_STRUC_wmi_vdev_current_operating_param_event_fixed_param,
 } WMITLV_TAG_ID;
 /*
  * IMPORTANT: Please add _ALL_ WMI Commands Here.
@@ -2551,6 +2552,7 @@ typedef enum {
     OP(WMI_NAN_PEER_SCHEDULE_CNF_EVENTID) \
     OP(WMI_NAN_PEER_PARAMS_CNF_EVENTID) \
     OP(WMI_ENERGY_MGMT_OEM_DATA_EVENTID) \
+    OP(WMI_VDEV_CURRENT_OPERATING_PARAM_EVENTID) \
     /* add new EVT_LIST elements above this line */
 
 
@@ -8741,6 +8743,11 @@ WMITLV_CREATE_PARAM_STRUC(WMI_SMD_ROAM_CONFIG_EVENTID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_energy_mgmt_oem_data_event_fixed_param, wmi_energy_mgmt_oem_data_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, data, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_ENERGY_MGMT_OEM_DATA_EVENTID);
+
+/* VDEV current operating params event */
+#define WMITLV_TABLE_WMI_VDEV_CURRENT_OPERATING_PARAM_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_current_operating_param_event_fixed_param, wmi_vdev_current_operating_param_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_CURRENT_OPERATING_PARAM_EVENTID);
 
 
 #ifdef __cplusplus
