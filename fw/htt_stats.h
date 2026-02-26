@@ -916,12 +916,17 @@ enum htt_dbg_ext_stats_type {
      *     RESP Tags:
      *       - htt_stats_regdb_ctry_tlv
      *       - htt_stats_regdb_regdomain_tlv * n (based on config_param1)
-     * else if(subtype == HTT_STATS_REGULATORY_SUBTYPE_6GHZ):
+     * else if (subtype == HTT_STATS_REGULATORY_SUBTYPE_6GHZ):
      *     no params
      *     RESP Tags:
      *       - htt_stats_reg_6g_tlv
      *       - htt_stats_reg_6g_ch_power_info_tlv * n
      *       - htt_stats_reg_6g_oobe_tlv
+     * else if (subtype == HTT_STATS_REGULATORY_SUBTYPE_CTL):
+     *     no params
+     *     RESP Tags:
+     *       - htt_stats_ctl_tlv
+     *       - htt_stats_enhanced_ctl_tlv
      */
     HTT_DBG_EXT_STATS_REGULATORY = 83,
 
@@ -15957,6 +15962,7 @@ typedef struct {
 typedef enum {
     HTT_STATS_REGULATORY_SUBTYPE_REGDB = 0,
     HTT_STATS_REGULATORY_SUBTYPE_6GHZ  = 1,
+    HTT_STATS_REGULATORY_SUBTYPE_CTL   = 2,
     HTT_STATS_REGULATORY_SUBTYPE_MAX
 } htt_stats_regulatory_subtype_t;
 
@@ -16112,10 +16118,10 @@ typedef struct {
     A_UINT32      rd_type; /* enum htt_stats_regulatory_rd_type */
     union {
         struct {
-            A_UINT32 ctl_region : 8, /* enum RegdbCtl */
-                     cca_region : 8, /* enum CCA_REGION_MAP */
-                     dfs_region : 8, /* enum WMI_REG_DFS_REGION */
-                     rsvd       : 8;
+            A_UINT32 ctl_region       : 8, /* enum RegdbCtl */
+                     cca_region       : 8, /* enum CCA_REGION_MAP */
+                     dfs_region       : 8, /* enum WMI_REG_DFS_REGION */
+                     domain_ctl_index : 8;
         };
         A_UINT32 ctl_cca_dfs;
     };
@@ -16149,6 +16155,12 @@ typedef struct {
     HTT_STATS_GET_FIELD(0xFF0000, 16, (word))
 #define HTT_STATS_REGDB_REGDOMAIN_SET_DFS_REGION(word,value) \
     HTT_STATS_SET_FIELD(0xFF0000, 16, (word), (value))
+
+#define HTT_STATS_REGDB_REGDOMAIN_GET_DOMAIN_CTL_INDEX(word) \
+    HTT_STATS_GET_FIELD(0xFF000000, 24, (word))
+#define HTT_STATS_REGDB_REGDOMAIN_SET_DOMAIN_CTL_INDEX(word,value) \
+    HTT_STATS_SET_FIELD(0xFF000000, 24, (word), (value))
+
 
 #define HTT_STATS_REGDB_REGDOMAIN_GET_NUM_RULES(word) \
     HTT_STATS_GET_FIELD(0xFFFF, 0, (word))
@@ -16354,6 +16366,71 @@ typedef struct {
     HTT_STATS_GET_FIELD(0xFFFF0000, 16, (word))
 #define HTT_STATS_REG_6G_SET_OOBE_LIMIT_PSD(word,value) \
     HTT_STATS_SET_FIELD(0xFFFF0000, 16, (word), (value))
+
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    A_INT32 array_gain_cap[HTT_STATS_MAX_CHAINS * ((HTT_STATS_MAX_CHAINS/2)+1)];
+    union {
+        struct {
+            A_UINT32
+                /** To indicate Reg rule Index picked from Reg rules */
+                regRuleIndex:16,
+                /** To indicate Power rule Index picked from Reg rules */
+                powerRuleIndex:8,
+                reserved:8;
+        };
+        A_UINT32 ctl_args;
+    };
+} htt_stats_ctl_tlv;
+
+#define HTT_STATS_CTL_GET_REG_RULE_INDEX(word) \
+    HTT_STATS_GET_FIELD(0x0000FFFF, 0, (word))
+#define HTT_STATS_CTL_SET_REG_RULE_INDEX(word,value) \
+    HTT_STATS_SET_FIELD(0x0000FFFF, 0, (word), (value))
+
+#define HTT_STATS_CTL_GET_POWER_RULE_INDEX(word) \
+    HTT_STATS_GET_FIELD(0x00FF0000, 16, (word))
+#define HTT_STATS_CTL_SET_POWER_RULE_INDEX(word,value) \
+    HTT_STATS_SET_FIELD(0x00FF0000, 16, (word), (value))
+
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    union {
+        struct {
+            A_UINT32
+                /** To indicate enablement of enhanced CTL */
+                enhancedCtlEnable:1,
+                rsvd:7,
+                domainCtlIndex:8, /** Domain CTL Index */
+                array_gain_cap_ctlRegion:8, /** Array gain CapCTLregion */
+                exceptionCtlRegion:8; /** Exception CTL region */
+        };
+        A_UINT32 enhanced_ctl_args;
+    };
+} htt_stats_enhanced_ctl_tlv;
+
+#define HTT_STATS_ENHANCED_CTL_GET_ENHANCED_CTL_ENABLE(word) \
+    HTT_STATS_GET_FIELD(0x00000001, 0, (word))
+#define HTT_STATS_ENHANCED_CTL_SET_ENHANCED_CTL_ENABLE(word,value) \
+    HTT_STATS_SET_FIELD(0x00000001, 0, (word), (value))
+
+#define HTT_STATS_ENHANCED_CTL_GET_DOMAIN_CTL_INDEX(word) \
+    HTT_STATS_GET_FIELD(0x0000FF00, 8, (word))
+#define HTT_STATS_ENHANCED_CTL_SET_DOMAIN_CTL_INDEX(word,value) \
+    HTT_STATS_SET_FIELD(0x0000FF00, 8, (word), (value))
+
+#define HTT_STATS_ENHANCED_CTL_GET_ARRAY_GAIN_CAP_CTL_REGION(word) \
+    HTT_STATS_GET_FIELD(0x00FF0000, 16, (word))
+#define HTT_STATS_ENHANCED_CTL_SET_ARRAY_GAIN_CAP_CTL_REGION(word,value) \
+    HTT_STATS_SET_FIELD(0x00FF0000, 16, (word), (value))
+
+#define HTT_STATS_ENHANCED_CTL_GET_EXCEPTION_CTL_REGION(word) \
+    HTT_STATS_GET_FIELD(0xFF000000, 24, (word))
+#define HTT_STATS_ENHANCED_CTL_SET_EXCEPTION_CTL_REGION(word,value) \
+    HTT_STATS_SET_FIELD(0xFF000000, 24, (word), (value))
+
 
 /*======================= End Regulatory stats ==================== } */
 
