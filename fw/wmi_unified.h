@@ -11609,7 +11609,7 @@ typedef enum {
 } MCAST_BCAST_RATE_ID;
 
 typedef struct {
-    MCAST_BCAST_RATE_ID rate_id;
+    A_UINT32 rate_id; /* MCAST_BCAST_RATE_ID */
     A_UINT32 rate;
 } mcast_bcast_rate;
 
@@ -20751,7 +20751,7 @@ typedef struct {
     /** requestor id that requested the VDEV start request */
     A_UINT32 requestor_id;
     /* Respose of Event type START/RESTART */
-    WMI_START_EVENT_PARAM resp_type;
+    A_UINT32 resp_type; /* WMI_START_EVENT_PARAM */
     /** status of the response */
     A_UINT32 status;
     /** Vdev chain mask */
@@ -29645,10 +29645,10 @@ typedef wmi_lpi_status wmi_lpi_staus;
 
 typedef struct
 {
-    A_UINT32       tlv_header;
-    wmi_lpi_status status;
+    A_UINT32 tlv_header;
+    A_UINT32 status; /* wmi_lpi_status */
     /** Scan requestor ID */
-    A_UINT32       scan_req_id;
+    A_UINT32 scan_req_id;
 }  wmi_lpi_status_event_fixed_param;
 
 typedef struct
@@ -38941,7 +38941,7 @@ typedef enum {
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_request_wlan_stats_cmd_fixed_param */
-    wmi_wlan_stats_id stats_id;
+    A_UINT32 stats_id; /* wmi_wlan_stats_id */
 } wmi_request_wlan_stats_cmd_fixed_param;
 
 typedef enum {
@@ -44337,7 +44337,7 @@ typedef enum {
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_spectral_bin_scaling_params */
     A_UINT32 pdev_id;   /* ID of pdev to which the scaling parameters are to be applied */
-    WMI_SPECTRAL_SCALING_FORMULA_ID formula_id; /* Represets the formula to be used */
+    A_UINT32 formula_id; /* WMI_SPECTRAL_SCALING_FORMULA_ID: Represents the formula to be used */
     A_UINT32 low_level_offset; /* low level offset for fine tuning the scaling factor based on RSSI and AGC gain */
     A_UINT32 high_level_offset; /* high level offset for fine tuning the scaling factor based on RSSI and AGC gain */
     A_UINT32 rssi_thr; /* RSSI threshold to be used to adjust the inband power of the given spectral report */
@@ -53896,7 +53896,7 @@ typedef struct {
 
 
 typedef struct {
-    wmi_channel_width width;
+    A_UINT32 width;             /* wmi_channel_width */
     A_UINT32 center_frequency0; /* Frequency value in MHz */
     A_UINT32 center_frequency1; /* Frequency value in MHz */
     A_UINT32 primary_frequency; /* Frequency value in MHz */
