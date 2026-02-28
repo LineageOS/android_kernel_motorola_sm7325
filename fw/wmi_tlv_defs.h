@@ -1592,6 +1592,8 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_vdev_channel_hopping_schedule_fixed_param,
     WMITLV_TAG_STRUC_wmi_vdev_current_operating_param_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_ch_usage_add_dialog_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_coex_policy_stats_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_coex_policy_stats_event_fixed_param,
 } WMITLV_TAG_ID;
 /*
  * IMPORTANT: Please add _ALL_ WMI Commands Here.
@@ -2194,6 +2196,7 @@ typedef enum {
     OP(WMI_ENERGY_MGMT_OEM_DATA_CMDID) \
     OP(WMI_VDEV_CHANNEL_HOPPING_SCHEDULE_CMDID) \
     OP(WMI_TWT_ADD_CH_USAGE_CMDID) \
+    OP(WMI_COEX_GET_POLICY_STATS_CMDID) \
     /* add new CMD_LIST elements above this line */
 
 
@@ -2555,6 +2558,7 @@ typedef enum {
     OP(WMI_NAN_PEER_PARAMS_CNF_EVENTID) \
     OP(WMI_ENERGY_MGMT_OEM_DATA_EVENTID) \
     OP(WMI_VDEV_CURRENT_OPERATING_PARAM_EVENTID) \
+    OP(WMI_COEX_GET_POLICY_STATS_EVENTID) \
     /* add new EVT_LIST elements above this line */
 
 
@@ -6396,6 +6400,11 @@ WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_CHANNEL_HOPPING_SCHEDULE_CMDID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_ch_usage_add_dialog_cmd_fixed_param, wmi_ch_usage_add_dialog_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_TWT_ADD_CH_USAGE_CMDID);
 
+/* WMI Command to request CoEx Policy Stats data */
+#define WMITLV_TABLE_WMI_COEX_GET_POLICY_STATS_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_coex_policy_stats_cmd_fixed_param, wmi_coex_policy_stats_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_COEX_GET_POLICY_STATS_CMDID);
+
 
 
 /************************** TLV definitions of WMI events *******************************/
@@ -8755,6 +8764,12 @@ WMITLV_CREATE_PARAM_STRUC(WMI_ENERGY_MGMT_OEM_DATA_EVENTID);
 #define WMITLV_TABLE_WMI_VDEV_CURRENT_OPERATING_PARAM_EVENTID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_current_operating_param_event_fixed_param, wmi_vdev_current_operating_param_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_CURRENT_OPERATING_PARAM_EVENTID);
+
+/* WMI Event to provide CoEx Policy Stats data */
+#define WMITLV_TABLE_WMI_COEX_GET_POLICY_STATS_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_coex_policy_stats_event_fixed_param, wmi_coex_policy_stats_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, data, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_COEX_GET_POLICY_STATS_EVENTID);
 
 
 #ifdef __cplusplus

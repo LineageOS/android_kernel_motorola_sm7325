@@ -1578,6 +1578,7 @@ typedef enum {
     WMI_TAS_POWER_HISTORY_CMDID,
     WMI_ESL_EGID_CMDID,
     WMI_COEX_MULTIPLE_CONFIG_CMDID,
+    WMI_COEX_GET_POLICY_STATS_CMDID,
 
     /**
      *  OBSS scan offload enable/disable commands
@@ -2667,6 +2668,7 @@ typedef enum {
     /** Dedicated BT Antenna Mode (DBAM) complete event */
     WMI_COEX_DBAM_COMPLETE_EVENTID,
     WMI_TAS_POWER_HISTORY_EVENTID,
+    WMI_COEX_GET_POLICY_STATS_EVENTID,
 
     /* LPI Event */
     WMI_LPI_RESULT_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_LPI),
@@ -28259,8 +28261,65 @@ typedef enum WLAN_COEX_EVENT {
 
 typedef struct {
     A_UINT32 tlv_header;
-    A_UINT32 coex_profile_evt; //uses the enum values from WLAN_COEX_EVENT
+    A_UINT32 coex_profile_evt; /* uses the enum values from WLAN_COEX_EVENT */
 } wmi_coex_bt_activity_event_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header;
+} wmi_coex_policy_stats_cmd_fixed_param;
+
+#define WMI_COEX_POLICY_STATS_GET_BTC_STATE(coex_stats) \
+    WMI_GET_BITS(coex_stats, 0, 2)
+#define WMI_COEX_POLICY_STATS_SET_BTC_STATE(coex_stats, value) \
+    WMI_SET_BITS(coex_stats, 0, 2, value)
+
+#define WMI_COEX_POLICY_STATS_GET_UWB_STATE(coex_stats) \
+    WMI_GET_BITS(coex_stats, 2, 1)
+#define WMI_COEX_POLICY_STATS_SET_UWB_STATE(coex_stats, value) \
+    WMI_SET_BITS(coex_stats, 2, 1, value)
+
+#define WMI_COEX_POLICY_STATS_GET_MWS_STATE(coex_stats) \
+    WMI_GET_BITS(coex_stats, 3, 1)
+#define WMI_COEX_POLICY_STATS_SET_MWS_STATE(coex_stats, value) \
+    WMI_SET_BITS(coex_stats, 3, 1, value)
+
+#define WMI_COEX_POLICY_STATS_GET_OCS_ALGO_DC(coex_stats) \
+    WMI_GET_BITS(coex_stats, 8, 8)
+#define WMI_COEX_POLICY_STATS_SET_OCS_ALGO_DC(coex_stats, value) \
+    WMI_SET_BITS(coex_stats, 8, 8, value)
+
+#define WMI_COEX_POLICY_STATS_GET_OCS_NON_WLAN_DC(coex_stats) \
+    WMI_GET_BITS(coex_stats, 16, 8)
+#define WMI_COEX_POLICY_STATS_SET_OCS_NON_WLAN_DC(coex_stats, value) \
+    WMI_SET_BITS(coex_stats, 16, 8, value)
+
+typedef struct {
+    A_UINT32 tlv_header;
+    A_UINT32 mon_period; /* milliseconds units */
+    /* Following is the definition for bitfields within the coex_stats word:
+     * bits 1:0   --> Indicates BTC_STATE (0 - Freerun, 1 - OCS, 3 - Inactive).
+     * bit 2      --> Indicates UWB_STATE (0 - Inactive, 1 - Active conflict).
+     * bit 3      --> Indicates MWS_STATE (0 - Inactive, 1 - Active conflict).
+     * bits 15:8  --> Indicates percentage of the time coex chose OCS policy.
+     *                (Ranges from 0 to 100.)
+     * bits 23:16 --> Indicates percentage of the time DUT is off channel due
+     *                to OCS policy. (Ranges from 0 to 100.)
+     */
+    union {
+        A_UINT32 coex_stats;
+        struct {
+            A_UINT32 btc_state: 2,       /* bits 1:0 */
+                     uwb_state: 1,       /* bit 2 */
+                     mws_state: 1,       /* bit 3 */
+                     reserved1: 4,       /* bits 7:4 */
+                     ocs_algo_dc: 8,     /* bits 15:8 */
+                     ocs_non_wlan_dc: 8, /* bits 23:16 */
+                     reserved2: 8;       /* bits 31:24 */
+        };
+    };
+    A_UINT32 num_data_bytes;
+} wmi_coex_policy_stats_event_fixed_param;
+
 
 enum wmm_ac_downgrade_policy {
     WMM_AC_DOWNGRADE_DEPRIO,
@@ -41864,6 +41923,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_NAN_PEER_PARAMS_CMDID);
         WMI_RETURN_STRING(WMI_ENERGY_MGMT_OEM_DATA_CMDID);
         WMI_RETURN_STRING(WMI_TWT_ADD_CH_USAGE_CMDID);
+        WMI_RETURN_STRING(WMI_COEX_GET_POLICY_STATS_CMDID);
     }
 
     return (A_UINT8 *) "Invalid WMI cmd";
