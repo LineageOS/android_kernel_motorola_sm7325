@@ -1578,6 +1578,7 @@ typedef enum {
     WMI_TAS_POWER_HISTORY_CMDID,
     WMI_ESL_EGID_CMDID,
     WMI_COEX_MULTIPLE_CONFIG_CMDID,
+    WMI_COEX_GET_POLICY_STATS_CMDID,
 
     /**
      *  OBSS scan offload enable/disable commands
@@ -2667,6 +2668,7 @@ typedef enum {
     /** Dedicated BT Antenna Mode (DBAM) complete event */
     WMI_COEX_DBAM_COMPLETE_EVENTID,
     WMI_TAS_POWER_HISTORY_EVENTID,
+    WMI_COEX_GET_POLICY_STATS_EVENTID,
 
     /* LPI Event */
     WMI_LPI_RESULT_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_LPI),
@@ -11609,7 +11611,7 @@ typedef enum {
 } MCAST_BCAST_RATE_ID;
 
 typedef struct {
-    MCAST_BCAST_RATE_ID rate_id;
+    A_UINT32 rate_id; /* MCAST_BCAST_RATE_ID */
     A_UINT32 rate;
 } mcast_bcast_rate;
 
@@ -20622,46 +20624,46 @@ typedef enum {
 
 /* commands for 11ax TXBF capabilities */
 
-#define WMI_TXBF_CONF_11AX_SU_TX_BFER_GET(x) WMI_GET_BITS((x,0,1)
+#define WMI_TXBF_CONF_11AX_SU_TX_BFER_GET(x) WMI_GET_BITS(x,0,1)
 #define WMI_TXBF_CONF_11AX_SU_TX_BFER_SET(x,z)  WMI_SET_BITS(x,0,1,z)
 
-#define WMI_TXBF_CONF_11AX_SU_TX_BFEE_GET(x) WMI_GET_BITS((x,1,1)
+#define WMI_TXBF_CONF_11AX_SU_TX_BFEE_GET(x) WMI_GET_BITS(x,1,1)
 #define WMI_TXBF_CONF_11AX_SU_TX_BFEE_SET(x,z) WMI_SET_BITS(x,1,1,z)
 
-#define WMI_TXBF_CONF_11AX_MU_TX_BFER_GET(x) WMI_GET_BITS((x,2,1)
+#define WMI_TXBF_CONF_11AX_MU_TX_BFER_GET(x) WMI_GET_BITS(x,2,1)
 #define WMI_TXBF_CONF_11AX_MU_TX_BFER_SET(x,z)  WMI_SET_BITS(x,2,1,z)
 
-#define WMI_TXBF_CONF_11AX_BFEE_NDP_STS_LT_EQ_80_GET(x) WMI_GET_BITS((x,3,3)
+#define WMI_TXBF_CONF_11AX_BFEE_NDP_STS_LT_EQ_80_GET(x) WMI_GET_BITS(x,3,3)
 #define WMI_TXBF_CONF_11AX_BFEE_NDP_STS_LT_EQ_80_SET(x,z) WMI_SET_BITS(x,3,3,z)
 
-#define WMI_TXBF_CONF_11AX_NSTS_LT_EQ_80_GET(x) WMI_GET_BITS((x,6,3)
+#define WMI_TXBF_CONF_11AX_NSTS_LT_EQ_80_GET(x) WMI_GET_BITS(x,6,3)
 #define WMI_TXBF_CONF_11AX_NSTS_LT_EQ_80_SET(x,z) WMI_SET_BITS(x,6,3,z)
 
-#define WMI_TXBF_CONF_11AX_TX_BFEE_NDP_STS_GT_80_GET(x) WMI_GET_BITS((x,9,3)
+#define WMI_TXBF_CONF_11AX_TX_BFEE_NDP_STS_GT_80_GET(x) WMI_GET_BITS(x,9,3)
 #define WMI_TXBF_CONF_11AX_TX_BFEE_NDP_STS_GT_80_SET(x,z) WMI_SET_BITS(x,9,3,z)
 
-#define WMI_TXBF_CONF_11AX_NSTS_GT_80_GET(x) WMI_GET_BITS((x,12,3)
+#define WMI_TXBF_CONF_11AX_NSTS_GT_80_GET(x) WMI_GET_BITS(x,12,3)
 #define WMI_TXBF_CONF_11AX_NSTS_GT_80_SET(x,z) WMI_SET_BITS(x,12,3,z)
 
-#define WMI_TXBF_CONF_AX_BFER_SND_DIM_LT_EQ_80_SND_DIM_GET(x) WMI_GET_BITS((x,15,3)
+#define WMI_TXBF_CONF_AX_BFER_SND_DIM_LT_EQ_80_SND_DIM_GET(x) WMI_GET_BITS(x,15,3)
 #define WMI_TXBF_CONF_AX_BFER_SND_DIM_LT_EQ_80_SND_DIM_SET(x,z) WMI_SET_BITS(x,15,3,z)
 
-#define WMI_TXBF_CONF_AX_BFER_SND_DIM_GT_80_SND_DIM_GET(x) WMI_GET_BITS((x,18,3)
+#define WMI_TXBF_CONF_AX_BFER_SND_DIM_GT_80_SND_DIM_GET(x) WMI_GET_BITS(x,18,3)
 #define WMI_TXBF_CONF_AX_BFER_SND_DIM_GT_80_SND_DIM_SET(x,z) WMI_SET_BITS(x,18,3,z)
 
-#define WMI_TXBF_CONF_AX_SU_BFEE_NG16_FDBK_GET(x) WMI_GET_BITS((x,21,1)
+#define WMI_TXBF_CONF_AX_SU_BFEE_NG16_FDBK_GET(x) WMI_GET_BITS(x,21,1)
 #define WMI_TXBF_CONF_AX_SU_BFEE_NG16_FDBK_SET(x,z) WMI_SET_BITS(x,21,1,z)
 
-#define WMI_TXBF_CONF_AX_MU_BFEE_NG16_FDBK_GET(x) WMI_GET_BITS((x,22,1)
+#define WMI_TXBF_CONF_AX_MU_BFEE_NG16_FDBK_GET(x) WMI_GET_BITS(x,22,1)
 #define WMI_TXBF_CONF_AX_MU_BFEE_NG16_FDBK_SET(x,z) WMI_SET_BITS(x,22,1,z)
 
-#define WMI_TXBF_CONF_AX_SU_BFEE_CDBK_4_2_GET(x) WMI_GET_BITS((x,23,1)
+#define WMI_TXBF_CONF_AX_SU_BFEE_CDBK_4_2_GET(x) WMI_GET_BITS(x,23,1)
 #define WMI_TXBF_CONF_AX_SU_BFEE_CDBK_4_2_SET(x,z) WMI_SET_BITS(x,23,1,z)
 
-#define WMI_TXBF_CONF_AX_MU_BFEE_CDBK_7_5_GET(x) WMI_GET_BITS((x,24,1)
+#define WMI_TXBF_CONF_AX_MU_BFEE_CDBK_7_5_GET(x) WMI_GET_BITS(x,24,1)
 #define WMI_TXBF_CONF_AX_MU_BFEE_CDBK_7_5_SET(x,z) WMI_SET_BITS(x,24,1,z)
 
-#define WMI_TXBF_CONF_AX_FDBK_TRIG_GET(x) WMI_GET_BITS((x,25,1)
+#define WMI_TXBF_CONF_AX_FDBK_TRIG_GET(x) WMI_GET_BITS(x,25,1)
 #define WMI_TXBF_CONF_AX_FDBK_TRIG_SET(x,z) WMI_SET_BITS(x,25,1,z)
 
 
@@ -20751,7 +20753,7 @@ typedef struct {
     /** requestor id that requested the VDEV start request */
     A_UINT32 requestor_id;
     /* Respose of Event type START/RESTART */
-    WMI_START_EVENT_PARAM resp_type;
+    A_UINT32 resp_type; /* WMI_START_EVENT_PARAM */
     /** status of the response */
     A_UINT32 status;
     /** Vdev chain mask */
@@ -28259,8 +28261,65 @@ typedef enum WLAN_COEX_EVENT {
 
 typedef struct {
     A_UINT32 tlv_header;
-    A_UINT32 coex_profile_evt; //uses the enum values from WLAN_COEX_EVENT
+    A_UINT32 coex_profile_evt; /* uses the enum values from WLAN_COEX_EVENT */
 } wmi_coex_bt_activity_event_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header;
+} wmi_coex_policy_stats_cmd_fixed_param;
+
+#define WMI_COEX_POLICY_STATS_GET_BTC_STATE(coex_stats) \
+    WMI_GET_BITS(coex_stats, 0, 2)
+#define WMI_COEX_POLICY_STATS_SET_BTC_STATE(coex_stats, value) \
+    WMI_SET_BITS(coex_stats, 0, 2, value)
+
+#define WMI_COEX_POLICY_STATS_GET_UWB_STATE(coex_stats) \
+    WMI_GET_BITS(coex_stats, 2, 1)
+#define WMI_COEX_POLICY_STATS_SET_UWB_STATE(coex_stats, value) \
+    WMI_SET_BITS(coex_stats, 2, 1, value)
+
+#define WMI_COEX_POLICY_STATS_GET_MWS_STATE(coex_stats) \
+    WMI_GET_BITS(coex_stats, 3, 1)
+#define WMI_COEX_POLICY_STATS_SET_MWS_STATE(coex_stats, value) \
+    WMI_SET_BITS(coex_stats, 3, 1, value)
+
+#define WMI_COEX_POLICY_STATS_GET_OCS_ALGO_DC(coex_stats) \
+    WMI_GET_BITS(coex_stats, 8, 8)
+#define WMI_COEX_POLICY_STATS_SET_OCS_ALGO_DC(coex_stats, value) \
+    WMI_SET_BITS(coex_stats, 8, 8, value)
+
+#define WMI_COEX_POLICY_STATS_GET_OCS_NON_WLAN_DC(coex_stats) \
+    WMI_GET_BITS(coex_stats, 16, 8)
+#define WMI_COEX_POLICY_STATS_SET_OCS_NON_WLAN_DC(coex_stats, value) \
+    WMI_SET_BITS(coex_stats, 16, 8, value)
+
+typedef struct {
+    A_UINT32 tlv_header;
+    A_UINT32 mon_period; /* milliseconds units */
+    /* Following is the definition for bitfields within the coex_stats word:
+     * bits 1:0   --> Indicates BTC_STATE (0 - Freerun, 1 - OCS, 3 - Inactive).
+     * bit 2      --> Indicates UWB_STATE (0 - Inactive, 1 - Active conflict).
+     * bit 3      --> Indicates MWS_STATE (0 - Inactive, 1 - Active conflict).
+     * bits 15:8  --> Indicates percentage of the time coex chose OCS policy.
+     *                (Ranges from 0 to 100.)
+     * bits 23:16 --> Indicates percentage of the time DUT is off channel due
+     *                to OCS policy. (Ranges from 0 to 100.)
+     */
+    union {
+        A_UINT32 coex_stats;
+        struct {
+            A_UINT32 btc_state: 2,       /* bits 1:0 */
+                     uwb_state: 1,       /* bit 2 */
+                     mws_state: 1,       /* bit 3 */
+                     reserved1: 4,       /* bits 7:4 */
+                     ocs_algo_dc: 8,     /* bits 15:8 */
+                     ocs_non_wlan_dc: 8, /* bits 23:16 */
+                     reserved2: 8;       /* bits 31:24 */
+        };
+    };
+    A_UINT32 num_data_bytes;
+} wmi_coex_policy_stats_event_fixed_param;
+
 
 enum wmm_ac_downgrade_policy {
     WMM_AC_DOWNGRADE_DEPRIO,
@@ -29645,10 +29704,10 @@ typedef wmi_lpi_status wmi_lpi_staus;
 
 typedef struct
 {
-    A_UINT32       tlv_header;
-    wmi_lpi_status status;
+    A_UINT32 tlv_header;
+    A_UINT32 status; /* wmi_lpi_status */
     /** Scan requestor ID */
-    A_UINT32       scan_req_id;
+    A_UINT32 scan_req_id;
 }  wmi_lpi_status_event_fixed_param;
 
 typedef struct
@@ -38941,7 +39000,7 @@ typedef enum {
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_request_wlan_stats_cmd_fixed_param */
-    wmi_wlan_stats_id stats_id;
+    A_UINT32 stats_id; /* wmi_wlan_stats_id */
 } wmi_request_wlan_stats_cmd_fixed_param;
 
 typedef enum {
@@ -41864,6 +41923,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_NAN_PEER_PARAMS_CMDID);
         WMI_RETURN_STRING(WMI_ENERGY_MGMT_OEM_DATA_CMDID);
         WMI_RETURN_STRING(WMI_TWT_ADD_CH_USAGE_CMDID);
+        WMI_RETURN_STRING(WMI_COEX_GET_POLICY_STATS_CMDID);
     }
 
     return (A_UINT8 *) "Invalid WMI cmd";
@@ -44337,7 +44397,7 @@ typedef enum {
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_spectral_bin_scaling_params */
     A_UINT32 pdev_id;   /* ID of pdev to which the scaling parameters are to be applied */
-    WMI_SPECTRAL_SCALING_FORMULA_ID formula_id; /* Represets the formula to be used */
+    A_UINT32 formula_id; /* WMI_SPECTRAL_SCALING_FORMULA_ID: Represents the formula to be used */
     A_UINT32 low_level_offset; /* low level offset for fine tuning the scaling factor based on RSSI and AGC gain */
     A_UINT32 high_level_offset; /* high level offset for fine tuning the scaling factor based on RSSI and AGC gain */
     A_UINT32 rssi_thr; /* RSSI threshold to be used to adjust the inband power of the given spectral report */
@@ -53896,7 +53956,7 @@ typedef struct {
 
 
 typedef struct {
-    wmi_channel_width width;
+    A_UINT32 width;             /* wmi_channel_width */
     A_UINT32 center_frequency0; /* Frequency value in MHz */
     A_UINT32 center_frequency1; /* Frequency value in MHz */
     A_UINT32 primary_frequency; /* Frequency value in MHz */
