@@ -1721,6 +1721,7 @@ typedef enum {
     WMI_VDEV_SET_TWT_EDCA_PARAMS_CMDID, /* XPAN TWT */
     WMI_VDEV_GET_TWT_SESSION_STATS_INFO_CMDID,
     WMI_TWT_VDEV_CONFIG_CMDID,
+    WMI_TWT_ADD_CH_USAGE_CMDID,
 
     /** WMI commands related to motion detection **/
     WMI_MOTION_DET_CONFIG_PARAM_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_MOTION_DET),
@@ -2163,6 +2164,8 @@ typedef enum {
     WMI_VDEV_UNIFIED_CONNECT_EVENTID,
     /** WMI event for unified disconnect */
     WMI_VDEV_UNIFIED_DISCONNECT_EVENTID,
+    /** WMI event for sending vdev operating params */
+    WMI_VDEV_CURRENT_OPERATING_PARAM_EVENTID,
 
     /* peer specific events */
     /** FW reauet to kick out the station for reasons like inactivity,lack of response ..etc */
@@ -8750,6 +8753,14 @@ typedef struct {
     A_UINT32 sw_retry_th;   /* max retry count per AC base on ac_type for the vdev mentioned in vdev id*/
 } wmi_vdev_set_custom_sw_retry_th_cmd_fixed_param;
 
+typedef enum {
+    /* Set when user forces the chainmask config */
+    WMI_FORCE_CHM_MODE_USER_FORCE      = 0,
+
+    /* Set when there is no user force */
+    WMI_FORCE_CHM_MODE_DEFAULT_CONFIG  = 1,
+} WMI_FORCE_CHM_MODE;
+
 typedef struct {
     /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_chainmask_config_cmd_fixed_param */
     A_UINT32 tlv_header;
@@ -8792,6 +8803,7 @@ typedef struct {
     A_UINT32 fast_chain_selection;
     /* RSSI delta threshold to determine better chain, units: dB */
     A_UINT32 better_chain_rssi_threshold;
+    A_UINT32 force_mode; /* holds a WMI_FORCE_CHM_MODE enum value */
 } wmi_vdev_chainmask_config_cmd_fixed_param;
 
 /*
@@ -41851,6 +41863,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_NAN_PEER_SCHEDULE_CMDID);
         WMI_RETURN_STRING(WMI_NAN_PEER_PARAMS_CMDID);
         WMI_RETURN_STRING(WMI_ENERGY_MGMT_OEM_DATA_CMDID);
+        WMI_RETURN_STRING(WMI_TWT_ADD_CH_USAGE_CMDID);
     }
 
     return (A_UINT8 *) "Invalid WMI cmd";
@@ -43473,6 +43486,22 @@ typedef struct {
      */
     A_UINT32 client_id_bitmask;
 } wmi_wlm_config_cmd_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header;
+    A_UINT32 vdev_id;
+    wmi_mac_addr peer_macaddr;
+    A_UINT32 responder_pm_mode;
+    A_UINT32 negotiation_type;
+    A_UINT32 twt_request;
+    A_UINT32 twt_setup_cmd;
+    A_UINT32 is_triggered;
+    A_UINT32 flow_type;
+    A_UINT32 wake_interval_exp;
+    A_UINT32 twt_protection;
+    A_UINT32 nominal_min_wake_duration;
+    A_UINT32 wake_interval_mantisa;
+} wmi_ch_usage_add_dialog_cmd_fixed_param;
 
 /* Broadcast TWT enable/disable for both REQUESTER and RESPONDER */
 #define TWT_EN_DIS_FLAGS_GET_BTWT(flag)         WMI_GET_BITS(flag, 0, 1)
@@ -54955,6 +54984,26 @@ typedef struct {
     A_UINT32 peer_id;
     A_UINT32 status; /** wmi_smd_peer_setup_status_type */
 } wmi_smd_roam_peer_unified_setup_complete_event_fixed_param;
+
+/* vdev operating param flags */
+#define WMI_VDEV_OPERATING_PARAM_SET_UPDATED_BW     0x1
+#define WMI_VDEV_OPERATING_PARAM_SET_UPDATED_NSS    0x2
+#define WMI_VDEV_OPERATING_PARAM_SET_UPDATED_CHAINS 0x4
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_current_operating_param_event_fixed_param */
+    /* operating_param_flags: holds WMI_VDEV_OPERATING_PARAM_ values */
+    A_UINT32 operating_param_flags;
+    A_UINT32 vdev_id; /* ID of the vdev these data stats are from */
+    /* bw: current operating bandwidth (a wmi_channel_width enum value) */
+    A_UINT32 bw;
+    /* Current operating Tx and Rx NSS */
+    A_UINT32 tx_nss;
+    A_UINT32 rx_nss;
+    /* Current Tx and RX Chains of HW intersected with connection capability */
+    A_UINT32 tx_chains;
+    A_UINT32 rx_chains;
+} wmi_vdev_current_operating_param_event_fixed_param;
 
 
 

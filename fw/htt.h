@@ -22180,6 +22180,9 @@ enum HTT_MSDU_QTYPE {
     HTT_MSDU_QTYPE_USER_SPECIFIED, /* Specifies MSDUQ index used for advertising changeable flow type */
     HTT_MSDU_QTYPE_HI_PRIO,        /* Specifies MSDUQ index used for high priority flow type */
     HTT_MSDU_QTYPE_LO_PRIO,        /* Specifies MSDUQ index used for low priority flow type */
+
+    HTT_MSDU_QTYPE_MAX, /* legacy limit (based on ROM compatibility) */
+
     HTT_MSDU_QTYPE_LATENCY_CRIT_2,
     HTT_MSDU_QTYPE_LATENCY_CRIT_3,
     HTT_MSDU_QTYPE_LATENCY_CRIT_4,
@@ -22187,27 +22190,16 @@ enum HTT_MSDU_QTYPE {
 
     /* New MSDU_QTYPE should be added above this line */
     /*
-     * Below QTYPE_MAX will increase if additional QTYPEs are defined
-     * in the future. Hence HTT_MSDU_QTYPE_MAX can't be used in
-     * any host/target message definitions.  The QTYPE_MAX value can
+     * Below QTYPE_MAX_EXT will increase if additional QTYPEs are defined
+     * in the future. Hence HTT_MSDU_QTYPE_MAX_EXT can't be used in
+     * any host/target message definitions.  The QTYPE_MAX_EXT value can
      * only be used internally within the host or within the target.
-     * If host or target find a qtype value is >= HTT_MSDU_QTYPE_MAX
+     * If host or target find a qtype value is >= HTT_MSDU_QTYPE_MAX_EXT
      * it must regard the unexpected value as a default qtype value,
      * or ignore it.
      */
-    //HTT_MSDU_QTYPE_MAX,
-/*
- * TEMPORARY HACK:
- * The HTT_MSDU_QTYPE_MAX value cannot be modified until a few FW locations
- * that assume the value of HTT_MSDU_QTYPE_MAX get updated.
- * In the meantime, provide a temporary HTT_MSDU_QTYPE_MAX_TMP definition
- * that reflects the extended number of queue types.
- * After the FW has been updated, the HTT_MSDU_QTYPE_MAX value will also be
- * updated to reflect the extended number of queue types, and then the
- * HTT_MSDU_QTYPE_MAX_TMP definition will be removed.
- */
-    HTT_MSDU_QTYPE_MAX_TMP, /* temporary hack - provide temporary new def */
-    HTT_MSDU_QTYPE_MAX = (HTT_MSDU_QTYPE_LO_PRIO+1), /* temporary hack - retain old value of HTT_MSDU_QTYPE_MAX */
+    HTT_MSDU_QTYPE_MAX_EXT,
+
     HTT_MSDU_QTYPE_NOT_IN_USE = 255, /* corresponding MSDU index is not in use */
 };
 
