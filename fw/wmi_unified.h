@@ -54913,8 +54913,30 @@ typedef struct {
 
     /* This fixed param TLV will be followed by the below TLVs
      *   - A_UINT32 channel_list[num_chan]; // in MHz
+     *     // DEPRECATED - POPULATE WITH ZERO ELEMS.
+     *     // Use channel_param_list instead.
+     *   - wmi_channel_hopping_channel_params channel_param_list[num_chan];
      */
 } wmi_vdev_channel_hopping_schedule_fixed_param;
+
+typedef enum {
+    /* Channel is designated for PASSTHRU VDEV */
+    WMI_CHANNEL_HOPPING_ROLE_PASSTHRU = 0,
+    /* Channel is designated for any other interfaces besides PASSTHRU VDEV */
+    WMI_CHANNEL_HOPPING_ROLE_NON_PASSTHRU,
+} wmi_channel_hopping_role;
+
+typedef struct {
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_channel_hopping_channel_params */
+    A_UINT32 tlv_header;
+    A_UINT32 chan_mhz; /* in MHz. Valid only when role is PASSTHRU */
+    /* bandwidth:
+     * Holds a wmi_channel_width enum value.
+     * Valid only when role is PASSTHRU.
+     */
+    A_UINT32 bandwidth;
+    A_UINT32 role; /* holds wmi_channel_hopping_role enum value */
+} wmi_channel_hopping_channel_params;
 
 typedef enum {
     WMI_SMD_ROAM_CONFIG_ROLE_SERVING_AP = 1,
