@@ -280,9 +280,10 @@
  * 3.150 Add htt_reg_write_selection definitions.
  * 3.151 Add HTT_H2T DAL_MODE_INFO def.
  * 3.152 Add decap_type in htt_rx_peer_metadata_v1b.
+ * 3.153 Add passthru_pkt flag in rx_peer_metadata structs.
  */
 #define HTT_CURRENT_VERSION_MAJOR 3
-#define HTT_CURRENT_VERSION_MINOR 152
+#define HTT_CURRENT_VERSION_MINOR 153
 
 #define HTT_NUM_TX_FRAG_DESC  1024
 
@@ -21830,10 +21831,12 @@ PREPACK struct htt_rx_peer_metadata_v1 {
  *
  * The following diagram shows the format of the RX PEER METADATA V1A format.
  *
- * |31 29|28   26|25           22|21   14|   13  |12                  0|
- * |-------------------------------------------------------------------|
- * |Rsvd2|CHIP ID|logical_link_id|VDEV ID|ML PEER|SW PEER ID/ML PEER ID|
- * |-------------------------------------------------------------------|
+ * |31   |29|28   26|25           22|21   14|   13  |12                  0|
+ * |----------------------------------------------------------------------|
+ * |Rsvd2|PT|CHIP ID|logical_link_id|VDEV ID|ML PEER|SW PEER ID/ML PEER ID|
+ * |----------------------------------------------------------------------|
+ * Where:
+ *     PT = passthrough packet
  */
 PREPACK struct htt_rx_peer_metadata_v1a {
     A_UINT32
@@ -21843,7 +21846,8 @@ PREPACK struct htt_rx_peer_metadata_v1a {
         logical_link_id: 4,
         chip_id:         3,
         qdata_refill:    1,
-        reserved2:       2;
+        passthru_pkt:    1,
+        reserved2:       1;
 } POSTPACK;
 
 #define HTT_RX_PEER_META_DATA_V1A_PEER_ID_S    0
@@ -21910,6 +21914,17 @@ PREPACK struct htt_rx_peer_metadata_v1a {
     do {                                             \
         HTT_CHECK_SET_VAL(HTT_RX_PEER_META_DATA_V1A_QDATA_REFILL, _val);  \
         ((_var) |= ((_val) << HTT_RX_PEER_META_DATA_V1A_QDATA_REFILL_S)); \
+    } while (0)
+
+#define HTT_RX_PEER_META_DATA_V1A_PASSTHRU_PKT_S    30
+#define HTT_RX_PEER_META_DATA_V1A_PASSTHRU_PKT_M    0x40000000
+#define HTT_RX_PEER_META_DATA_V1A_PASSTHRU_PKT_GET(_var) \
+    (((_var) & HTT_RX_PEER_META_DATA_V1A_PASSTHRU_PKT_M) >> HTT_RX_PEER_META_DATA_V1A_PASSTHRU_PKT_S)
+
+#define HTT_RX_PEER_META_DATA_V1A_PASSTHRU_PKT_SET(_var, _val) \
+    do {                                             \
+        HTT_CHECK_SET_VAL(HTT_RX_PEER_META_DATA_V1A_PASSTHRU_PKT, _val);  \
+        ((_var) |= ((_val) << HTT_RX_PEER_META_DATA_V1A_PASSTHRU_PKT_S)); \
     } while (0)
 
 
@@ -22007,14 +22022,15 @@ PREPACK struct htt_rx_peer_metadata_v1b {
 /*
  * htt_rx_peer_metadata_v2 - HTT RX peer metadata version 2
  *
- * |31        21|20    13|12|11  9|8   6|  5  |4   0|
- * |------------+--------+--+-----+-----+-----+-----|
- * |  reserved  |peer    |Q | Log |VDEV | ML  |Peer |
- * |            |session |D |Link | ID  |Peer | ID  |
- * |            |ID      |R | ID  |     |Valid|     |
- * |------------+--------+--+-----+-----+-----+-----|
+ * |31     22|21|20    13|12|11  9|8   6|  5  |4   0|
+ * |---------+--+--------+--+-----+-----+-----+-----|
+ * |reserved |PT|peer    |Q | Log |VDEV | ML  |Peer |
+ * |         |  |session |D |Link | ID  |Peer | ID  |
+ * |         |  |ID      |R | ID  |     |Valid|     |
+ * |---------+--+--------+--+-----+-----+-----+-----|
  * Where:
  *     QDR = queue data refill
+ *     PT  = passthrough packet
  */
 PREPACK struct htt_rx_peer_metadata_v2 {
     A_UINT32
@@ -22024,7 +22040,8 @@ PREPACK struct htt_rx_peer_metadata_v2 {
         logical_link_id:  3,
         qdata_refill:     1,
         peer_session_id:  8,
-        reserved:        11;
+        passthru_pkt:     1,
+        reserved:        10;
 } POSTPACK;
 
 #define HTT_RX_PEER_META_DATA_V2_PEER_ID_S 0
@@ -22096,6 +22113,18 @@ PREPACK struct htt_rx_peer_metadata_v2 {
     do { \
         HTT_CHECK_SET_VAL(HTT_RX_PEER_META_DATA_V2_PEER_SESSION_ID, _val); \
         ((_var) |= ((_val) << HTT_RX_PEER_META_DATA_V2_PEER_SESSION_ID_S)); \
+    } while (0)
+
+#define HTT_RX_PEER_META_DATA_V2_PASSTHRU_PKT_S 21
+#define HTT_RX_PEER_META_DATA_V2_PASSTHRU_PKT_M 0x00200000
+
+#define HTT_RX_PEER_META_DATA_V2_PASSTHRU_PKT_GET(_var) \
+    (((_var) & HTT_RX_PEER_META_DATA_V2_PASSTHRU_PKT_M) >> \
+    HTT_RX_PEER_META_DATA_V2_PASSTHRU_PKT_S)
+#define HTT_RX_PEER_META_DATA_V2_PASSTHRU_PKT_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_RX_PEER_META_DATA_V2_PASSTHRU_PKT, _val); \
+        ((_var) |= ((_val) << HTT_RX_PEER_META_DATA_V2_PASSTHRU_PKT_S)); \
     } while (0)
 
 
