@@ -2454,7 +2454,7 @@ static void csr_update_key_mgmt_crypto_param(struct wlan_objmgr_vdev *vdev,
 	int32_t ap_akm = 0;
 	uint8_t i;
 
-	neg_akm = wlan_crypto_get_param(vdev, WLAN_CRYPTO_PARAM_KEY_MGMT);
+	neg_akm = wlan_crypto_get_param(vdev, WLAN_CRYPTO_PARAM_ORIG_KEY_MGMT);
 	if (neg_akm < 0) {
 		sme_err("Invalid AKM suite");
 		return;
@@ -2470,6 +2470,7 @@ static void csr_update_key_mgmt_crypto_param(struct wlan_objmgr_vdev *vdev,
 		sme_err("Invalid AKM suite");
 		return;
 	}
+	sme_debug("Intersected AKM with AP's AKM 0x%x", neg_akm);
 
 	/*
 	 * As there can be multiple AKM present select the most secured AKM
