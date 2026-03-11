@@ -2906,6 +2906,7 @@ typedef enum {
 #define WMI_CHAN_FLAG_NAN_DISABLED 19 /* Indicates that NAN operations are disabled on this channel */
 #define WMI_CHAN_FLAG_STA_DFS     20 /* Indicates if STA should process radar signals */
 #define WMI_CHAN_FLAG_ALLOW_EHT   21 /* EHT (11be) is allowed on this channel */
+#define WMI_CHAN_FLAG_ALLOW_UHR   22 /* UHR (11bn) is allowed on this channel */
 
 #define WMI_SET_CHANNEL_FLAG(pwmi_channel,flag) do { \
         (pwmi_channel)->info |=  ((A_UINT32) 1 << flag);      \
@@ -4148,6 +4149,14 @@ typedef struct {
         };
     };
 
+    /*
+     * UHR MAC Capabilities: total WMI_MAX_UHRCAP_MAC_SIZE*A_UINT32 bits
+     * those bits actually are max mac capabilities = cap_mac_2g | cap_mac_5g
+     * The actual cap mac info per mac (2g/5g) in the TLV --
+     * WMI_MAC_PHY_CAPABILITIES_EXT2
+     */
+    A_UINT32 uhr_cap_mac_info[WMI_MAX_UHRCAP_MAC_SIZE];
+
     /* Followed by next TLVs:
      *     WMI_DMA_RING_CAPABILITIES          dma_ring_caps[];
      *     wmi_spectral_bin_scaling_params    wmi_bin_scaling_params[];
@@ -4174,6 +4183,7 @@ typedef struct {
      *         wifi_radar_ltf_length_capabilities[];
      *     wmi_wifi_radar_chain_capabilities
      *         wifi_radar_chain_capabilities[];
+     *     WMI_MAC_PHY_CAPABILITIES_EXT2      mac_phy_caps2[];
      */
 } wmi_service_ready_ext2_event_fixed_param;
 
@@ -18868,6 +18878,7 @@ typedef struct {
     A_UINT32 target_tsf_us_hi; /* bits 63:32 */
     A_UINT32 vdev_op_ul_nss; /* vdev operating uplink nss. 1 ~ n: 1ss ~ nss */
     A_UINT32 vdev_op_dl_nss; /* vdev operating downlink nss. 1 ~ n: 1ss ~ nss */
+    A_UINT32 uhr_ops; /* refer to WMI_UHR_OPS_XXX macros */
 
 /* The TLVs follows this structure:
  *     wmi_channel chan; <-- WMI channel
@@ -23026,6 +23037,19 @@ enum wmi_peer_new_assoc {
 };
 
 typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_uhr_rate_set */
+    /**
+     * B0-B3 indicates max NSS that supports mcs 0-7
+     * B4-B7 indicates max NSS that supports mcs 8-9
+     * B8-B11 indicates max NSS that supports mcs 10-11
+     * B12-B15 indicates max NSS that supports mcs 12-13
+     * B16-B31 reserved
+     */
+    A_UINT32 rx_mcs_set; /* Rx max NSS set */
+    A_UINT32 tx_mcs_set; /* Tx max NSS set */
+} wmi_uhr_rate_set;
+
+typedef struct {
     A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_peer_assoc_complete_cmd_fixed_param */
     /** peer MAC address */
     wmi_mac_addr peer_macaddr;
@@ -23194,6 +23218,23 @@ typedef struct {
     /** Global SAM Peer ID, valid only if sam_peer_id_valid is set */
     A_UINT32 sam_peer_id;
 
+    /** peer_uhr_cap_mac:
+     * UHR mac capabilities from BSS beacon UHR cap IE,
+     * total WMI_MAX_UHRCAP_MAC_SIZE*A_UINT32 bits
+     */
+    A_UINT32 peer_uhr_cap_mac[WMI_MAX_UHRCAP_MAC_SIZE];
+    /** peer_uhr_cap_phy:
+     * UHR phy capabilities from BSS beacon UHR cap IE,
+     * total WMI_MAX_UHRCAP_PHY_SIZE*A_UINT32 bits
+     */
+    A_UINT32 peer_uhr_cap_phy[WMI_MAX_UHRCAP_PHY_SIZE];
+    /** refer to WMI_UHR_OPS_XXX macros */
+    A_UINT32 peer_uhr_ops;
+    /** peer_uhr_ppet:
+     * UHR Packet Padding Extension (PPE) thresholds from BSS beacon UHR cap IE
+     */
+    wmi_ppe_threshold peer_uhr_ppet;
+
 /* Following this struct are the TLV's:
  *     A_UINT8 peer_legacy_rates[];
  *     A_UINT8 peer_ht_rates[];
@@ -23216,6 +23257,7 @@ typedef struct {
  *         Only mlo_enable flag required by MCC to decide MAC address
  *         to be used.
  *     wmi_peer_assoc_smd_params peer_assoc_smd_params;
+ *     wmi_uhr_rate_set peer_uhr_rates; <-- UHR capabilities of the peer
  */
 } wmi_peer_assoc_complete_cmd_fixed_param;
 
@@ -41166,6 +41208,8 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         /* set peer to associated state. will cary all parameters
          * determined during assocication time */
         WMI_RETURN_STRING(WMI_PEER_ASSOC_CMDID);
+        /* peer assoc v2 cmd should be used for non-legacy targets */
+        WMI_RETURN_STRING(WMI_PEER_ASSOC_V2_CMDID);
         /* add a wds  (4 address ) entry. used only for testing
          * WDS feature on AP products */
         WMI_RETURN_STRING(WMI_PEER_ADD_WDS_ENTRY_CMDID);
@@ -48422,6 +48466,45 @@ typedef struct {
 /* Bit 7: reserved */
 /****** End of 11BE EHT Operation Parameters field ******/
 
+/****** 11BN UHR Operation Parameters field ******/
+/* Bit 0 UHR Operation Information Present */
+#define WMI_UHR_OPS_INFORMATION_PRESENT_GET(uhr_ops) \
+    WMI_GET_BITS(uhr_ops, 0, 1)
+#define WMI_UHR_OPS_INFORMATION_PRESENT_SET(uhr_ops, value) \
+    WMI_SET_BITS(uhr_ops, 0, 1, value)
+
+/* Bit 1 DPS Enabled */
+#define WMI_UHR_OPS_DPS_ENABLED_GET(uhr_ops) \
+    WMI_GET_BITS(uhr_ops, 1, 1)
+#define WMI_UHR_OPS_DPS_ENABLED_SET(uhr_ops, value) \
+    WMI_SET_BITS(uhr_ops, 1, 1, value)
+
+/* Bit 2 NPCA Enabled */
+#define WMI_UHR_OPS_NPCA_ENABLED_GET(uhr_ops) \
+    WMI_GET_BITS(uhr_ops, 2, 1)
+#define WMI_UHR_OPS_NPCA_ENABLED_SET(uhr_ops, value) \
+    WMI_SET_BITS(uhr_ops, 2, 1, value)
+
+/* Bit 3 DBE Enabled */
+#define WMI_UHR_OPS_DBE_ENABLED_GET(uhr_ops) \
+    WMI_GET_BITS(uhr_ops, 3, 1)
+#define WMI_UHR_OPS_DBE_ENABLED_SET(uhr_ops, value) \
+    WMI_SET_BITS(uhr_ops, 3, 1, value)
+
+/* Bit 4 P-EDCA Enabled */
+#define WMI_UHR_OPS_PEDCA_ENABLED_GET(uhr_ops) \
+    WMI_GET_BITS(uhr_ops, 4, 1)
+#define WMI_UHR_OPS_PEDCA_ENABLED_SET(uhr_ops, value) \
+    WMI_SET_BITS(uhr_ops, 4, 1, value)
+
+/* Bit 5~7 DBE Bandwidth */
+#define WMI_UHR_OPS_DBE_BANDWIDTH_GET(uhr_ops) \
+    WMI_GET_BITS(uhr_ops, 5, 3)
+#define WMI_UHR_OPS_DBE_BANDWIDTH_SET(uhr_ops, value) \
+    WMI_SET_BITS(uhr_ops, 5, 3, value)
+
+/* Bit 8~15: reserved */
+/****** End of 11BN UHR Operation Parameters field ******/
 
 typedef struct {
     /** TLV tag and len; tag equals
@@ -55050,7 +55133,46 @@ typedef struct {
     A_UINT32 peer_id;
     /*
      * Following this struct are the TLV's:
-     *     wmi_smd_roam_peer_tid_info smd_tid_info[], TLV per TID;
+     *     wmi_smd_roam_peer_tid_info smd_roam_peer_tid_info[]; <- TLV per TID
+     *     wmi_peer_create_cmd_fixed_param peer_create_fixed_param;
+     *     wmi_peer_create_mlo_params peer_create_mlo_params[];
+     *     wmi_peer_assoc_complete_cmd_fixed_param peer_assoc_fixed_param;
+     *     A_UINT8 peer_assoc_peer_legacy_rates[];
+     *     A_UINT8 peer_assoc_peer_ht_rates[];
+     *     wmi_vht_rate_set peer_assoc_peer_vht_rates;
+     *     wmi_he_rate_set peer_assoc_peer_he_rates[];
+     *     wmi_peer_assoc_mlo_params peer_assoc_mlo_params[];
+     *     wmi_eht_rate_set peer_assoc_peer_eht_rates[];
+     *     wmi_peer_assoc_mlo_partner_link_params
+     *         peer_assoc_partner_link_params[];
+     *     wmi_peer_assoc_tid_to_link_map peer_assoc_peer_tid_to_link_map[];
+     *     wmi_peer_assoc_operating_mode_params
+     *         peer_assoc_operating_mode_params[];
+     *     wmi_peer_assoc_mgmt_mpduq_params peer_assoc_mgmt_mpduq_params[];
+     *     wmi_peer_assoc_mgmt_msduq_params peer_assoc_mgmt_msduq_params[];
+     *     wmi_peer_assoc_hol_msduq_params peer_assoc_hol_mdsuq_params[];
+     *     wmi_peer_assoc_complete_cmd_fixed_param peer_assoc_v2_fixed_param;
+     *     A_UINT8 peer_assoc_v2_peer_legacy_rates[];
+     *     A_UINT8 peer_assoc_v2_peer_ht_rates[];
+     *     wmi_vht_rate_set peer_assoc_v2_peer_vht_rates;
+     *     wmi_he_rate_set peer_assoc_v2_peer_he_rates[];
+     *     wmi_peer_assoc_mlo_params peer_assoc_v2_mlo_params[];
+     *     wmi_eht_rate_set peer_assoc_v2_peer_eht_rates[];
+     *     wmi_peer_assoc_mlo_partner_link_params
+     *         peer_assoc_v2_partner_link_params[];
+     *     wmi_peer_assoc_tid_to_link_map peer_assoc_v2_peer_tid_to_link_map[];
+     *     wmi_peer_assoc_operating_mode_params
+     *         peer_assoc_v2_operating_mode_params[];
+     *     wmi_peer_assoc_mgmt_mpduq_params peer_assoc_v2_mgmt_mpduq_params[];
+     *     wmi_peer_assoc_mgmt_msduq_params peer_assoc_v2_mgmt_msduq_params[];
+     *     wmi_peer_assoc_hol_msduq_params peer_assoc_v2_hol_mdsuq_params[];
+     *     wmi_peer_uhr_npca_cap_params peer_assoc_v2_peer_npca_cap_params[];
+     *     wmi_peer_create_mlo_params peer_assoc_v2_create_mlo_params[];
+     *     wmi_peer_assoc_cfp_params peer_assoc_v2_cfp_params;
+     *     wmi_peer_assoc_smd_params peer_assoc_v2_smd_params;
+     *     wmi_vdev_install_key_cmd_fixed_param key_install_fixed_param;
+     *     A_UINT8 key_data[];
+     *     wmi_uhr_rate_set peer_uhr_rates[];
      */
 } wmi_smd_roam_peer_unified_setup_cmd_fixed_param;
 
