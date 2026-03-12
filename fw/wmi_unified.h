@@ -3936,6 +3936,76 @@ typedef enum {
     WMI_SET_BITS(sam_capability_2, 0, 12, value)
 /* End SAM related capabilities */
 
+
+typedef struct {
+    /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_shared_mem_model_tbtt_count_down_config.*/
+    A_UINT32 tlv_header;
+    /* Indicates what are all the TBTT count down that FW supports */
+    union {
+        struct {
+            A_UINT32 csa                    :1,
+                     quiet                  :1,
+                     max_chan_switch_time   :1,
+                     eht_bpcc               :1,
+                     ttlm_max_switch_time   :1,
+                     ttlm_expected_duration :1,
+                     ml_reconfig            :1,
+                     uhr_epbcc              :1,
+                     uhr_params_update      :1,
+                     rsvd                   :23;
+        };
+        A_UINT32 config_1;
+    };
+
+} wmi_shared_mem_model_tbtt_count_down_config;
+
+/* wmi_shared_mem_model_tbtt_count_down_config GET/SET macros */
+#define WMI_TBTT_COUNT_DOWN_CONFIG_CSA_GET(config_1) \
+    WMI_GET_BITS(config_1, 0, 1)
+#define WMI_TBTT_COUNT_DOWN_CONFIG_CSA_SET(config_1, value) \
+    WMI_SET_BITS(config_1, 0, 1, value)
+
+#define WMI_TBTT_COUNT_DOWN_CONFIG_QUIET_GET(config_1) \
+    WMI_GET_BITS(config_1, 1, 1)
+#define WMI_TBTT_COUNT_DOWN_CONFIG_QUIET_SET(config_1, value) \
+    WMI_SET_BITS(config_1, 1, 1, value)
+
+#define WMI_TBTT_COUNT_DOWN_CONFIG_MAX_CHAN_SWITCH_TIME_GET(config_1) \
+    WMI_GET_BITS(config_1, 2, 1)
+#define WMI_TBTT_COUNT_DOWN_CONFIG_MAX_CHAN_SWITCH_TIME_SET(config_1, value) \
+    WMI_SET_BITS(config_1, 2, 1, value)
+
+#define WMI_TBTT_COUNT_DOWN_CONFIG_EHT_BPCC_GET(config_1) \
+    WMI_GET_BITS(config_1, 3, 1)
+#define WMI_TBTT_COUNT_DOWN_CONFIG_EHT_BPCC_SET(config_1, value) \
+    WMI_SET_BITS(config_1, 3, 1, value)
+
+#define WMI_TBTT_COUNT_DOWN_CONFIG_TTLM_MAX_SWITCH_TIME_GET(config_1) \
+    WMI_GET_BITS(config_1, 4, 1)
+#define WMI_TBTT_COUNT_DOWN_CONFIG_TTLM_MAX_SWITCH_TIME_SET(config_1, value) \
+    WMI_SET_BITS(config_1, 4, 1, value)
+
+#define WMI_TBTT_COUNT_DOWN_CONFIG_TTLM_EXPECTED_DURATION_GET(config_1) \
+    WMI_GET_BITS(config_1, 5, 1)
+#define WMI_TBTT_COUNT_DOWN_CONFIG_TTLM_EXPECTED_DURATION_SET(config_1, value) \
+    WMI_SET_BITS(config_1, 5, 1, value)
+
+#define WMI_TBTT_COUNT_DOWN_CONFIG_ML_RECONFIG_GET(config_1) \
+    WMI_GET_BITS(config_1, 6, 1)
+#define WMI_TBTT_COUNT_DOWN_CONFIG_ML_RECONFIG_SET(config_1, value) \
+    WMI_SET_BITS(config_1, 6, 1, value)
+
+#define WMI_TBTT_COUNT_DOWN_CONFIG_UHR_EPBCC_GET(config_1) \
+    WMI_GET_BITS(config_1, 7, 1)
+#define WMI_TBTT_COUNT_DOWN_CONFIG_UHR_EPBCC_SET(config_1, value) \
+    WMI_SET_BITS(config_1, 7, 1, value)
+
+#define WMI_TBTT_COUNT_DOWN_CONFIG_UHR_PARAMS_UPDATE_GET(config_1) \
+    WMI_GET_BITS(config_1, 8, 1)
+#define WMI_TBTT_COUNT_DOWN_CONFIG_UHR_PARAMS_UPDATE_SET(config_1, value) \
+    WMI_SET_BITS(config_1, 8, 1, value)
+
+
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_service_ready_ext2_event_fixed_param.*/
 
@@ -4183,7 +4253,9 @@ typedef struct {
      *         wifi_radar_ltf_length_capabilities[];
      *     wmi_wifi_radar_chain_capabilities
      *         wifi_radar_chain_capabilities[];
-     *     WMI_MAC_PHY_CAPABILITIES_EXT2      mac_phy_caps2[];
+     *     WMI_MAC_PHY_CAPABILITIES_EXT2 mac_phy_caps2[];
+     *     wmi_shared_mem_model_tbtt_count_down_config
+     *         wmi_shared_mem_model_tbtt_count_down_config[];
      */
 } wmi_service_ready_ext2_event_fixed_param;
 
@@ -17825,6 +17897,34 @@ typedef struct {
 
 
 typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len;tag equals WMITLV_TAG_STRUC_wmi_vdev_start_uhr_config*/
+    union {
+        struct {
+            A_UINT32 advance_notification_interval : 8,
+                     post_notification_interval : 8,
+                     critical_update_indication_interval : 8,
+                     reserved : 8;
+        };
+        A_UINT32 uhr_cu_intervals;
+    };
+} wmi_vdev_start_uhr_config;
+
+#define WMI_VDEV_START_UHR_GET_ADVANCE_NOTIFICATION_INTERVAL(uhr_cu_intervals) \
+    WMI_GET_BITS(uhr_cu_intervals, 0, 8)
+#define WMI_VDEV_START_UHR_SET_ADVANCE_NOTIFICATION_INTERVAL(uhr_cu_intervals, val) \
+    WMI_SET_BITS(uhr_cu_intervals, 0, 8, _val)
+
+#define WMI_VDEV_START_UHR_GET_POST_NOTIFICATION_INTERVAL(uhr_cu_intervals) \
+     WMI_GET_BITS(uhr_cu_intervals, 8, 8)
+#define WMI_VDEV_START_UHR_SET_POST_NOTIFICATION_INTERVAL(uhr_cu_intervals, val) \
+    WMI_SET_BITS(uhr_cu_intervals, 8, 8, _val)
+
+#define WMI_VDEV_START_UHR_GET_CRITICAL_UPDATE_INDICATION_INTERVAL(uhr_cu_intervals) \
+    WMI_GET_BITS(uhr_cu_intervals, 16, 8)
+#define WMI_VDEV_START_UHR_SET_CRITICAL_UPDATE_INDICATION_INTERVAL(uhr_cu_intervals, val)  \
+    WMI_SET_BITS(uhr_cu_intervals, 16, 8, _val)
+
+typedef struct {
     A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_create_cmd_fixed_param */
     /** unique id identifying the VDEV, generated by the caller */
     A_UINT32 vdev_id;
@@ -18021,6 +18121,123 @@ typedef enum {
     WMI_VDEV_CREATE_WFDR2_MODE = 0,
     WMI_VDEV_CREATE_WFDR2_PCC_MODE = 1,
 } WMI_VDEV_CREATE_WFDR2_MODES;
+
+
+/*
+ * This TLV structure is used to pass the offsets of each TBTT count down,
+ * pertaining to advance notification of any BSS parameter change,
+ * in the host allocated DDR memory, to which FW should copy the
+ * current count down.
+ */
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag (WMITLV_TAG_STRUC_wmi_vdev_create_tbtt_count_down_offset_info) and len */
+    /**
+     * host_addr_lsb - LSB 32 bits of Host DDR physical address
+     * host_addr_msb - MSB 32 bits of Host DDR physical address
+     */
+    A_UINT32 host_addr_lsb;
+    A_UINT32 host_addr_msb;
+    A_UINT32 size; /** Indicates the total bytes allocated for this VAP */
+    /**
+     * offsets should always start from 1 as 0th offset shall be reserved for
+     * flags.
+     * A_UINT32[0] = EHT CU | UHR CU
+     * So if the below offset infos contain zero, FW shall assume they are
+     * invalid.
+     */
+    /** offsets of CSA & QUIET count down */
+    union {
+        struct {
+            A_UINT32 csa   : 16,
+                     quiet : 16;
+        };
+        A_UINT32 offset_info_1;
+    };
+    /** offsets of EHT BPCC & ML-RECONFIG count down */
+    union {
+        struct {
+            A_UINT32 eht_bpcc : 16,
+                     reconfig : 16;
+        };
+        A_UINT32 offset_info_2;
+    };
+    /**
+     * offsets of TTLM Max Channel Switch Time &
+     * Expected Duration count down
+     */
+    union {
+        struct {
+            A_UINT32 ttlm_max_chan_switch_time : 16,
+                     ttlm_expected_duration    : 16;
+        };
+        A_UINT32 offset_info_3;
+    };
+    /** offsets of UHR Param Update count down & EBPCC */
+    union {
+        struct {
+            A_UINT32 uhr_param_update : 16,
+                     uhr_ebpcc        : 16;
+        };
+        A_UINT32 offset_info_4;
+    };
+    /** offsets of Max Channel Switch Timer */
+    union {
+        struct {
+            A_UINT32 max_chan_switch_time : 16,
+                     reserved_1           : 16;
+        };
+        A_UINT32 offset_info_5;
+    };
+} wmi_vdev_create_tbtt_count_down_offset_info;
+
+/* offsets of CSA & Quiet count down */
+#define WMI_TBTT_COUNT_DOWN_OFFSET_CSA_GET(offset_info_1) \
+    WMI_GET_BITS(offset_info_1, 0, 16)
+#define WMI_TBTT_COUNT_DOWN_OFFSET_CSA_SET(offset_info_1, value) \
+    WMI_SET_BITS(offset_info_1, 0, 16, value)
+
+#define WMI_TBTT_COUNT_DOWN_OFFSET_QUIET_GET(offset_info_1) \
+    WMI_GET_BITS(offset_info_1, 16, 16)
+#define WMI_TBTT_COUNT_DOWN_OFFSET_QUIET_SET(offset_info_1, value) \
+    WMI_SET_BITS(offset_info_1, 16, 16, value)
+
+/* offsets of EHT BPCC & ML-RECONFIG count down */
+#define WMI_TBTT_COUNT_DOWN_OFFSET_EHT_BPCC_GET(offset_info_2) \
+    WMI_GET_BITS(offset_info_2, 0, 16)
+#define WMI_TBTT_COUNT_DOWN_OFFSET_EHT_BPCC_SET(offset_info_2, value) \
+    WMI_SET_BITS(offset_info_2, 0, 16, value)
+
+#define WMI_TBTT_COUNT_DOWN_OFFSET_RECONFIG_GET(offset_info_2) \
+    WMI_GET_BITS(offset_info_2, 16, 16)
+#define WMI_TBTT_COUNT_DOWN_OFFSET_RECONFIG_SET(offset_info_2, value) \
+    WMI_SET_BITS(offset_info_2, 16, 16, value)
+
+/* offsets of TTLM Max Channel Switch Time & Expected Duration count down */
+#define WMI_TBTT_COUNT_DOWN_OFFSET_TTLM_MAX_CHAN_SWITCH_TIME_GET(offset_info_3) \
+    WMI_GET_BITS(offset_info_3, 0, 16)
+#define WMI_TBTT_COUNT_DOWN_OFFSET_TTLM_MAX_CHAN_SWITCH_TIME_SET(offset_info_3, value) \
+    WMI_SET_BITS(offset_info_3, 0, 16, value)
+#define WMI_TBTT_COUNT_DOWN_OFFSET_TTLM_EXPECTED_DURATION_GET(offset_info_3) \
+    WMI_GET_BITS(offset_info_3, 16, 16)
+#define WMI_TBTT_COUNT_DOWN_OFFSET_TTLM_EXPECTED_DURATION_SET(offset_info_3, value) \
+    WMI_SET_BITS(offset_info_3, 16, 16, value)
+
+/* offsets of UHR Param Update count down & EBPCC */
+#define WMI_TBTT_COUNT_DOWN_OFFSET_UHR_PARAM_UPDATE_GET(offset_info_4) \
+    WMI_GET_BITS(offset_info_4, 0, 16)
+#define WMI_TBTT_COUNT_DOWN_OFFSET_UHR_PARAM_UPDATE_SET(offset_info_4, value) \
+    WMI_SET_BITS(offset_info_4, 0, 16, value)
+
+#define WMI_TBTT_COUNT_DOWN_OFFSET_UHR_EBPCC_GET(offset_info_4) \
+    WMI_GET_BITS(offset_info_4, 16, 16)
+#define WMI_TBTT_COUNT_DOWN_OFFSET_UHR_EBPCC_SET(offset_info_4, value) \
+    WMI_SET_BITS(offset_info_4, 16, 16, value)
+
+/* offsets of Max Channel Switch Time */
+#define WMI_TBTT_COUNT_DOWN_OFFSET_MAX_CHAN_SWITCH_TIME_GET(offset_info_5) \
+    WMI_GET_BITS(offset_info_5, 0, 16)
+#define WMI_TBTT_COUNT_DOWN_OFFSET_MAX_CHAN_SWITCH_TIME_SET(offset_info_5, value) \
+    WMI_SET_BITS(offset_info_5, 0, 16, value)
 
 
 /* this TLV structure used for pass mlo parameters on vdev start*/
@@ -18894,6 +19111,9 @@ typedef struct {
  *     wmi_dbw_chan_info dbw_chan_info
  *         optional TLV used for dbw_chan_info
  *     wmi_vdev_start_smd_params smd_params;
+ *         optional TLV used for SMD
+ *     wmi_vdev_start_uhr_config uhr_config_info
+ *         optional TLV used if VAP is 11BN
  */
 } wmi_vdev_start_request_cmd_fixed_param;
 
@@ -46341,6 +46561,7 @@ typedef enum {
     WMI_6GHZ_REG_PWRMODE_VLP = 2, /* VLP mode for AP and client products */
     WMI_6GHZ_REG_PWRMODE_SP_STA = 3, /* SP client mode for AP products */
     WMI_6GHZ_REG_PWRMODE_C2C = 4, /*C2C client mode for AP and client products*/
+    WMI_6GHZ_REG_PWRMODE_GVP = 5, /* GVP mode for AP and client products */
 
     WMI_6GHZ_REG_PWRMODE_MAX = 5
 } WMI_6GHZ_REG_PWRMODE_TYPE;
