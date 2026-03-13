@@ -1200,6 +1200,8 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_ctrl_path_dfs_channel_stats_struct,
     WMITLV_TAG_STRUC_wmi_twt_ack_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_twt_caps_param,
+    WMITLV_TAG_STRUC_wmi_twt_caps_params = /* alias */
+        WMITLV_TAG_STRUC_wmi_twt_caps_param,
     WMITLV_TAG_STRUC_wmi_vdev_enable_disable_intra_bss_cmd_fixed_param,
     WMITLV_TAG_STRUC_wmi_peer_enable_disable_intra_bss_cmd_fixed_param,
     WMITLV_TAG_STRUC_wmi_pdev_aoa_phasedelta_evt_fixed_param,
@@ -1221,6 +1223,8 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_dbs_or_sbs_cap_ext,
     WMITLV_TAG_STRUC_wmi_roam_set_param_cmd_fixed_param,
     WMITLV_TAG_STRUC_cust_bdf_version_capabilities,
+    WMITLV_TAG_STRUC_wmi_cust_bdf_version_capabilities = /* alias */
+        WMITLV_TAG_STRUC_cust_bdf_version_capabilities,
     WMITLV_TAG_STRUC_wmi_pdev_fips_extend_cmd_fixed_param,
     WMITLV_TAG_STRUC_wmi_fips_extend_cmd_init_params,
     WMITLV_TAG_STRUC_wmi_pdev_fips_extend_event_fixed_param,
@@ -1428,6 +1432,8 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_dcs_obss_int_t,
     WMITLV_TAG_STRUC_wmi_pdev_wifi_radar_cal_completion_status_event_param,
     WMITLV_TAG_STRUC_wmi_sar_flags,
+    WMITLV_TAG_STRUC_wmi_sar_flag_tlv_param = /* alias */
+        WMITLV_TAG_STRUC_wmi_sar_flags,
     WMITLV_TAG_STRUC_wmi_pdev_enable_xlna_cmd_fixed_param,
     WMITLV_TAG_STRUC_wmi_pdev_enable_xlna_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_reg_chan_list_cc_event_ext2_fixed_param,
@@ -1458,7 +1464,11 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_scan_cache_result_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_scan_cache_info,
     WMITLV_TAG_STRUC_wmi_POWER_BOOST_CAPABILITIES,
+    WMITLV_TAG_STRUC_WMI_POWER_BOOST_CAPABILITIES = /* alias */
+        WMITLV_TAG_STRUC_wmi_POWER_BOOST_CAPABILITIES,
     WMITLV_TAG_STRUC_wmi_RSSI_ACCURACY_IMPROVEMENT_CAPABILITIES,
+    WMITLV_TAG_STRUC_WMI_RSSI_ACCURACY_IMPROVEMENT_CAPABILITIES = /* alias */
+        WMITLV_TAG_STRUC_wmi_RSSI_ACCURACY_IMPROVEMENT_CAPABILITIES,
     WMITLV_TAG_STRUC_wmi_mlo_link_reconfig_start_indication_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_mlo_link_reconfig_fixed_param,
     WMITLV_TAG_STRUC_wmi_mlo_link_reconfig_complete_fixed_param,
@@ -1599,6 +1609,8 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_shared_mem_model_tbtt_count_down_config,
     WMITLV_TAG_STRUC_wmi_vdev_create_tbtt_count_down_offset_info,
     WMITLV_TAG_STRUC_wmi_vdev_start_uhr_config,
+    WMITLV_TAG_STRUC_wmi_pdev_set_cumac_chip_id_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_pdev_set_cumac_chip_id_confirmation_event_fixed_param,
 } WMITLV_TAG_ID;
 /*
  * IMPORTANT: Please add _ALL_ WMI Commands Here.
@@ -2202,6 +2214,7 @@ typedef enum {
     OP(WMI_VDEV_CHANNEL_HOPPING_SCHEDULE_CMDID) \
     OP(WMI_TWT_ADD_CH_USAGE_CMDID) \
     OP(WMI_COEX_GET_POLICY_STATS_CMDID) \
+    OP(WMI_PDEV_SET_CUMAC_CHIP_CMDID) \
     /* add new CMD_LIST elements above this line */
 
 
@@ -2564,6 +2577,7 @@ typedef enum {
     OP(WMI_ENERGY_MGMT_OEM_DATA_EVENTID) \
     OP(WMI_VDEV_CURRENT_OPERATING_PARAM_EVENTID) \
     OP(WMI_COEX_GET_POLICY_STATS_EVENTID) \
+    OP(WMI_PDEV_SET_CUMAC_CHIP_ID_CONFIRMATION_EVENTID) \
     /* add new EVT_LIST elements above this line */
 
 
@@ -6416,6 +6430,11 @@ WMITLV_CREATE_PARAM_STRUC(WMI_TWT_ADD_CH_USAGE_CMDID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_coex_policy_stats_cmd_fixed_param, wmi_coex_policy_stats_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_COEX_GET_POLICY_STATS_CMDID);
 
+/* WMI command to set CUMAC chip ID cmd */
+#define WMITLV_TABLE_WMI_PDEV_SET_CUMAC_CHIP_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_pdev_set_cumac_chip_id_cmd_fixed_param, wmi_pdev_set_cumac_chip_id_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_SET_CUMAC_CHIP_CMDID);
+
 
 
 /************************** TLV definitions of WMI events *******************************/
@@ -8782,6 +8801,11 @@ WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_CURRENT_OPERATING_PARAM_EVENTID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_coex_policy_stats_event_fixed_param, wmi_coex_policy_stats_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, data, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_COEX_GET_POLICY_STATS_EVENTID);
+
+/* WMI unified set CUMAC chip ID confirmation event */
+#define WMITLV_TABLE_WMI_PDEV_SET_CUMAC_CHIP_ID_CONFIRMATION_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_pdev_set_cumac_chip_id_confirmation_event_fixed_param, wmi_pdev_set_cumac_chip_id_confirmation_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_SET_CUMAC_CHIP_ID_CONFIRMATION_EVENTID);
 
 
 #ifdef __cplusplus

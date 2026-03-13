@@ -630,6 +630,8 @@ typedef enum {
     WMI_PDEV_UHR_CU_CMDID,
     /** WMI cmd used to enable/disable and get power and data path stats */
     WMI_PDEV_POWER_DATAPATH_STATS_CMDID,
+    /** WMI cmd to get the CUMAC chip ID */
+    WMI_PDEV_SET_CUMAC_CHIP_CMDID,
 
     /* VDEV (virtual device) specific commands */
     /** vdev create */
@@ -2071,6 +2073,8 @@ typedef enum {
      */
     WMI_PDEV_POWER_DATAPATH_STATS_EVENTID, /* 54 */
 
+    /** Event to indicate CUMAC Chip ID initialization completed to host */
+    WMI_PDEV_SET_CUMAC_CHIP_ID_CONFIRMATION_EVENTID, /* 55 */
 
     /***
      *** add new WMI_PDEV EVENTID defs directly above here,
@@ -55409,6 +55413,30 @@ typedef struct {
     A_UINT32 peer_id;
     A_UINT32 status; /** wmi_smd_peer_setup_status_type */
 } wmi_smd_roam_peer_unified_setup_complete_event_fixed_param;
+
+
+typedef enum {
+    WMI_PDEV_SET_CUMAC_CHIP_ID_SUCCESS = 0,
+    WMI_PDEV_SET_CUMAC_CHIP_ID_FAILURE,
+} wmi_pdev_set_cumac_chip_id_status_type;
+
+typedef struct {
+    /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_set_cumac_chip_id_cmd_fixed_param */
+    A_UINT32 tlv_header;
+    /** global unique ID identifying pdev */
+    A_UINT32 pdev_id;
+    /** global unique ID identifying chip id of selected CUMAC chip */
+    A_UINT32 cumac_chip_id;
+} wmi_pdev_set_cumac_chip_id_cmd_fixed_param;
+
+typedef struct {
+    /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_set_cumac_chip_id_confirmation_event_fixed_param */
+    A_UINT32 tlv_header;
+    /** global unique ID identifying pdev */
+    A_UINT32 pdev_id;
+    A_UINT32 status; /** wmi_pdev_set_cumac_chip_id_status_type */
+} wmi_pdev_set_cumac_chip_id_confirmation_event_fixed_param;
+
 
 /* vdev operating param flags */
 #define WMI_VDEV_OPERATING_PARAM_SET_UPDATED_BW     0x1
