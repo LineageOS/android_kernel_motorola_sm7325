@@ -5230,8 +5230,13 @@ typedef struct {
      *  Bits 28:26 - extension bits for specifing the format version of the
      *     rx peer metadata the target needs to use (to cover versions V2 and
      *     beyond).
+     *  Bit 29 - enable ipi_stats feature:
+     *      0 -> disable the feature
+     *      1 -> enable the feature
+     *     Refer to below WMI_RSRC_CFG_FLAGS2_IPI_STATS_ENABLED_GET/SET
+     *     macros.
      *
-     *  Bits 31:29 - Reserved
+     *  Bits 31:30 - Reserved
      */
     A_UINT32 flags2;
     /** @brief host_service_flags - can be used by Host to indicate
@@ -5874,6 +5879,11 @@ typedef struct {
     WMI_GET_BITS(flags2, 26, 3)
 #define WMI_RSRC_CFG_FLAGS2_RX_PEER_METADATA_EXTENSION_SET(flags2, value) \
     WMI_SET_BITS(flags2, 26, 3, value)
+
+#define WMI_RSRC_CFG_FLAGS2_IPI_STATS_ENABLED_GET(flags2) \
+    WMI_GET_BITS(flags2, 29, 1)
+#define WMI_RSRC_CFG_FLAGS2_IPI_STATS_ENABLED_SET(flags2, value) \
+    WMI_SET_BITS(flags2, 29, 1, value)
 
 #define WMI_RSRC_CFG_HOST_SERVICE_FLAG_NAN_IFACE_SUPPORT_GET(host_service_flags) \
     WMI_GET_BITS(host_service_flags, 0, 1)
@@ -12490,6 +12500,77 @@ typedef struct {
    /** Total error TIM beacon found by wlan ps including no rx in TIM wakeup and TIM event in active state **/
    A_UINT32 tot_err_tim_bcn;
 } wmi_iface_powersave_stats;
+
+
+#define WMI_IPI_STATS_SNR_LOWER_BOUND_GET(snr_config) \
+    WMI_GET_BITS(snr_config, 0, 8)
+#define WMI_IPI_STATS_SNR_LOWER_BOUND_SET(snr_config, value) \
+    WMI_SET_BITS(snr_config, 0, 8, value)
+#define WMI_IPI_STATS_SNR_UPPER_BOUND_GET(snr_config) \
+    WMI_GET_BITS(snr_config, 8, 8)
+#define WMI_IPI_STATS_SNR_UPPER_BOUND_SET(snr_config, value) \
+    WMI_SET_BITS(snr_config, 8, 8, value)
+#define WMI_IPI_STATS_SNR_STEP_GET(snr_config) \
+    WMI_GET_BITS(snr_config, 16, 8)
+#define WMI_IPI_STATS_SNR_STEP_SET(snr_config, value) \
+    WMI_SET_BITS(snr_config, 16, 8, value)
+#define WMI_IPI_STATS_SNR_NUM_BINS_GET(snr_config) \
+    WMI_GET_BITS(snr_config, 24, 8)
+#define WMI_IPI_STATS_SNR_NUM_BINS_SET(snr_config, value) \
+    WMI_SET_BITS(snr_config, 24, 8, value)
+
+/* 
+ * Signal to Noise Ration(SNR) is measured during idle periods and reported
+ * as a distribution across multiple bins
+ */
+typedef struct {
+   A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_iface_ipi_stats */
+
+   /*
+    * Total time in microseconds spent on the channel during which
+    * these signal-to-noise measurements were collected
+    */
+   A_UINT32 meas_dur_us;
+
+   /* snr_config:
+    * Contains lower bound, upper bound, step value and total bins for the
+    * SNR measurements done.
+    * Firmware collects the SNR data into
+    *     (((upper_bound - lower_bound)/step) + out_of_bound_bins)
+    * bins and sends to host.
+    * lower_bound - Lower value of the SNR measurement range
+    * upper_bound - Upper value of the SNR measurement range
+    * step        - Each bin data range
+    * num_bins    - Number of bins calculated as per above formula,
+    *               represents the number of elements in TLV snr_histogram
+    * out_of_bound_bins(=2) - Number of bins to carry values below lower
+    *                         bound and above upper bound in corresponding bin,
+    *                         including lower and upper bound values
+    * E.g - 1. lower_bound = 0, upper_bound = 100 and step = 10
+    *          Firmware collects the SNR samples into ((100-0)/10)+2 = 12 bins
+    * E.g - 2. lower_bound = 10, upper_bound = 90 and step = 20
+    *          Firmware collects the SNR samples into ((90-10)/20)+2 = 6 bins
+    */
+   A_UINT32 snr_config;
+
+   /*
+    * This TLV is followed by a snr_histogram TLV containing a variable-length
+    * array of A_UINT32 to carry data from each bin.
+    * Bin[0] contains the number of samples with SNR < lower_bound dB
+    * Bin[1] contains the number of samples with SNR in range
+    *     [lower_bound, lower_bound + step) dB
+    * Bin[2] contains the number of samples with SNR in range
+    *     [lower_bound + step, lower_bound + 2*step) dB
+    * ...
+    * Bin[num_bins - 2] contains the number of samples with SNR in range
+    *     [upper_bound - step, upper_bound) dB
+    * Bin[num_bins - 1] contains the number of samples with
+    *     SNR >= upper_bound dB
+    *
+    *  A_UINT32 snr_histogram[num_bins]
+    */
+} wmi_iface_ipi_stats;
+
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_ipa_link_stats */
