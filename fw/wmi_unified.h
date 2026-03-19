@@ -6526,6 +6526,10 @@ typedef struct {
 typedef struct {
     A_UINT32 tlv_header;    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_tlv_buf_len_param */
     A_UINT32 buf_len;       /** Length of buf */
+/* NOTE:
+ * This struct cannot be expanded, due to being used as
+ * WMITLV_TAG_ARRAY_FIXED_STRUC in WMI_ROAM_INVOKE_CMDID.
+ */
     /**
      * Following this structure is the TLV byte stream of buf of length buf_len:
      * A_UINT8 buf[];
@@ -12519,7 +12523,7 @@ typedef struct {
 #define WMI_IPI_STATS_SNR_NUM_BINS_SET(snr_config, value) \
     WMI_SET_BITS(snr_config, 24, 8, value)
 
-/* 
+/*
  * Signal to Noise Ration(SNR) is measured during idle periods and reported
  * as a distribution across multiple bins
  */
@@ -18335,7 +18339,7 @@ typedef struct {
      * mlo_ieee_link_id_valid bit set.
      */
     A_UINT32 ieee_link_id;
-    A_UINT32 mlo_vdev_id;
+    A_UINT32 mlo_vdev_id; /* deprecated */
 } wmi_vdev_start_mlo_params;
 
 /* this TLV structure used for passing mlo parameters on vdev stop */
@@ -19181,6 +19185,13 @@ typedef struct {
     A_UINT32 vdev_op_ul_nss; /* vdev operating uplink nss. 1 ~ n: 1ss ~ nss */
     A_UINT32 vdev_op_dl_nss; /* vdev operating downlink nss. 1 ~ n: 1ss ~ nss */
     A_UINT32 uhr_ops; /* refer to WMI_UHR_OPS_XXX macros */
+    /*
+     * VDEV ID that will be assigned for both legacy and MLD VAPs.
+     * This will be configured to rx_meta_data in the AST entry.
+     * This information will then be used by host to achieve intra-bss
+     * forwarding for the Rx packets.
+     */
+    A_UINT32 global_vdev_id;
 
 /* The TLVs follows this structure:
  *     wmi_channel chan; <-- WMI channel
@@ -23727,15 +23738,15 @@ typedef struct {
      * FW will update the Noise Floor in dBr and send it to host
      * if this field is set then host will display NF value in dBr
      */
-    A_UINT32 nf_db_is_valid;
+    A_UINT32 nf_dbr_is_valid;
     /**
      * Noise Floor (NF) value in dBr. If the NF is not converged then
      * NF value is returned as 0 to host. Theoretical minimum NF value
      * is -101 dB for 20 MHz bandwidth and the max value can be 0.
      * PHY reports 0 incase of very high NF values.
-     * This field should be ignored unless the nf_db_is_valid flag is set.
+     * This field should be ignored unless the nf_dbr_is_valid flag is set.
      */
-    A_UINT32 noise_floor_in_db;
+    A_UINT32 noise_floor_in_dbr;
 
 /**
  * Following this structure is the optional TLV:

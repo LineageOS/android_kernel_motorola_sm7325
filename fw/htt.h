@@ -281,9 +281,10 @@
  * 3.151 Add HTT_H2T DAL_MODE_INFO def.
  * 3.152 Add decap_type in htt_rx_peer_metadata_v1b.
  * 3.153 Add passthru_pkt flag in rx_peer_metadata structs.
+ * 3.154 Add T2H PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP msg def.
  */
 #define HTT_CURRENT_VERSION_MAJOR 3
-#define HTT_CURRENT_VERSION_MINOR 153
+#define HTT_CURRENT_VERSION_MINOR 154
 
 #define HTT_NUM_TX_FRAG_DESC  1024
 
@@ -12577,6 +12578,7 @@ enum htt_t2h_msg_type {
     HTT_T2H_MSG_TYPE_MLO_LATENCY_REQ               = 0x3d,
     HTT_T2H_MSG_TYPE_GLOBAL_PEER_ID_UNMAP          = 0x3e,
     HTT_T2H_MSG_TYPE_HAPS                          = 0x3f,
+    HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP = 0x40,
 
 
     HTT_T2H_MSG_TYPE_TEST,
@@ -24729,6 +24731,57 @@ PREPACK struct htt_t2h_power_state_info {
         ((_var) |= ((_val) << HTT_T2H_POWER_STATE_INFO_HTT_TIME_LOW_S));\
     } while (0)
 
+
+/* MSG_TYPE => HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP
+ *
+ * The following diagram shows the format of the peer delete all global vdev
+ * unmap message sent from the target to the host. This message is used to
+ * send unmap event to host after tid and msduq/mpduq cleanup of all peers
+ * associated to a vdev, in FW, host cleans up msduq/mpduq based on message.
+ *
+ * |31                    20|19      16|15              8|7               0|
+ * |------------------------+----------+-----------------+-----------------|
+ * |       reserved         |hw_link_id| global_vdev_id  |     msg type    |
+ * |-----------------------------------------------------------------------|
+ * @details
+ * struct htt_t2h_peer_del_all_global_vdev_id_unmap_t:
+ *
+ * The message is interpreted as follows:
+ * dword0 - b'7:0   - msg_type: This will be set to 0x40
+ *                    (HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP)
+ *          b'15:8  - global_vdev_id : global vdev id assigned by host
+ *          b'19:16 - hw_link_id : hw link id for which unmap is being sent
+ *          b'31:20 - reserved
+ */
+/* HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP */
+PREPACK struct htt_t2h_peer_del_all_global_vdev_id_unmap_t {
+    A_UINT32 msg_type:               8,  /* bits  7:0  */
+             global_vdev_id:         8,  /* bits 15:8  */
+             hw_link_id:             4,  /* bits 19:16 */
+             reserved:               12; /* bits 31:20 */
+} POSTPACK;
+
+#define HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP_GLOBAL_VDEV_ID_M 0x0000FF00
+#define HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP_GLOBAL_VDEV_ID_S 8
+#define HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP_GLOBAL_VDEV_ID_GET(_var) \
+    (((_var) & HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP_GLOBAL_VDEV_ID_M) >> \
+     HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP_GLOBAL_VDEV_ID_S)
+#define HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP_GLOBAL_VDEV_ID_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP_GLOBAL_VDEV_ID, _val); \
+        ((_var) |= ((_val) << HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP_GLOBAL_VDEV_ID_S)); \
+    } while (0)
+
+#define HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP_HW_LINK_ID_M 0x000F0000
+#define HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP_HW_LINK_ID_S 16
+#define HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP_HW_LINK_ID_GET(_var) \
+    (((_var) & HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP_HW_LINK_ID_M) >> \
+     HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP_HW_LINK_ID_S)
+#define HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP_HW_LINK_ID_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP_HW_LINK_ID, _val); \
+        ((_var) |= ((_val) << HTT_T2H_MSG_TYPE_PEER_DEL_ALL_GLOBAL_VDEV_ID_UNMAP_HW_LINK_ID_S)); \
+    } while (0)
 
 
 #endif
