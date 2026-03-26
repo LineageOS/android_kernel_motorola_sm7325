@@ -19424,6 +19424,8 @@ typedef enum {
 #define WMI_VDEV_OCE_FILS_DISCOVERY_FRAME_FEATURE_BITMAP               0x10
 #define WMI_VDEV_OCE_ESP_FEATURE_BITMAP                                0x20
 #define WMI_VDEV_OCE_REASSOC_REJECT_FEATURE_BITMAP                     0x40
+/* Enable FILS Discovery frame transmission only for 6 GHz SAP */
+#define WMI_VDEV_OCE_FILS_DISCOVERY_FRAME_6G_ONLY_FEATURE_BITMAP       0x80
 
 /** 6 GHZ params **/
 /* Control to enable/disable beacon tx in non-HT duplicate */
