@@ -23576,6 +23576,10 @@ typedef struct {
  *         to be used.
  *     wmi_peer_assoc_smd_params peer_assoc_smd_params;
  *     wmi_uhr_rate_set peer_uhr_rates; <-- UHR capabilities of the peer
+ *     wmi_peer_uhr_npca_op_params npca_op_params[0,1]
+ *         Only present if NPCA enable is set in peer_uhr_ops &
+ *         NPCA support is set in peer_uhr_cap_mac of fixed_param.
+ *         Otherwise, array length should be 0.
  */
 } wmi_peer_assoc_complete_cmd_fixed_param;
 
@@ -23636,6 +23640,105 @@ typedef struct {
      * struct wmi_peer_uhr_npca_cap_params peer_npca_cap_params[num_peers];
      */
 } wmi_peer_uhr_mode_update_cmd_fixed_param;
+
+
+/* npca_op_param macros */
+#define WMI_PEER_UHR_NPCA_OP_PARAM_PRIMARY_CHANNEL_GET(_var) \
+    WMI_GET_BITS(_var, 0, 4)
+#define WMI_PEER_UHR_NPCA_OP_PARAM_PRIMARY_CHANNEL_SET(_var, _val) \
+    WMI_SET_BITS(_var, 0, 4, _val)
+
+#define WMI_PEER_UHR_NPCA_OP_PARAM_MIN_DURATION_THRESHOLD_GET(_var) \
+    WMI_GET_BITS(_var, 4, 4)
+#define WMI_PEER_UHR_NPCA_OP_PARAM_MIN_DURATION_THRESHOLD_SET(_var, _val) \
+    WMI_SET_BITS(_var, 4, 4, _val)
+
+#define WMI_PEER_UHR_NPCA_OP_PARAM_SWITCH_DELAY_GET(_var) \
+    WMI_GET_BITS(_var, 8, 6)
+#define WMI_PEER_UHR_NPCA_OP_PARAM_SWITCH_DELAY_SET(_var, _val) \
+    WMI_SET_BITS(_var, 8, 6, _val)
+
+#define WMI_PEER_UHR_NPCA_OP_PARAM_SWITCH_BACK_DELAY_GET(_var) \
+    WMI_GET_BITS(_var, 14, 6)
+#define WMI_PEER_UHR_NPCA_OP_PARAM_SWITCH_BACK_DELAY_SET(_var, _val) \
+    WMI_SET_BITS(_var, 14, 6, _val)
+
+#define WMI_PEER_UHR_NPCA_OP_PARAM_INITIAL_QSRC_GET(_var) \
+    WMI_GET_BITS(_var, 20, 2)
+#define WMI_PEER_UHR_NPCA_OP_PARAM_INITIAL_QSRC_SET(_var, _val) \
+    WMI_SET_BITS(_var, 20, 2, _val)
+
+#define WMI_PEER_UHR_NPCA_OP_PARAM_MOPLEN_NPCA_GET(_var) \
+    WMI_GET_BITS(_var, 22, 1)
+#define WMI_PEER_UHR_NPCA_OP_PARAM_MOPLEN_NPCA_SET(_var, _val) \
+    WMI_SET_BITS(_var, 22, 1, _val)
+
+#define WMI_PEER_UHR_NPCA_OP_PARAM_DIS_SUBCHAN_BMAP_PRESENT_GET(_var) \
+    WMI_GET_BITS(_var, 23, 1)
+#define WMI_PEER_UHR_NPCA_OP_PARAM_DIS_SUBCHAN_BMAP_PRESENT_SET(_var, _val) \
+    WMI_SET_BITS(_var, 23, 1, _val)
+
+/* npca_op_param1 macros */
+#define WMI_PEER_UHR_NPCA_OP_PARAM1_DISABLED_SUBCHAN_BITMAP_GET(_var) \
+    WMI_GET_BITS(_var, 0, 16)
+#define WMI_PEER_UHR_NPCA_OP_PARAM1_DISABLED_SUBCHAN_BITMAP_SET(_var, _val) \
+    WMI_SET_BITS(_var, 0, 16, _val)
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_peer_uhr_npca_op_params */
+    /*
+     * All below fields are advertised by UHR AP in UHR NPCA Op Param Field
+     * in UHR Operation IE
+     *
+     * Bit 0-3  : NPCA Primary Channel.
+     *            Indicates the channel number of a channel within BSS
+     *            bandwidth that both STA and AP switch to for NPCA operation.
+     *
+     * Bit 4-7  : NPCA Minimum Duration Threshold (NMDT).
+     *            FW to convert this value into microsecs using
+     *            512 + (NMDT * 128) usec.
+     *
+     * Bit 8-13 : NPCA Switch Delay, in units of 4 us.
+     *            The time needed by an NPCA AP to switch from the BSS
+     *            primary channel to the NPCA primary channel.
+     *
+     * Bit 14-19: NPCA Switch Back Delay, in units of 4 us.
+     *            The time needed by an NPCA AP to switch from the NPCA
+     *            primary channel to the BSS primary channel.
+     *
+     * Bit 20-21: Initial NPCA QSRC.
+     *            Indicates the value that is used to initialize the EDCAF
+     *            QSRC[AC] variables when an NPCA STA in the BSS switches
+     *            to NPCA operation.
+     *
+     * Bit 22   : MOPLEN NPCA.
+     *            Indicates which conditions can be used to initiate an
+     *            NPCA operation.
+     *            Value 1 means both PHYLEN and MOPLEN operations are
+     *            permitted in BSS.
+     *            Value 0 means only PHYLEN operation is allowed in the BSS.
+     *
+     * Bit 23   : NPCA Disabled Subchannel Bitmap Present
+     *
+     * Bit 24-31: Reserved
+     */
+    /* Use WMI_PEER_UHR_NPCA_OP_PARAM_ GET/SET macros for each field */
+    A_UINT32 npca_op_param;
+
+    /*
+     * Bit 0-15 : NPCA Disabled Subchannel Bitmap. Valid only when
+     *            WMI_PEER_UHR_NPCA_OP_PARAM_DIS_SUBCHAN_BMAP_PRESENT_GET is
+     *            TRUE.
+     *            The bitmap indexes 20 MHz subchannels in ascending frequency
+     *            order, with the LSB representing the lowest frequency.
+     *            A bit set to 1 indicates the subchannel is punctured,
+     *            while 0 indicates it is not.
+     *
+     * Bit 16-31: Reserved
+     */
+    /* Use WMI_PEER_UHR_NPCA_OP_PARAM1_ GET/SET macros for each field */
+    A_UINT32 npca_op_param1;
+} wmi_peer_uhr_npca_op_params;
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_get_ap_oper_bw_cmd_fixed_param */
@@ -55492,6 +55595,7 @@ typedef struct {
      *     wmi_vdev_install_key_cmd_fixed_param key_install_fixed_param;
      *     A_UINT8 key_data[];
      *     wmi_uhr_rate_set peer_uhr_rates[];
+     *     wmi_peer_uhr_npca_op_params npca_op_params[0,1]
      */
 } wmi_smd_roam_peer_unified_setup_cmd_fixed_param;
 
