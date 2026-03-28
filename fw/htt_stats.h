@@ -12746,8 +12746,66 @@ typedef struct {
                  is_e_ani_enabled:          1, /* bit 6 */
                  is_spur_mit_enabled:       1, /* bit 7 */
                  is_multigain_rssi_enabled: 1, /* bit 8 */
+                 is_olpc_clpc:              1, /* bit 9 */
+                 is_abi_en_dis:             1, /* bit 10 */
+                 is_str_sig_rec:            1, /* bit 11 */
+                 is_verbose_enabled:        1, /* bit 12 */
+                 is_dyn_ant_sel_supported:  1, /* bit 13 */
+                 is_dfs_punc_enabled:       1, /* bit 14 */
+                 is_ctl_blob_downloaded:    1, /* bit 15 */
+                 dpd_pow_bo_status:         1, /* bit 16 */
+                 is_eeprom_compressed:      1, /* bit 17 */
+                 is_ctl_table_loaded:       1, /* bit 18 */
+                 reserved: 13; /* bits 31:19 */
+        };
+    };
 
-                 reserved: 23; /* bits 31:9 */
+    union {
+        A_UINT32 rxsop_config;
+        struct {
+            A_UINT32
+                is_rxsop_enabled:    1, /* bit 0 */
+                rxsop_config_value:  8, /* bit 8:1 */
+                rxsop_reserved: 23; /* bits 31:9 */
+        };
+    };
+
+    A_INT32 reg_tx_pow_limit; /* dBm units */
+    A_INT32 user_pow_limit; /* dBm units */
+    A_UINT32 abi_max_rg_gain; /* dB units */
+    A_UINT32 abi_max_lg_gain; /* dB units */
+    A_UINT32 abi_max_vlg_gain; /* dB units */
+    /* abi_hold_mode:
+     * Controls how long gain table decisions are held:
+     *     0: Cleared each packet
+     *     1: Held for timer value
+     *     2: Gain table choices are under CSR control
+     */
+    A_UINT32 abi_hold_mode;
+    A_UINT32 abi_hold_count;
+    A_INT32 rssi_temp_offset; /* dB units */
+    A_INT32 rssi_xlna_bypass_offset; /* dB units */
+    A_INT32 rssi_cbw_offset; /* dB units */
+    A_INT32 rssi_chan_freq_offset; /* dB units */
+    A_UINT32 regdb_version;
+    A_UINT32 otp_version;
+    A_UINT32 cfr_clip_factor[4];
+    union {
+        A_UINT32 hc__premcs__pkt_type__word32;
+        struct {
+            A_UINT32
+                hc_premcs:   16, /* bits 15:0 */
+                hc_pkt_type: 16; /* bits 31:16 */
+        };
+    };
+    union {
+        A_UINT32 hc_nss_thr__is_rx_gain_forced__rx_gain_forced_val__word32;
+        struct {
+            A_UINT32
+                hc_nss_thr: 8,         /* bits 7:0 */
+                is_rx_gain_forced: 8,  /* bits 15:8 */
+                rx_gain_forced_val: 8, /* bits 23:16 */
+                reserved2: 8; /* bits 31:24 */
         };
     };
 } htt_stats_optional_configs_tlv;
@@ -12796,6 +12854,92 @@ typedef struct {
     (((word) & 0x100) >> 8)
 #define HTT_STATS_OPT_CONF_SET_MULTIGAIN_RSSI(word, value) \
     ((word) = ((word) & ~0x100) | (((value) & 0x1) << 8))
+
+#define HTT_STATS_OPT_CONF_GET_OLPC_CLPC(word) \
+    (((word) & 0x200) >> 9)
+#define HTT_STATS_OPT_CONF_SET_OLPC_CLPC(word, value) \
+    ((word) = ((word) & ~0x200) | (((value) & 0x1) << 9))
+
+#define HTT_STATS_OPT_CONF_GET_ABI_EN_DIS(word) \
+    (((word) & 0x400) >> 10)
+#define HTT_STATS_OPT_CONF_SET_ABI_EN_DIS(word, value) \
+    ((word) = ((word) & ~0x400) | (((value) & 0x1) << 10))
+
+#define HTT_STATS_OPT_CONF_GET_STR_SIG_REC(word) \
+    (((word) & 0x800) >> 11)
+#define HTT_STATS_OPT_CONF_SET_STR_SIG_REC(word, value) \
+    ((word) = ((word) & ~0x800) | (((value) & 0x1) << 11))
+
+#define HTT_STATS_OPT_CONF_GET_VERBOSE(word) \
+    (((word) & 0x1000) >> 12)
+#define HTT_STATS_OPT_CONF_SET_VERBOSE(word, value) \
+    ((word) = ((word) & ~0x1000) | (((value) & 0x1) << 12))
+
+#define HTT_STATS_OPT_CONF_GET_DYN_ANT_SEL(word) \
+    (((word) & 0x2000) >> 13)
+#define HTT_STATS_OPT_CONF_SET_DYN_ANT_SEL(word, value) \
+    ((word) = ((word) & ~0x2000) | (((value) & 0x1) << 13))
+
+#define HTT_STATS_OPT_CONF_GET_DFS_PUNC(word) \
+    (((word) & 0x4000) >> 14)
+#define HTT_STATS_OPT_CONF_SET_DFS_PUNC(word, value) \
+    ((word) = ((word) & ~0x4000) | (((value) & 0x1) << 14))
+
+#define HTT_STATS_OPT_CONF_GET_CTL_BLOB_DOWNLODED(word) \
+    (((word) & 0x8000) >> 15)
+#define HTT_STATS_OPT_CONF_SET_CTL_BLOB_DOWNLODED(word, value) \
+    ((word) = ((word) & ~0x8000) | (((value) & 0x1) << 15))
+
+#define HTT_STATS_OPT_CONF_GET_DPD_POW_BO(word) \
+    (((word) & 0x10000) >> 16)
+#define HTT_STATS_OPT_CONF_SET_DPD_POW_BO(word, value) \
+    ((word) = ((word) & ~0x10000) | (((value) & 0x1) << 16))
+
+#define HTT_STATS_OPT_CONF_GET_EEPROM_COMPRESSED(word) \
+    (((word) & 0x20000) >> 17)
+#define HTT_STATS_OPT_CONF_SET_EEPROM_COMPRESSED(word, value) \
+    ((word) = ((word) & ~0x20000) | (((value) & 0x1) << 17))
+
+#define HTT_STATS_OPT_CONF_GET_CTL_TABLE_LOADED(word) \
+    (((word) & 0x40000) >> 18)
+#define HTT_STATS_OPT_CONF_SET_CTL_TABLE_LOADED(word, value) \
+    ((word) = ((word) & ~0x40000) | (((value) & 0x1) << 18))
+
+
+#define HTT_STATS_OPT_CONF_GET_RXSOP_ENABLED(word) \
+    (((word) & 0x1) >> 0)
+#define HTT_STATS_OPT_CONF_SET_RXSOP_ENABLED(word, value) \
+    ((word) = ((word) & ~0x1) | (((value) & 0x1) << 0))
+
+#define HTT_STATS_OPT_CONF_GET_RXSOP_CONFIG_VALUE(word) \
+    (((word) & 0x1FE) >> 1)
+#define HTT_STATS_OPT_CONF_SET_RXSOP_CONFIG_VALUE(word, value) \
+    ((word) = ((word) & ~0x1FE) | (((value) & 0xFF) << 1))
+
+#define HTT_STATS_OPT_CONF_GET_HC_PREMCS(word) \
+    ((word) & 0xFFFF)
+#define HTT_STATS_OPT_CONF_SET_HC_PREMCS(word, value) \
+    ((word) = ((value) & 0xFFFF))
+
+#define HTT_STATS_OPT_CONF_GET_HC_PKT_TYPE(word) \
+    (((word) & 0xFFFF0000) >> 16)
+#define HTT_STATS_OPT_CONF_SET_HC_PKT_TYPE(word, value) \
+    ((word) = ((word) & ~0xFFFF0000) | (((value) & 0xFFFF) << 16))
+
+#define HTT_STATS_OPT_CONF_GET_HC_NSS_THR(word) \
+    (((word) & 0x000000FF) >> 0)
+#define HTT_STATS_OPT_CONF_SET_HC_NSS_THR(word, value) \
+    ((word) = ((word) & ~0x000000FF) | (((value) & 0xFF) << 0))
+
+#define HTT_STATS_OPT_CONF_GET_IS_RX_GAIN_FORCED(word) \
+    (((word) & 0x0000FF00) >> 8)
+#define HTT_STATS_OPT_CONF_SET_IS_RX_GAIN_FORCED(word, value) \
+    ((word) = ((word) & ~0x0000FF00) | (((value) & 0xFF) << 8))
+
+#define HTT_STATS_OPT_CONF_GET_RX_GAIN_FORCED_VAL(word) \
+    (((word) & 0x00FF0000) >> 16)
+#define HTT_STATS_OPT_CONF_SET_RX_GAIN_FORCED_VAL(word, value) \
+    ((word) = ((word) & ~0x00FF0000) | (((value) & 0xFF) << 16))
 
 
 /* FTM STATS */
@@ -16176,12 +16320,19 @@ typedef struct {
     htt_tlv_hdr_t tlv_hdr;
     union {
         struct {
-            A_UINT32 afc_local_rsvd : 8,
+            A_UINT32 afc_local_rsvd : 8, /* bits 7:0 */
                      /* enum WMI_AFC_FEATURE_6G_DEPLOYMENT_TYPE */
-                     deployment_type: 8,
+                     deployment_type: 8, /* bits 15:8 */
                      /* Bit 0 : LPI, Bit 1 : SP, Bit 2 : VLP, others: rsvd */
-                     power_mode_mask: 8,
-                     reserved       : 8;
+                     power_mode_mask: 8, /* bits 23:16 */
+                     /* Tx is suspended or not */
+                     is_tx_allowed_by_afc: 1, /* bit 24 */
+                     /* is_tx_allowed_by_hw_min_power_check:
+                      * channel is blocked or not due to the HW Minimum power
+                      * compliance check
+                      */
+                     is_tx_allowed_by_hw_min_power_check: 1, /* bit 25 */
+                     reserved: 6;
         };
         A_UINT32 afc_ini_params; /* AFC_INI_CONFIG */
     };
@@ -16209,19 +16360,30 @@ typedef struct {
 } htt_stats_reg_6g_tlv;
 
 #define HTT_STATS_REG_6G_GET_AFC_LOCAL_RSVD(word) \
-    HTT_STATS_GET_FIELD(0xFF, 0, (word))
+    HTT_STATS_GET_FIELD(0x000000FF, 0, (word))
 #define HTT_STATS_REG_6G_SET_AFC_LOCAL_RSVD(word,value) \
-    HTT_STATS_SET_FIELD(0xFF, 0, (word), (value))
+    HTT_STATS_SET_FIELD(0x000000FF, 0, (word), (value))
 
 #define HTT_STATS_REG_6G_GET_DEPLOYMENT_TYPE(word) \
-    HTT_STATS_GET_FIELD(0xFF00, 8, (word))
+    HTT_STATS_GET_FIELD(0x0000FF00, 8, (word))
 #define HTT_STATS_REG_6G_SET_DEPLOYMENT_TYPE(word,value) \
-    HTT_STATS_SET_FIELD(0xFF00, 8, (word), (value))
+    HTT_STATS_SET_FIELD(0x0000FF00, 8, (word), (value))
 
 #define HTT_STATS_REG_6G_GET_POWER_MODE_MASK(word) \
-    HTT_STATS_GET_FIELD(0xFF0000, 16, (word))
+    HTT_STATS_GET_FIELD(0x00FF0000, 16, (word))
 #define HTT_STATS_REG_6G_SET_POWER_MODE_MASK(word,value) \
-    HTT_STATS_SET_FIELD(0xFF0000, 16, (word), (value))
+    HTT_STATS_SET_FIELD(0x00FF0000, 16, (word), (value))
+
+#define HTT_STATS_REG_6G_GET_IS_TX_ALLOWED_BY_AFC(word) \
+    HTT_STATS_GET_FIELD(0x01000000, 24, (word))
+#define HTT_STATS_REG_6G_SET_IS_TX_ALLOWED_BY_AFC(word,value) \
+    HTT_STATS_SET_FIELD(0x01000000, 24, (word), (value))
+
+#define HTT_STATS_REG_6G_GET_IS_TX_ALLOWED_BY_HW_MIN_POWER_CHECK(word) \
+    HTT_STATS_GET_FIELD(0x02000000, 25, (word))
+#define HTT_STATS_REG_6G_SET_IS_TX_ALLOWED_BY_HW_MIN_POWER_CHECK(word,value) \
+    HTT_STATS_SET_FIELD(0x02000000, 25, (word), (value))
+
 
 #define HTT_STATS_REG_6G_GET_SET_TPC_COUNT(word) \
     HTT_STATS_GET_FIELD(0xFFFF, 0, (word))
@@ -16253,6 +16415,7 @@ typedef struct {
 #define HTT_STATS_REG_6G_SET_BEST_POWER_MODE_COUNT(word,value) \
     HTT_STATS_SET_FIELD(0xFFFF0000, 16, (word), (value))
 #define HTT_STATS_REG_POWER_INFO_6G_MAX_SUBBANDS 16
+
 
 typedef struct {
     union {
