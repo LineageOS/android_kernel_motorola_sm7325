@@ -14778,6 +14778,16 @@ typedef struct {
      * Proxy mode AFC-Response payload clear count
      */
     A_UINT32 payload_clear_count;
+
+    /*
+     * Received payload count from HOST
+     */
+    A_UINT32 payload_received_count;
+
+    /*
+     * payload parsing failure count due to platform memory alloc failure
+     */
+    A_UINT32 payload_parser_mem_alloc_failure_count;
 } wmi_ctrl_path_afc_stats_struct;
 
 /* AT - Airtime */
