@@ -12752,11 +12752,9 @@ typedef struct {
                  is_verbose_enabled:        1, /* bit 12 */
                  is_dyn_ant_sel_supported:  1, /* bit 13 */
                  is_dfs_punc_enabled:       1, /* bit 14 */
-                 is_ctl_blob_downloaded:    1, /* bit 15 */
-                 dpd_pow_bo_status:         1, /* bit 16 */
-                 is_eeprom_compressed:      1, /* bit 17 */
-                 is_ctl_table_loaded:       1, /* bit 18 */
-                 reserved: 13; /* bits 31:19 */
+                 dpd_pow_bo_status:         1, /* bit 15 */
+                 is_eeprom_compressed:      1, /* bit 16 */
+                 reserved: 15; /* bits 31:17 */
         };
     };
 
@@ -12770,8 +12768,6 @@ typedef struct {
         };
     };
 
-    A_INT32 reg_tx_pow_limit; /* dBm units */
-    A_INT32 user_pow_limit; /* dBm units */
     A_UINT32 abi_max_rg_gain; /* dB units */
     A_UINT32 abi_max_lg_gain; /* dB units */
     A_UINT32 abi_max_vlg_gain; /* dB units */
@@ -12787,7 +12783,6 @@ typedef struct {
     A_INT32 rssi_xlna_bypass_offset; /* dB units */
     A_INT32 rssi_cbw_offset; /* dB units */
     A_INT32 rssi_chan_freq_offset; /* dB units */
-    A_UINT32 regdb_version;
     A_UINT32 otp_version;
     A_UINT32 cfr_clip_factor[4];
     union {
@@ -12885,25 +12880,15 @@ typedef struct {
 #define HTT_STATS_OPT_CONF_SET_DFS_PUNC(word, value) \
     ((word) = ((word) & ~0x4000) | (((value) & 0x1) << 14))
 
-#define HTT_STATS_OPT_CONF_GET_CTL_BLOB_DOWNLODED(word) \
+#define HTT_STATS_OPT_CONF_GET_DPD_POW_BO(word) \
     (((word) & 0x8000) >> 15)
-#define HTT_STATS_OPT_CONF_SET_CTL_BLOB_DOWNLODED(word, value) \
+#define HTT_STATS_OPT_CONF_SET_DPD_POW_BO(word, value) \
     ((word) = ((word) & ~0x8000) | (((value) & 0x1) << 15))
 
-#define HTT_STATS_OPT_CONF_GET_DPD_POW_BO(word) \
-    (((word) & 0x10000) >> 16)
-#define HTT_STATS_OPT_CONF_SET_DPD_POW_BO(word, value) \
-    ((word) = ((word) & ~0x10000) | (((value) & 0x1) << 16))
-
 #define HTT_STATS_OPT_CONF_GET_EEPROM_COMPRESSED(word) \
-    (((word) & 0x20000) >> 17)
+    (((word) & 0x10000) >> 16)
 #define HTT_STATS_OPT_CONF_SET_EEPROM_COMPRESSED(word, value) \
-    ((word) = ((word) & ~0x20000) | (((value) & 0x1) << 17))
-
-#define HTT_STATS_OPT_CONF_GET_CTL_TABLE_LOADED(word) \
-    (((word) & 0x40000) >> 18)
-#define HTT_STATS_OPT_CONF_SET_CTL_TABLE_LOADED(word, value) \
-    ((word) = ((word) & ~0x40000) | (((value) & 0x1) << 18))
+    ((word) = ((word) & ~0x10000) | (((value) & 0x1) << 16))
 
 
 #define HTT_STATS_OPT_CONF_GET_RXSOP_ENABLED(word) \
@@ -16325,14 +16310,7 @@ typedef struct {
                      deployment_type: 8, /* bits 15:8 */
                      /* Bit 0 : LPI, Bit 1 : SP, Bit 2 : VLP, others: rsvd */
                      power_mode_mask: 8, /* bits 23:16 */
-                     /* Tx is suspended or not */
-                     is_tx_allowed_by_afc: 1, /* bit 24 */
-                     /* is_tx_allowed_by_hw_min_power_check:
-                      * channel is blocked or not due to the HW Minimum power
-                      * compliance check
-                      */
-                     is_tx_allowed_by_hw_min_power_check: 1, /* bit 25 */
-                     reserved: 6;
+                     reserved: 8;
         };
         A_UINT32 afc_ini_params; /* AFC_INI_CONFIG */
     };
@@ -16373,16 +16351,6 @@ typedef struct {
     HTT_STATS_GET_FIELD(0x00FF0000, 16, (word))
 #define HTT_STATS_REG_6G_SET_POWER_MODE_MASK(word,value) \
     HTT_STATS_SET_FIELD(0x00FF0000, 16, (word), (value))
-
-#define HTT_STATS_REG_6G_GET_IS_TX_ALLOWED_BY_AFC(word) \
-    HTT_STATS_GET_FIELD(0x01000000, 24, (word))
-#define HTT_STATS_REG_6G_SET_IS_TX_ALLOWED_BY_AFC(word,value) \
-    HTT_STATS_SET_FIELD(0x01000000, 24, (word), (value))
-
-#define HTT_STATS_REG_6G_GET_IS_TX_ALLOWED_BY_HW_MIN_POWER_CHECK(word) \
-    HTT_STATS_GET_FIELD(0x02000000, 25, (word))
-#define HTT_STATS_REG_6G_SET_IS_TX_ALLOWED_BY_HW_MIN_POWER_CHECK(word,value) \
-    HTT_STATS_SET_FIELD(0x02000000, 25, (word), (value))
 
 
 #define HTT_STATS_REG_6G_GET_SET_TPC_COUNT(word) \
