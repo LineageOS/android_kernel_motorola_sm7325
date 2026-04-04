@@ -18061,7 +18061,13 @@ typedef struct {
     A_UINT32 vdev_stats_id;
     /** cfp_enable: indicate whether control frame protection is enabled */
     A_UINT32 cfp_enable;
-
+    /*
+     * VDEV ID that will be assigned for both legacy and MLD VAPs.
+     * This will be configured to rx_meta_data in the AST entry.
+     * This information will then be used by host to achieve intra-bss
+     * forwarding for the Rx packets.
+     */
+    A_UINT32 global_vdev_id;
 
 /* This TLV is followed by another TLV of array of structures
  *   wmi_vdev_txrx_streams cfg_txrx_streams[];
@@ -19197,13 +19203,6 @@ typedef struct {
     A_UINT32 vdev_op_ul_nss; /* vdev operating uplink nss. 1 ~ n: 1ss ~ nss */
     A_UINT32 vdev_op_dl_nss; /* vdev operating downlink nss. 1 ~ n: 1ss ~ nss */
     A_UINT32 uhr_ops; /* refer to WMI_UHR_OPS_XXX macros */
-    /*
-     * VDEV ID that will be assigned for both legacy and MLD VAPs.
-     * This will be configured to rx_meta_data in the AST entry.
-     * This information will then be used by host to achieve intra-bss
-     * forwarding for the Rx packets.
-     */
-    A_UINT32 global_vdev_id;
 
 /* The TLVs follows this structure:
  *     wmi_channel chan; <-- WMI channel
