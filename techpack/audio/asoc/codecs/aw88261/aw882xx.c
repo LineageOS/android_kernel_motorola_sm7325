@@ -815,7 +815,7 @@ static int aw882xx_dev_gain_ctl_set(struct snd_kcontrol *kcontrol,
 
 	aw_dev->cur_gain = ucontrol->value.integer.value[0];
 
-	if (ucontrol->value.integer.value[0] <= 90) {
+	if (ucontrol->value.integer.value[0] <= 110) {
 		aw_dev_dbg(aw882xx->dev, "ramp started");
 		aw_dev->ramp_in_process = 1;
 	}
