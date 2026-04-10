@@ -46786,7 +46786,7 @@ typedef enum {
     WMI_6GHZ_REG_PWRMODE_C2C = 4, /*C2C client mode for AP and client products*/
     WMI_6GHZ_REG_PWRMODE_GVP = 5, /* GVP mode for AP and client products */
 
-    WMI_6GHZ_REG_PWRMODE_MAX = 5
+    WMI_6GHZ_REG_PWRMODE_MAX = 6
 } WMI_6GHZ_REG_PWRMODE_TYPE;
 
 typedef struct {
