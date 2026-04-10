@@ -22333,6 +22333,9 @@ extern void (*HTT_RX_PEER_META_DATA_PEER_SESSION_ID_SET) (A_UINT32 *var, A_UINT3
 extern A_UINT32 (*HTT_RX_PEER_META_DATA_DECAP_TYPE_GET) (A_UINT32 var);
 extern void (*HTT_RX_PEER_META_DATA_DECAP_TYPE_SET) (A_UINT32 *var, A_UINT32 val);
 
+extern A_UINT32 (*HTT_RX_PEER_META_DATA_PASSTHRU_PKT_GET) (A_UINT32 var);
+extern void (*HTT_RX_PEER_META_DATA_PASSTHRU_PKT_SET) (A_UINT32 *var, A_UINT32 val);
+
 
 /*
  * In some systems, the host SW wants to specify priorities between
