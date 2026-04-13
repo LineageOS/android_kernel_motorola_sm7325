@@ -1621,6 +1621,11 @@ typedef struct {
     A_UINT32 mu_mimo_num_seq_posted[HTT_STATS_NUM_NR_BINS];
 
     A_UINT32 mu_mimo_num_ppdu_posted_per_burst[HTT_STATS_MAX_NUM_MU_PPDU_PER_BURST_WORDS];
+    /**
+     * Wi-Fi version identifier to differentiate stats while printing
+     * (contains enum HTT_RX_TX_PDEV_STATS_WIFI_VERSION value).
+     */
+    A_UINT32 wifi_version;
 } htt_stats_mu_ppdu_dist_tlv;
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_mu_ppdu_dist_tlv htt_pdev_mu_ppdu_dist_tlv_v;
@@ -3905,6 +3910,11 @@ typedef struct {
     A_UINT32 standalone_be_ulmumimo_trigger_tried[HTT_NUM_AC_WMM];
     /** 11BE EHT MU Standalone UL MU-MIMO Basic Trigger completed with error(s) */
     A_UINT32 standalone_be_ulmumimo_trigger_err[HTT_NUM_AC_WMM];
+    /**
+     * Wi-Fi version identifier to differentiate stats while printing
+     * (contains enum HTT_RX_TX_PDEV_STATS_WIFI_VERSION value).
+     */
+    A_UINT32 wifi_version;
 } htt_stats_tx_selfgen_be_stats_tlv;
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_tx_selfgen_be_stats_tlv htt_tx_selfgen_be_stats_tlv;
@@ -4713,6 +4723,11 @@ typedef struct {
     A_UINT32 be_mu_rts_trigger_blocked;
     /** 11BE EHT MU BSR Trigger frame blocked due to partner link TX/RX(eMLSR) */
     A_UINT32 be_bsr_trigger_blocked;
+    /**
+     * Wi-Fi version identifier to differentiate stats while printing
+     * (contains enum HTT_RX_TX_PDEV_STATS_WIFI_VERSION value).
+     */
+    A_UINT32 wifi_version;
 } htt_stats_tx_selfgen_be_err_stats_tlv;
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_tx_selfgen_be_err_stats_tlv htt_tx_selfgen_be_err_stats_tlv;
@@ -4873,6 +4888,11 @@ typedef struct {
     A_UINT32 be_ulmumimo_trig_sch_status[HTT_TX_PDEV_STATS_NUM_TX_ERR_STATUS];
     /** 11BE EHT UL MUMIMO Basic Trigger scheduler error code */
     A_UINT32 be_ulmumimo_trig_sch_flag_err[HTT_TX_SELFGEN_NUM_SCH_TSFLAG_ERROR_STATS];
+    /**
+     * Wi-Fi version identifier to differentiate stats while printing
+     * (contains enum HTT_RX_TX_PDEV_STATS_WIFI_VERSION value).
+     */
+    A_UINT32 wifi_version;
 } htt_stats_tx_selfgen_be_sched_status_stats_tlv;
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_tx_selfgen_be_sched_status_stats_tlv
@@ -4981,6 +5001,11 @@ typedef struct {
     A_UINT32 be_mu_mimo_sch_posted_per_grp_sz[HTT_TX_PDEV_STATS_NUM_BE_MUMIMO_USER_STATS];
     /** Number of 11AC DL MU MIMO schedules posted per group size (4-7) */
     A_UINT32 ac_mu_mimo_sch_posted_per_grp_sz_ext[HTT_TX_PDEV_STATS_NUM_AC_MUMIMO_USER_STATS];
+    /**
+     * Wi-Fi version identifier to differentiate stats while printing
+     * (contains enum HTT_RX_TX_PDEV_STATS_WIFI_VERSION value).
+     */
+    A_UINT32 wifi_version;
 } htt_stats_tx_pdev_mu_mimo_stats_tlv;
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_tx_pdev_mu_mimo_stats_tlv htt_tx_pdev_mu_mimo_sch_stats_tlv;
@@ -5040,6 +5065,11 @@ typedef struct {
     A_UINT32 be_mu_mimo_sch_posted_per_grp_sz[HTT_TX_PDEV_STATS_NUM_BE_MUMIMO_USER_STATS];
     /** Number of 11AC DL MU MIMO schedules posted per group size (4 - 7)*/
     A_UINT32 ac_mu_mimo_sch_posted_per_grp_sz_ext[HTT_TX_PDEV_STATS_NUM_AC_MUMIMO_USER_STATS];
+    /**
+     * Wi-Fi version identifier to differentiate stats while printing
+     * (contains enum HTT_RX_TX_PDEV_STATS_WIFI_VERSION value).
+     */
+    A_UINT32 wifi_version;
 } htt_stats_tx_pdev_dl_mu_mimo_stats_tlv;
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_tx_pdev_dl_mu_mimo_stats_tlv
@@ -7218,6 +7248,11 @@ typedef struct {
     A_UINT32 be_mu_mimo_tx_gi[HTT_TX_PDEV_STATS_NUM_GI_COUNTERS][HTT_TX_PDEV_STATS_NUM_BE_MCS_COUNTERS];
     /** 11BE DL MU MIMO LDPC count */
     A_UINT32 be_mu_mimo_tx_ldpc;
+    /**
+     * Wi-Fi version identifier to differentiate stats while printing
+     * (contains enum HTT_RX_TX_PDEV_STATS_WIFI_VERSION value).
+     */
+    A_UINT32 wifi_version;
 } htt_stats_tx_pdev_be_rate_stats_tlv;
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_tx_pdev_be_rate_stats_tlv htt_tx_pdev_rate_stats_be_tlv;
