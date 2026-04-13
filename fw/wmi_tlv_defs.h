@@ -1613,6 +1613,7 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_pdev_set_cumac_chip_id_confirmation_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_iface_ipi_stats,
     WMITLV_TAG_STRUC_wmi_peer_uhr_npca_op_params,
+    WMITLV_TAG_STRUC_wmi_ndp_channel_info_event_fixed_param,
 } WMITLV_TAG_ID;
 /*
  * IMPORTANT: Please add _ALL_ WMI Commands Here.
@@ -2580,6 +2581,7 @@ typedef enum {
     OP(WMI_VDEV_CURRENT_OPERATING_PARAM_EVENTID) \
     OP(WMI_COEX_GET_POLICY_STATS_EVENTID) \
     OP(WMI_PDEV_SET_CUMAC_CHIP_ID_CONFIRMATION_EVENTID) \
+    OP(WMI_NDP_CHANNEL_INFO_EVENTID) \
     /* add new EVT_LIST elements above this line */
 
 
@@ -7387,6 +7389,14 @@ WMITLV_CREATE_PARAM_STRUC(WMI_NAN_PEER_SCHEDULE_CNF_EVENTID);
 #define WMITLV_TABLE_WMI_NAN_PEER_PARAMS_CNF_EVENTID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_peer_params_cnf_event_fixed_param, wmi_nan_peer_params_cnf_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_NAN_PEER_PARAMS_CNF_EVENTID);
+
+/* NDP Channel Info Event */
+#define WMITLV_TABLE_WMI_NDP_CHANNEL_INFO_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_ndp_channel_info_event_fixed_param, wmi_ndp_channel_info_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_channel, channel_list, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_UINT32, A_UINT32, nss_list, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_ndp_channel_info, channel_info, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_NDP_CHANNEL_INFO_EVENTID);
 
 /* Coex report antenna isolation event */
 #define WMITLV_TABLE_WMI_COEX_REPORT_ANTENNA_ISOLATION_EVENTID(id,op,buf,len) \

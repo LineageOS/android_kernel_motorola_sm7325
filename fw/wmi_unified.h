@@ -2665,6 +2665,8 @@ typedef enum {
     WMI_NAN_PEER_SCHEDULE_CNF_EVENTID,
     /* Confirmation event that FW has received WMI_NAN_PEER_PARAMS_CMDID */
     WMI_NAN_PEER_PARAMS_CNF_EVENTID,
+    /* Indicate negotiated committed NDP channels information. */
+    WMI_NDP_CHANNEL_INFO_EVENTID,
 
     /* Coex Event */
     WMI_COEX_REPORT_ANTENNA_ISOLATION_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_COEX),
@@ -31864,6 +31866,25 @@ typedef struct {
      */
     A_UINT32 status;
 } wmi_nan_peer_params_cnf_event_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_ndp_channel_info_event_fixed_param */
+
+    A_UINT32 vdev_id; /* Virtual device ID used for NDP operations (NDI VDEV) */
+    /** peer NDI MAC address */
+    wmi_mac_addr peer_ndi_macaddr;
+    /** Number of channels on this peer */
+    A_UINT32 num_ndp_channels;
+    /**
+     * TLV (tag length value) parameters follow the ndp_confirm
+     * structure. The TLV's are:
+     * wmi_channel ndp_channel_list[];
+     * A_UINT32 nss_list[]; // Nss indexing should match with channel indexing,
+     *                      // since Nss is associated with the channel.
+     * wmi_ndp_channel_info channel_info[]; // Indexing should match with
+     *                                      // channel indexing.
+     */
+} wmi_ndp_channel_info_event_fixed_param;
 
 typedef enum {
     WMI_NDP_BAND_CAP_2GHZ = 0x01,
