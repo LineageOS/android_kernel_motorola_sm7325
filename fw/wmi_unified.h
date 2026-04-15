@@ -919,7 +919,11 @@ typedef enum {
     /* WMI_PEER_ASSOC_V2_CMDID: extended alternative for WMI_PEER_ASSOC_CMDID */
     WMI_PEER_ASSOC_V2_CMDID,
 
-    /* beacon/management specific commands */
+    /* WMI_PEER_UHR_OMP_CMDID for UHR OMP frame*/
+    WMI_PEER_UHR_OMP_CMDID,
+
+
+    /*--- beacon/management specific commands ---*/
 
     /** transmit beacon by reference . used for transmitting beacon on low latency interface like pcie */
     WMI_BCN_TX_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_MGMT),
@@ -19223,6 +19227,8 @@ typedef struct {
  *         optional TLV used for SMD
  *     wmi_vdev_start_uhr_config uhr_config_info
  *         optional TLV used if VAP is 11BN
+ *     wmi_uhr_ap_npca_params npca_params
+ *         optional TLV used to update NPCA information
  */
 } wmi_vdev_start_request_cmd_fixed_param;
 
@@ -23754,6 +23760,67 @@ typedef struct {
 } wmi_peer_uhr_npca_op_params;
 
 typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_peer_uhr_omp_cmd_fixed_param */
+    A_UINT32 sw_peer_id;
+    A_UINT32 pdev_id;
+
+    /*
+     * Variable-length TLV arrays follow this fixed param:
+     *   wmi_peer_uhr_omp_npca_params peer_omp_npca_params[];
+     *   Place Holder for other TLVs
+     */
+} wmi_peer_uhr_omp_cmd_fixed_param;
+
+typedef struct{
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_peer_uhr_omp_npca_params */
+    /*
+     * Bit0:3:  NPCA hw_link_id
+     *          WMI_OMP_NPCA_HW_LINK_ID_GET /  _SET
+     * Bit4:    Enable/Disable  NPCA params
+     *          WMI_OMP_NPCA_ENABLE_GET / _SET
+     * Bit5:    Update NPCA params
+     *          WMI_OMP_NPCA_UPDATE_GET / _SET
+     * Bit6:31: Reserved
+    */
+    A_UINT32 omp_npca_caps;
+    /*
+     * Bit0:5:   NPCA Switch Delay
+     *           The time needed by an NPCA STA to switch from the
+     *           BSS primary channel to the NPCA primary channel,
+     *           in units of 4 us.
+     *           WMI_OMP_NPCA_SWITCH_DELAY_GET / _SET
+     *
+     * Bit6:11: NPCA Switch Back Delay
+     *           The time needed by an NPCA STA to switch from the
+     *           NPCA primary channel to the BSS primary channel,
+     *           in units of 4
+     *           WMI_OMP_NPCA_SWITCH_BACK_DELAY_GET / _SET
+     *
+     * Bit12:31: Reserved
+     */
+    A_UINT32 omp_npca_param;
+} wmi_peer_uhr_omp_npca_params;
+
+#define WMI_OMP_NPCA_HW_LINK_ID_GET(_var)       WMI_GET_BITS(_var, 0, 4)
+#define WMI_OMP_NPCA_HW_LINK_ID_SET(_var, _val) WMI_SET_BITS(_var, 0, 4, _val)
+
+#define WMI_OMP_NPCA_ENABLE_GET(_var)           WMI_GET_BITS(_var, 4, 1)
+#define WMI_OMP_NPCA_ENABLE_SET(_var, _val)     WMI_SET_BITS(_var, 4, 1, _val)
+
+#define WMI_OMP_NPCA_UPDATE_GET(_var)           WMI_GET_BITS(_var, 5, 1)
+#define WMI_OMP_NPCA_UPDATE_SET(_var, _val)     WMI_SET_BITS(_var, 5, 1, _val)
+
+#define WMI_OMP_NPCA_SWITCH_DELAY_GET(_var) \
+    WMI_GET_BITS(_var, 0, 6)
+#define WMI_OMP_NPCA_SWITCH_DELAY_SET(_var, _val) \
+    WMI_SET_BITS(_var, 0, 6, _val)
+
+#define WMI_OMP_NPCA_SWITCH_BACK_DELAY_GET(_var) \
+    WMI_GET_BITS(_var, 6, 6)
+#define WMI_OMP_NPCA_SWITCH_BACK_DELAY_SET(_var, _val) \
+    WMI_SET_BITS(_var, 6, 6, _val)
+
+typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_get_ap_oper_bw_cmd_fixed_param */
     A_UINT32 vdev_id;
     A_UINT32 ap_phymode; /* contains a WLAN_PHY_MODE value */
@@ -26655,6 +26722,18 @@ typedef enum {
 
     /* WoW error if close to TBTT */
     WMI_WOW_NON_ACK_REASON_CLOSE_TO_TBTT = 12,
+
+    /* WoW error if platform not ready */
+    WMI_WOW_NON_ACK_REASON_PLATFORM = 13,
+
+    /* WoW error if resume n processs */
+    WMI_WOW_NON_ACK_RESUME_IN_PROCESS = 14,
+
+    /* WoW error UT command */
+    WMI_WOW_NON_ACK_REASON_UNIT_TEST_CMD = 15,
+
+    /* WoW error if MCC lite mode active */
+    WMI_WOW_NON_ACK_REASON_MCC_LITE = 16,
 } WMI_WOW_NACK_STATUS;
 
 typedef struct {
@@ -42432,6 +42511,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_ENERGY_MGMT_OEM_DATA_CMDID);
         WMI_RETURN_STRING(WMI_TWT_ADD_CH_USAGE_CMDID);
         WMI_RETURN_STRING(WMI_COEX_GET_POLICY_STATS_CMDID);
+        WMI_RETURN_STRING(WMI_PEER_UHR_OMP_CMDID);
     }
 
     return (A_UINT8 *) "Invalid WMI cmd";
@@ -43609,6 +43689,8 @@ typedef struct {
      *     optional TLV for dbw_chan
      * wmi_dbw_chan_info dbw_chan_info
      *     optional TLV used for dbw_chan_info
+     * wmi_uhr_ap_npca_params npca_params
+     *      optional TLV used to update NPCA information
      */
 } wmi_pdev_multiple_vdev_restart_request_cmd_fixed_param;
 
@@ -55102,13 +55184,13 @@ typedef struct {
      *           The time needed by an NPCA STA to switch from the
      *           BSS primary channel to the NPCA primary channel,
      *           in units of 4 us.
-     *           WMI_NPCA_AP_CAP_SWT_DELAY_GET / _SET
+     *           WMI_NPCA_AP_CAP_SWITCH_DELAY_GET / _SET
      *
      * Bit18:23: NPCA Switch Back Delay
      *           The time needed by an NPCA STA to switch from the
      *           NPCA primary channel to the BSS primary channel,
      *           in units of 4 us.
-     *           WMI_NPCA_AP_CAP_SWTB_DELAY_GET / _SET
+     *           WMI_NPCA_AP_CAP_SWITCH_BACK_DELAY_GET / _SET
      *
      * Bit24:25: The Initial NPCA QSRC field indicates the value
      *           that is used to initialize the EDCAF QSRC[AC] variables
