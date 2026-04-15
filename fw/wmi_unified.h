@@ -26722,6 +26722,18 @@ typedef enum {
 
     /* WoW error if close to TBTT */
     WMI_WOW_NON_ACK_REASON_CLOSE_TO_TBTT = 12,
+
+    /* WoW error if platform not ready */
+    WMI_WOW_NON_ACK_REASON_PLATFORM = 13,
+
+    /* WoW error if resume n processs */
+    WMI_WOW_NON_ACK_RESUME_IN_PROCESS = 14,
+
+    /* WoW error UT command */
+    WMI_WOW_NON_ACK_REASON_UNIT_TEST_CMD = 15,
+
+    /* WoW error if MCC lite mode active */
+    WMI_WOW_NON_ACK_REASON_MCC_LITE = 16,
 } WMI_WOW_NACK_STATUS;
 
 typedef struct {
