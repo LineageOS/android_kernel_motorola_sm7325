@@ -1616,6 +1616,7 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_ndp_channel_info_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_peer_uhr_omp_cmd_fixed_param,
     WMITLV_TAG_STRUC_wmi_peer_uhr_omp_npca_params,
+    WMITLV_TAG_STRUC_wmi_nan_dfs_channel_availability_ind_event_fixed_param,
 } WMITLV_TAG_ID;
 /*
  * IMPORTANT: Please add _ALL_ WMI Commands Here.
@@ -2585,6 +2586,7 @@ typedef enum {
     OP(WMI_COEX_GET_POLICY_STATS_EVENTID) \
     OP(WMI_PDEV_SET_CUMAC_CHIP_ID_CONFIRMATION_EVENTID) \
     OP(WMI_NDP_CHANNEL_INFO_EVENTID) \
+    OP(WMI_NAN_DFS_CHANNEL_AVAILABILITY_IND_EVENTID) \
     /* add new EVT_LIST elements above this line */
 
 
@@ -4434,7 +4436,8 @@ WMITLV_CREATE_PARAM_STRUC(WMI_NAN_ENABLE_CMDID);
 #define WMITLV_TABLE_WMI_NAN_CONFIG_CMDID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_config_cmd_fixed_param, wmi_nan_config_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_nan_ctrl_config_param, nan_ctrl_config, WMITLV_SIZE_VAR) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_nan_disc_band_config_param, nan_disc_band_config, WMITLV_SIZE_VAR)
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_nan_disc_band_config_param, nan_disc_band_config, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, nan_availability_attributes_data, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_NAN_CONFIG_CMDID);
 
 /* NAN Disable Command */
@@ -8833,6 +8836,11 @@ WMITLV_CREATE_PARAM_STRUC(WMI_COEX_GET_POLICY_STATS_EVENTID);
 #define WMITLV_TABLE_WMI_PDEV_SET_CUMAC_CHIP_ID_CONFIRMATION_EVENTID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_pdev_set_cumac_chip_id_confirmation_event_fixed_param, wmi_pdev_set_cumac_chip_id_confirmation_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_SET_CUMAC_CHIP_ID_CONFIRMATION_EVENTID);
+
+/* NAN DFS Channel Availability Indication Event */
+#define WMITLV_TABLE_WMI_NAN_DFS_CHANNEL_AVAILABILITY_IND_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_dfs_channel_availability_ind_event_fixed_param, wmi_nan_dfs_channel_availability_ind_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_NAN_DFS_CHANNEL_AVAILABILITY_IND_EVENTID);
 
 
 #ifdef __cplusplus

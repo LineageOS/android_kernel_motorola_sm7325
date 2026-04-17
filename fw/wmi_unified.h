@@ -2671,6 +2671,8 @@ typedef enum {
     WMI_NAN_PEER_PARAMS_CNF_EVENTID,
     /* Indicate negotiated committed NDP channels information. */
     WMI_NDP_CHANNEL_INFO_EVENTID,
+    /* Event to indicate availability of STA AP connection on DFS channel */
+    WMI_NAN_DFS_CHANNEL_AVAILABILITY_IND_EVENTID,
 
     /* Coex Event */
     WMI_COEX_REPORT_ANTENNA_ISOLATION_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_COEX),
@@ -31652,10 +31654,21 @@ typedef struct {
      * specific parameter defined in WMI_NAN_CONFIG_CHANGE_PARAM.
      */
     A_UINT32 nan_conf_change_bitmap;
+    /* nan_availability_attributes_len:
+     * number of valid bytes (i.e. excluding final alignment-padding)
+     * in the TLV nan_availability_attributes_data[]
+     */
+    A_UINT32 nan_availability_attributes_len;
 /*
  * TLVs following this structure:
  *     wmi_nan_ctrl_config_param nan_ctrl_config[];
  *     wmi_nan_disc_band_config_param nan_disc_band_config[];
+ *     A_UINT8 nan_availability_attributes_data[]:
+ *         NAN availability attributes sent down (along with header)
+ *         are sent in stream of bytes (ieee80211 protocol order).
+ *         The host must manually byteswap these bytes within each 4-byte word
+ *         if the host's endianness doesn't match the target's, to ensure the
+ *         expected byte order is maintained.
  */
 } wmi_nan_config_cmd_fixed_param;
 
@@ -31765,6 +31778,12 @@ typedef struct {
  *     expected byte order is maintained.
  */
 } wmi_nan_peer_params_cmd_fixed_param;
+
+typedef enum {
+    WMI_NAN_STATUS_NO_NAN_AVAIL_DFS_CHANNEL_DETECTED  = 0x1,
+    WMI_NAN_STATUS_NO_DFS_BEACONS_RECEIVED            = 0x2,
+    WMI_NAN_STATUS_STA_DISCONNECTED_FROM_DFS          = 0x3,
+} WMI_NAN_DFS_CHANNEL_AVAILABILITY_STATUS_TYPE;
 
 #define WMI_NAN_GET_RANGING_INITIATOR_ROLE(flag)      WMI_GET_BITS(flag, 0, 1)
 #define WMI_NAN_SET_RANGING_INITIATOR_ROLE(flag, val) WMI_SET_BITS(flag, 0, 1, val)
@@ -31945,6 +31964,16 @@ typedef struct {
      */
     A_UINT32 status;
 } wmi_nan_peer_params_cnf_event_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals
+                          *  WMITLV_TAG_STRUC_wmi_nan_dfs_channel_availability_ind_event_fixed_param */
+    A_UINT32 vdev_id;
+    /** status:
+     * Status code; see WMI_NAN_DFS_CHANNEL_AVAILABILITY_STATUS_TYPE
+     */
+    A_UINT32 status;
+} wmi_nan_dfs_channel_availability_ind_event_fixed_param;
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_ndp_channel_info_event_fixed_param */
