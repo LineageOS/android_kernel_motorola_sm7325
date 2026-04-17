@@ -780,6 +780,7 @@ typedef  enum  {
     WMI_SERVICE_RADAR_FLAGS_TYPE_SUPPORT = 499,
     /* Indicates FW support to perform Master migration when master peer gets deleted */
     WMI_SERVICE_ML_PEER_MASTER_MIGRATION_SUPPORT = 500,
+    WMI_SERVICE_NAN_AP_ASSISTED_DFS_OPERATION_SUPPORT = 501, /* Indicates FW supports NAN DFS operation */
 
 
     WMI_MAX_EXT2_SERVICE
