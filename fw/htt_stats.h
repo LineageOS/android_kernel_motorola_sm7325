@@ -5097,7 +5097,10 @@ typedef struct {
     htt_tlv_hdr_t tlv_hdr;
     /** Represents the count for 11BN DL MU OFDMA sequences */
     A_UINT32 bn_mu_ofdma_sch_nusers[HTT_TX_PDEV_STATS_NUM_BN_OFDMA_USER_STATS];
-} htt_stats_tx_pdev_bn_dl_mu_ofdma_tlv;
+} htt_stats_tx_pdev_bn_dl_mu_ofdma_stats_tlv;
+/* preserve old name alias for new name consistent with the tag name */
+typedef htt_stats_tx_pdev_bn_dl_mu_ofdma_stats_tlv
+    htt_stats_tx_pdev_bn_dl_mu_ofdma_tlv;
 
 typedef struct {
     htt_tlv_hdr_t tlv_hdr;
@@ -5162,7 +5165,10 @@ typedef struct {
     /**
      * TODO_BORON_OFDMA : Add array for BN_BRP number of users
      */
-} htt_stats_tx_pdev_bn_ul_mu_ofdma_tlv;
+} htt_stats_tx_pdev_bn_ul_mu_ofdma_stats_tlv;
+/* preserve old name alias for new name consistent with the tag name */
+typedef htt_stats_tx_pdev_bn_ul_mu_ofdma_stats_tlv
+    htt_stats_tx_pdev_bn_ul_mu_ofdma_tlv;
 
 typedef struct {
     htt_tlv_hdr_t tlv_hdr;
@@ -5353,6 +5359,17 @@ typedef struct {
     htt_tlv_hdr_t tlv_hdr;
     A_UINT32 htt_stats_type;
 } htt_stats_error_tlv_v;
+/* Multiple TLV tag values
+ * (HTT_STATS_UNSUPPORTED_ERROR_STATS_TAG,
+ * HTT_STATS_UNAVAILABLE_ERROR_STATS_TAG)
+ * correspond to this htt_stats_error_tlv_v struct.
+ * Provide aliases that have the expected names
+ * that are consistent with the TLV tag enum names.
+ */
+typedef htt_stats_error_tlv_v
+    htt_stats_unsupported_error_stats_tlv;
+typedef htt_stats_error_tlv_v
+    htt_stats_unavailable_error_stats_tlv;
 
 typedef enum {
     HTT_SCHED_TID_SKIP_SCHED_MASK_DISABLED = 0, /* Skip the tid when WAL_TID_DISABLE_TX_SCHED_MASK is true                                       */
@@ -5502,7 +5519,10 @@ typedef struct {
      * Indexed by htt_sched_txq_combined_seq_status_tlv_enum.
      */
     HTT_STATS_VAR_LEN_ARRAY1(A_UINT32, combined_seq_state);
-} htt_stats_sched_txq_combined_seq_state_tlv;
+} htt_stats_txq_combined_seq_state_tlv;
+/* preserve old name alias for new name consistent with the tag name */
+typedef htt_stats_txq_combined_seq_state_tlv
+     htt_stats_sched_txq_combined_seq_state_tlv;
 
 typedef struct {
     htt_tlv_hdr_t tlv_hdr;
@@ -10994,7 +11014,10 @@ typedef struct {
     A_UINT32 mu_grp_candidate_skip_1ss
         [HTT_TX_PDEV_STATS_NUM_UL_MUMIMO_USER_STATS]
         [HTT_STATS_CANDIDATE_SKIP_REASON_MAX];
-} htt_stats_pdev_ulmumimo_grp_stats_tlv;
+} htt_stats_pdev_ul_mumimo_grp_stats_tlv;
+/* preserve old name alias for new name consistent with the tag name */
+typedef htt_stats_pdev_ul_mumimo_grp_stats_tlv
+    htt_stats_pdev_ulmumimo_grp_stats_tlv;
 
 typedef struct {
     htt_tlv_hdr_t tlv_hdr;
@@ -11005,7 +11028,10 @@ typedef struct {
     A_UINT32 trig_bitmap_fail_cnt;
     /* Num of times peer denylisted due to trigger consecutive failure */
     A_UINT32 trig_consecutive_fail_cnt;
-} htt_stats_pdev_ulmumimo_denylist_stats_tlv;
+} htt_stats_pdev_ul_mumimo_denylist_stats_tlv;
+/* preserve old name alias for new name consistent with the tag name */
+typedef htt_stats_pdev_ul_mumimo_denylist_stats_tlv
+    htt_stats_pdev_ulmumimo_denylist_stats_tlv;
 
 #define HTT_STATS_SEQ_EFFICIENCY_HISTOGRAM 10
 typedef struct {
@@ -11042,7 +11068,10 @@ typedef struct {
      * for low traffic classification
      */
     A_UINT32 num_terminate_seq_low_traffic;
-} htt_stats_pdev_ulmumimo_seq_term_stats_tlv;
+} htt_stats_pdev_ul_mumimo_seq_term_stats_tlv;
+/* preserve old name alias for new name consistent with the tag name */
+typedef htt_stats_pdev_ul_mumimo_seq_term_stats_tlv
+    htt_stats_pdev_ulmumimo_seq_term_stats_tlv;
 
 #define HTT_STATS_MAX_ULMUMIMO_TRIGGERS 6
 #define HTT_STATS_TXOP_HISTOGRAM_BINS 24
@@ -11070,7 +11099,10 @@ typedef struct {
      * Checks for 8 eligible instances of ULMUMIMO in the past 32 instances.
      */
     A_UINT32 history_ineligibility;
-} htt_stats_pdev_ulmumimo_hist_ineligibility_tlv;
+} htt_stats_pdev_ul_mumimo_hist_ineligibility_tlv;
+/* preserve old name alias for new name consistent with the tag name */
+typedef htt_stats_pdev_ul_mumimo_hist_ineligibility_tlv
+    htt_stats_pdev_ulmumimo_hist_ineligibility_tlv;
 
 
 /* RTT VREG MASK */
@@ -16473,7 +16505,10 @@ typedef struct {
         psd_power_freq_pair[HTT_STATS_REG_POWER_INFO_6G_MAX_SUBBANDS];
     htt_stats_reg_freq_power_pair_t
         eirp_power_freq_pair[HTT_STATS_REG_POWER_INFO_6G_MAX_SUBBANDS];
-} htt_stats_reg_6g_ch_power_info_tlv;
+} htt_stats_reg_6g_ch_pwr_info_tlv;
+/* preserve old name alias for new name consistent with the tag name */
+typedef htt_stats_reg_6g_ch_pwr_info_tlv
+    htt_stats_reg_6g_ch_power_info_tlv;
 
 #define HTT_STATS_REG_6G_GET_POWER_TYPE(word) \
     HTT_STATS_GET_FIELD(0xFF, 0, (word))
