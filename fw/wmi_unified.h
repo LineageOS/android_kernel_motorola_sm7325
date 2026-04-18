@@ -38537,9 +38537,13 @@ typedef enum {
 } WMI_PDEV_POWER_DATAPATH_STATS_OPERATION;
 
 typedef enum {
-   WMI_PDEV_POWER_STATS_TYPE = 0x00000001,
-   WMI_PDEV_DATAPATH_STATS_TYPE = 0x00000002,
-   WMI_PDEV_POWER_DATAPATH_STATS_ALL = 0x00000003,
+   WMI_PDEV_POWER_STATS_TYPE =             0x00000001,
+   WMI_PDEV_DATAPATH_STATS_TYPE =          0x00000002,
+   WMI_PDEV_POWER_DATAPATH_STATS_ALL =     0x00000003,
+   WMI_PDEV_SOC_POWER_STATS_TYPE =         0x00000004,
+   WMI_PDEV_SOC_POWER_DATAPATH_STATS_ALL = 0x00000005,
+
+
    WMI_PDEV_STATS_TYPE_MAX,
 } WMI_PDEV_POWER_DATAPATH_STATS_TYPE;
 
@@ -38790,47 +38794,58 @@ typedef struct {
 
 /* Power stats in event payload*/
 typedef struct {
-   /** Power Statistics */
-   A_UINT32 tlv_header;    /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_power_stats_info */
+    /** Power Statistics */
+    A_UINT32 tlv_header;    /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_power_stats_info */
 
-   /** Common element - core_index (PDEV ID) */
-   A_UINT32 core_index;
+    /** Common element - core_index (PDEV ID) */
+    A_UINT32 core_index;
 
-   A_UINT32 radio_on_time;    /* Time radio was on (ms) */
-   A_UINT32 radio_off_time;   /* Time radio was off (ms) */
-   A_UINT32 wlan_pwr_on_time; /* WLAN power on time (ms) */
-   /* tx_time:
-    * ms duration the radio is in a continuous transmit state
-    * encompassing all packet types (management, data, action frames)
-    */
-   A_UINT32 tx_time;
-   /* rx_time:
-    * ms duration the radio is in a continuous receiving data state
-    * Including all Rx packets instead of only collecting for my BSS data
-    */
-   A_UINT32 rx_time;
+    A_UINT32 radio_on_time;    /* Time radio was on (ms) */
+    A_UINT32 radio_off_time;   /* Time radio was off (ms) */
+    A_UINT32 wlan_pwr_on_time; /* WLAN power on time (ms) */
+    /* tx_time:
+     * ms duration the radio is in a continuous transmit state
+     * encompassing all packet types (management, data, action frames)
+     */
+    A_UINT32 tx_time;
+    /* rx_time:
+     * ms duration the radio is in a continuous receiving data state
+     * Including all Rx packets instead of only collecting for my BSS data
+     */
+    A_UINT32 rx_time;
 
-   /* Number of sleep levels being sent to the host */
-   A_UINT32 sleep_levels_num;
-   A_UINT32 sleep_time_per_levels[WMI_MAX_SLEEP_LEVELS]; /* ms */
+    /* Number of sleep levels being sent to the host */
+    A_UINT32 sleep_levels_num;
+    A_UINT32 sleep_time_per_levels[WMI_MAX_SLEEP_LEVELS]; /* ms */
 } wmi_pdev_power_stats_info;
 
 typedef struct {
-   A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_power_datapath_stats_event_fixed_param */
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_power_datapath_stats_event_fixed_param */
 
-   /** Status of the operation */
-   A_UINT32 status; /* 0 = success, non-zero = error */
+    /** Status of the operation */
+    A_UINT32 status; /* 0 = success, non-zero = error */
 
-   /** Stats type bitmap indicating which stats are included */
-   A_UINT32 stats_type_bitmap;
+    /** Stats type bitmap indicating which stats are included */
+    A_UINT32 stats_type_bitmap;
 
-   /*
-    * Following this structure are the TLVs:
-    *     wmi_pdev_power_stats_info[num_cores];
-    *     wmi_pdev_tx_rate_info[num_tx_rate_info]
-    * where num_cores and num_tx_rate_info are determined from the TLV array
-    * (i.e. array size / array element size)
-    */
+    A_UINT32 wlan_soc_pwr_on_time; /* WLAN power on time (ms) */
+
+    /* wlan_soc_sleep_levels_num:
+     * Number of sleep levels supported.
+     * Could be less than WMI_MAX_SLEEP_LEVELS based on the chip.
+     */
+     A_UINT32 wlan_soc_sleep_levels_num;
+
+    /** soc sleep level. Same WMI_MAX_SLEEP_LEVELS is used for sizing */
+    A_UINT32 wlan_soc_sleep_time_per_level[WMI_MAX_SLEEP_LEVELS]; /* ms */
+
+    /*
+     * Following this structure are the TLVs:
+     *     wmi_pdev_power_stats_info[num_cores];
+     *     wmi_pdev_tx_rate_info[num_tx_rate_info]
+     * where num_cores and num_tx_rate_info are determined from the TLV array
+     * (i.e. array size / array element size)
+     */
 } wmi_pdev_power_datapath_stats_event_fixed_param;
 
 
