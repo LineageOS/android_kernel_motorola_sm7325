@@ -10643,6 +10643,8 @@ typedef enum {
 
     /* Set TAS mode after boot up */
     WMI_PDEV_PARAM_SET_TAS_MODE,
+
+    WMI_PDEV_PARAM_L3_HEADER_PADDING_ENABLE,
 } WMI_PDEV_PARAM;
 
 #define WMI_PDEV_ONLY_BSR_TRIG_IS_ENABLED(trig_type) WMI_GET_BITS(trig_type, 0, 1)
@@ -16164,6 +16166,13 @@ typedef struct {
      * Takes values from enum wmi_tdls_connect_info_stats_subtype.
      */
     A_UINT32 subtype;
+    /* status:
+     * Completion status of this frame, required only for Tx frames
+     * to know if frame is sent out successfully
+     *     0 - status is success
+     *     1 - status is failure
+     */
+    A_UINT32 status;
     /* reason_code:
      * Reason code for the reason of sending this TLV, eg. for TDLS
      * channel switch req/resp or for BT running indication

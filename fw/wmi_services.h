@@ -786,6 +786,7 @@ typedef  enum  {
      * used for sending TDLS connect info and TDLS data stats
      */
     WMI_SERVICE_TDLS_STATS_SUPPORT = 502,
+    WMI_SERVICE_L3_HEADER_PADDING_ENABLE = 503,
 
 
     WMI_MAX_EXT2_SERVICE
