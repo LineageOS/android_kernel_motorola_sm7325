@@ -1617,6 +1617,10 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_peer_uhr_omp_cmd_fixed_param,
     WMITLV_TAG_STRUC_wmi_peer_uhr_omp_npca_params,
     WMITLV_TAG_STRUC_wmi_nan_dfs_channel_availability_ind_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_request_tdls_stats_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_tdls_stats_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_tdls_connect_info_stats,
+    WMITLV_TAG_STRUC_wmi_tdls_data_stats,
 } WMITLV_TAG_ID;
 /*
  * IMPORTANT: Please add _ALL_ WMI Commands Here.
@@ -2222,6 +2226,7 @@ typedef enum {
     OP(WMI_COEX_GET_POLICY_STATS_CMDID) \
     OP(WMI_PDEV_SET_CUMAC_CHIP_CMDID) \
     OP(WMI_PEER_UHR_OMP_CMDID) \
+    OP(WMI_REQUEST_TDLS_STATS_CMDID) \
     /* add new CMD_LIST elements above this line */
 
 
@@ -2587,6 +2592,7 @@ typedef enum {
     OP(WMI_PDEV_SET_CUMAC_CHIP_ID_CONFIRMATION_EVENTID) \
     OP(WMI_NDP_CHANNEL_INFO_EVENTID) \
     OP(WMI_NAN_DFS_CHANNEL_AVAILABILITY_IND_EVENTID) \
+    OP(WMI_TDLS_STATS_EVENTID) \
     /* add new EVT_LIST elements above this line */
 
 
@@ -5241,6 +5247,11 @@ WMITLV_CREATE_PARAM_STRUC(WMI_REQUEST_CTRL_PATH_STATS_CMDID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_UINT32, A_UINT32, vdev_ids, WMITLV_SIZE_VAR)\
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_FIXED_STRUC, wmi_mac_addr, mac_addr_list, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_REQUEST_HALPHY_CTRL_PATH_STATS_CMDID);
+
+/* Request TDLS Stats cmd enabling the monitoring of TDLS stats */
+#define WMITLV_TABLE_WMI_REQUEST_TDLS_STATS_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_request_tdls_stats_cmd_fixed_param, wmi_request_tdls_stats_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_REQUEST_TDLS_STATS_CMDID);
 
 /* Host sets the current country code */
 #define WMITLV_TABLE_WMI_SET_CURRENT_COUNTRY_CMDID(id,op,buf,len) \
@@ -8148,6 +8159,12 @@ WMITLV_CREATE_PARAM_STRUC(WMI_HALPHY_CTRL_PATH_STATS_EVENTID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_radio_chan_stats_event_fixed_param, wmi_radio_chan_stats_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_radio_chan_stats, radio_chan_stats, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_RADIO_CHAN_STATS_EVENTID);
+
+#define WMITLV_TABLE_WMI_TDLS_STATS_EVENTID(id, op, buf, len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_tdls_stats_event_fixed_param, wmi_tdls_stats_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_tdls_connect_info_stats, tdls_connect_info_stats, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_tdls_data_stats, tdls_data_stats, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_TDLS_STATS_EVENTID);
 
 #define WMITLV_TABLE_WMI_PKGID_EVENTID(id, op, buf, len) \
     WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_pkgid_event_fixed_param, wmi_pkgid_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)

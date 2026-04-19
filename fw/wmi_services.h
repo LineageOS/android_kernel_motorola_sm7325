@@ -781,6 +781,12 @@ typedef  enum  {
     /* Indicates FW support to perform Master migration when master peer gets deleted */
     WMI_SERVICE_ML_PEER_MASTER_MIGRATION_SUPPORT = 500,
     WMI_SERVICE_NAN_AP_ASSISTED_DFS_OPERATION_SUPPORT = 501, /* Indicates FW supports NAN DFS operation */
+    /*
+     * Indicates FW supports TDLS Stats command/event,
+     * used for sending TDLS connect info and TDLS data stats
+     */
+    WMI_SERVICE_TDLS_STATS_SUPPORT = 502,
+    WMI_SERVICE_L3_HEADER_PADDING_ENABLE = 503,
 
 
     WMI_MAX_EXT2_SERVICE
