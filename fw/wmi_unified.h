@@ -1269,6 +1269,8 @@ typedef enum {
     /** request for HALPHY stats through ctrl path */
     WMI_REQUEST_HALPHY_CTRL_PATH_STATS_CMDID,
 
+    /** request for TDLS connect info and TDLS data stats */
+    WMI_REQUEST_TDLS_STATS_CMDID,
 
     /** ARP OFFLOAD REQUEST*/
     WMI_SET_ARP_NS_OFFLOAD_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_ARP_NS_OFL),
@@ -2438,6 +2440,9 @@ typedef enum {
 
     /** FW IPA link stats Event */
     WMI_IPA_LINK_STATS_EVENTID,
+
+    /* TDLS Stats event having TDLS connect info and data stats */
+    WMI_TDLS_STATS_EVENTID,
 
 
     /* NLO specific events */
@@ -16134,6 +16139,102 @@ typedef struct {
      * wmi_radio_chan_stats radio_chan_stats[];
      */
 } wmi_radio_chan_stats_event_fixed_param;
+
+typedef enum {
+    WMI_TDLS_CHANNEL_SWITCH_FRAME_TX_RX = 0x0,
+    WMI_TDLS_BT_COEX_INDICATION         = 0x1,
+} wmi_tdls_connect_info_stats_reason_code;
+
+typedef enum {
+    WMI_TDLS_FRAME_SUBTYPE_REQUEST  = 0x0,
+    WMI_TDLS_FRAME_SUBTYPE_RESPONSE = 0x1,
+} wmi_tdls_connect_info_stats_subtype;
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     *  WMITLV_TAG_STRUC_wmi_tdls_connect_info_stats */
+    A_UINT32 tlv_header;
+    /* type:
+     * Type of frame sent to the Peer, will be having value 4,
+     * i.e TDLS State change
+     */
+    A_UINT32 type;
+    /* subtype:
+     * SubType of frame sent to the Peer, eg. req/resp,
+     * Takes values from enum wmi_tdls_connect_info_stats_subtype.
+     */
+    A_UINT32 subtype;
+    /* reason_code:
+     * Reason code for the reason of sending this TLV, eg. for TDLS
+     * channel switch req/resp or for BT running indication
+     * Takes values from enum wmi_tdls_connect_info_stats_reason_code.
+     */
+    A_UINT32 reason_code;
+    /* tx_rx:
+     * Indicates whether we are sender or receiver of this frame,
+     * 1 value means Tx, 0 value means Rx.
+     */
+    A_UINT32 tx_rx;
+    /* Current operating channel frequency */
+    A_UINT32 op_freq_mhz;
+    /* Peer MAC address for which this stats is being logged */
+    wmi_mac_addr peer_mac_addr;
+    /* The timestamp at which the WMI event is reported. */
+    A_UINT32 timestamp;
+    /* Last known RSSI */
+    A_INT32 rssi; /* dBm units */
+    /* Peer Dialog token */
+    A_UINT32 peer_dialog_token;
+} wmi_tdls_connect_info_stats;
+
+/* max MCS counters supported for enhance stats */
+#define WMI_ENHANCE_STATS_MAX_MCS_COUNTERS 16
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     *  WMITLV_TAG_STRUC_wmi_tdls_data_stats */
+    A_UINT32 tlv_header;
+    /* Current operating channel frequency */
+    A_UINT32 op_freq_mhz;
+    /* Peer MAC address for which this stats is being logged */
+    wmi_mac_addr peer_mac_addr;
+    /* The timestamp at which the WMI event is reported. */
+    A_UINT32 timestamp;
+    /* Last known RSSI */
+    A_INT32  rssi; /* dBm units */
+    /* Last Tx Data rate */
+    A_UINT32 data_rate;
+    /* tx_ppdus_cumulative:
+     * Total PPDUs Tx-ed combining all the MCS rates over the last 15 secs
+     */
+    A_UINT32 tx_ppdus_cumulative;
+    /* tx_mcs_data_ppdu:
+     * PPDUs Txed over each MCS rate for all the supported MCS
+     * over the last 15 secs
+     */
+    A_UINT32 tx_mcs_data_ppdu[WMI_ENHANCE_STATS_MAX_MCS_COUNTERS];
+    /* Total PPDU Tx failures seen over the last 15 secs */
+    A_UINT32 tx_ppdu_failures;
+    /* Total PPDUs Rx-ed combining all the MCS rates over the last 15 secs */
+    A_UINT32 rx_ppdus_cumulative;
+    /* rx_mcs_data_ppdu:
+     * PPDUs Rxed over each MCS rate for all the supported MCS
+     * over the last 15 secs
+     */
+    A_UINT32 rx_mcs_data_ppdu[WMI_ENHANCE_STATS_MAX_MCS_COUNTERS];
+    /* Total Rx PPDU failures seen over the last 15 secs */
+    A_UINT32 rx_ppdu_failures;
+} wmi_tdls_data_stats;
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     *  WMITLV_TAG_STRUC_wmi_tdls_stats_event_fixed_param */
+    A_UINT32 tlv_header;
+    /** VDEV identifier */
+    A_UINT32 vdev_id;
+    /* Total TDLS Peers this VDEV is connected to */
+    A_UINT32 peer_cnt;
+} wmi_tdls_stats_event_fixed_param;
 
 /**
  *  PDEV statistics
@@ -39840,6 +39941,16 @@ typedef struct {
 
 typedef struct {
     /** TLV tag and len; tag equals
+     * WMITLV_TAG_STRUC_wmi_request_tdls_stats_cmd_fixed_param */
+    A_UINT32 tlv_header;
+    /** VDEV identifier */
+    A_UINT32 vdev_id;
+    /* flag to enable or disable this feature of getting TDLS stats */
+    A_UINT32 enable;
+} wmi_request_tdls_stats_cmd_fixed_param;
+
+typedef struct {
+    /** TLV tag and len; tag equals
      * WMITLV_TAG_STRUC_wmi_rmc_set_leader_cmd_fixed_param */
     A_UINT32 tlv_header;
     /* VDEV identifier */
@@ -42556,6 +42667,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_TWT_ADD_CH_USAGE_CMDID);
         WMI_RETURN_STRING(WMI_COEX_GET_POLICY_STATS_CMDID);
         WMI_RETURN_STRING(WMI_PEER_UHR_OMP_CMDID);
+        WMI_RETURN_STRING(WMI_REQUEST_TDLS_STATS_CMDID);
     }
 
     return (A_UINT8 *) "Invalid WMI cmd";
@@ -49353,9 +49465,6 @@ typedef struct {
 
 /* max beacon bmiss bitmask array size, in 32-bit words */
 #define WMI_MAX_BCN_BMISS_HISTORY_LENGTH 8
-
-/* max MCS counters supported for enhance stats */
-#define WMI_ENHANCE_STATS_MAX_MCS_COUNTERS 16
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_beacon_stats */
