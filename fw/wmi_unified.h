@@ -374,6 +374,7 @@ typedef enum {
     WMI_GRP_MANUAL_UL_TRIG, /* 0x4d Manual UL OFDMA Trigger */
     WMI_GRP_ENERGY_MGMT,    /* 0x4e energy management */
     WMI_GRP_SMD,            /* 0x4f SMD Roaming */
+    WMI_GRP_CHIPSET_LOG     /* 0x50 Chipset Debug Logging */
 } WMI_GRP_ID;
 
 #define WMI_CMD_GRP_START_ID(grp_id) (((grp_id) << 12) | 0x1)
@@ -1860,6 +1861,9 @@ typedef enum {
      * (Combine PeerCreate,Assoc, Key Install)
      */
     WMI_SMD_ROAM_PEER_UNIFIED_SETUP_CMDID,
+
+    /** WMI command for host to request chipset debug log stats from FW */
+    WMI_GET_CHIPSET_LOGGING_STATS_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_CHIPSET_LOG),
 } WMI_CMD_ID;
 
 typedef enum {
@@ -2856,6 +2860,9 @@ typedef enum {
     WMI_SMD_ROAM_PEER_UNIFIED_SETUP_COMPLETE_EVENTID,
 
     WMI_ENERGY_MGMT_OEM_DATA_EVENTID =WMI_CMD_GRP_START_ID(WMI_GRP_ENERGY_MGMT),
+
+    /** WMI event to send chipset debug log stats to host */
+    WMI_GET_CHIPSET_LOGGING_STATS_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_CHIPSET_LOG),
 } WMI_EVT_ID;
 
 /* defines for OEM message sub-types */
@@ -42680,6 +42687,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_COEX_GET_POLICY_STATS_CMDID);
         WMI_RETURN_STRING(WMI_PEER_UHR_OMP_CMDID);
         WMI_RETURN_STRING(WMI_REQUEST_TDLS_STATS_CMDID);
+        WMI_RETURN_STRING(WMI_GET_CHIPSET_LOGGING_STATS_CMDID);
     }
 
     return (A_UINT8 *) "Invalid WMI cmd";
@@ -55945,6 +55953,24 @@ typedef struct {
     A_UINT32 tx_chains;
     A_UINT32 rx_chains;
 } wmi_vdev_current_operating_param_event_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_get_chipset_logging_stats_cmd_fixed_param */
+    /** unique id identifying the request */
+    A_UINT32 request_id;
+} wmi_get_chipset_logging_stats_cmd_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_get_chipset_logging_stats_event_fixed_param */
+    /** unique id identifying the request */
+    A_UINT32 request_id;
+    /** length in bytes of the chipset log stats data */
+    A_UINT32 data_len;
+    /**
+     * Following this structure is the TLV:
+     * A_UINT8 data[]; <-- chipset log stats data, length given by data_len
+     */
+} wmi_get_chipset_logging_stats_event_fixed_param;
 
 
 
