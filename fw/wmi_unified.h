@@ -10645,6 +10645,9 @@ typedef enum {
     WMI_PDEV_PARAM_SET_TAS_MODE,
 
     WMI_PDEV_PARAM_L3_HEADER_PADDING_ENABLE,
+
+    /* To enable/ disable beacon LIO update based on screen on/off */
+    WMI_PDEV_PARAM_BEACON_LIO_UPDATE_ON_SCREEN_ON_OFF,
 } WMI_PDEV_PARAM;
 
 #define WMI_PDEV_ONLY_BSR_TRIG_IS_ENABLED(trig_type) WMI_GET_BITS(trig_type, 0, 1)
