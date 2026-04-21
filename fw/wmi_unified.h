@@ -35068,6 +35068,7 @@ typedef struct {
     /* picks protocol type from WMI_USD_SERVICE_PROTOCOL_TYPE */
     A_UINT32 protocol_type;
     wmi_mac_addr device_mac_addr;
+    wmi_mac_addr multicast_addr;
 } wmi_usd_service_cmd_fixed_param;
 
 typedef struct {
