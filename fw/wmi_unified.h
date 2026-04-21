@@ -10655,6 +10655,12 @@ typedef enum {
 
     /* To enable/ disable beacon LIO update based on screen on/off */
     WMI_PDEV_PARAM_BEACON_LIO_UPDATE_ON_SCREEN_ON_OFF,
+
+    /**
+     * Configure the CSA wait timeout (in ms) before blocking TX
+     * after radar detection
+     */
+    WMI_PDEV_PARAM_DFS_NOL_CSA_WAIT_TIMEOUT,
 } WMI_PDEV_PARAM;
 
 #define WMI_PDEV_ONLY_BSR_TRIG_IS_ENABLED(trig_type) WMI_GET_BITS(trig_type, 0, 1)
