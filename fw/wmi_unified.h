@@ -14813,11 +14813,6 @@ typedef struct {
     A_UINT32 payload_clear_count;
 
     /*
-     * Received payload count from HOST
-     */
-    A_UINT32 payload_received_count;
-
-    /*
      * payload parsing failure count due to platform memory alloc failure
      */
     A_UINT32 payload_parser_mem_alloc_failure_count;
@@ -31701,6 +31696,13 @@ typedef struct {
         A_UINT32 nan_ctrl_flags; /* 32-bit control flags word */
     };
     A_UINT32 supp_disc_bands; /* Possible values are enum WMI_NAN_DISC_BANDS */
+    /* warmup_timer_value:
+     * NANWarmUp timer value in seconds, to be used when starting
+     * a NAN cluster as part of NAN enablement.
+     * If warmup_timer_value == 0, target needs to use default 120 sec,
+     * as mentioned in spec.
+     */
+    A_UINT32 warmup_timer_value;
 /*
 * TLVs following this structure:
 *     wmi_nan_disc_band_config_param nan_disc_band_config[];
