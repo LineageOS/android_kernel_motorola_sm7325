@@ -14813,11 +14813,6 @@ typedef struct {
     A_UINT32 payload_clear_count;
 
     /*
-     * Received payload count from HOST
-     */
-    A_UINT32 payload_received_count;
-
-    /*
      * payload parsing failure count due to platform memory alloc failure
      */
     A_UINT32 payload_parser_mem_alloc_failure_count;
