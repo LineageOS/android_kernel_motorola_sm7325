@@ -5283,6 +5283,11 @@ typedef struct {
     A_UINT32 user_index;
     /** HTT_STATS_TX_SCHED_MODE_xxx */
     A_UINT32 tx_sched_mode;
+    /**
+     * Wi-Fi version identifier to differentiate stats while printing
+     * (contains enum HTT_RX_TX_PDEV_STATS_WIFI_VERSION value).
+     */
+    A_UINT32 wifi_version;
 } htt_stats_tx_pdev_mpdu_stats_tlv;
 /* preserve old name alias for new name consistent with the tag name */
 typedef htt_stats_tx_pdev_mpdu_stats_tlv htt_tx_pdev_mpdu_stats_tlv;
