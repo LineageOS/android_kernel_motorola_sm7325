@@ -28383,6 +28383,9 @@ typedef struct {
 #define WMI_MAX_VENDOR_OUI_ACTION_SUPPORTED_PER_ACTION 10
 #define WMI_MAX_VENDOR_OUI_DATA_LENGTH                 20
 
+#define WMI_MAX_EXT_ACTION_ID_OUI_COUNT_FOR_ALLOW_DISALLOW_NSS 30
+#define WMI_MAX_VENDOR_OUI_EXT_DATA_LENGTH                     64
+
 typedef enum
 {
     WMI_VENDOR_OUI_ACTION_CONNECTION_1X1 = 0, /* Connect in 1X1 only */
@@ -28474,7 +28477,25 @@ typedef enum
 
 
     /* Add any action before this line */
-    WMI_VENDOR_OUI_ACTION_MAX_ACTION_ID
+    WMI_VENDOR_OUI_ACTION_MAX_ACTION_ID,
+
+
+    /*
+     * 0-127 is reserved for action IDs for which the data is static.
+     * Size of the data is fixed and is not configurable.
+     */
+
+    /* Dynamic length OUIs starts below */
+
+    /* connection in 4 x 4 */
+    WMI_VENDOR_OUI_ACTION_ALLOW_NSS_GREATER_THAN_2 = 128,
+
+    /* connection in 2 x 2 */
+    WMI_VENDOR_OUI_ACTION_DISALLOW_NSS_GREATER_THAN_2 = 129,
+
+
+    /* Add any new dynamic length action ID before this line */
+    WMI_VENDOR_OUI_ACTION_MAX_EXT_ACTION_ID
 } wmi_vendor_oui_action_id;
 
 typedef struct {
@@ -28484,6 +28505,25 @@ typedef struct {
     A_UINT32 total_num_vendor_oui; /* total number of OUI present in ini for all actions.
                                    ** For first command, this value will be used for allocating memory in FW accordingly */
     A_UINT32 num_vendor_oui_ext; /* the number of wmi_vendor_oui_ext for action_id */
+    /* total_num_vendor_oui_ext:
+     * Max possible OUIs which HOST can support for all the extended
+     * ACTION IDs: WMI_MAX_EXT_ACTION_ID_OUI_COUNT_FOR_*.
+     * The max ext action id should be less than
+     * WMI_VENDOR_OUI_ACTION_MAX_EXT_ACTION_ID and greater than
+     * WMI_VENDOR_OUI_ACTION_MAX_ACTION_ID
+     */
+    A_UINT32 total_num_vendor_oui_ext;
+    /* num_vendor_oui_ext2:
+     * The number of wmi_vendor_oui_ext_2 for action_id
+     * (The number of OUIs that HOST could accomodate in current WMI cmd)
+     */
+    A_UINT32 num_vendor_oui_ext2;
+    /*
+     * More data indicates that for this action_id, there are more data
+     * pending to be sent via the next WMI command.
+     */
+    A_UINT32 more_data;
+
     /* followed by TLVs, an array of structure of type wmi_vendor_oui_ext
     ** wmi_vendor_oui_ext vendor_oui_ext[num_vendor_oui_ext];
     */
@@ -28548,7 +28588,10 @@ typedef struct _wmi_vendor_oui_ext {
 
     /* oui_data_length:
      * Length of oui_data to compare in beacon which follows OUI header.
-     * Max length is capped to WMI_MAX_VENDOR_OUI_DATA_LENGTH bytes.
+     * Max length is capped to WMI_MAX_VENDOR_OUI_DATA_LENGTH bytes,
+     * for action ids < 127.
+     * Max length is capped to WMI_MAX_VENDOR_OUI_EXT_DATA_LENGTH bytes,
+     * for action ids > 127.
      */
     A_UINT32 oui_data_length;
 
