@@ -788,6 +788,17 @@ typedef  enum  {
     WMI_SERVICE_TDLS_STATS_SUPPORT = 502,
     WMI_SERVICE_L3_HEADER_PADDING_ENABLE = 503,
 
+    /*
+     * Indicates FW supports only known action ids and discards
+     * saving any unknown action ids
+     */
+    WMI_SERVICE_SUPPORT_KNOWN_ACTION_IDS = 504,
+    /*
+     * Indicates FW supports cloud based control for whitelist or blacklist
+     * AP configuration
+     */
+    WMI_SERVICE_SUPPORT_WHITELIST_BLACKLIST_AP_CONFIG = 505,
+
 
     WMI_MAX_EXT2_SERVICE
 
