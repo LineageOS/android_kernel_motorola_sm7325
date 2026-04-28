@@ -803,6 +803,9 @@ typedef  enum  {
      * and Rate Adaptation
      */
     WMI_SERVICE_PASSTHRU_VDEV_AMPDU_RA_SUPPORT = 506,
+    /* FW supports CalDB transmission over WMI */
+    WMI_SERVICE_CALDB_OVER_WMI = 507,
+
 
     WMI_MAX_EXT2_SERVICE
 
