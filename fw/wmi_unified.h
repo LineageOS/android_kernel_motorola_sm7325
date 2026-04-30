@@ -2448,6 +2448,9 @@ typedef enum {
     /* TDLS Stats event having TDLS connect info and data stats */
     WMI_TDLS_STATS_EVENTID,
 
+    /** WMI Anomaly Report Event — single event ID for all FW anomaly types */
+    WMI_ANOMALY_REPORT_EVENTID,
+
 
     /* NLO specific events */
     /** NLO match event after the first match */
@@ -56023,6 +56026,97 @@ typedef struct {
      * A_UINT8 data[]; <-- chipset log stats data, length given by data_len
      */
 } wmi_get_chipset_logging_stats_event_fixed_param;
+
+/* -----------------------------------------------------------------------
+ * TLV #1 — Message-level header
+ * ----------------------------------------------------------------------- */
+typedef struct {
+    A_UINT32 tlv_header;     /* WMITLV_TAG_STRUC_wmi_anomaly_report_hdr */
+    A_UINT32 pdev_id;        /* PDEV ID (common for all entries in batch) */
+} wmi_anomaly_report_hdr;
+
+/* -----------------------------------------------------------------------
+ * Per-Anomaly Context Sub-Structures (all fields A_UINT32 per WMI convention)
+ * ----------------------------------------------------------------------- */
+
+/*
+ * Context for WMI_ANOMALY_ID_VDEV_DELETE_REQUESTED_BEFORE_STOP
+ * (ID 0000–0999)
+ */
+typedef struct {
+    A_UINT32 vdev_state; /* Internal VDEV state at time of fault */
+    A_UINT32 vdev_type;  /* VDEV type (AP/STA/IBSS/etc.) */
+} wmi_anomaly_vdev_ctx_t;
+
+/*
+ * Context for WMI_ANOMALY_ID_DELETE_VDEV_BEFORE_DELETING_ALL_PEERS
+ * (ID 1000–1999)
+ */
+typedef struct {
+    A_UINT32 peer_count; /* Number of peers still associated */
+    /* MAC address of first offending peer (lower 32 bits) */
+    A_UINT32 peer_mac_addr_lo;
+    /* MAC address of first offending peer (upper 16 bits) */
+    A_UINT32 peer_mac_addr_hi;
+    A_UINT32 peer_state; /* Internal peer state at time of fault */
+} wmi_anomaly_peer_ctx_t;
+
+/*
+ * Context for WMI_ANOMALY_ID_BEACON_TEMPLATE_SANITY_FAILED
+ * (ID 2000–2999)
+ */
+typedef struct {
+    A_UINT32 bcn_buf_len;     /* Beacon buffer length that was received */
+    A_UINT32 max_allowed_len; /* Maximum allowed beacon buffer length */
+    A_UINT32 ie_offset;       /* IE offset at which sanity failed */
+    A_UINT32 fail_reason;     /* Internal reason code for the failure */
+} wmi_anomaly_beacon_ctx_t;
+
+/*
+ * Context for halPhy bucket groups
+ * (ID 5000–9999)
+ */
+typedef struct {
+    A_UINT32 phy_err_code; /* Hardware PHY error code at fault time */
+    A_UINT32 chain_mask;   /* Active RX/TX chain mask at fault time */
+    A_UINT32 cal_step;     /* Calibration step index; 0 if not applicable */
+    A_UINT32 hw_status;    /* Raw hardware status register snapshot */
+} wmi_anomaly_halphy_ctx_t;
+
+/*
+ * Context for uCode bucket groups
+ * (ID 10000–14999)
+ */
+typedef struct {
+    A_UINT32 ucode_pc;       /* uCode program counter at fault time */
+    A_UINT32 sched_state;    /* Scheduler state machine value at fault time */
+    A_UINT32 txrx_status;    /* TX/RX pipeline status register snapshot */
+    A_UINT32 watchdog_count; /* Watchdog expiry count since last reset */
+} wmi_anomaly_ucode_ctx_t;
+
+/* -----------------------------------------------------------------------
+ * TLV #2 — Per-Anomaly Entry (ARRAY_STRUC element)
+ * anomaly_id is the discriminant — tells host which union member is valid.
+ * ----------------------------------------------------------------------- */
+typedef struct {
+    A_UINT32 tlv_header;     /* WMITLV_TAG_STRUC_wmi_anomaly_entry_t */
+    A_UINT32 anomaly_id;     /* [31:1]=WMI_ANOMALY_ID  [0]=type(0=A/1=E) */
+    A_UINT32 vdev_id;        /* Virtual Device ID (0xFFFFFFFF if N/A) */
+    A_UINT32 priority;       /* WMI_ANOMALY_PRIORITY */
+    A_UINT32 related_cmd_id; /* WMI_CMD_ID (0 if N/A) */
+    A_UINT32 reserved[2];    /* for future use when needed */
+    union {
+        wmi_anomaly_vdev_ctx_t   vdev;    /* ID 0000–0999 */
+        wmi_anomaly_peer_ctx_t   peer;    /* ID 1000–1999 */
+        wmi_anomaly_beacon_ctx_t beacon;  /* ID 2000–2999 */
+        wmi_anomaly_halphy_ctx_t halphy;  /* ID 5000–9999 */
+        wmi_anomaly_ucode_ctx_t  ucode;   /* ID 10000–14999 */
+    } ctx;
+    /* NOTE:
+     * No new fields can be added here - this restriction allows new fields
+     * to be added to the end of the wmi_anomaly_xxx_ctx_t structs instead.
+     */
+} wmi_anomaly_entry_t;
 
 
 
