@@ -3980,6 +3980,9 @@ typedef struct {
     A_UINT32 sta_dps_bn_bsr_trigger_err[HTT_NUM_AC_WMM];
     /** 11bn UHR MU RTS trigger to DPS client completed with errors(s) */
     A_UINT32 sta_dps_bn_mu_rts_trigger_err[HTT_NUM_AC_WMM];
+
+    /** 11BN UHR UL OFDMA RU allocation mode - trigger error count */
+    A_UINT32 bn_basic_trig_ru_alloc_mode_err[HTT_BN_UL_OFDMA_NUM_RU_ALLOC_MODES];
 } htt_stats_tx_selfgen_bn_tlv;
 
 typedef struct { /* DEPRECATED */
