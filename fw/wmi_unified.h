@@ -23955,6 +23955,117 @@ typedef struct{
 #define WMI_OMP_NPCA_SWITCH_BACK_DELAY_SET(_var, _val) \
     WMI_SET_BITS(_var, 6, 6, _val)
 
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_peer_uhr_omp_sta_dps_params */
+
+    /*
+     * Bit0:3:  STA DPS hw_link_id
+     *          WMI_OMP_STA_DPS_HW_LINK_ID_GET / _SET
+     * Bit4:    Enable/Disable STA DPS params
+     *          WMI_OMP_STA_DPS_ENABLE_GET / _SET
+     * Bit5:    Update STA DPS params
+     *          WMI_OMP_STA_DPS_UPDATE_GET / _SET
+     * Bit6:31: Reserved
+     */
+    A_UINT32 omp_sta_dps_caps;
+
+    /*
+     * Bit0:5:   STA DPS Padding Delay
+     *           WMI_OMP_STA_DPS_PADDING_DELAY_GET / _SET
+     *
+     * Bit6:7:   Reserved
+     *
+     * Bit8:13:  STA DPS Transition Delay
+     *           WMI_OMP_STA_DPS_TRANSITION_DELAY_GET / _SET
+     *
+     * Bit14:15: Reserved
+     *
+     * Bit16:    ICF Required
+     *           WMI_OMP_STA_DPS_ICF_REQUIRED_GET / _SET
+     *
+     * Bit17:    Parameterized Mode
+     *           WMI_OMP_STA_DPS_PARAMETERIZED_MODE_GET / _SET
+     *
+     * Bit18:20: LC Mode Bandwidth
+     *           WMI_OMP_STA_DPS_LC_MODE_BANDWIDTH_GET / _SET
+     *           0  :  20  MHz
+     *           1  :  40  MHz
+     *           2  :  80  MHz
+     *           3  : 160  MHz
+     *           4  : 320  MHz
+     *           5-7: Reserved
+     *
+     * Bit21:24: LC Mode NSS
+     *           WMI_OMP_STA_DPS_LC_MODE_NSS_GET / _SET
+     *
+     * Bit25:28: LC Mode MCS
+     *           WMI_OMP_STA_DPS_LC_MODE_MCS_GET / _SET
+     *
+     * Bit29:    Mobile AP STA DPS Static HCM
+     *           WMI_OMP_STA_DPS_MOBILE_AP_STATIC_HCM_GET / _SET
+     *
+     * Bit30:31: Reserved
+     */
+    A_UINT32 omp_sta_dps_param;
+} wmi_peer_uhr_omp_sta_dps_params;
+
+#define WMI_OMP_STA_DPS_HW_LINK_ID_GET(_var) \
+    WMI_GET_BITS(_var, 0, 4)
+#define WMI_OMP_STA_DPS_HW_LINK_ID_SET(_var, _val) \
+    WMI_SET_BITS(_var, 0, 4, _val)
+
+#define WMI_OMP_STA_DPS_ENABLE_GET(_var) \
+    WMI_GET_BITS(_var, 4, 1)
+#define WMI_OMP_STA_DPS_ENABLE_SET(_var, _val) \
+    WMI_SET_BITS(_var, 4, 1, _val)
+
+#define WMI_OMP_STA_DPS_UPDATE_GET(_var) \
+    WMI_GET_BITS(_var, 5, 1)
+#define WMI_OMP_STA_DPS_UPDATE_SET(_var, _val) \
+    WMI_SET_BITS(_var, 5, 1, _val)
+
+#define WMI_OMP_STA_DPS_PADDING_DELAY_GET(_var) \
+    WMI_GET_BITS(_var, 0, 6)
+#define WMI_OMP_STA_DPS_PADDING_DELAY_SET(_var, _val) \
+    WMI_SET_BITS(_var, 0, 6, _val)
+
+#define WMI_OMP_STA_DPS_TRANSITION_DELAY_GET(_var) \
+    WMI_GET_BITS(_var, 8, 6)
+#define WMI_OMP_STA_DPS_TRANSITION_DELAY_SET(_var, _val) \
+    WMI_SET_BITS(_var, 8, 6, _val)
+
+#define WMI_OMP_STA_DPS_ICF_REQUIRED_GET(_var) \
+    WMI_GET_BITS(_var, 16, 1)
+#define WMI_OMP_STA_DPS_ICF_REQUIRED_SET(_var, _val) \
+    WMI_SET_BITS(_var, 16, 1, _val)
+
+#define WMI_OMP_STA_DPS_PARAMETERIZED_MODE_GET(_var) \
+    WMI_GET_BITS(_var, 17, 1)
+#define WMI_OMP_STA_DPS_PARAMETERIZED_MODE_SET(_var, _val) \
+    WMI_SET_BITS(_var, 17, 1, _val)
+
+#define WMI_OMP_STA_DPS_LC_MODE_BANDWIDTH_GET(_var) \
+    WMI_GET_BITS(_var, 18, 3)
+#define WMI_OMP_STA_DPS_LC_MODE_BANDWIDTH_SET(_var, _val) \
+    WMI_SET_BITS(_var, 18, 3, _val)
+
+#define WMI_OMP_STA_DPS_LC_MODE_NSS_GET(_var) \
+    WMI_GET_BITS(_var, 21, 4)
+#define WMI_OMP_STA_DPS_LC_MODE_NSS_SET(_var, _val) \
+    WMI_SET_BITS(_var, 21, 4, _val)
+
+#define WMI_OMP_STA_DPS_LC_MODE_MCS_GET(_var) \
+    WMI_GET_BITS(_var, 25, 4)
+#define WMI_OMP_STA_DPS_LC_MODE_MCS_SET(_var, _val) \
+    WMI_SET_BITS(_var, 25, 4, _val)
+
+#define WMI_OMP_STA_DPS_MOBILE_AP_STATIC_HCM_GET(_var) \
+    WMI_GET_BITS(_var, 29, 1)
+#define WMI_OMP_STA_DPS_MOBILE_AP_STATIC_HCM_SET(_var, _val) \
+    WMI_SET_BITS(_var, 29, 1, _val)
+
+
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_get_ap_oper_bw_cmd_fixed_param */
     A_UINT32 vdev_id;
