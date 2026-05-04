@@ -805,6 +805,9 @@ typedef  enum  {
     WMI_SERVICE_CALDB_OVER_WMI = 507,
     /* Indicates FW Supports RTT Proximity Detection (USD ranging) */
     WMI_SERVICE_RTT_PD = 508,
+    /* Indicates FW support for Channel Hopping Status Report*/
+    WMI_SERVICE_VDEV_CHAN_HOP_STATUS_REPORT = 509,
+
 
     WMI_MAX_EXT2_SERVICE
 

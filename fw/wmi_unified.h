@@ -783,6 +783,8 @@ typedef enum {
     /** WMI cmd for Channel Hopping Schedule */
     WMI_VDEV_CHANNEL_HOPPING_SCHEDULE_CMDID,
 
+    /** WMI cmd to request channel hopping per-slot status report */
+    WMI_VDEV_GET_CHAN_HOP_STATUS_REPORT_CMDID,
 
     /* peer specific commands */
 
@@ -2185,6 +2187,8 @@ typedef enum {
     WMI_VDEV_UNIFIED_DISCONNECT_EVENTID,
     /** WMI event for sending vdev operating params */
     WMI_VDEV_CURRENT_OPERATING_PARAM_EVENTID,
+    /** channel hopping per-slot status report event */
+    WMI_VDEV_CHAN_HOP_STATUS_REPORT_EVENTID,
 
     /* peer specific events */
     /** FW reauet to kick out the station for reasons like inactivity,lack of response ..etc */
@@ -42870,6 +42874,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_PEER_UHR_OMP_CMDID);
         WMI_RETURN_STRING(WMI_REQUEST_TDLS_STATS_CMDID);
         WMI_RETURN_STRING(WMI_GET_CHIPSET_LOGGING_STATS_CMDID);
+        WMI_RETURN_STRING(WMI_VDEV_GET_CHAN_HOP_STATUS_REPORT_CMDID);
     }
 
     return (A_UINT8 *) "Invalid WMI cmd";
@@ -55923,6 +55928,46 @@ typedef struct {
     A_UINT32 role; /* holds wmi_channel_hopping_role enum value */
 } wmi_channel_hopping_channel_params;
 
+typedef struct {
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_get_chan_hop_status_report_cmd_fixed_param */
+    A_UINT32 tlv_header;
+    A_UINT32 vdev_id;
+} wmi_vdev_get_chan_hop_status_report_cmd_fixed_param;
+
+typedef struct {
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_chan_hop_slot_status */
+    A_UINT32 tlv_header;
+    A_UINT32 role; /* holds wmi_channel_hopping_role enum value */
+    A_UINT32 chan_mhz;
+    /*
+     * TSF of the most recent actual frequency transition leading into
+     * slot. Carried forward for consecutive same-frequency slots.
+     */
+    A_UINT32 channel_switch_tsf;
+    A_UINT32 channel_start_tsf; /* TSF when this slot's active period began. */
+    A_UINT32 channel_end_tsf; /* TSF when this slot's active period ended. */
+    /**
+     * tx_traffic_index = (tx_duration_us / channel_spent_us) * 100
+     * Range: 0 - 100
+     */
+    A_UINT32 tx_traffic_index;
+    /**
+     * rx_traffic_index = (rx_duration_us / channel_spent_us) * 100
+     * Range: 0 - 100
+     */
+    A_UINT32 rx_traffic_index;
+} wmi_vdev_chan_hop_slot_status;
+
+typedef struct {
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_chan_hop_status_report_event_fixed_param */
+    A_UINT32 tlv_header;
+    A_UINT32 vdev_id;
+    /** TSF timestamp of the current channel hopping request */
+    A_UINT32 hopping_request_tsf;
+    /* Index of the current channel in the channel hopping list */
+    A_UINT32 current_channel_index;
+} wmi_vdev_chan_hop_status_report_event_fixed_param;
+
 typedef enum {
     WMI_SMD_ROAM_CONFIG_ROLE_SERVING_AP = 1,
     WMI_SMD_ROAM_CONFIG_ROLE_TARGET_AP,
@@ -56464,11 +56509,12 @@ typedef struct {
      * Bits 31-10 : Reserved
      */
     A_UINT32 control_flag;
-    A_UINT32 burst_period;
+    A_UINT32 burst_period; /* units = 100 ms */
     /**
      * Burst Information
      * Bits 7-0   : num_burst_exponent
      * Bits 15-8  : burst_duration
+     *              units = IEEE 802.11 FTM burst dur encoding (250 us * 2^n)
      * Bits 23-16 : ftms_per_burst
      * Bits 31-24 : ftmr_retries
      */
