@@ -803,7 +803,8 @@ typedef  enum  {
     WMI_SERVICE_PASSTHRU_VDEV_AMPDU_RA_SUPPORT = 506,
     /* FW supports CalDB transmission over WMI */
     WMI_SERVICE_CALDB_OVER_WMI = 507,
-
+    /* Indicates FW Supports RTT Proximity Detection (USD ranging) */
+    WMI_SERVICE_RTT_PD = 508,
 
     WMI_MAX_EXT2_SERVICE
 

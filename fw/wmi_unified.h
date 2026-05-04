@@ -1212,6 +1212,10 @@ typedef enum {
     WMI_RTT_PASN_AUTH_STATUS_CMD,
     /** RTT 11az PASN deauthentication cmd */
     WMI_RTT_PASN_DEAUTH_CMD,
+    /** request to start peer measurement */
+    WMI_RTT_PEER_MEAS_REQ_CMDID,
+    /** request to cancel an ongoing peer measurement */
+    WMI_RTT_PEER_MEAS_CANCEL_CMDID,
 
     /** spectral scan command */
     /** configure spectral scan */
@@ -2379,6 +2383,8 @@ typedef enum {
     WMI_RTT_PASN_PEER_CREATE_REQ_EVENTID,
     /** RTT 11az PASN peer delete event */
     WMI_RTT_PASN_PEER_DELETE_EVENTID,
+    /** RTT peer (Proximity Detection) measurement report */
+    WMI_RTT_PEER_MEAS_REPORT_EVENTID,
 
     /*STATS specific events*/
     /** txrx stats event requested by host */
@@ -4283,6 +4289,7 @@ typedef struct {
      *     WMI_MAC_PHY_CAPABILITIES_EXT2 mac_phy_caps2[];
      *     wmi_shared_mem_model_tbtt_count_down_config
      *         wmi_shared_mem_model_tbtt_count_down_config[];
+     *     wmi_rtt_peer_meas_capabilities rtt_peer_meas_caps[];
      */
 } wmi_service_ready_ext2_event_fixed_param;
 
@@ -56237,6 +56244,519 @@ typedef struct {
      * to be added to the end of the wmi_anomaly_xxx_ctx_t structs instead.
      */
 } wmi_anomaly_entry_t;
+
+
+/* RTT Peer Measurement (Proximity Detection/Ranging) capabilities */
+
+/*
+ * macros to set/get bitfields within
+ * wmi_rtt_peer_meas_capabilities
+ */
+
+#define WMI_RTT_PEER_MEAS_CAPS_SUPPORT_REPORT_AP_TSF_GET(flags)  WMI_GET_BITS(flags, 0, 1)
+#define WMI_RTT_PEER_MEAS_CAPS_SUPPORT_REPORT_AP_TSF_SET(flags, value) WMI_SET_BITS(flags, 0, 1, value)
+#define WMI_RTT_PEER_MEAS_CAPS_SUPPORT_RANDOMIZE_MAC_GET(flags)  WMI_GET_BITS(flags, 1, 1)
+#define WMI_RTT_PEER_MEAS_CAPS_SUPPORT_RANDOMIZE_MAC_SET(flags, value) WMI_SET_BITS(flags, 1, 1, value)
+#define WMI_RTT_PEER_MEAS_CAPS_SUPPORT_PD_SUPPORT_GET(flags)  WMI_GET_BITS(flags, 2, 1)
+#define WMI_RTT_PEER_MEAS_CAPS_SUPPORT_PD_SUPPORT_SET(flags, value) WMI_SET_BITS(flags, 2, 1, value)
+#define WMI_RTT_PEER_MEAS_CAPS_SUPPORT_PD_CONCURRENT_GET(flags)  WMI_GET_BITS(flags, 3, 1)
+#define WMI_RTT_PEER_MEAS_CAPS_SUPPORT_PD_CONCURRENT_SET(flags, value) WMI_SET_BITS(flags, 3, 1, value)
+#define WMI_RTT_PEER_MEAS_CAPS_SUPPORT_PD_RANDOM_MAC_CONNECTED_GET(flags) WMI_GET_BITS(flags, 4, 1)
+#define WMI_RTT_PEER_MEAS_CAPS_SUPPORT_PD_RANDOM_MAC_CONNECTED_SET(flags, value) WMI_SET_BITS(flags, 4, 1, value)
+
+#define WMI_RTT_PEER_MEAS_CAPS_PD_MAX_PEERS_ISTA_ROLE_GET(flags) WMI_GET_BITS(flags, 0, 16)
+#define WMI_RTT_PEER_MEAS_CAPS_PD_MAX_PEERS_ISTA_ROLE_SET(flags, value) WMI_SET_BITS(flags, 0, 16, value)
+#define WMI_RTT_PEER_MEAS_CAPS_PD_MAX_PEERS_RSTA_ROLE_GET(flags) WMI_GET_BITS(flags, 16, 16)
+#define WMI_RTT_PEER_MEAS_CAPS_PD_MAX_PEERS_RSTA_ROLE_SET(flags, value) WMI_SET_BITS(flags, 16, 16, value)
+
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_SUPPORT_GET(flags)  WMI_GET_BITS(flags, 0, 1)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_SUPPORT_SET(flags, value) WMI_SET_BITS(flags, 0, 1, value)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_ASAP_SUPPORT_GET(flags)  WMI_GET_BITS(flags, 1, 1)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_ASAP_SUPPORT_SET(flags, value) WMI_SET_BITS(flags, 1, 1, value)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_NON_ASAP_SUPPORT_GET(flags)  WMI_GET_BITS(flags, 2, 1)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_NON_ASAP_SUPPORT_SET(flags, value) WMI_SET_BITS(flags, 2, 1, value)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_REQ_LCI_SUPPORT_GET(flags)  WMI_GET_BITS(flags, 3, 1)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_REQ_LCI_SUPPORT_SET(flags, value) WMI_SET_BITS(flags, 3, 1, value)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_REQ_CIVICLOC_SUPPORT_GET(flags)  WMI_GET_BITS(flags, 4, 1)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_REQ_CIVICLOC_SUPPORT_SET(flags, value) WMI_SET_BITS(flags, 4, 1, value)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_TB_RANGING_SUPPORT_GET(flags)  WMI_GET_BITS(flags, 5, 1)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_TB_RANGING_SUPPORT_SET(flags, value) WMI_SET_BITS(flags, 5, 1, value)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_NTB_RANGING_SUPPORT_GET(flags)  WMI_GET_BITS(flags, 6, 1)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_NTB_RANGING_SUPPORT_SET(flags, value) WMI_SET_BITS(flags, 6, 1, value)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_6GHZ_SUPPORT_GET(flags)  WMI_GET_BITS(flags, 7, 1)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_6GHZ_SUPPORT_SET(flags, value) WMI_SET_BITS(flags, 7, 1, value)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_RSTA_ROLE_SUPPORT_GET(flags)  WMI_GET_BITS(flags, 8, 1)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_RSTA_ROLE_SUPPORT_SET(flags, value) WMI_SET_BITS(flags, 8, 1, value)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_EDCA_RESPONDER_SUPPORT_GET(flags)  WMI_GET_BITS(flags, 9, 1)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_EDCA_RESPONDER_SUPPORT_SET(flags, value) WMI_SET_BITS(flags, 9, 1, value)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_RANGE_REPORT_SUPPORT_GET(flags)  WMI_GET_BITS(flags, 10, 1)
+#define WMI_RTT_PEER_MEAS_CAPS_FTM_RANGE_REPORT_SUPPORT_SET(flags, value) WMI_SET_BITS(flags, 10, 1, value)
+
+#define WMI_RTT_PEER_MEAS_CAPS_MAX_BURST_EXPONENTS_GET(caps)  WMI_GET_BITS(caps, 0, 8)
+#define WMI_RTT_PEER_MEAS_CAPS_MAX_BURST_EXPONENTS_SET(caps, value) WMI_SET_BITS(caps, 0, 8, value)
+#define WMI_RTT_PEER_MEAS_CAPS_MAX_FTM_PER_BURST_GET(caps)  WMI_GET_BITS(caps, 8, 8)
+#define WMI_RTT_PEER_MEAS_CAPS_MAX_FTM_PER_BURST_SET(caps, value) WMI_SET_BITS(caps, 8, 8, value)
+#define WMI_RTT_PEER_MEAS_CAPS_MAX_TX_ANTENNAS_GET(caps)  WMI_GET_BITS(caps, 16, 8)
+#define WMI_RTT_PEER_MEAS_CAPS_MAX_TX_ANTENNAS_SET(caps, value) WMI_SET_BITS(caps, 16, 8, value)
+#define WMI_RTT_PEER_MEAS_CAPS_MAX_RX_ANTENNAS_GET(caps) WMI_GET_BITS(caps, 24, 8)
+#define WMI_RTT_PEER_MEAS_CAPS_MAX_RX_ANTENNAS_SET(caps, value) WMI_SET_BITS(caps, 24, 8, value)
+
+#define WMI_RTT_PEER_MEAS_11AZ_PARAMS_MAX_TX_LTF_REP_GET(params)  WMI_GET_BITS(params, 0, 3)
+#define WMI_RTT_PEER_MEAS_11AZ_PARAMS_MAX_TX_LTF_REP_SET(params, value) WMI_SET_BITS(params, 0, 3, value)
+#define WMI_RTT_PEER_MEAS_11AZ_PARAMS_MAX_RX_LTF_REP_GET(params)  WMI_GET_BITS(params, 3, 3)
+#define WMI_RTT_PEER_MEAS_11AZ_PARAMS_MAX_RX_LTF_REP_SET(params, value) WMI_SET_BITS(params, 3, 3, value)
+#define WMI_RTT_PEER_MEAS_11AZ_PARAMS_MAX_RX_LTF_TOTAL_GET(params) WMI_GET_BITS(params, 6, 2)
+#define WMI_RTT_PEER_MEAS_11AZ_PARAMS_MAX_RX_LTF_TOTAL_SET(params, value) WMI_SET_BITS(params, 6, 2, value)
+#define WMI_RTT_PEER_MEAS_11AZ_PARAMS_MAX_TX_LTF_TOTAL_GET(params)  WMI_GET_BITS(params, 8, 2)
+#define WMI_RTT_PEER_MEAS_11AZ_PARAMS_MAX_TX_LTF_TOTAL_SET(params, value) WMI_SET_BITS(params, 8, 2, value)
+#define WMI_RTT_PEER_MEAS_11AZ_PARAMS_MAX_RX_STS_LE80_GET(params)  WMI_GET_BITS(params, 10, 3)
+#define WMI_RTT_PEER_MEAS_11AZ_PARAMS_MAX_RX_STS_LE80_SET(params, value) WMI_SET_BITS(params, 10, 3, value)
+#define WMI_RTT_PEER_MEAS_11AZ_PARAMS_MAX_RX_STS_GT80_GET(params)  WMI_GET_BITS(params, 13, 3)
+#define WMI_RTT_PEER_MEAS_11AZ_PARAMS_MAX_RX_STS_GT80_SET(params, value) WMI_SET_BITS(params, 13, 3, value)
+#define WMI_RTT_PEER_MEAS_11AZ_PARAMS_MAX_TX_STS_LE80_GET(params)  WMI_GET_BITS(params, 16, 3)
+#define WMI_RTT_PEER_MEAS_11AZ_PARAMS_MAX_TX_STS_LE80_SET(params, value) WMI_SET_BITS(params, 16, 3, value)
+#define WMI_RTT_PEER_MEAS_11AZ_PARAMS_MAX_TX_STS_GT80_GET(params)  WMI_GET_BITS(params, 19, 3)
+#define WMI_RTT_PEER_MEAS_11AZ_PARAMS_MAX_TX_STS_GT80_SET(params, value) WMI_SET_BITS(params, 19, 3, value)
+
+
+typedef struct {
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_rtt_peer_meas_capabilities */
+    A_UINT32 tlv_header;
+    /**
+     * Support flag
+     * Bit 0     : report AP tsf
+     * Bit 1     : randomize mac address
+     * Bit 2     : Proximity Detection (PD) support i.e. USD ranging
+     * Bit 3     : PD concurrent ISTA and RSTA support
+     * Bit 4     : PD randomize mac address connected state
+     * Bits 31-5 : Reserved
+     */
+    A_UINT32 support_flag;
+    A_UINT32 max_peers;
+    /**
+     * pd max peers
+     * Bits 15-0  : pd_max_peers ISTA role
+     * Bits 31-16 : pd_max_peers RSTA role
+     */
+    A_UINT32 pd_max_peers;
+    /**
+     * FTM support flag
+     * Bit 0      : ftm supported
+     * Bit 1      : asap mode is supported
+     * Bit 2      : non-asap mode is supported
+     * Bit 3      : request lci
+     * Bit 4      : request civicloc
+     * Bit 5      : trigger based supported (TB ranging)
+     * Bit 6      : non-trigger based supported (NTB ranging)
+     * Bit 7      : 6 Ghz supported
+     * Bit 8      : Support Rsta role
+     * Bit 9      : Support edca responder
+     * Bit 10     : Support range report
+     * Bits 31-11 : Reserved
+     */
+    A_UINT32 ftm_support_flag;
+    /** Bitmap of BW supported per wmi_channel_width enum */
+    A_UINT32 supported_bw_bitmap;
+    /** Bitmap of Preambles supported per WMI_RATE_PREAMBLE */
+    A_UINT32 supported_preamble_bitmap;
+    /**
+     * capabilities
+     * Bits 7-0   : Max burst exponents
+     * Bits 15-8  : Max FTM per burst
+     * Bits 23-16 : Max Tx antennas
+     * Bits 31-24 : Max Rx antennas
+     */
+    A_UINT32 capabilities;
+    /**
+     * ranging 11az parameters
+     * Bits 2-0   : Max Tx LTF repetition
+     * Bits 5-3   : Max Rx LTF repetition
+     * Bits 7-6   : Max Rx LTF total
+     * Bits 9-8   : Max Tx LTF total
+     * Bits 12-10 : Max Rx STS LE 80
+     * Bits 15-13 : Max Rx STS GT 80
+     * Bits 18-16 : Max Tx STS LE 80
+     * Bits 21-19 : Max Tx STS GT 80
+     * Bits 31-22 : Reserved
+     */
+    A_UINT32 ranging_11az_parameters;
+    /* Min allowed ranging interval supported by target in EDCA-based ranging, in ms */
+    A_UINT32 min_interval_edca_ms;
+    /* Min allowed ranging interval supported by target in NTB (Non-Trigger Based) ranging, in ms */
+    A_UINT32 min_interval_ntb_ms;
+} wmi_rtt_peer_meas_capabilities;
+
+/*
+ * macros to set/get bitfields within
+ * wmi_rtt_peer_meas_req_peer_info
+ */
+
+#define WMI_RTT_PEER_MEAS_REQ_FLAG_REPORT_AP_TSF_GET(flags)  WMI_GET_BITS(flags, 0, 1)
+#define WMI_RTT_PEER_MEAS_REQ_FLAG_REPORT_AP_TSF_SET(flags, value) WMI_SET_BITS(flags, 0, 1, value)
+#define WMI_RTT_PEER_MEAS_REQ_FLAG_PD_REQUEST_GET(flags)  WMI_GET_BITS(flags, 1, 1)
+#define WMI_RTT_PEER_MEAS_REQ_FLAG_PD_REQUEST_SET(flags, value) WMI_SET_BITS(flags, 1, 1, value)
+
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_FTM_REQUESTED_GET(flags)  WMI_GET_BITS(flags, 0, 1)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_FTM_REQUESTED_SET(flags, value) WMI_SET_BITS(flags, 0, 1, value)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_ASAP_MODE_GET(flags)  WMI_GET_BITS(flags, 1, 1)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_ASAP_MODE_SET(flags, value)  WMI_SET_BITS(flags, 1, 1, value)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_LCI_REQ_GET(flags)  WMI_GET_BITS(flags, 2, 1)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_LCI_REQ_SET(flags, value) WMI_SET_BITS(flags, 2, 1, value)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_LOC_CIVIC_REQ_GET(flags)  WMI_GET_BITS(flags, 3, 1)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_LOC_CIVIC_REQ_SET(flags, value) WMI_SET_BITS(flags, 3, 1, value)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_TB_RANGING_GET(flags) WMI_GET_BITS(flags, 4, 1)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_TB_RANGING_SET(flags, value) WMI_SET_BITS(flags, 4, 1, value)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_NTB_RANGING_GET(flags)  WMI_GET_BITS(flags, 5, 1)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_NTB_RANGING_SET(flags, value) WMI_SET_BITS(flags, 5, 1, value)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_I2R_LMR_FEEDBACK_GET(flags)  WMI_GET_BITS(flags, 6, 1)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_I2R_LMR_FEEDBACK_SET(flags, value) WMI_SET_BITS(flags, 6, 1, value)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_RSTA_ROLE_GET(flags)  WMI_GET_BITS(flags, 7, 1)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_RSTA_ROLE_SET(flags, value) WMI_SET_BITS(flags, 7, 1, value)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_RANGE_REPORT_GET(flags)  WMI_GET_BITS(flags, 8, 1)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_RANGE_REPORT_SET(flags, value) WMI_SET_BITS(flags, 8, 1, value)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_SUPPRESS_PD_RESULT_GET(flags) WMI_GET_BITS(flags, 9, 1)
+#define WMI_RTT_PEER_MEAS_REQ_CTRL_FLAG_SUPPRESS_PD_RESULT_SET(flags, value) WMI_SET_BITS(flags, 9, 1, value)
+
+#define WMI_RTT_PEER_MEAS_REQ_BURST_INFO_NUM_BURST_EXP_GET(info)  WMI_GET_BITS(info, 0, 8)
+#define WMI_RTT_PEER_MEAS_REQ_BURST_INFO_NUM_BURST_EXP_SET(info, value) WMI_SET_BITS(info, 0, 8, value)
+#define WMI_RTT_PEER_MEAS_REQ_BURST_INFO_BURST_DURATION_GET(info)  WMI_GET_BITS(info, 8, 8)
+#define WMI_RTT_PEER_MEAS_REQ_BURST_INFO_BURST_DURATION_SET(info, value) WMI_SET_BITS(info, 8, 8, value)
+#define WMI_RTT_PEER_MEAS_REQ_BURST_INFO_FTMS_PER_BURST_GET(info)  WMI_GET_BITS(info, 16, 8)
+#define WMI_RTT_PEER_MEAS_REQ_BURST_INFO_FTMS_PER_BURST_SET(info, value) WMI_SET_BITS(info, 16, 8, value)
+#define WMI_RTT_PEER_MEAS_REQ_BURST_INFO_FTMR_RETRIES_GET(info)  WMI_GET_BITS(info, 24, 8)
+#define WMI_RTT_PEER_MEAS_REQ_BURST_INFO_FTMR_RETRIES_SET(info, value) WMI_SET_BITS(info, 24, 8, value)
+
+#define WMI_RTT_PEER_MEAS_REQ_AW_SUB_ELEM_NOMINAL_TIME_GET(elem)  WMI_GET_BITS(elem, 0, 16)
+#define WMI_RTT_PEER_MEAS_REQ_AW_SUB_ELEM_NOMINAL_TIME_SET(elem, value) WMI_SET_BITS(elem, 0, 16, value)
+#define WMI_RTT_PEER_MEAS_REQ_AW_SUB_ELEM_MEAS_PER_AW_GET(elem)  WMI_GET_BITS(elem, 16, 8)
+#define WMI_RTT_PEER_MEAS_REQ_AW_SUB_ELEM_MEAS_PER_AW_SET(elem, value) WMI_SET_BITS(elem, 16, 8, value)
+#define WMI_RTT_PEER_MEAS_REQ_AW_SUB_ELEM_AW_DURATION_GET(elem)  WMI_GET_BITS(elem, 24, 8)
+#define WMI_RTT_PEER_MEAS_REQ_AW_SUB_ELEM_AW_DURATION_SET(elem, value) WMI_SET_BITS(elem, 24, 8, value)
+
+
+typedef struct {
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_rtt_peer_meas_req_peer_info */
+    A_UINT32 tlv_header;
+    /** Destination mac address for measurement */
+    wmi_mac_addr dest_mac;
+    /** Channel for ranging */
+    wmi_channel channel;
+    /**
+     * request_flag
+     * Bit 0     : Report AP TSF
+     * Bit 1     : PD request - indicates a peer-to-peer Proximity Detection request
+     * Bits 31-2 : Reserved
+     */
+    A_UINT32 request_flag;
+    A_UINT32 preamble; /** see WMI_RATE_PREAMBLE for possible values */
+    /**
+     * Control flag
+     * Bit 0      : FTM requested
+     * Bit 1      : Asap mode
+     * Bit 2      : LCI Req = True/False
+     * Bit 3      : Location Civic Req = True/False
+     * Bit 4      : Trigger based (TB ranging)
+     * Bit 5      : Non-trigger based (NTB ranging)
+     * Bit 6      : I2R LMR Feedback
+     * Bit 7      : RSTA (Operate as the RSTA in the measurement)
+     * Bit 8      : Range Report
+     * Bit 9      : Suppress PD result
+     * Bits 31-10 : Reserved
+     */
+    A_UINT32 control_flag;
+    A_UINT32 burst_period;
+    /**
+     * Burst Information
+     * Bits 7-0   : num_burst_exponent
+     * Bits 15-8  : burst_duration
+     * Bits 23-16 : ftms_per_burst
+     * Bits 31-24 : ftmr_retries
+     */
+    A_UINT32 burst_info;
+    A_UINT32 min_time_between_measurements; /** In units of 100 us */
+    A_UINT32 max_time_between_measurements; /** In units of 10 ms. */
+    /**
+     * Availability window sub elements
+     * Bits 15-0  : nominal_time (in unit of 1 ms)
+     * Bits 23-16 : meas_per_aw
+     * Bits 31-24 : aw_duration (in unit of 1 ms)
+     */
+    A_UINT32 availibility_sub_elem;
+} wmi_rtt_peer_meas_req_peer_info;
+
+typedef struct {
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_rtt_peer_meas_req_cmd_fixed_param */
+    A_UINT32 tlv_header;
+    /** Unique request ID */
+    A_UINT32 req_id;
+    A_UINT32 vdev_id;
+    /** Timeout (in ms) for the whole operation, if zero it means there's no timeout */
+    A_UINT32 timeout;
+    /** Randomized mac address if randomization is enabled */
+    wmi_mac_addr random_mac_addr;
+    /**
+     * This fixed param TLV will be followed by the below TLVs
+     *   - wmi_rtt_peer_meas_req_peer_info rtt_peer_info[]
+     */
+} wmi_rtt_peer_meas_req_cmd_fixed_param;
+
+typedef struct {
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_rtt_peer_meas_req_cmd_fixed_param */
+    A_UINT32 tlv_header;
+    /** Cancel all the requests associated with this req_id */
+    A_UINT32 req_id;
+} wmi_rtt_peer_meas_cancel_meas_cmd_fix_param;
+
+typedef enum {
+    WMI_RTT_PEER_MEAS_STATUS_SUCCESS, /* measurement completed successfully */
+    WMI_RTT_PEER_MEAS_STATUS_REFUSED, /* measurement was locally refused */
+    WMI_RTT_PEER_MEAS_STATUS_TIMEOUT, /* measurement timed out */
+    WMI_RTT_PEER_MEAS_STATUS_FAILURE, /* measurement failed */
+} WMI_RTT_PEER_MEAS_STATUS;
+
+typedef enum {
+    WMI_RTT_PEER_MEAS_FTM_FAILURE_UNSPECIFIED, /* unspecified failure, not used */
+    WMI_RTT_PEER_MEAS_FTM_FAILURE_NO_RESPONSE, /* no response from the FTM responder */
+    WMI_RTT_PEER_MEAS_FTM_FAILURE_REJECTED, /* FTM responder rejected measurement */
+    WMI_RTT_PEER_MEAS_FTM_FAILURE_WRONG_CHANNEL, /* peer is on a different channel */
+    WMI_RTT_PEER_MEAS_FTM_FAILURE_PEER_NOT_CAPABLE, /* peer can't actually do FTM */
+    WMI_RTT_PEER_MEAS_FTM_FAILURE_INVALID_TIMESTAMP, /* invalid T1/T4 timestamps received */
+    WMI_RTT_PEER_MEAS_FTM_FAILURE_PEER_BUSY, /* peer reports busy, may retry later */
+    WMI_RTT_PEER_MEAS_FTM_FAILURE_BAD_CHANGED_PARAMS, /* peer changed params no longer supported */
+} WMI_RTT_PEER_MEAS_FAILURE;
+
+typedef enum {
+    WMI_PEER_MEAS_TYPE_INVALID,
+    WMI_PEER_MEAS_TYPE_FTM, /* Fine Timing Measurement (IEEE 802.11mc / 802.11az) */
+    WMI_PEER_MEAS_TYPES,
+    WMI_PEER_MEAS_MAX = WMI_PEER_MEAS_TYPES - 1,
+} WMI_RTT_PEER_MEAS_TYPES;
+
+typedef enum {
+    WMI_RTT_GI_UNKNOWN     = 0,  /* default / not available */
+    WMI_RTT_GI_08_US       = 1,  /* 0.8 Âµs GI */
+    WMI_RTT_GI_16_US       = 2,  /* 1.6 Âµs GI (11az ranging common) */
+    WMI_RTT_GI_32_US       = 3,  /* 3.2 Âµs GI */
+    WMI_RTT_GI_ZERO_POWER  = 4,  /* "zero power GI" (secure LTF behavior) */
+} WMI_RTT_GI_TYPE;
+
+/*
+ * macros to set/get bitfields within
+ * wmi_rtt_peer_meas_report_peer_meas_result_info
+ */
+#define WMI_RTT_PEER_MEAS_REPORT_RESULT_FLAG_FINAL_GET(flags)  WMI_GET_BITS(flags, 0, 1)
+#define WMI_RTT_PEER_MEAS_REPORT_RESULT_FLAG_FINAL_SET(flags, value) WMI_SET_BITS(flags, 0, 1, value)
+#define WMI_RTT_PEER_MEAS_REPORT_RESULT_FLAG_TB_RANGING_GET(flags)  WMI_GET_BITS(flags, 1, 1)
+#define WMI_RTT_PEER_MEAS_REPORT_RESULT_FLAG_TB_RANGING_SET(flags, value) WMI_SET_BITS(flags, 1, 1, value)
+#define WMI_RTT_PEER_MEAS_REPORT_RESULT_FLAG_NTB_RANGING_GET(flags)  WMI_GET_BITS(flags, 2, 1)
+#define WMI_RTT_PEER_MEAS_REPORT_RESULT_FLAG_NTB_RANGING_SET(flags, value) WMI_SET_BITS(flags, 2, 1, value)
+#define WMI_RTT_PEER_MEAS_REPORT_RESULT_FLAG_AP_TSF_VALID_GET(flags)  WMI_GET_BITS(flags, 3, 1)
+#define WMI_RTT_PEER_MEAS_REPORT_RESULT_FLAG_AP_TSF_VALID_SET(flags, value) WMI_SET_BITS(flags, 3, 1, value)
+#define WMI_RTT_PEER_MEAS_REPORT_RESULT_FLAG_IS_DELAYED_LMR_GET(flags)  WMI_GET_BITS(flags, 4, 1)
+#define WMI_RTT_PEER_MEAS_REPORT_RESULT_FLAG_IS_DELAYED_LMR_SET(flags, value) WMI_SET_BITS(flags, 4, 1, value)
+#define WMI_RTT_PEER_MEAS_REPORT_RESULT_FLAG_MEAS_TYPE_GET(flags)  WMI_GET_BITS(flags, 5, 1)
+#define WMI_RTT_PEER_MEAS_REPORT_RESULT_FLAG_MEAS_TYPE_SET(flags, value)  WMI_SET_BITS(flags, 5, 1, value)
+
+#define WMI_RTT_PEER_MEAS_REPORT_BURST_INFO_BURST_INDEX_GET(info)  WMI_GET_BITS(info, 0, 16)
+#define WMI_RTT_PEER_MEAS_REPORT_BURST_INFO_BURST_INDEX_SET(info, value) WMI_SET_BITS(info, 0, 16, value)
+#define WMI_RTT_PEER_MEAS_REPORT_BURST_INFO_NUM_BURSTS_EXP_GET(info)  WMI_GET_BITS(info, 16, 8)
+#define WMI_RTT_PEER_MEAS_REPORT_BURST_INFO_NUM_BURSTS_EXP_SET(info, value) WMI_SET_BITS(info, 16, 8, value)
+#define WMI_RTT_PEER_MEAS_REPORT_BURST_INFO_BUSY_RETRY_TIME_GET(info)  WMI_GET_BITS(info, 24, 8)
+#define WMI_RTT_PEER_MEAS_REPORT_BURST_INFO_BUSY_RETRY_TIME_SET(info, value) WMI_SET_BITS(info, 24, 8, value)
+
+#define WMI_RTT_PEER_MEAS_REPORT_BURST_PARAMS_BURST_PERIOD_GET(params)  WMI_GET_BITS(params, 0, 16)
+#define WMI_RTT_PEER_MEAS_REPORT_BURST_PARAMS_BURST_PERIOD_SET(params, value) WMI_SET_BITS(params, 0, 16, value)
+#define WMI_RTT_PEER_MEAS_REPORT_BURST_PARAMS_BURST_DURATION_GET(params)  WMI_GET_BITS(params, 16, 8)
+#define WMI_RTT_PEER_MEAS_REPORT_BURST_PARAMS_BURST_DURATION_SET(params, value) WMI_SET_BITS(params, 16, 8, value)
+#define WMI_RTT_PEER_MEAS_REPORT_BURST_PARAMS_FTMS_PER_BURST_GET(params)  WMI_GET_BITS(params, 24, 8)
+#define WMI_RTT_PEER_MEAS_REPORT_BURST_PARAMS_FTMS_PER_BURST_SET(params, value) WMI_SET_BITS(params, 24, 8, value)
+
+#define WMI_RTT_PEER_MEAS_REPORT_11AZ_PARAMS_MAX_I2R_REP_GET(params)  WMI_GET_BITS(params, 0, 8)
+#define WMI_RTT_PEER_MEAS_REPORT_11AZ_PARAMS_MAX_I2R_REP_SET(params, value) WMI_SET_BITS(params, 0, 8, value)
+#define WMI_RTT_PEER_MEAS_REPORT_11AZ_PARAMS_MAX_R2I_REP_GET(params)  WMI_GET_BITS(params, 8, 8)
+#define WMI_RTT_PEER_MEAS_REPORT_11AZ_PARAMS_MAX_R2I_REP_SET(params, value) WMI_SET_BITS(params, 8, 8, value)
+#define WMI_RTT_PEER_MEAS_REPORT_11AZ_PARAMS_MAX_I2R_STS_GET(params)  WMI_GET_BITS(params, 16, 8)
+#define WMI_RTT_PEER_MEAS_REPORT_11AZ_PARAMS_MAX_I2R_STS_SET(params, value) WMI_SET_BITS(params, 16, 8, value)
+#define WMI_RTT_PEER_MEAS_REPORT_11AZ_PARAMS_MAX_R2I_STS_GET(params)  WMI_GET_BITS(params, 24, 8)
+#define WMI_RTT_PEER_MEAS_REPORT_11AZ_PARAMS_MAX_R2I_STS_SET(params, value) WMI_SET_BITS(params, 24, 8, value)
+
+#define WMI_RTT_PEER_MEAS_REPORT_AW_PARAMS_NOMINAL_TIME_MS_GET(params)  WMI_GET_BITS(params, 0, 16)
+#define WMI_RTT_PEER_MEAS_REPORT_AW_PARAMS_NOMINAL_TIME_MS_SET(params, value) WMI_SET_BITS(params, 0, 16, value)
+#define WMI_RTT_PEER_MEAS_REPORT_AW_PARAMS_MEAS_PER_AW_GET(params)  WMI_GET_BITS(params, 16, 8)
+#define WMI_RTT_PEER_MEAS_REPORT_AW_PARAMS_MEAS_PER_AW_SET(params, value) WMI_SET_BITS(params, 16, 8, value)
+#define WMI_RTT_PEER_MEAS_REPORT_AW_PARAMS_AW_DURATION_GET(params)  WMI_GET_BITS(params, 24, 8)
+#define WMI_RTT_PEER_MEAS_REPORT_AW_PARAMS_AW_DURATION_SET(params, value) WMI_SET_BITS(params, 24, 8, value)
+
+#define WMI_RTT_PEER_MEAS_REPORT_CHAN_CODE_BW_GET(code)  WMI_GET_BITS(code, 0, 8)
+#define WMI_RTT_PEER_MEAS_REPORT_CHAN_CODE_BW_SET(code, value) WMI_SET_BITS(code, 0, 8, value)
+#define WMI_RTT_PEER_MEAS_REPORT_CHAN_CODE_PREAMBLE_GET(code)  WMI_GET_BITS(code, 8, 8)
+#define WMI_RTT_PEER_MEAS_REPORT_CHAN_CODE_PREAMBLE_SET(code, value) WMI_SET_BITS(code, 8, 8, value)
+
+#define WMI_RTT_PEER_MEAS_REPORT_RATE_INFO1_MCS_IDX_GET(info)   WMI_GET_BITS(info, 0, 8)
+#define WMI_RTT_PEER_MEAS_REPORT_RATE_INFO1_MCS_IDX_SET(info, value) WMI_SET_BITS(info, 0, 8, value)
+#define WMI_RTT_PEER_MEAS_REPORT_RATE_INFO1_NSS_GET(info)  WMI_GET_BITS(info, 8, 4)
+#define WMI_RTT_PEER_MEAS_REPORT_RATE_INFO1_NSS_SET(info, value) WMI_SET_BITS(info, 8, 4, value)
+#define WMI_RTT_PEER_MEAS_REPORT_RATE_INFO1_BW_GET(info)  WMI_GET_BITS(info, 12, 4)
+#define WMI_RTT_PEER_MEAS_REPORT_RATE_INFO1_BW_SET(info, value) WMI_SET_BITS(info, 12, 4, value)
+#define WMI_RTT_PEER_MEAS_REPORT_RATE_INFO1_GI_GET(info)  WMI_GET_BITS(info, 16, 8)
+#define WMI_RTT_PEER_MEAS_REPORT_RATE_INFO1_GI_SET(info, value) WMI_SET_BITS(info, 16, 8, value)
+
+typedef struct {
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_rtt_peer_meas_report_peer_meas_result_info */
+    A_UINT32 tlv_header;
+    /** Destination mac address for measurement */
+    wmi_mac_addr dest_mac;
+    /** Measurement status and reason */
+    A_UINT32 status; /** refer WMI_RTT_PEER_MEAS_STATUS */
+    A_UINT32 ftm_failure_reason; /** refer WMI_RTT_PEER_MEAS_STATUS */
+    /**
+     * Result flag
+     * Bit 0      : final           : 1 => this is last response for this peer/session
+     * Bit 1      : tb_ranging      : 1 => if this is TB ranging
+     * Bit 2      : ntb_ranging     : 1 => if this is NTB ranging
+     * Bit 3      : ap_tsf_valid    : 1 => ap_tsf field is valid
+     * Bit 4      : is_delayed_lmr  : 1 => reported LMR belongs to previous burst
+     * Bit 5      : meas_type       : WMI_PEER_MEAS_TYPES (e.g. FTM)
+     * Bits 31-6  : Reserved
+     */
+    A_UINT32 result_flag;
+    /** FTM Burst Counts */
+    A_UINT32 num_ftmr_attempts;   /** Number of FTM request frames transmitted */
+    A_UINT32 num_ftmr_successes;  /** Number of FTM request frames ACKed */
+     /**
+      * Burst Info
+      * Bits 15-0  : burst_index [0..num_bursts-1]
+      * Bits 23-16 : num_bursts_exp (Negotiated num bursts exponent)
+      * Bits 31-24 : busy_retry_time (In seconds, if peer was busy)
+      */
+    A_UINT32 burst_info;
+    /**
+     * Negotiated/Actual Burst Parameters
+     * Bits 15-0  : burst_period (In units of 100ms)
+     * Bits 23-16 : burst_duration (Actual burst duration negotiated)
+     * Bits 31-24 : ftms_per_burst (Actual FTMs per burst negotiated)
+     */
+    A_UINT32 burst_params;
+
+    /** AP TSF at measurement time (valid if ap_tsf_valid=1) */
+    struct {
+        A_UINT32 ap_tsf_l32;
+        A_UINT32 ap_tsf_h32;
+    } ap_tsf;
+
+    /** optional legacy 32-bit TSF when measurement started */
+    A_UINT32 meas_start_tsf;
+
+    /** RSSI Information */
+    struct {
+        A_INT32  rssi_avg_dbm;
+        A_INT32  rssi_spread_db;
+    } rssi;
+
+    /** RTT statistics (units: picoseconds) */
+    struct {
+        union {
+            A_INT64 value; /* for use by target only */
+            struct {
+                A_UINT32 value_l32;
+                A_UINT32 value_h32;
+            } part;
+        } rtt_avg_ps;
+        union {
+            A_INT64 value; /* for use by target only */
+            struct {
+                A_UINT32 value_l32;
+                A_UINT32 value_h32;
+            } part;
+        } rtt_variance_ps;
+        union {
+            A_INT64 value; /* for use by target only */
+            struct {
+                A_UINT32 value_l32;
+                A_UINT32 value_h32;
+            } part;
+        } rtt_spread_ps;
+    } rtt;
+
+    /** Distance statistics (units: millimeters) */
+    struct {
+        union {
+            A_INT64 value; /* for use by target only */
+            struct {
+                A_UINT32 value_l32;
+                A_UINT32 value_h32;
+            } part;
+        } dist_avg_mm;
+        union {
+            A_INT64 value; /* for use by target only */
+            struct {
+                A_UINT32 value_l32;
+                A_UINT32 value_h32;
+            } part;
+        } dist_variance_mm;
+        union {
+            A_INT64 value; /* for use by target only */
+            struct {
+                A_UINT32 value_l32;
+                A_UINT32 value_h32;
+            } part;
+        } dist_spread_mm;
+    } dist;
+
+    /**
+     * Negotiated/Actual 11az params
+     * Bits 7-0   : max_i2r_repetition
+     * Bits 15-8  : max_r2i_repetition
+     * Bits 23-16 : max_i2r_sts
+     * Bits 31-24 : max_r2i_sts
+     */
+    A_UINT32 ftm_11az_params;
+    A_UINT32 min_time_between_measurements; /** In units of 100 us */
+    A_UINT32 max_time_between_measurements; /** In units of 10 ms */
+
+    /**
+     * Negotiated/Actual avail windows params
+     * Bits 15-0  : nominal_time_ms (In units of 1 ms)
+     * Bits 23-16 : measurements_per_aw
+     * Bits 31-24 : aw_duration (In units of 1 ms)
+     */
+    A_UINT32 avail_window_params;
+
+    /**
+     * Negotiated/Actual FTM IE channel code
+     * Bits 7-0   : chan_bw (refer wmi_channel_width)
+     * Bits 15-8  : preamble (refer WMI_RATE_PREAMBLE)
+     * Bits 31-16 : reserved
+     */
+    A_UINT32 ftm_ie_channel_code;
+
+    /**
+     * Tx/Rx Rate Info
+     *  Bits 7-0   : rateMcsIdx  - OFDM/CCK rate code would be as per IEEE standard in the units of 0.5mbps
+     *                         -   HT/VHT/HE it would be mcs index
+     *  Bits 11-8  : Nss (1*1, 2*2, 3*3, 4*4)
+     *  Bits 15-12 : Rx packet BW (0-20 Mhz, 1 - 40 Mhz, 2 - 80 Mhz, 3 - 160 Mhz, 4 - 320 Mhz)
+     *  Bits 23-16 : gi (refer WMI_RTT_GI_TYPE)
+     *  Bits 31-24 : Reserved
+     */
+    A_UINT32 tx_rate_info_1;
+    A_UINT32 rx_rate_info_1;
+
+    /** bits 31:0: TX/RX Bit rate in 100kbps */
+    A_UINT32 tx_rate_info_2;
+    A_UINT32 rx_rate_info_2;
+} wmi_rtt_peer_meas_report_peer_meas_result_info;
+
+typedef struct {
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_rtt_peer_meas_report_event_fixed_param */
+    A_UINT32 tlv_header;
+    A_UINT32 req_id; /** Unique Identifier */
+    A_UINT32 vdev_id;
+    /**
+     * This fixed param TLV will be followed by the below TLVs
+     *   - wmi_rtt_peer_meas_report_peer_meas_result_info peer_meas_info[]
+     */
+} wmi_rtt_peer_meas_report_event_fixed_param;
 
 
 
