@@ -26134,8 +26134,14 @@ typedef struct {
 enum wlan_roam_invoke_reason {
     ROAM_INVOKE_REASON_UNDEFINED = 0,
     /* FW will use default parameters to do roam scan, ignore other parameters like WLM, etc. */
-    ROAM_INVOKE_REASON_NUD_FAILURE, /* Neighbor Unreachable Detection */
+
+    /* Neighbor Unreachable Detection */
+    ROAM_INVOKE_REASON_NUD_FAILURE,
+
     ROAM_INVOKE_REASON_USER_SPACE,
+
+    /* Trigger for Out-Of-Quality (OOQ) roaming */
+    ROAM_INVOKE_REASON_PREDICTIVE,
 };
 
 /** WMI_ROAM_INVOKE_CMD: command to invoke roaming forcefully
