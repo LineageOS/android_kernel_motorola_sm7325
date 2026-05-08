@@ -936,6 +936,7 @@ typedef enum {
     HTT_STATS_TXQ_COMBINED_SEQ_STATE_TAG            = 257, /* htt_stats_txq_combined_seq_state_tlv */
     HTT_STATS_CTL_TAG                               = 258, /* htt_stats_ctl_tlv */
     HTT_STATS_ENHANCED_CTL_TAG                      = 259, /* htt_stats_enhanced_ctl_tlv */
+    HTT_STATS_NPCA_TAG                              = 260, /* htt_stats_npca_tlv */
 
     HTT_STATS_MAX_TAG,
 } htt_stats_tlv_tag_t;
