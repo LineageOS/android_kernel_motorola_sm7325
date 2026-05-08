@@ -810,6 +810,12 @@ typedef  enum  {
     /* Indicates FW support for Predictive roaming */
     WMI_SERVICE_ROAMING_PREDICTIVE = 510,
 
+    /* Services related to MAPC / C-TDMA (802.11bn) */
+    WMI_SERVICE_CO_AP_CTDMA_SUPPORT = 511,
+    WMI_SERVICE_UHR_CO_AP_CTDMA_TB_PPDU_SUPPORT = 512,
+    WMI_SERVICE_UHR_CO_AP_CTDMA_TXOP_RETURN_SUPPORT = 513,
+
+
     WMI_MAX_EXT2_SERVICE
 
 } WMI_SERVICE;

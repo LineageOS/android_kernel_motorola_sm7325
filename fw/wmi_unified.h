@@ -374,7 +374,8 @@ typedef enum {
     WMI_GRP_MANUAL_UL_TRIG, /* 0x4d Manual UL OFDMA Trigger */
     WMI_GRP_ENERGY_MGMT,    /* 0x4e energy management */
     WMI_GRP_SMD,            /* 0x4f SMD Roaming */
-    WMI_GRP_CHIPSET_LOG     /* 0x50 Chipset Debug Logging */
+    WMI_GRP_CHIPSET_LOG,    /* 0x50 Chipset Debug Logging */
+    WMI_GRP_MAPC,           /* 0x51 MAPC for co-ordinated features */
 } WMI_GRP_ID;
 
 #define WMI_CMD_GRP_START_ID(grp_id) (((grp_id) << 12) | 0x1)
@@ -1870,6 +1871,9 @@ typedef enum {
 
     /** WMI command for host to request chipset debug log stats from FW */
     WMI_GET_CHIPSET_LOGGING_STATS_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_CHIPSET_LOG),
+
+    /** WMI cmds for MAPC (Multi-AP Coordination) */
+    WMI_PEER_SET_MAPC_PARAMS_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_MAPC),
 } WMI_CMD_ID;
 
 typedef enum {
@@ -22409,6 +22413,7 @@ enum wmi_peer_type {
     WMI_PEER_TYPE_TRANS_BSS = 5,  /* For creating BSS peer when connecting with non-transmit AP */
     WMI_PEER_TYPE_PASN = 6,       /* Peer is used for Pre-Association Security Negotiation */
     WMI_PEER_TYPE_BRIDGE = 7,     /* For creating Dummy Peer in case of 4 Link MLO */
+    WMI_PEER_TYPE_MAPC = 8,       /* Peer is a MAPC Co-ordinated AP */
     WMI_PEER_TYPE_HOST_MAX = 127, /* Host <-> Target Peer type is assigned up to 127 */
                                   /* Reserved from 128 - 255 for target internal use.*/
     WMI_PEER_TYPE_ROAMOFFLOAD_TEMP = 128, /* Temporarily created during offload roam */
@@ -56142,6 +56147,102 @@ typedef struct {
     A_UINT32 peer_id;
     A_UINT32 status; /** wmi_smd_peer_setup_status_type */
 } wmi_smd_roam_peer_unified_setup_complete_event_fixed_param;
+
+/* ================================================================ */
+/* WMI_PEER_SET_MAPC_PARAMS_CMDID structures                        */
+/* ================================================================ */
+
+/* Scheme enable bitmap — indicates which scheme TLVs are present */
+#define WMI_MAPC_SCHEME_COBF    (1 << 0)  /* Co-BF   */
+#define WMI_MAPC_SCHEME_COSR    (1 << 1)  /* Co-SR   */
+#define WMI_MAPC_SCHEME_COTDMA  (1 << 2)  /* Co-TDMA */
+#define WMI_MAPC_SCHEME_CORTWT  (1 << 3)  /* Co-rTWT */
+#define WMI_MAPC_SCHEME_COCR    (1 << 4)  /* Co-CR   */
+
+/*
+ * wmi_peer_set_mapc_params_cmd_fixed_param:
+ * Identity + routing hint for WMI_PEER_SET_MAPC_PARAMS_CMDID.
+ * mapc_scheme_enable_bitmap indicates which scheme TLVs follow.
+ * Sent after WMI_PEER_CREATE_CMDID (peer_type=WMI_PEER_TYPE_MAPC)
+ * and after each MAPC Negotiation Agreement Establishment/Update.
+ */
+typedef struct {
+    A_UINT32     tlv_header; /* WMITLV_TAG_STRUC_wmi_peer_set_mapc_params_cmd_fixed_param */
+    A_UINT32     vdev_id;
+    wmi_mac_addr peer_macaddr;
+    A_UINT32     mapc_scheme_enable_bitmap; /* WMI_MAPC_SCHEME_* bitmask */
+} wmi_peer_set_mapc_params_cmd_fixed_param;
+
+/*
+ * wmi_mapc_cmn_params:
+ * Common MAPC params shared across all schemes.
+ */
+typedef struct {
+    A_UINT32     tlv_header; /* WMITLV_TAG_STRUC_wmi_mapc_cmn_params */
+
+    /* peer's advertised MAPC capability bitmap */
+    A_UINT32     mapc_capability_bitmap;
+
+    /* APID assigned by local AP to remote C-AP */
+    A_UINT32     apid_to_neighbor_peer;
+
+    /* APID assigned by remote C-AP to local AP */
+    A_UINT32     apid_from_neighbor_peer;
+
+    /* Vendor Q2Q APID assigned to remote peer */
+    A_UINT32     q2q_apid_to_neighbor_peer;
+
+    /* Vendor Q2Q APID assigned by remote peer */
+    A_UINT32     q2q_apid_from_neighbor_peer;
+} wmi_mapc_cmn_params;
+
+/*
+ * wmi_mapc_cotdma_params: mapc_ctdma_profile + mapc_txop_sharing_policy
+ * Co-TDMA per-peer policy parameters.
+ */
+typedef struct {
+    A_UINT32 tlv_header; /* WMITLV_TAG_STRUC_wmi_mapc_cotdma_params */
+
+    /* Channel info — mapc_ctdma_profile */
+    A_UINT32 channel_width; /* operating channel width (MHz) */
+    A_UINT32 ccfs;          /* center channel frequency segment index */
+    A_UINT32 bss_color;     /* 802.11ax/be BSS color */
+
+    /* 1 = peer supports RX-driven TXOP return */
+    A_UINT32 rx_txop_return_support;
+
+    A_UINT32 disable_subchannel_bitmap; /* subchannels to disable */
+
+    /* TXOP sharing policy — mapc_txop_sharing_policy */
+    A_UINT32 primary_ac;  /* primary AC: VO=0 VI=1 BE=2 BK=3 */
+    A_UINT32 nbr_ap_prio; /* Cotroller set nbr shared ap prio */
+    A_UINT32 latency_sensitive_threshold_us;
+    A_UINT32 service_start_time; /* TSF-relative service window start (us) */
+    A_UINT32 service_interval;   /* periodicity (us); 0 = always available */
+    A_UINT32 service_end_time;   /* TSF-relative service window end (us) */
+    A_UINT32 critical_traffic_dur_thresh_us;
+    A_UINT32 max_shared_txop_dur_us; /* per-AC max shared TXOP */
+    A_UINT32 min_shared_txop_dur_us; /* per-AC min TXOP to trigger C-TDMA */
+} wmi_mapc_cotdma_params;
+
+/*
+ * Stub structures for future MAPC coordination schemes.
+ * Included now to reserve TLV slots in WMI_PEER_SET_MAPC_PARAMS_CMDID so that
+ * the TLV layout remains stable when these schemes are implemented.  Host must
+ * send 0 array entries for each stub; FW ignores them until the feature lands.
+ */
+
+/* Co-SR (Coordinated Spatial Reuse, 802.11bn): allows coordinated BSS-color /
+ * OBSS_PD threshold negotiation between C-APs to improve spatial reuse. */
+typedef struct { A_UINT32 tlv_header; } wmi_mapc_cosr_params;
+
+/* Co-BF (Coordinated Beamforming, 802.11bn): enables joint beamforming vector
+ * coordination between C-APs to suppress inter-BSS interference. */
+typedef struct { A_UINT32 tlv_header; } wmi_mapc_cobf_params;
+
+/* Co-rTWT (Coordinated restricted-TWT, 802.11bn): allows C-APs to align their
+ * restricted-TWT service periods to avoid overlapping transmissions. */
+typedef struct { A_UINT32 tlv_header; } wmi_mapc_cortwt_params;
 
 
 typedef enum {
