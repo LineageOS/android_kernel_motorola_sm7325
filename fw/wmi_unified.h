@@ -53555,6 +53555,7 @@ typedef struct {
 #define WMI_PDEV_SET_CUSTOM_TX_PWR_MAX_2G_RATE_NUM_EXT   8
 
 #define WMI_PDEV_SET_CUSTOM_TX_PWR_MAX_5G_6G_RATE_NUM    24
+#define WMI_PDEV_SET_CUSTOM_TX_PWR_MAX_5G_RATE_NUM_EXT   4
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_set_custom_tx_power_per_mcs_cmd_fixed_param */
@@ -53580,22 +53581,22 @@ typedef struct {
      */
     A_UINT32 bitmap_of_2GHz_band[WMI_PDEV_SET_CUSTOM_TX_PWR_MAX_CHAIN_NUM];
 
-    /* 5GHz band has 4 chains and each chain has 24 rates.
+    /* 5GHz band has 4 chains and each chain has 24 rates and 4 extended rates.
      * bitmap_of_5GHz_band[0] -> chain 0 bitmap:
-     * |bit  0|bit  1|......|bit  23|
-     * |rate 0|rate 1|......|rate 23|
+     * |bit  0|bit  1|......|bit  23| bit   24 |......| bit   27 |
+     * |rate 0|rate 1|......|rate 23|ext rate 0|......|ext rate 3|
      *
      * bitmap_of_5GHz_band[1] -> chain 1 bitmap:
-     * |bit  0|bit  1|......|bit  23|
-     * |rate 0|rate 1|......|rate 23|
+     * |bit  0|bit  1|......|bit  23| bit   24 |......| bit   27 |
+     * |rate 0|rate 1|......|rate 23|ext rate 0|......|ext rate 3|
      *
      * bitmap_of_5GHz_band[2] -> chain 2 bitmap:
-     * |bit  0|bit  1|......|bit  23|
-     * |rate 0|rate 1|......|rate 23|
+     * |bit  0|bit  1|......|bit  23| bit   24 |......| bit   27 |
+     * |rate 0|rate 1|......|rate 23|ext rate 0|......|ext rate 3|
      *
      * bitmap_of_5GHz_band[3] -> chain 3 bitmap:
-     * |bit  0|bit  1|......|bit  23|
-     * |rate 0|rate 1|......|rate 23|
+     * |bit  0|bit  1|......|bit  23| bit   24 |......| bit   27 |
+     * |rate 0|rate 1|......|rate 23|ext rate 0|......|ext rate 3|
      */
     A_UINT32 bitmap_of_5GHz_band[WMI_PDEV_SET_CUSTOM_TX_PWR_MAX_CHAIN_NUM];
 
