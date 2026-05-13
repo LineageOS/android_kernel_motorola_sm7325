@@ -28529,6 +28529,7 @@ typedef struct {
 #define WMI_MAX_VENDOR_OUI_DATA_LENGTH                 20
 
 #define WMI_MAX_EXT_ACTION_ID_OUI_COUNT_FOR_ALLOW_DISALLOW_NSS 30
+#define WMI_MAX_EXT_ACTION_ID_OUI_COUNT_FOR_UL_TX_BEAMFORMER 30
 #define WMI_MAX_VENDOR_OUI_EXT_DATA_LENGTH                     64
 
 typedef enum
@@ -28637,6 +28638,8 @@ typedef enum
 
     /* connection in 2 x 2 */
     WMI_VENDOR_OUI_ACTION_DISALLOW_NSS_GREATER_THAN_2 = 129,
+
+    WMI_VENDOR_OUI_ACTION_ENABLE_UL_TX_BEAMFORMER = 130,
 
 
     /* Add any new dynamic length action ID before this line */

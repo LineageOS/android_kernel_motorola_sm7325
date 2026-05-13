@@ -815,6 +815,12 @@ typedef  enum  {
     WMI_SERVICE_UHR_CO_AP_CTDMA_TB_PPDU_SUPPORT = 512,
     WMI_SERVICE_UHR_CO_AP_CTDMA_TXOP_RETURN_SUPPORT = 513,
 
+    /*
+     * Indicates FW supports cloud based control for Uplink Tx Beamformer
+     * AP configuration
+     */
+    WMI_SERVICE_SUPPORT_UL_TX_BEAMFORMER_AP_CONFIG = 514,
+
 
     WMI_MAX_EXT2_SERVICE
 
