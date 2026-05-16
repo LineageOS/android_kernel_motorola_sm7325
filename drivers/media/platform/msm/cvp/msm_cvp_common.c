@@ -767,7 +767,7 @@ static void handle_session_close(enum hal_command_response cmd, void *data)
 	cvp_put_inst(inst);
 }
 
-void cvp_handle_cmd_response(enum hal_command_response cmd, void *data)
+void cvp_handle_cmd_response(u32 cmd, void *data)
 {
 	dprintk(CVP_HFI, "Command response = %d\n", cmd);
 	switch (cmd) {
