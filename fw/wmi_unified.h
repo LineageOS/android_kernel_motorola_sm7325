@@ -10688,6 +10688,17 @@ typedef enum {
      * after radar detection
      */
     WMI_PDEV_PARAM_DFS_NOL_CSA_WAIT_TIMEOUT,
+
+    /**
+     * Smart antenna MPDU MCS params config.
+     * bit   | purpose
+     * ------|---------
+     * 0:9   | Max MPDU count for training
+     * 10    | MCS margin enable (0: disable, 1: enable)
+     * 11:13 | MCS margin value
+     * 14:31 | Reserved
+     */
+    WMI_PDEV_PARAM_SMART_ANTENNA_CONFIG_MPDU_MCS_PARAMS,
 } WMI_PDEV_PARAM;
 
 #define WMI_PDEV_ONLY_BSR_TRIG_IS_ENABLED(trig_type) WMI_GET_BITS(trig_type, 0, 1)
@@ -37329,10 +37340,28 @@ typedef struct {
     A_UINT32 rx_antenna;          /* rx antenna */
     A_UINT32 tx_default_antenna;  /* tx default antenna */
    /*
-    * Following this structure is the TLV:
-    * wmi_pdev_smart_ant_gpio_handle
+    * Following this structure are the TLVs:
+    *   - wmi_pdev_smart_ant_gpio_handle
+    *
+    *   - A_UINT32 pdev_smart_ant_param[]
+    *     bit 0   : enable separate antenna for RTS (1:enable, 0:disable)
+    *               Refer to WMI_PDEV_SMART_ANT_ENABLE_SEPARATE_RTS_ANT_GET/SET
+    *     bit 1-31: reserved
     */
 } wmi_pdev_smart_ant_enable_cmd_fixed_param;
+
+/*
+ * Bit field definitions for pdev_smart_ant_param A_UINT32
+ * within WMI_PDEV_SMART_ANT_ENABLE_CMDID
+ */
+#define WMI_PDEV_SMART_ANT_ENABLE_SEPARATE_RTS_ANT_BIT_POS   0
+#define WMI_PDEV_SMART_ANT_ENABLE_SEPARATE_RTS_ANT_NUM_BITS  1
+
+#define WMI_PDEV_SMART_ANT_ENABLE_SEPARATE_RTS_ANT_GET(enable_field) \
+    WMI_GET_BITS(enable_field, WMI_PDEV_SMART_ANT_ENABLE_SEPARATE_RTS_ANT_BIT_POS, WMI_PDEV_SMART_ANT_ENABLE_SEPARATE_RTS_ANT_NUM_BITS)
+
+#define WMI_PDEV_SMART_ANT_ENABLE_SEPARATE_RTS_ANT_SET(enable_field, value) \
+    WMI_SET_BITS(enable_field, WMI_PDEV_SMART_ANT_ENABLE_SEPARATE_RTS_ANT_BIT_POS, WMI_PDEV_SMART_ANT_ENABLE_SEPARATE_RTS_ANT_NUM_BITS, value)
 
 /** GPIO pins/function values to control antennas */
 typedef struct {
@@ -37402,14 +37431,34 @@ typedef struct {
 #define WMI_PER_MIN_TX_PKTS_SET(per_threshold, value) \
     WMI_SET_BITS(per_threshold, WMI_PER_MIN_TX_PKTS_BIT_POS, WMI_PER_MIN_TX_PKTS_NUM_BITS, value)
 
+#define WMI_SA_TRAIN_LATENCY_TRAFFIC_BIT_POS     25
+#define WMI_SA_TRAIN_LATENCY_TRAFFIC_NUM_BITS    1
+
+#define WMI_GET_SA_TRAIN_LATENCY_TRAFFIC(per_threshold) \
+    WMI_GET_BITS(per_threshold, WMI_SA_TRAIN_LATENCY_TRAFFIC_BIT_POS, WMI_SA_TRAIN_LATENCY_TRAFFIC_NUM_BITS)
+
+#define WMI_SET_SA_TRAIN_LATENCY_TRAFFIC(per_threshold, value) \
+    WMI_SET_BITS(per_threshold, WMI_SA_TRAIN_LATENCY_TRAFFIC_BIT_POS, WMI_SA_TRAIN_LATENCY_TRAFFIC_NUM_BITS, value)
+
+#define WMI_SA_TRAIN_USING_QOS_NULL_BIT_POS     26
+#define WMI_SA_TRAIN_USING_QOS_NULL_NUM_BITS    1
+
+#define WMI_GET_SA_TRAIN_USING_QOS_NULL(per_threshold) \
+    WMI_GET_BITS(per_threshold, WMI_SA_TRAIN_USING_QOS_NULL_BIT_POS, WMI_SA_TRAIN_USING_QOS_NULL_NUM_BITS)
+
+#define WMI_SET_SA_TRAIN_USING_QOS_NULL(per_threshold, value) \
+    WMI_SET_BITS(per_threshold, WMI_SA_TRAIN_USING_QOS_NULL_BIT_POS, WMI_SA_TRAIN_USING_QOS_NULL_NUM_BITS, value)
+
+
 #define WMI_RATE_SERIES_320_BIT_POS     0
 #define WMI_RATE_SERIES_320_NUM_BITS    16
 
 #define WMI_GET_RATE_SERIES_320(train_rate_series_ext) \
     WMI_GET_BITS(train_rate_series_ext, WMI_RATE_SERIES_320_BIT_POS, WMI_RATE_SERIES_320_NUM_BITS)
 
-#define WMI_SET_RATE_SERIES_320(train_rate_series_ext) \
+#define WMI_SET_RATE_SERIES_320(train_rate_series_ext, value) \
     WMI_SET_BITS(train_rate_series_ext, WMI_RATE_SERIES_320_BIT_POS, WMI_RATE_SERIES_320_NUM_BITS, value)
+
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_peer_smart_ant_set_train_antenna_param */
@@ -37453,7 +37502,9 @@ typedef struct {
      *    0  | PER Threshold is valid
      *  1:8  | Per Threshold
      *  9:24 | min_tx_pkts Minimum number of pkts need to be checked
-     * 25:31 | Reserved
+     *    25 | enable_training_for_latency_traffic
+     *    26 | train_using_qos_null
+     * 27:31 | Reserved
      */
     A_UINT32 per_threshold;
 /*
