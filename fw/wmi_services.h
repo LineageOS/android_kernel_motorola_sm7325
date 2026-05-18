@@ -821,6 +821,9 @@ typedef  enum  {
      */
     WMI_SERVICE_SUPPORT_UL_TX_BEAMFORMER_AP_CONFIG = 514,
 
+    /* Indicates FW supports enable/disable TWT per vdev */
+    WMI_SERVICE_STA_TWT_EN_DIS_VDEV_SUPPORT = 515,
+
 
     WMI_MAX_EXT2_SERVICE
 

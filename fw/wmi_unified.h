@@ -44684,25 +44684,25 @@ typedef struct {
 #define TWT_EN_DIS_FLAGS_SET_DIS_BTWT_AUTO_DELETE(flag, val) \
     WMI_SET_BITS(flag, 7, 1, val)
 
-/* bits 8-15: unused / reserved */
-
 /*
- * Bit 16: indicates whether pdev_id is valid or vdev_id is valid.
+ * Bit 8: indicates whether pdev_id is valid or vdev_id is valid.
  * 0: pdev_id is valid (MAC-level TWT enable/disable)
  * 1: vdev_id is valid (STA vdev-level TWT enable/disable)
  */
-#define TWT_EN_DIS_FLAGS_GET_VDEV_ID(flag)      WMI_GET_BITS(flag, 16, 1)
-#define TWT_EN_DIS_FLAGS_SET_VDEV_ID(flag, val) WMI_SET_BITS(flag, 16, 1, val)
+#define TWT_EN_DIS_FLAGS_GET_VDEV_SUPPORT(flag)      WMI_GET_BITS(flag, 8, 1)
+#define TWT_EN_DIS_FLAGS_SET_VDEV_SUPPORT(flag, val) WMI_SET_BITS(flag, 8, 1, val)
+
+/* bits 9-31: unused / reserved */
 
 typedef struct {
     A_UINT32 tlv_header;    /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_twt_enable_cmd_fixed_param  */
     /**
-     * pdev_id or vdev_id depending on bit 16 of flags.
-     * When TWT_EN_DIS_FLAGS_GET_VDEV_ID(flags) == 0:
+     * pdev_id or vdev_id depending on bit 8 of flags.
+     * When TWT_EN_DIS_FLAGS_GET_VDEV_SUPPORT(flags) == 0:
      *   pdev_id identifies the MAC.
      *   See macros starting with WMI_PDEV_ID_ for values.
      *   In non-DBDC case host should set it to 0.
-     * When TWT_EN_DIS_FLAGS_GET_VDEV_ID(flags) == 1:
+     * When TWT_EN_DIS_FLAGS_GET_VDEV_SUPPORT(flags) == 1:
      *   vdev_id is for STA vdev-level TWT enable.
      *   TWT enable applies only to that specific STA vdev.
      */
@@ -44752,20 +44752,37 @@ typedef enum _WMI_ENABLE_TWT_STATUS_T {
 
 typedef struct {
     A_UINT32 tlv_header;    /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_twt_enable_complete_event_fixed_param */
-    /** pdev_id for identifying the MAC.  See macros starting with WMI_PDEV_ID_ for values. In non-DBDC case host should set it to 0 */
-    A_UINT32 pdev_id;
+    /**
+     * pdev_id or vdev_id depending on bit 8 of flags.
+     * When TWT_EN_DIS_FLAGS_GET_VDEV_SUPPORT(flags) == 0:
+     *   pdev_id identifies the MAC.
+     *   See macros starting with WMI_PDEV_ID_ for values.
+     *   In non-DBDC case host should set it to 0.
+     * When TWT_EN_DIS_FLAGS_GET_VDEV_SUPPORT(flags) == 1:
+     *   vdev_id is for STA vdev-level TWT enable.
+     *   TWT enable applies only to that specific STA vdev.
+     */
+    union {
+        A_UINT32 pdev_id;
+        A_UINT32 vdev_id;
+    };
     A_UINT32 status;        /* WMI_ENABLE_TWT_STATUS_T */
+    /* flags:
+     * mirrors TWT_EN_DIS_FLAGS_* from the enable command;
+     * bit 8 indicates pdev vs vdev
+     */
+    A_UINT32 flags;
 } wmi_twt_enable_complete_event_fixed_param;
 
 typedef struct {
     A_UINT32 tlv_header;    /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_twt_disable_cmd_fixed_param  */
     /**
-     * pdev_id or vdev_id depending on bit 16 of flags.
-     * When TWT_EN_DIS_FLAGS_GET_VDEV_ID(flags) == 0:
+     * pdev_id or vdev_id depending on bit 8 of flags.
+     * When TWT_EN_DIS_FLAGS_GET_VDEV_SUPPORT(flags) == 0:
      *   pdev_id identifies the MAC.
      *   See macros starting with WMI_PDEV_ID_ for values.
      *   In non-DBDC case host should set it to 0.
-     * When TWT_EN_DIS_FLAGS_GET_VDEV_ID(flags) == 1:
+     * When TWT_EN_DIS_FLAGS_GET_VDEV_SUPPORT(flags) == 1:
      *   vdev_id is for STA vdev-level TWT disable.
      *   TWT disable applies only to that specific STA vdev.
      */
@@ -44779,8 +44796,26 @@ typedef struct {
 
 typedef struct {
     A_UINT32 tlv_header;    /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_twt_disable_complete_event_fixed_param */
-    A_UINT32 pdev_id;
+    /**
+     * pdev_id or vdev_id depending on bit 8 of flags.
+     * When TWT_EN_DIS_FLAGS_GET_VDEV_SUPPORT(flags) == 0:
+     *   pdev_id identifies the MAC.
+     *   See macros starting with WMI_PDEV_ID_ for values.
+     *   In non-DBDC case host should set it to 0.
+     * When TWT_EN_DIS_FLAGS_GET_VDEV_SUPPORT(flags) == 1:
+     *   vdev_id is for STA vdev-level TWT disable.
+     *   TWT disable applies only to that specific STA vdev.
+     */
+    union {
+        A_UINT32 pdev_id; /* host should never set it to WMI_PDEV_ID_SOC  */
+        A_UINT32 vdev_id;
+    };
     A_UINT32 status; /* refer to WMI_DISABLE_TWT_STATUS_T enum */
+    /* flags:
+     * mirrors TWT_EN_DIS_FLAGS_* from the enable command;
+     * bit 8 indicates pdev vs vdev
+     */
+    A_UINT32 flags;
 } wmi_twt_disable_complete_event_fixed_param;
 
 typedef struct {
