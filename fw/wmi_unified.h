@@ -10699,6 +10699,14 @@ typedef enum {
      * 14:31 | Reserved
      */
     WMI_PDEV_PARAM_SMART_ANTENNA_CONFIG_MPDU_MCS_PARAMS,
+
+    /** On-demand AWGN interference status request.
+     * FW reads awgn_prev_int_seg and sends WMI_DCS_INTERFERENCE_EVENTID
+     * with interference_type=ATH_CAP_DCS_AGWNIM only if interference is
+     * currently detected (bitmap != 0). A bitmap of 0 means no interference.
+     * param_value is reserved (set to 1 to trigger the request).
+     */
+    WMI_PDEV_PARAM_AWGN_INT_STATUS_REQUEST,
 } WMI_PDEV_PARAM;
 
 #define WMI_PDEV_ONLY_BSR_TRIG_IS_ENABLED(trig_type) WMI_GET_BITS(trig_type, 0, 1)
