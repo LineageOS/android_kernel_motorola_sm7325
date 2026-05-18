@@ -56785,6 +56785,13 @@ typedef enum {
     WMI_RTT_GI_ZERO_POWER  = 4,  /* "zero power GI" (secure LTF behavior) */
 } WMI_RTT_GI_TYPE;
 
+typedef enum {
+    WMI_PEER_AUTHORIZE_CLEAR = 0,
+    WMI_PEER_AUTHORIZE_SECURED_MODE = 1,
+    WMI_PEER_AUTHORIZE_OPEN_MODE = 2,
+    WMI_PEER_AUTHORIZE_SW_ENCRYPTION_MODE = 3,
+} WMI_PEER_AUTHORIZE_TYPE;
+
 /*
  * macros to set/get bitfields within
  * wmi_rtt_peer_meas_report_peer_meas_result_info
