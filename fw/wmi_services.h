@@ -824,6 +824,14 @@ typedef  enum  {
     /* Indicates FW supports enable/disable TWT per vdev */
     WMI_SERVICE_STA_TWT_EN_DIS_VDEV_SUPPORT = 515,
 
+    /*
+     * Indicates FW supports AWGN interference status request via
+     * WMI_PDEV_PARAM_AWGN_INT_STATUS_REQUEST, allowing host to query
+     * the current AWGN CCA segment bitmap (awgn_prev_int_seg) which
+     * is sent back immediately via WMI_DCS_INTERFERENCE_EVENTID.
+     */
+    WMI_SERVICE_AWGN_INT_STATUS_REQUEST_SUPPORT = 516,
+
 
     WMI_MAX_EXT2_SERVICE
 
