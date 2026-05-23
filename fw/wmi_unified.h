@@ -3257,8 +3257,15 @@ typedef struct _wmi_ppe_threshold {
 #define WMI_MAX_EHTCAP_MAC_SIZE  2
 #define WMI_MAX_EHTCAP_PHY_SIZE  3
 
+/* WMI_MAX_UHRCAP_MAC_SIZE:
+ * Kept as 4 for backwards compatibility, elements [2] and [3] are reserved.
+ */
 #define WMI_MAX_UHRCAP_MAC_SIZE  4
 #define WMI_MAX_UHRCAP_PHY_SIZE  8 /* as per spec recommendation */
+/* WMI_MAX_UHRCAP_DBE_SIZE:
+ * B0-B7 header + up to 24+24 bits EHT-MCS maps
+ */
+#define WMI_MAX_UHRCAP_DBE_SIZE  2
 
 /*
  * 0 – index indicated EHT-MCS map for 20Mhz only sta (4 bytes valid)
@@ -4267,6 +4274,14 @@ typedef struct {
      * WMI_MAC_PHY_CAPABILITIES_EXT2
      */
     A_UINT32 uhr_cap_mac_info[WMI_MAX_UHRCAP_MAC_SIZE];
+
+    /*
+     * UHR DBE Capability Parameters:
+     * total WMI_MAX_UHRCAP_DBE_SIZE * A_UINT32 bits
+     * Present only when DBE Support bit (B10) in uhr_cap_mac_info is set.
+     * Carries DBE Maximum Supported Bandwidth and optional EHT-MCS Maps.
+     */
+    A_UINT32 uhr_cap_dbe_info[WMI_MAX_UHRCAP_DBE_SIZE];
 
     /* Followed by next TLVs:
      *     WMI_DMA_RING_CAPABILITIES          dma_ring_caps[];
@@ -23746,6 +23761,13 @@ typedef struct {
      */
     wmi_ppe_threshold peer_uhr_ppet;
 
+    /** peer_uhr_cap_dbe:
+     * UHR DBE Capability Parameters from BSS beacon UHR cap IE,
+     * total WMI_MAX_UHRCAP_DBE_SIZE*A_UINT32 bits.
+     * Valid only when DBE Support bit (B10) in peer_uhr_cap_mac is set.
+     */
+    A_UINT32 peer_uhr_cap_dbe[WMI_MAX_UHRCAP_DBE_SIZE];
+
 /* Following this struct are the TLV's:
  *     A_UINT8 peer_legacy_rates[];
  *     A_UINT8 peer_ht_rates[];
@@ -40999,6 +41021,13 @@ typedef struct {
                 reserved2: 24;
         };
     };
+
+    /*
+     * UHR DBE Capability Parameters of 802.11bn
+     * (conditional on DBE Support bit)
+     */
+    A_UINT32 uhr_cap_dbe_info_2G[WMI_MAX_UHRCAP_DBE_SIZE];
+    A_UINT32 uhr_cap_dbe_info_5G[WMI_MAX_UHRCAP_DBE_SIZE];
 } WMI_MAC_PHY_CAPABILITIES_EXT2;
 
 #define WMI_CAP_EXT2_PDEV_TO_LINK_MAP_PDEV_ID_GET(pdev_to_link_map_word32) \
@@ -41025,40 +41054,40 @@ typedef struct {
 #define WMI_UHRCAP_PHY_MAX_NSS_DL_MU_80_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 1, 1, value)
 
-/* Bit 2: Max Nss Rx for sounding NDP (≤ 160 MHz) */
+/* Bit 2: Max Nss Rx for sounding NDP (= 160 MHz) */
 #define WMI_UHRCAP_PHY_MAX_NSS_RX_160_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 2, 1)
 #define WMI_UHRCAP_PHY_MAX_NSS_RX_160_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 2, 1, value)
 
-/* Bit 3: Max Nss,total Rx for DL MU-MIMO (≤ 160 MHz) */
+/* Bit 3: Max Nss,total Rx for DL MU-MIMO (= 160 MHz) */
 #define WMI_UHRCAP_PHY_MAX_NSS_DL_MU_160_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 3, 1)
 #define WMI_UHRCAP_PHY_MAX_NSS_DL_MU_160_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 3, 1, value)
 
-/* Bit 4: Max Nss Rx for sounding NDP (≤ 320 MHz) */
+/* Bit 4: Max Nss Rx for sounding NDP (= 320 MHz) */
 #define WMI_UHRCAP_PHY_MAX_NSS_RX_320_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 4, 1)
 #define WMI_UHRCAP_PHY_MAX_NSS_RX_320_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 4, 1, value)
 
-/* Bit 5: Max Nss,total Rx for DL MU-MIMO (≤ 320 MHz) */
+/* Bit 5: Max Nss,total Rx for DL MU-MIMO (= 320 MHz) */
 #define WMI_UHRCAP_PHY_MAX_NSS_DL_MU_320_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 5, 1)
 #define WMI_UHRCAP_PHY_MAX_NSS_DL_MU_320_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 5, 1, value)
 
-/* Bit 6: ELR Rx Support */
-#define WMI_UHRCAP_PHY_ELR_RX_GET(uhr_cap_phy) \
+/* Bit 6: ELR Tx Support */
+#define WMI_UHRCAP_PHY_ELR_TX_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 6, 1)
-#define WMI_UHRCAP_PHY_ELR_RX_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_ELR_TX_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 6, 1, value)
 
-/* Bit 7: ELR Tx Support */
-#define WMI_UHRCAP_PHY_ELR_TX_GET(uhr_cap_phy) \
+/* Bit 7: ELR Rx Support */
+#define WMI_UHRCAP_PHY_ELR_RX_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 7, 1)
-#define WMI_UHRCAP_PHY_ELR_TX_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_ELR_RX_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 7, 1, value)
 
 /* Bit 8: Partial BW DL MU-MIMO support */
@@ -41073,128 +41102,126 @@ typedef struct {
 #define WMI_UHRCAP_PHY_PARTIAL_BW_UL_MU_MIMO_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 9, 1, value)
 
-/* Bit 10: COBF support */
-#define WMI_UHRCAP_PHY_COBF_SUPPORT_GET(uhr_cap_phy) \
+/* Bit 10: MCS 15 support */
+#define WMI_UHRCAP_PHY_MCS_15_SUPPORT_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 10, 1)
-#define WMI_UHRCAP_PHY_COBF_SUPPORT_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_MCS_15_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 10, 1, value)
 
-/* Bit 11: COBF Joint Sounding Support */
-#define WMI_UHRCAP_PHY_COBF_JOINT_SOUNDING_SUPPORT_GET(uhr_cap_phy) \
+/* Bit 11: 2XLDPC Tx Support */
+#define WMI_UHRCAP_PHY_2XLDPC_TX_SUPPORT_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 11, 1)
-#define WMI_UHRCAP_PHY_COBF_JOINT_SOUNDING_SUPPORT_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_2XLDPC_TX_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 11, 1, value)
 
-/* Bit 12: COSR Mode 1 Support */
-#define WMI_UHRCAP_PHY_COSR_MODE_1_SUPPORT_GET(uhr_cap_phy) \
+/* Bit 12: 2XLDPC Rx Support */
+#define WMI_UHRCAP_PHY_2XLDPC_RX_SUPPORT_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 12, 1)
-#define WMI_UHRCAP_PHY_COSR_MODE_1_SUPPORT_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_2XLDPC_RX_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 12, 1, value)
 
-/* Bit 13: COSR Mode 2 Support */
-#define WMI_UHRCAP_PHY_COSR_MODE_2_SUPPORT_GET(uhr_cap_phy) \
-    WMI_GET_BITS(uhr_cap_phy[0], 13, 1)
-#define WMI_UHRCAP_PHY_COSR_MODE_2_SUPPORT_SET(uhr_cap_phy, value) \
-    WMI_SET_BITS(uhr_cap_phy[0], 13, 1, value)
-
-/* Bits 14-15: UEQM Tx Max NSS Tx Support */
+/* Bits 13-14: UEQM Tx Support and Max NSS Tx */
 #define WMI_UHRCAP_PHY_UEQM_TX_MAX_NSS_TX_SUPPORT_GET(uhr_cap_phy) \
-    WMI_GET_BITS(uhr_cap_phy[0], 14, 2)
+    WMI_GET_BITS(uhr_cap_phy[0], 13, 2)
 #define WMI_UHRCAP_PHY_UEQM_TX_MAX_NSS_TX_SUPPORT_SET(uhr_cap_phy, value) \
-    WMI_SET_BITS(uhr_cap_phy[0], 14, 2, value)
+    WMI_SET_BITS(uhr_cap_phy[0], 13, 2, value)
 
-/* Bits 16-17:UEQM Rx Max NSS Rx Support */
+/* Bits 15-16: UEQM Rx Support and Max NSS Rx */
 #define WMI_UHRCAP_PHY_UEQM_RX_MAX_NSS_RX_SUPPORT_GET(uhr_cap_phy) \
-    WMI_GET_BITS(uhr_cap_phy[0], 16, 2)
+    WMI_GET_BITS(uhr_cap_phy[0], 15, 2)
 #define WMI_UHRCAP_PHY_UEQM_RX_MAX_NSS_RX_SUPPORT_SET(uhr_cap_phy, value) \
-    WMI_SET_BITS(uhr_cap_phy[0], 16, 2, value)
+    WMI_SET_BITS(uhr_cap_phy[0], 15, 2, value)
 
-/* Bit 18: UEQM LT 242ToneRU support */
-#define WMI_UHRCAP_PHY_UEQM_LT_242TONERU_SUPPORT_GET(uhr_cap_phy) \
+/* Bit 17: Reserved */
+
+/* Bit 18: Co-BF joint sounding support */
+#define WMI_UHRCAP_PHY_COBF_JOINT_SOUNDING_SUPPORT_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 18, 1)
-#define WMI_UHRCAP_PHY_UEQM_LT_242TONERU_SUPPORT_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_COBF_JOINT_SOUNDING_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 18, 1, value)
 
-/* Bit 19: DRU DBW 20 PWB 20 support */
-#define WMI_UHRCAP_PHY_DRU_DBW_20_PWB_20_SUPPORT_GET(uhr_cap_phy) \
+/* Bit 19: IM pilots tx support */
+#define WMI_UHRCAP_PHY_IM_PILOTS_TX_SUPPORT_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 19, 1)
-#define WMI_UHRCAP_PHY_DRU_DBW_20_PWB_20_SUPPORT_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_IM_PILOTS_TX_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 19, 1, value)
 
-/* Bit 20: DRU DBW 40 PWB 40 support */
-#define WMI_UHRCAP_PHY_DRU_DBW_40_PWB_40_SUPPORT_GET(uhr_cap_phy) \
+/* Bit 20: IM pilots rx support */
+#define WMI_UHRCAP_PHY_IM_PILOTS_RX_SUPPORT_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 20, 1)
-#define WMI_UHRCAP_PHY_DRU_DBW_40_PWB_40_SUPPORT_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_IM_PILOTS_RX_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 20, 1, value)
 
-/* Bit 21: DRU DBW 80 PWB 80 support */
-#define WMI_UHRCAP_PHY_DRU_DBW_80_PWB_80_SUPPORT_GET(uhr_cap_phy) \
+/* Bit 21: COSR mode 1 support */
+#define WMI_UHRCAP_PHY_COSR_MODE_1_SUPPORT_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 21, 1)
-#define WMI_UHRCAP_PHY_DRU_DBW_80_PWB_80_SUPPORT_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_COSR_MODE_1_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 21, 1, value)
 
-/* Bit 22: DRU DBW 20 PWB 80 support */
-#define WMI_UHRCAP_PHY_DRU_DBW_20_PWB_80_SUPPORT_GET(uhr_cap_phy) \
+/* Bit 22: COSR mode 2 support */
+#define WMI_UHRCAP_PHY_COSR_MODE_2_SUPPORT_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 22, 1)
-#define WMI_UHRCAP_PHY_DRU_DBW_20_PWB_80_SUPPORT_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_COSR_MODE_2_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 22, 1, value)
 
-/* Bit 23: DRU DBW 40 PWB 80 support */
-#define WMI_UHRCAP_PHY_DRU_DBW_40_PWB_80_SUPPORT_GET(uhr_cap_phy) \
+/* Bit 23: DRU DBW 20 in PBW 20 support */
+#define WMI_UHRCAP_PHY_DRU_DBW_20_PBW_20_SUPPORT_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 23, 1)
-#define WMI_UHRCAP_PHY_DRU_DBW_40_PWB_80_SUPPORT_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_DRU_DBW_20_PBW_20_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 23, 1, value)
 
-/* Bit 24: DRU DBW 60 PWB 80 support */
-#define WMI_UHRCAP_PHY_DRU_DBW_60_PWB_80_SUPPORT_GET(uhr_cap_phy) \
+/* Bit 24: DRU DBW 40 in PBW 40 support */
+#define WMI_UHRCAP_PHY_DRU_DBW_40_PBW_40_SUPPORT_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 24, 1)
-#define WMI_UHRCAP_PHY_DRU_DBW_60_PWB_80_SUPPORT_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_DRU_DBW_40_PBW_40_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 24, 1, value)
 
-/* Bit 25: DRU RRU HYBRID support */
-#define WMI_UHRCAP_PHY_DRU_RRU_HYBRID_SUPPORT_GET(uhr_cap_phy) \
+/* Bit 25: DRU DBW 80 in PBW 80 support */
+#define WMI_UHRCAP_PHY_DRU_DBW_80_PBW_80_SUPPORT_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 25, 1)
-#define WMI_UHRCAP_PHY_DRU_RRU_HYBRID_SUPPORT_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_DRU_DBW_80_PBW_80_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 25, 1, value)
 
-/* Bit 26: 2XLDPC Tx Support */
-#define WMI_UHRCAP_PHY_2XLDPC_TX_SUPPORT_GET(uhr_cap_phy) \
+/* Bit 26: DRU DBW 80 in PBW 160 MHz support */
+#define WMI_UHRCAP_PHY_DRU_DBW_80_PBW_160_SUPPORT_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 26, 1)
-#define WMI_UHRCAP_PHY_2XLDPC_TX_SUPPORT_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_DRU_DBW_80_PBW_160_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 26, 1, value)
 
-/* Bit 27: 2XLDPC Rx Support */
-#define WMI_UHRCAP_PHY_2XLDPC_RX_SUPPORT_GET(uhr_cap_phy) \
+/* Bit 27: DRU DBW 80 in PBW 320 MHz support */
+#define WMI_UHRCAP_PHY_DRU_DBW_80_PBW_320_SUPPORT_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 27, 1)
-#define WMI_UHRCAP_PHY_2XLDPC_RX_SUPPORT_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_DRU_DBW_80_PBW_320_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 27, 1, value)
 
-/* Bit 28: IM Pilots Tx Support */
-#define WMI_UHRCAP_PHY_IM_PILOTS_TX_SUPPORT_GET(uhr_cap_phy) \
+/* Bit 28: DRU DBW 20 in PBW >= 80 MHz support */
+#define WMI_UHRCAP_PHY_DRU_DBW_20_PBW_80_SUPPORT_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 28, 1)
-#define WMI_UHRCAP_PHY_IM_PILOTS_TX_SUPPORT_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_DRU_DBW_20_PBW_80_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 28, 1, value)
 
-/* Bit 29: IM Pilots Rx Support */
-#define WMI_UHRCAP_PHY_IM_PILOTS_RX_SUPPORT_GET(uhr_cap_phy) \
+/* Bit 29: DRU DBW 40 in PBW >= 80 MHz support */
+#define WMI_UHRCAP_PHY_DRU_DBW_40_PBW_80_SUPPORT_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 29, 1)
-#define WMI_UHRCAP_PHY_IM_PILOTS_RX_SUPPORT_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_DRU_DBW_40_PBW_80_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 29, 1, value)
 
-/* Bit 30: MCS 15 Support */
-#define WMI_UHRCAP_PHY_MCS_15_SUPPORT_GET(uhr_cap_phy) \
+/* Bit 30: DRU DBW 60 in PBW >= 80 MHz support */
+#define WMI_UHRCAP_PHY_DRU_DBW_60_PBW_80_SUPPORT_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 30, 1)
-#define WMI_UHRCAP_PHY_MCS_15_SUPPORT_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_DRU_DBW_60_PBW_80_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 30, 1, value)
 
-/* Bit 31: Intermediate MCS Support */
-#define WMI_UHRCAP_PHY_INTERMEDIATE_MCS_SUPPORT_GET(uhr_cap_phy) \
+/* Bit 31: DRU+RRU hybrid mode support */
+#define WMI_UHRCAP_PHY_DRU_RRU_HYBRID_SUPPORT_GET(uhr_cap_phy) \
     WMI_GET_BITS(uhr_cap_phy[0], 31, 1)
-#define WMI_UHRCAP_PHY_INTERMEDIATE_MCS_SUPPORT_SET(uhr_cap_phy, value) \
+#define WMI_UHRCAP_PHY_DRU_RRU_HYBRID_SUPPORT_SET(uhr_cap_phy, value) \
     WMI_SET_BITS(uhr_cap_phy[0], 31, 1, value)
 
+/* Bits 32-39: Reserved */
+
 /*
- * ToDo: Bits 32-63
+ * ToDo: Bits 40-63
  */
 
 /*
@@ -41243,11 +41270,7 @@ typedef struct {
 #define WMI_UHRCAP_MAC_DPS_AP_HCM_SET(uhr_cap_mac, value) \
     WMI_SET_BITS(uhr_cap_mac[0], 2, 1, value)
 
-/* Bit 3: Multi Link Power Management support */
-#define WMI_UHRCAP_MAC_MULTI_LINK_PM_GET(uhr_cap_mac) \
-    WMI_GET_BITS(uhr_cap_mac[0], 3, 1)
-#define WMI_UHRCAP_MAC_MULTI_LINK_PM_SET(uhr_cap_mac, value) \
-    WMI_SET_BITS(uhr_cap_mac[0], 3, 1, value)
+/* Bit 3: Reserved */
 
 /* Bit 4: NPCA support */
 #define WMI_UHRCAP_MAC_NPCA_GET(uhr_cap_mac) \
@@ -41412,45 +41435,72 @@ typedef struct {
 #define WMI_UHRCAP_MAC_BTM_ASSURANCE_SET(uhr_cap_mac, value) \
     WMI_SET_BITS(uhr_cap_mac[1], 4, 1, value)
 
-/* Bits 36-63 --- Reserved */
+/* Bit 36: Co-BF Support */
+#define WMI_UHRCAP_MAC_COBF_SUPPORT_GET(uhr_cap_mac) \
+    WMI_GET_BITS(uhr_cap_mac[1], 5, 1)
+#define WMI_UHRCAP_MAC_COBF_SUPPORT_SET(uhr_cap_mac, value) \
+    WMI_SET_BITS(uhr_cap_mac[1], 5, 1, value)
 
-/* To be decided spec not provided clear bits */
+/* Bits 37-63 --- Reserved */
 
-
-/* Bit 64-66: DBE Capabilities Params */
-#define WMI_UHRCAP_MAC_DBE_MAX_SUP_BW_GET(uhr_cap_mac) \
-    WMI_GET_BITS(uhr_cap_mac[2], 0, 3)
-#define WMI_UHRCAP_MAC_DBE_MAX_SUP_BW_SET(uhr_cap_mac, value) \
-    WMI_SET_BITS(uhr_cap_mac[2], 0, 3, value)
-
-
-/* Bit 67: EHT-MCS Map (BW=160 MHz) Present */
-#define WMI_UHRCAP_MAC_EHT_MCS_160_PRESENT_GET(uhr_cap_mac) \
-    WMI_GET_BITS(uhr_cap_mac[2], 3, 1)
-#define WMI_UHRCAP_MAC_EHT_MCS_160_PRESENT_SET(uhr_cap_mac, value) \
-    WMI_SET_BITS(uhr_cap_mac[2], 3, 1, value)
-
-/* Bit 68: EHT-MCS Map (BW=320 MHz) Present */
-#define WMI_UHRCAP_MAC_EHT_MCS_320_PRESENT_GET(uhr_cap_mac) \
-    WMI_GET_BITS(uhr_cap_mac[2], 4, 1)
-#define WMI_UHRCAP_MAC_EHT_MCS_320_PRESENT_SET(uhr_cap_mac, value) \
-    WMI_SET_BITS(uhr_cap_mac[2], 4, 1, value)
-
-/* Bit 69-71: Reserved */
-
-/* Bit 72 to 95: EHT-MCS Map (BW=160 MHz) */
-#define WMI_UHRCAP_MAC_EHT_MCS_MAP_160_GET(uhr_cap_mac) \
-    WMI_GET_BITS(uhr_cap_mac[2], 8, 24)
-#define WMI_UHRCAP_MAC_EHT_MCS_MAP_160_SET(uhr_cap_mac, value) \
-    WMI_SET_BITS(uhr_cap_mac[2], 8, 24, value)
-
-/* Bit 96 to 121: EHT-MCS Map (BW=320 MHz) */
-#define WMI_UHRCAP_MAC_EHT_MCS_MAP_320_GET(uhr_cap_mac) \
-    WMI_GET_BITS(uhr_cap_mac[3], 0, 24)
-#define WMI_UHRCAP_MAC_EHT_MCS_MAP_320_SET(uhr_cap_mac, value) \
-    WMI_SET_BITS(uhr_cap_mac[3], 0, 24, value)
+/*
+ * NOTE: uhr_cap_mac[2] and uhr_cap_mac[3] (bits 64-127) are reserved.
+ * WMI_MAX_UHRCAP_MAC_SIZE is kept at 4 for backward compatibility.
+ * DBE Capability Parameters are carried in the separate uhr_cap_dbe[]
+ * array using WMI_UHRCAP_DBE_* macros below.
+ */
 
 /****** End of 11BN UHR MAC Capabilities Information field ******/ /* } */
+
+/****** 11BN UHR DBE Capability Parameters field ******/ /* { */
+
+/* Bits B0-B2: DBE Maximum Supported Bandwidth
+ *
+ * DBE Maximum Supported Bandwidth Lookup Table
+ *
+ * +------------------+-----------------------------+
+ * | Sub-field Value  | DBE Bandwidth               |
+ * +------------------+-----------------------------+
+ * |        0         | Reserved                    |
+ * |        1         | 40 MHz DBE bandwidth        |
+ * |        2         | 80 MHz DBE bandwidth        |
+ * |        3         | 160 MHz DBE bandwidth       |
+ * |        4         | 320 MHz DBE bandwidth       |
+ * |      5 to 7      | Reserved                    |
+ * +------------------+-----------------------------+
+ */
+#define WMI_UHRCAP_DBE_MAX_SUP_BW_GET(uhr_cap_dbe) \
+    WMI_GET_BITS(uhr_cap_dbe[0], 0, 3)
+#define WMI_UHRCAP_DBE_MAX_SUP_BW_SET(uhr_cap_dbe, value) \
+    WMI_SET_BITS(uhr_cap_dbe[0], 0, 3, value)
+
+/* Bit B3: EHT-MCS Map (BW=160 MHz) Present */
+#define WMI_UHRCAP_DBE_EHT_MCS_160_PRESENT_GET(uhr_cap_dbe) \
+    WMI_GET_BITS(uhr_cap_dbe[0], 3, 1)
+#define WMI_UHRCAP_DBE_EHT_MCS_160_PRESENT_SET(uhr_cap_dbe, value) \
+    WMI_SET_BITS(uhr_cap_dbe[0], 3, 1, value)
+
+/* Bit B4: EHT-MCS Map (BW=320 MHz) Present */
+#define WMI_UHRCAP_DBE_EHT_MCS_320_PRESENT_GET(uhr_cap_dbe) \
+    WMI_GET_BITS(uhr_cap_dbe[0], 4, 1)
+#define WMI_UHRCAP_DBE_EHT_MCS_320_PRESENT_SET(uhr_cap_dbe, value) \
+    WMI_SET_BITS(uhr_cap_dbe[0], 4, 1, value)
+
+/* Bits B5-B7: Reserved */
+
+/* Bits B8-B31: EHT-MCS Map (BW=160 MHz) — present only if B3 is set (0 or 24 bits) */
+#define WMI_UHRCAP_DBE_EHT_MCS_MAP_160_GET(uhr_cap_dbe) \
+    WMI_GET_BITS(uhr_cap_dbe[0], 8, 24)
+#define WMI_UHRCAP_DBE_EHT_MCS_MAP_160_SET(uhr_cap_dbe, value) \
+    WMI_SET_BITS(uhr_cap_dbe[0], 8, 24, value)
+
+/* Bits B32-B55: EHT-MCS Map (BW=320 MHz) — present only if B4 is set (0 or 24 bits) */
+#define WMI_UHRCAP_DBE_EHT_MCS_MAP_320_GET(uhr_cap_dbe) \
+    WMI_GET_BITS(uhr_cap_dbe[1], 0, 24)
+#define WMI_UHRCAP_DBE_EHT_MCS_MAP_320_SET(uhr_cap_dbe, value) \
+    WMI_SET_BITS(uhr_cap_dbe[1], 0, 24, value)
+
+/****** End of 11BN UHR DBE Capability Parameters field ******/ /* } */
 
 #define WMI_CAP_EXT2_NPCA_ENABLED_GET(npca_capability) \
     WMI_GET_BITS(npca_capability, 0, 1)
