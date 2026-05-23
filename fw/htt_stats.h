@@ -5381,6 +5381,24 @@ typedef htt_stats_error_tlv_v
 typedef htt_stats_error_tlv_v
     htt_stats_unavailable_error_stats_tlv;
 
+/* NOTE: Variable length TLV, use length spec to infer array size */
+#define HTT_STATS_SCHED_TXQ_TX_MODE_SIMPLIFIED_TLV_SZ(_num_elems) \
+    (sizeof(A_UINT32) * (_num_elems))
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    /** Scheduler command posted per tx_mode (length = num tx modes+1) */
+    HTT_STATS_VAR_LEN_ARRAY1(A_UINT32, sched_tx_mode_simplified);
+} htt_stats_sched_txq_tx_mode_simplified_tlv;
+
+/* NOTE: Variable length TLV, use length spec to infer array size */
+#define HTT_STATS_SCHED_TXQ_TX_MODE_WINNER_TLV_SZ(_num_elems) \
+    (sizeof(A_UINT32) * (_num_elems))
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    /** Scheduler command posted per tx_mode (length = num tx modes+1) */
+    HTT_STATS_VAR_LEN_ARRAY1(A_UINT32, sched_tx_mode_winner);
+} htt_stats_sched_txq_tx_mode_winner_tlv;
+
 typedef enum {
     HTT_SCHED_TID_SKIP_SCHED_MASK_DISABLED = 0, /* Skip the tid when WAL_TID_DISABLE_TX_SCHED_MASK is true                                       */
     HTT_SCHED_TID_SKIP_NOTIFY_MPDU,             /* Skip the tid's 2nd sched_cmd when 1st cmd is ongoing                                          */
