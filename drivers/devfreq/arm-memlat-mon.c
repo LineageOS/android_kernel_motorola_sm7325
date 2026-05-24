@@ -268,9 +268,10 @@ static unsigned long get_cnt(struct memlat_hwmon *hw)
 		}
 
 		if (mon->access_ev_id && mon->wb_ev_id)
-			devstats->wb_pct =
+			devstats->wb_pct = mon->access_ev[mon_idx].last_delta ?
 				mult_frac(100, mon->wb_ev[mon_idx].last_delta,
-					  mon->access_ev[mon_idx].last_delta);
+					  mon->access_ev[mon_idx].last_delta)
+				: mon->wb_ev[mon_idx].last_delta;
 		else
 			devstats->wb_pct = 0;
 	}
