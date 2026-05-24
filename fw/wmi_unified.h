@@ -10722,6 +10722,13 @@ typedef enum {
      * param_value is reserved (set to 1 to trigger the request).
      */
     WMI_PDEV_PARAM_AWGN_INT_STATUS_REQUEST,
+
+    /**
+     * Disable L3 validity check in offload manager.
+     * 0 - L3_valid check enabled (default)
+     * 1 - L3_valid check disabled (frames not dropped on L3_valid=false)
+     */
+    WMI_PDEV_PARAM_ENABLE_OFFLD_L3_VALID_CHECK,
 } WMI_PDEV_PARAM;
 
 #define WMI_PDEV_ONLY_BSR_TRIG_IS_ENABLED(trig_type) WMI_GET_BITS(trig_type, 0, 1)
