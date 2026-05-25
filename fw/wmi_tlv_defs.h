@@ -1641,6 +1641,8 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_mapc_cosr_params,
     WMITLV_TAG_STRUC_wmi_mapc_cobf_params,
     WMITLV_TAG_STRUC_wmi_mapc_cortwt_params,
+    WMITLV_TAG_STRUC_wmi_lpi_scan_result_ind_fixed_param,
+    WMITLV_TAG_STRUC_wmi_lpi_ap_info_t,
 } WMITLV_TAG_ID;
 /*
  * IMPORTANT: Please add _ALL_ WMI Commands Here.
@@ -2622,6 +2624,7 @@ typedef enum {
     OP(WMI_ANOMALY_REPORT_EVENTID) \
     OP(WMI_RTT_PEER_MEAS_REPORT_EVENTID) \
     OP(WMI_VDEV_CHAN_HOP_STATUS_REPORT_EVENTID) \
+    OP(WMI_LPI_SCAN_RESULT_EVENTID_V2) \
     /* add new EVT_LIST elements above this line */
 
 
@@ -4428,14 +4431,21 @@ WMITLV_CREATE_PARAM_STRUC(WMI_ROAM_PREAUTH_START_EVENTID);
 WMITLV_CREATE_PARAM_STRUC(WMI_LPI_RESULT_EVENTID);
 
 /* LPI Status Event */
-#define WMITLV_TABLE_WMI_LPI_STATUS_EVENTID(id,op,buf,len)                                                         \
+#define WMITLV_TABLE_WMI_LPI_STATUS_EVENTID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_lpi_status_event_fixed_param, wmi_lpi_status_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_LPI_STATUS_EVENTID);
 
 /* LPI Handoff Event */
-#define WMITLV_TABLE_WMI_LPI_HANDOFF_EVENTID(id,op,buf,len)                                                         \
+#define WMITLV_TABLE_WMI_LPI_HANDOFF_EVENTID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_lpi_handoff_event_fixed_param, wmi_lpi_handoff_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_LPI_HANDOFF_EVENTID);
+
+/* LPI Scan Result Indication Event */
+#define WMITLV_TABLE_WMI_LPI_SCAN_RESULT_EVENTID_V2(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_lpi_scan_result_ind_fixed_param, wmi_lpi_scan_result_ind_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_UINT32, A_UINT32, freq_list, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_lpi_ap_info_t, ap_array, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_LPI_SCAN_RESULT_EVENTID_V2);
 
 /* Thermal Manager Params*/
 #define WMITLV_TABLE_WMI_THERMAL_MGMT_CMDID(id,op,buf,len) \

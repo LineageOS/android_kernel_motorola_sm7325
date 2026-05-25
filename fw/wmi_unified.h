@@ -2712,6 +2712,11 @@ typedef enum {
     WMI_LPI_RESULT_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_LPI),
     WMI_LPI_STATUS_EVENTID,
     WMI_LPI_HANDOFF_EVENTID,
+    /*
+     * New EVTID added for FW->LOWI intra-LPASS direct scan result delivery -
+     * replaces QMI path when LOWI-on-FW capability is enabled.
+     */
+    WMI_LPI_SCAN_RESULT_EVENTID_V2,
 
     /* ExtScan events */
     WMI_EXTSCAN_START_STOP_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_EXTSCAN),
@@ -30563,6 +30568,11 @@ typedef struct {
     A_UINT32 ie_len;
     /** Scan control flags extended (see WMI_SCAN_FLAG_EXT_xxx) */
     A_UINT32 scan_ctrl_flags_ext;
+    /**
+     * dwell time in msec on active 5 GHz channels.
+     *  If 0, dwell_time_active is used for 5 GHz channels as well.
+     */
+    A_UINT32 dwell_time_active_5ghz;
 
 /**
  * TLV (tag length value) parameters follow the scan_cmd
@@ -30573,6 +30583,388 @@ typedef struct {
  *     A_UINT8 ie_data[];
  */
 } wmi_lpi_start_scan_cmd_fixed_param;
+
+
+/* WMI_LPI_SCAN_RESULT_EVENTID_V2
+ * TLV (tag length value) parameters follow the fixed_param structure:
+ *   wmi_lpi_scan_result_ind_fixed_param fixed_param;
+ *   uint32_t scanned_freq_list[];
+ *   wmi_lpi_ap_info_t ap_array[];
+ */
+
+/**
+ * Maximum number of AP entries accumulated in LOWI per scan
+ * (across all batched events).
+ * FW sends ~7 APs per WMI_LPI_RESULT_EVENTID event
+ * (limited by LPI_RESULT_EVENT_SIZE=1200 bytes);
+ * LOWI accumulates batches until scan_is_completed is set.
+ */
+#define WMI_LPI_MAX_AP_NUM   35
+/** Number of radio chains reported per AP in rssi_chain[] */
+#define WMI_LPI_MAX_RADIO_CHAIN  5
+/** Number of A_UINT32 words used to pack the 12-byte MSAP field */
+#define WMI_LPI_MAX_MSAP_LEN_W   3
+
+/**
+ * wmi_lpi_ap_info_t - Per-AP scan record; element type for TLV #3
+ * (WMITLV_TAG_ARRAY_STRUC).
+ * Since this is a TLV struct (starts with tlv_header), new fields can be
+ * appended at the end in future versions without breaking older receivers.
+ *
+ * ap_info field layout:
+ *   bits [3:0]   = ap_flags: cur_connected[0], wifi_802_11_mc[1],
+ *                            msap_supported[2], is_active[3]
+ *   bits [16:4]  = valid_mask (13 bits);
+ *                  indicates which optional fields are present
+ *   bits [23:17] = reserved (must be set to 0 by sender; ignored by receiver)
+ *   bits [31:24] = phy_mode (8 bits); contains a WLAN_PHY_MODE value
+ *                  (refer enum WLAN_PHY_MODE defined in wlan_defs.h)
+ *
+ * scan_info field layout:
+ *   bits [7:0]   = scan_module_id;
+ *                  identifies which scan module produced this record:
+ *                  0 = WLS_SCAN_MODID_ANY (any/default)
+ *                  1 = WLS_SCAN_MODID_MGMT_RX_HDR_EXTSCAN (extscan module)
+ *                  2 = WLS_SCAN_MODID_MGMT_RX_HDR_ENLO (ENLO module)
+ *   bits [15:8]  = scan_id
+ *   bits [23:16] = flags
+ *   bits [31:24] = scan_cache
+ *
+ * ESS_and_SEC_info field layout:
+ *   bits [15:0]  = ess
+ *   bits [23:16] = sec_mode;
+ *                  bitmask of security modes (WLS_AP_SECUTIRY_MODE_* values):
+ *                  0x00=UNKNOWN
+ *                  0x01=OPEN
+ *                  0x02=WEP
+ *                  0x04=PSK(WPA/WPA2)
+ *                  0x08=EAP(Enterprise)
+ *                  0x10=WPA3_SAE
+ *                  0x20=WPA3_SuiteB
+ *                  0x40=WPA3_OWE
+ *   bits [31:24] = reserved
+ *
+ * MCS_and_NSS_info field layout:
+ *   bits [7:0]   = tx_nss
+ *   bits [15:8]  = tx_mcs
+ *   bits [23:16] = rx_nss
+ *   bits [31:24] = rx_mcs
+ */
+
+typedef struct {
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_lpi_ap_info_t */
+    A_UINT32 tlv_header;
+    /** 6-byte BSSID; uses existing wmi_mac_addr type */
+    wmi_mac_addr bssid;
+    /** ssid:
+     * length + up to 32 bytes packed as 8 x A_UINT32;
+     * uses existing wmi_ssid type
+     */
+    wmi_ssid ssid;
+    /** Primary channel frequency in MHz */
+    A_UINT32 frequency;
+    /** RSSI in dBm */
+    A_INT32 rssi;
+    /** Packed:
+     * ap_flags[3:0]    |
+     * valid_mask[16:4] |
+     * phy_mode[31:24] (WLAN_PHY_MODE value);
+     *  use WMI_LPI_AP_INFO_* macros
+     */
+    A_UINT32 ap_info;
+    /** Actual dwell time on this channel in milliseconds */
+    A_UINT32 dwell_time_ms;
+    /** TSF offset: local TSF minus AP TSF */
+    A_UINT32 tsf_offset;
+    /** Packed:
+     * scan_module_id[7:0] |
+     * scan_id[15:8]       |
+     * flags[23:16]        |
+     * scan_cache[31:24]; use WMI_LPI_SCAN_INFO_* macros
+     */
+    A_UINT32 scan_info;
+    /** Packed:
+     * ess[15:0] |
+     * sec_mode[23:16]; use WMI_LPI_ESS_SEC_* macros
+     */
+    A_UINT32 ESS_and_SEC_info;
+    /** Packed:
+     * tx_nss[7:0]   |
+     * tx_mcs[15:8]  |
+     * rx_nss[23:16] |
+     * rx_mcs[31:24]; use WMI_LPI_MCS_NSS_* macros
+     */
+    A_UINT32 MCS_and_NSS_info;
+    /** Bitmask of active radio chains used to discover this AP */
+    A_UINT32 radio_chain_mask;
+    /** RSSI per radio chain in dBm; 0 if chain not active */
+    A_INT32 rssi_chain[WMI_LPI_MAX_RADIO_CHAIN];
+    /** TX power in dBm; valid when WMI_LPI_VALID_TX_POWER set in valid_mask */
+    A_UINT32 tx_power;
+    /** TX rate in Mbps; valid when WMI_LPI_VALID_TX_RATE set in valid_mask */
+    A_UINT32 tx_rate;
+    /**
+     * TSF timestamp bits [31:0];
+     * valid when WMI_LPI_VALID_TSF set in valid_mask
+     */
+    A_UINT32 tsf_lo;
+    /**
+     * TSF timestamp bits [63:32];
+     * valid when WMI_LPI_VALID_TSF set in valid_mask
+     */
+    A_UINT32 tsf_hi;
+    /** Age of measurement in milliseconds; valid when WMI_LPI_VALID_AGE set in valid_mask */
+    A_UINT32 age;
+    /**
+     * MSAP data: 12 bytes packed as 3 x A_UINT32;
+     * valid when WMI_LPI_VALID_MSAP set in valid_mask
+     */
+    A_UINT32 msap[WMI_LPI_MAX_MSAP_LEN_W];
+    /**
+     * Band center frequency 1 in MHz;
+     * valid when WMI_LPI_VALID_CNT_FREQ1 set in valid_mask
+     */
+    A_UINT32 band_center_freq_1;
+    /**
+     * Band center frequency 2 in MHz;
+     * valid when WMI_LPI_VALID_CNT_FREQ2 set in valid_mask
+     */
+    A_UINT32 band_center_freq_2;
+    /** Venue info per IEEE 802.11u Table 9-62:
+     *  bits[7:0]  = venue_type (e.g. 0=unspecified, 1=assembly, 2=business,
+     *               3=educational, 4=factory, 5=institutional, 6=mercantile,
+     *               7=residential, 8=storage, 9=utility, 10=vehicular,
+     *               11=outdoor)
+     *  bits[15:8] = venue_info
+     *               (venue group/subtype per IEEE 802.11u Table 9-62)
+     *  valid when WMI_LPI_VALID_VENUE set in valid_mask */
+    A_UINT32 venue_type_and_info;
+} wmi_lpi_ap_info_t;
+
+
+/**
+ * wmi_lpi_scan_result_ind_fixed_param -
+ * Fixed params for TLV #1 of WMI_LPI_SCAN_RESULT_EVENTID_V2.
+ * Tag: WMITLV_TAG_STRUC_wmi_lpi_scan_result_ind_fixed_param.
+ * TLV #2 (freq_list) and TLV #3 (ap_array) follow this struct
+ * in the event buffer.
+ * Scan completion is signalled by WMI_LPI_STATUS_EVENTID (unchanged);
+ */
+typedef struct {
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_lpi_scan_result_ind_fixed_param */
+    A_UINT32 tlv_header;
+    /**
+     * Request ID echoed from the triggering scan request.
+     * For snoop scans, WLS substitutes the snoop subscriber's req_id.
+     */
+    A_UINT32 req_id;
+    /**
+     * Country code from scanned_freq_list: 4 ASCII bytes packed little-endian
+     */
+    A_UINT32 country_code;
+    /** Scan type performed: 0=passive, 1=active, 2=active+passive DFS */
+    A_UINT32 scan_type_performed;
+    /**
+     * Radio chain preference used for this scan:
+     *  0=default, 1=low-latency, 2=low-power, 3=hi-accuracy
+     */
+    A_UINT32 radio_chain_pref;
+/**
+ * TLV (tag length value) parameters follow the fixed_param structure:
+ *   A_UINT32 freq_list[];  // scanned frequencies in MHz; one per word
+ *   wmi_lpi_ap_info_t ap_array[];   // per-AP scan records;
+ *                                   // max WMI_LPI_MAX_AP_NUM entries
+ */
+} wmi_lpi_scan_result_ind_fixed_param;
+
+/* ---- ap_info field bit positions ---- */
+#define WMI_LPI_AP_INFO_CUR_CONNECTED_S    0
+#define WMI_LPI_AP_INFO_WIFI_MC_S          1
+#define WMI_LPI_AP_INFO_MSAP_SUPPORTED_S   2
+#define WMI_LPI_AP_INFO_IS_ACTIVE_S        3
+/* 13-bit valid_mask starts at bit 4 */
+#define WMI_LPI_AP_INFO_VALID_MASK_S       4
+/* 7-bit reserved field at bits [23:17] */
+#define WMI_LPI_AP_INFO_RESERVED_S         17
+/* 8-bit phy_mode at bits [31:24] */
+#define WMI_LPI_AP_INFO_PHY_MODE_S         24
+
+/* ap_info: cur_connected (bit 0) */
+#define WMI_LPI_AP_INFO_SET_CUR_CONNECTED(pap, val) do { \
+    (pap)->ap_info |=  (((val) & 0x1) << WMI_LPI_AP_INFO_CUR_CONNECTED_S); \
+    } while (0)
+#define WMI_LPI_AP_INFO_GET_CUR_CONNECTED(pap) \
+    (((pap)->ap_info >> WMI_LPI_AP_INFO_CUR_CONNECTED_S) & 0x1)
+
+/* ap_info: wifi_802_11_mc (bit 1) */
+#define WMI_LPI_AP_INFO_SET_WIFI_MC(pap, val) do { \
+    (pap)->ap_info |=  (((val) & 0x1) << WMI_LPI_AP_INFO_WIFI_MC_S); \
+    } while (0)
+#define WMI_LPI_AP_INFO_GET_WIFI_MC(pap) \
+    (((pap)->ap_info >> WMI_LPI_AP_INFO_WIFI_MC_S) & 0x1)
+
+/* ap_info: msap_supported (bit 2) */
+#define WMI_LPI_AP_INFO_SET_MSAP_SUPPORTED(pap, val) do { \
+    (pap)->ap_info |=  (((val) & 0x1) << WMI_LPI_AP_INFO_MSAP_SUPPORTED_S); \
+    } while (0)
+#define WMI_LPI_AP_INFO_GET_MSAP_SUPPORTED(pap) \
+    (((pap)->ap_info >> WMI_LPI_AP_INFO_MSAP_SUPPORTED_S) & 0x1)
+
+/* ap_info: is_active (bit 3) */
+#define WMI_LPI_AP_INFO_SET_IS_ACTIVE(pap, val) do { \
+    (pap)->ap_info |=  (((val) & 0x1) << WMI_LPI_AP_INFO_IS_ACTIVE_S); \
+    } while (0)
+#define WMI_LPI_AP_INFO_GET_IS_ACTIVE(pap) \
+    (((pap)->ap_info >> WMI_LPI_AP_INFO_IS_ACTIVE_S) & 0x1)
+
+/* ap_info: valid_mask (bits [16:4], 13 bits) */
+#define WMI_LPI_AP_INFO_SET_VALID_MASK(pap, val) do { \
+    (pap)->ap_info |=  (((val) & 0x1FFF) << WMI_LPI_AP_INFO_VALID_MASK_S); \
+    } while (0)
+#define WMI_LPI_AP_INFO_GET_VALID_MASK(pap) \
+    (((pap)->ap_info >> WMI_LPI_AP_INFO_VALID_MASK_S) & 0x1FFF)
+
+/*
+ * ap_info: reserved (bits [23:17], 7 bits)
+ * Sender must write 0.  Receiver must ignore.
+ * Reserved for future per-AP flag extensions.
+ */
+
+/* ap_info: phy_mode (bits [31:24], 8 bits) */
+#define WMI_LPI_AP_INFO_SET_PHY_MODE(pap, val) do { \
+    (pap)->ap_info |=  (((val) & 0xFF) << WMI_LPI_AP_INFO_PHY_MODE_S); \
+    } while (0)
+#define WMI_LPI_AP_INFO_GET_PHY_MODE(pap) \
+    (((pap)->ap_info >> WMI_LPI_AP_INFO_PHY_MODE_S) & 0xFF)
+
+/* Helper: test a valid_mask bit directly in ap_info (valid_mask is at +4) */
+#define WMI_LPI_AP_INFO_VALID(pap, mask) \
+    (((pap)->ap_info >> WMI_LPI_AP_INFO_VALID_MASK_S) & (mask))
+
+/* valid_mask bit values (13-bit field in ap_info[16:4]) */
+#define WMI_LPI_VALID_TX_POWER    0x0001 /* tx_power field present */
+#define WMI_LPI_VALID_TX_RATE     0x0002 /* tx_rate field present */
+#define WMI_LPI_VALID_TSF         0x0004 /* tsf_lo/tsf_hi fields present */
+#define WMI_LPI_VALID_AGE         0x0008 /* age field present */
+#define WMI_LPI_VALID_WIFI_MC     0x0010 /* wifi_802_11_mc value in ap_info[1]*/
+#define WMI_LPI_VALID_MSAP        0x0020 /* msap[] field present */
+#define WMI_LPI_VALID_CNT_FREQ1   0x0040 /* band_center_freq_1 present */
+#define WMI_LPI_VALID_CNT_FREQ2   0x0080 /* band_center_freq_2 present */
+#define WMI_LPI_VALID_VENUE       0x0100 /* venue_type_and_info present */
+#define WMI_LPI_VALID_HT_SCO_BIT0 0x0200 /* HT SCO bit 0 */
+#define WMI_LPI_VALID_HT_SCO_BIT1 0x0400 /* HT SCO bit 1 */
+#define WMI_LPI_VALID_LOC_CIVIC   0x0800 /* Location Civic supported */
+#define WMI_LPI_VALID_LCI         0x1000 /* LCI supported */
+
+/* ---- scan_info field bit positions ---- */
+#define WMI_LPI_SCAN_INFO_MODULE_ID_S 0  /* scan_module_id bits [7:0] */
+#define WMI_LPI_SCAN_INFO_SCAN_ID_S   8  /* scan_id        bits [15:8] */
+#define WMI_LPI_SCAN_INFO_FLAGS_S     16 /* flags          bits [23:16] */
+#define WMI_LPI_SCAN_INFO_CACHE_S     24 /* scan_cache     bits [31:24] */
+
+/* scan_info: scan_module_id (bits [7:0]) */
+#define WMI_LPI_SCAN_INFO_SET_MODULE_ID(pap, val) do { \
+    (pap)->scan_info |=  (((val) & 0xFF) << WMI_LPI_SCAN_INFO_MODULE_ID_S); \
+    } while (0)
+#define WMI_LPI_SCAN_INFO_GET_MODULE_ID(pap) \
+    (((pap)->scan_info >> WMI_LPI_SCAN_INFO_MODULE_ID_S) & 0xFF)
+
+/* scan_info: scan_id (bits [15:8]) */
+#define WMI_LPI_SCAN_INFO_SET_SCAN_ID(pap, val) do { \
+    (pap)->scan_info |=  (((val) & 0xFF) << WMI_LPI_SCAN_INFO_SCAN_ID_S); \
+    } while (0)
+#define WMI_LPI_SCAN_INFO_GET_SCAN_ID(pap) \
+    (((pap)->scan_info >> WMI_LPI_SCAN_INFO_SCAN_ID_S) & 0xFF)
+
+/* scan_info: flags (bits [23:16]) */
+#define WMI_LPI_SCAN_INFO_SET_FLAGS(pap, val) do { \
+    (pap)->scan_info |=  (((val) & 0xFF) << WMI_LPI_SCAN_INFO_FLAGS_S); \
+    } while (0)
+#define WMI_LPI_SCAN_INFO_GET_FLAGS(pap) \
+    (((pap)->scan_info >> WMI_LPI_SCAN_INFO_FLAGS_S) & 0xFF)
+
+/* scan_info: scan_cache (bits [31:24]) */
+#define WMI_LPI_SCAN_INFO_SET_CACHE(pap, val) do { \
+    (pap)->scan_info |=  (((val) & 0xFF) << WMI_LPI_SCAN_INFO_CACHE_S); \
+    } while (0)
+#define WMI_LPI_SCAN_INFO_GET_CACHE(pap) \
+    (((pap)->scan_info >> WMI_LPI_SCAN_INFO_CACHE_S) & 0xFF)
+
+/* ---- ESS_and_SEC_info field bit positions ---- */
+#define WMI_LPI_ESS_SEC_ESS_S      0  /* ess      bits [15:0]  */
+#define WMI_LPI_ESS_SEC_SEC_MODE_S 16 /* sec_mode bits [23:16] */
+
+/* ESS_and_SEC_info: ess (bits [15:0]) */
+#define WMI_LPI_ESS_SEC_SET_ESS(pap, val) do { \
+    (pap)->ESS_and_SEC_info |=  (((val) & 0xFFFF) << WMI_LPI_ESS_SEC_ESS_S); \
+    } while (0)
+#define WMI_LPI_ESS_SEC_GET_ESS(pap) \
+    (((pap)->ESS_and_SEC_info >> WMI_LPI_ESS_SEC_ESS_S) & 0xFFFF)
+
+/* ESS_and_SEC_info: sec_mode (bits [23:16]) */
+#define WMI_LPI_ESS_SEC_SET_SEC_MODE(pap, val) do { \
+    (pap)->ESS_and_SEC_info |=  (((val) & 0xFF) << WMI_LPI_ESS_SEC_SEC_MODE_S); \
+    } while (0)
+#define WMI_LPI_ESS_SEC_GET_SEC_MODE(pap) \
+    (((pap)->ESS_and_SEC_info >> WMI_LPI_ESS_SEC_SEC_MODE_S) & 0xFF)
+
+/* ---- MCS_and_NSS_info field bit positions ---- */
+#define WMI_LPI_MCS_NSS_TX_NSS_S 0  /* tx_nss bits [7:0] */
+#define WMI_LPI_MCS_NSS_TX_MCS_S 8  /* tx_mcs bits [15:8] */
+#define WMI_LPI_MCS_NSS_RX_NSS_S 16 /* rx_nss bits [23:16] */
+#define WMI_LPI_MCS_NSS_RX_MCS_S 24 /* rx_mcs bits [31:24] */
+
+/* MCS_and_NSS_info: tx_nss (bits [7:0]) */
+#define WMI_LPI_MCS_NSS_SET_TX_NSS(pap, val) do { \
+    (pap)->MCS_and_NSS_info |=  (((val) & 0xFF) << WMI_LPI_MCS_NSS_TX_NSS_S); \
+    } while (0)
+#define WMI_LPI_MCS_NSS_GET_TX_NSS(pap) \
+    (((pap)->MCS_and_NSS_info >> WMI_LPI_MCS_NSS_TX_NSS_S) & 0xFF)
+
+/* MCS_and_NSS_info: tx_mcs (bits [15:8]) */
+#define WMI_LPI_MCS_NSS_SET_TX_MCS(pap, val) do { \
+    (pap)->MCS_and_NSS_info |=  (((val) & 0xFF) << WMI_LPI_MCS_NSS_TX_MCS_S); \
+    } while (0)
+#define WMI_LPI_MCS_NSS_GET_TX_MCS(pap) \
+    (((pap)->MCS_and_NSS_info >> WMI_LPI_MCS_NSS_TX_MCS_S) & 0xFF)
+
+/* MCS_and_NSS_info: rx_nss (bits [23:16]) */
+#define WMI_LPI_MCS_NSS_SET_RX_NSS(pap, val) do { \
+    (pap)->MCS_and_NSS_info |=  (((val) & 0xFF) << WMI_LPI_MCS_NSS_RX_NSS_S); \
+    } while (0)
+#define WMI_LPI_MCS_NSS_GET_RX_NSS(pap) \
+    (((pap)->MCS_and_NSS_info >> WMI_LPI_MCS_NSS_RX_NSS_S) & 0xFF)
+
+/* MCS_and_NSS_info: rx_mcs (bits [31:24]) */
+#define WMI_LPI_MCS_NSS_SET_RX_MCS(pap, val) do { \
+    (pap)->MCS_and_NSS_info |=  (((val) & 0xFF) << WMI_LPI_MCS_NSS_RX_MCS_S); \
+    } while (0)
+#define WMI_LPI_MCS_NSS_GET_RX_MCS(pap) \
+    (((pap)->MCS_and_NSS_info >> WMI_LPI_MCS_NSS_RX_MCS_S) & 0xFF)
+
+
+/* ---- venue_type_and_info field bit positions ---- */
+#define WMI_LPI_VENUE_TYPE_S 0 /* venue_type bits [7:0] */
+#define WMI_LPI_VENUE_INFO_S 8 /* venue_info bits [15:8] */
+
+/* venue_type_and_info: venue_type (bits [7:0]) */
+#define WMI_LPI_VENUE_SET_TYPE(pap, val) do { \
+    (pap)->venue_type_and_info |=  (((val) & 0xFF) << WMI_LPI_VENUE_TYPE_S); \
+    } while (0)
+#define WMI_LPI_VENUE_GET_TYPE(pap) \
+    (((pap)->venue_type_and_info >> WMI_LPI_VENUE_TYPE_S) & 0xFF)
+
+/* venue_type_and_info: venue_info (bits [15:8]) */
+#define WMI_LPI_VENUE_SET_INFO(pap, val) do { \
+    (pap)->venue_type_and_info |=  (((val) & 0xFF) << WMI_LPI_VENUE_INFO_S); \
+    } while (0)
+#define WMI_LPI_VENUE_GET_INFO(pap) \
+    (((pap)->venue_type_and_info >> WMI_LPI_VENUE_INFO_S) & 0xFF)
+
+/* =========================================================================
+ * End of WMI_LPI_SCAN_RESULT_EVENTID_V2 definitions
+ * ====================================================================== */
+
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_stop_scan_cmd_fixed_param */
