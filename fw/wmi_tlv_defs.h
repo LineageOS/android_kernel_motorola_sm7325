@@ -1643,6 +1643,11 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_mapc_cortwt_params,
     WMITLV_TAG_STRUC_wmi_lpi_scan_result_ind_fixed_param,
     WMITLV_TAG_STRUC_wmi_lpi_ap_info_t,
+    WMITLV_TAG_STRUC_wmi_nan_disc_service_rsp_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_nan_disc_match_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_nan_disc_service_req_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_nan_disc_cancel_service_req_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_nan_disc_service_req_terminated_event_fixed_param,
 } WMITLV_TAG_ID;
 /*
  * IMPORTANT: Please add _ALL_ WMI Commands Here.
@@ -2254,6 +2259,8 @@ typedef enum {
     OP(WMI_RTT_PEER_MEAS_CANCEL_CMDID) \
     OP(WMI_VDEV_GET_CHAN_HOP_STATUS_REPORT_CMDID) \
     OP(WMI_PEER_SET_MAPC_PARAMS_CMDID) \
+    OP(WMI_NAN_DISC_SERVICE_REQ_CMDID) \
+    OP(WMI_NAN_DISC_CANCEL_SERVICE_REQ_CMDID) \
     /* add new CMD_LIST elements above this line */
 
 
@@ -2625,6 +2632,9 @@ typedef enum {
     OP(WMI_RTT_PEER_MEAS_REPORT_EVENTID) \
     OP(WMI_VDEV_CHAN_HOP_STATUS_REPORT_EVENTID) \
     OP(WMI_LPI_SCAN_RESULT_EVENTID_V2) \
+    OP(WMI_NAN_DISC_SERVICE_RSP_EVENTID) \
+    OP(WMI_NAN_DISC_MATCH_EVENTID) \
+    OP(WMI_NAN_DISC_SERVICE_REQ_TERMINATED_EVENTID) \
     /* add new EVT_LIST elements above this line */
 
 
@@ -4516,6 +4526,92 @@ WMITLV_CREATE_PARAM_STRUC(WMI_NAN_PEER_SCHEDULE_CMDID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_peer_params_cmd_fixed_param, wmi_nan_peer_params_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, peer_caps_ie_data, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_NAN_PEER_PARAMS_CMDID);
+
+/**
+ * NAN Discovery Service Request Command
+ * (NL80211_CMD_ADD_NAN_FUNCTION equivalent)
+ *
+ * Carries all parameters needed to register a NAN Publish, Subscribe, or
+ * Follow-up function with the firmware in offload mode.
+ *
+ * TLV layout (in order):
+ *
+ * [0] wmi_nan_disc_service_req_cmd_fixed_param  fixed_param
+ *     All fixed scalar fields: vdev_id, service_req_type, instance_id, ttl,
+ *     publish_type, followup_instance_id, followup_requestor_id,
+ *     followup_dest, sdea_ctrl, pairing_bootstrap_methods, srf_bf_idx,
+ *     srf_include, service_req_flags, and all _len / _num count fields.
+ *
+ * [1] A_UINT8  service_id[]
+ *     6-byte NAN Service ID (SHA-256 of service name, first 6 bytes),
+ *     zero-padded to 8 bytes for 4-byte WMI alignment.
+ *     Maps to: NL80211_ATTR_NAN_FUNC_SERVICE_ID / cfg80211_nan_func.service_id
+ *
+ * [2] A_UINT8  serv_spec_info[]
+ *     Service Specific Info — opaque application payload, max 255 bytes.
+ *     Valid byte count given by fixed_param.serv_spec_info_len.
+ *     Maps to: NL80211_ATTR_NAN_FUNC_SERVICE_INFO /
+ *     cfg80211_nan_func.serv_spec_info
+ *
+ * [3] A_UINT8  srf_bf[]
+ *     SRF (Service Range Filter) Bloom filter data.
+ *     Valid byte count given by fixed_param.srf_bf_len.
+ *     Maps to: NL80211_ATTR_NAN_FUNC_SRF_BF / cfg80211_nan_func.srf_bf
+ *
+ * [4] wmi_mac_addr  srf_macs[]
+ *     SRF MAC address filter list (WMITLV_TAG_ARRAY_FIXED_STRUC).
+ *     Entry count given by fixed_param.num_srf_macs.
+ *     Maps to: NL80211_ATTR_NAN_FUNC_SRF_MAC_ADDRS /
+ *     cfg80211_nan_func.srf_macs
+ *
+ * [5] A_UINT8  rx_match_filter[]
+ *     RX match filter byte stream (ieee80211 protocol order).
+ *     Valid byte count given by fixed_param.rx_match_filter_len.
+ *     Maps to: NL80211_ATTR_NAN_FUNC_RX_MATCH_FILTER /
+ *     cfg80211_nan_func.rx_filters
+ *
+ * [6] A_UINT8  tx_match_filter[]
+ *     TX match filter byte stream (ieee80211 protocol order).
+ *     Valid byte count given by fixed_param.tx_match_filter_len.
+ *     Maps to: NL80211_ATTR_NAN_FUNC_TX_MATCH_FILTER /
+ *     cfg80211_nan_func.tx_filters
+ *
+ * [7] A_UINT32  cipher_suites[]
+ *     Array of supported NAN cipher suite IDs (CSIDs).
+ *     Entry count given by fixed_param.num_cipher_suites.
+ *     Maps to: NL80211_ATTR_NAN_FUNC_CIPHER_SUITES /
+ *     cfg80211_nan_func.cipher_suites
+ *
+ * [8] A_UINT8  nd_pmk[]
+ *     NAN Data Path PMK, exactly 32 bytes when present.
+ *     Present and valid only when
+ *     WMI_NAN_DISC_SERVICE_REQ_FLAGS_GET_ND_PMK_VALID(
+ *         fixed_param.service_req_flags) == 1;
+ *     zero-length TLV otherwise.
+ *     Maps to: NL80211_ATTR_NAN_FUNC_ND_PMK / cfg80211_nan_func.nd_pmk
+ */
+#define WMITLV_TABLE_WMI_NAN_DISC_SERVICE_REQ_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_disc_service_req_cmd_fixed_param, wmi_nan_disc_service_req_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE,        A_UINT8,      service_id,      WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE,        A_UINT8,      serv_spec_info,  WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE,        A_UINT8,      srf_bf,          WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_FIXED_STRUC, wmi_mac_addr, srf_macs,        WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE,        A_UINT8,      rx_match_filter, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE,        A_UINT8,      tx_match_filter, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_UINT32,      A_UINT32,     cipher_suites,   WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE,        A_UINT8,      nd_pmk,          WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE,        A_UINT8,      extra_nan_attrs, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_NAN_DISC_SERVICE_REQ_CMDID);
+
+/** NAN Discovery Delete Function Cmd
+ *
+ * TLV (tag length value) parameters follow the
+ * wmi_nan_disc_cancel_service_req_cmd_fixed_param structure. The TLV's are:
+ * wmi_nan_disc_cancel_service_req_cmd_fixed_param fixed_param;
+ */
+#define WMITLV_TABLE_WMI_NAN_DISC_CANCEL_SERVICE_REQ_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_disc_cancel_service_req_cmd_fixed_param, wmi_nan_disc_cancel_service_req_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_NAN_DISC_CANCEL_SERVICE_REQ_CMDID);
 
 /* NAN Data Get Capabilities Cmd */
 #define WMITLV_TABLE_WMI_NDI_GET_CAP_REQ_CMDID(id,op,buf,len) \
@@ -7461,6 +7557,52 @@ WMITLV_CREATE_PARAM_STRUC(WMI_NAN_JOINED_CLUSTER_EVENTID);
 #define WMITLV_TABLE_WMI_NAN_ENABLE_RSP_EVENTID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_enable_rsp_event_fixed_param, wmi_nan_enable_rsp_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_NAN_ENABLE_RSP_EVENTID);
+
+/** NAN Discovery Service Response Event
+ *
+ * TLV (tag length value) parameters follow the
+ * wmi_nan_disc_service_rsp_event_fixed_param structure. The TLV's are:
+ * wmi_nan_disc_service_rsp_event_fixed_param fixed_param;
+ */
+#define WMITLV_TABLE_WMI_NAN_DISC_SERVICE_RSP_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_disc_service_rsp_event_fixed_param, wmi_nan_disc_service_rsp_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_NAN_DISC_SERVICE_RSP_EVENTID);
+
+/** NAN Discovery Match Event (NL80211_CMD_NAN_MATCH equivalent)
+ *
+ * Unified event covering subscriber match, publisher replied, and follow-up
+ * received scenarios, discriminated by the type field in fixed_param.
+ *
+ * TLV (tag length value) parameters follow the
+ * wmi_nan_disc_match_event_fixed_param structure. The TLV's are:
+ * wmi_mac_addr  peer_addr[];
+ * A_UINT8  service_id[];
+ * A_UINT8  serv_spec_info[];
+ * A_UINT32 cipher_suites[];
+ * A_UINT8  scid[];
+ * A_UINT8  extra_info[];
+ * A_UINT8  ies[];
+ */
+#define WMITLV_TABLE_WMI_NAN_DISC_MATCH_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_disc_match_event_fixed_param, wmi_nan_disc_match_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_FIXED_STRUC, wmi_mac_addr, peer_addr, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE,   A_UINT8,  service_id,     WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE,   A_UINT8,  serv_spec_info, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_UINT32, A_UINT32, cipher_suites,  WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE,   A_UINT8,  scid,           WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE,   A_UINT8,  extra_info,     WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE,   A_UINT8,  ies,            WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_NAN_DISC_MATCH_EVENTID);
+
+/** NAN Discovery Service Request Terminated Event
+ *
+ * TLV (tag length value) parameters follow the
+ * wmi_nan_disc_service_req_terminated_event_fixed_param structure. The TLV's are:
+ * wmi_nan_disc_service_req_terminated_event_fixed_param fixed_param;
+ */
+#define WMITLV_TABLE_WMI_NAN_DISC_SERVICE_REQ_TERMINATED_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_nan_disc_service_req_terminated_event_fixed_param, wmi_nan_disc_service_req_terminated_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_NAN_DISC_SERVICE_REQ_TERMINATED_EVENTID);
 
 /* NAN Next DW Info Event */
 #define WMITLV_TABLE_WMI_NAN_NEXT_DW_INFO_EVENTID(id,op,buf,len) \
