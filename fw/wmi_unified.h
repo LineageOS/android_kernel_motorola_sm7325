@@ -10909,6 +10909,22 @@ typedef enum {
 #define WMI_PDEV_RATE_MAX_NSS_PROBE_INTERVAL_GET(value) WMI_GET_BITS(value, 16, 16)
 #define WMI_PDEV_RATE_MAX_NSS_PROBE_INTERVAL_SET(_value, value) WMI_SET_BITS(_value, 16, 16, value)
 
+/* WMI GET/SET macros for WMI_PDEV_PARAM_SMART_ANTENNA_CONFIG_MPDU_MCS_PARAMS */
+#define WMI_PDEV_SMART_ANT_MPDU_MCS_PARAMS_MAX_TRAIN_MPDU_GET(param) \
+    WMI_GET_BITS(param, 0, 10)
+#define WMI_PDEV_SMART_ANT_MPDU_MCS_PARAMS_MAX_TRAIN_MPDU_SET(_param, value) \
+    WMI_SET_BITS(_param, 0, 10, value)
+
+#define WMI_PDEV_SMART_ANT_MPDU_MCS_PARAMS_MCS_MARGIN_EN_GET(param) \
+    WMI_GET_BITS(param, 10, 1)
+#define WMI_PDEV_SMART_ANT_MPDU_MCS_PARAMS_MCS_MARGIN_EN_SET(_param, value) \
+    WMI_SET_BITS(_param, 10, 1, value)
+
+#define WMI_PDEV_SMART_ANT_MPDU_MCS_PARAMS_MCS_MARGIN_VAL_GET(param) \
+    WMI_GET_BITS(param, 11, 3)
+#define WMI_PDEV_SMART_ANT_MPDU_MCS_PARAMS_MCS_MARGIN_VAL_SET(_param, value) \
+    WMI_SET_BITS(_param, 11, 3, value)
+
 #define WMI_MBSSID_CTRL_FRAME_BASIC_TRIGGER ((A_UINT32) 1 << 0)
 #define WMI_MBSSID_CTRL_FRAME_BSR_TRIGGER ((A_UINT32) 1 << 1)
 #define WMI_MBSSID_CTRL_FRAME_MU_RTS_TRIGGER ((A_UINT32) 1 << 2)
@@ -23279,6 +23295,8 @@ typedef struct {
 #define WMI_PEER_EXT_IS_MESH_NODE       0x00000020 /* Indicates if the peer connecting is a mesh node */
 #define WMI_PEER_EXT_PROTECTED_TWT      0x00000040 /* Protected TWT operation Support field in Extended RSN Capabilities element */
 #define WMI_PEER_EXT_UHR                0x00000080 /* UHR enabled */
+#define WMI_PEER_EXT_2XLDPC             0x00000100 /* Peer supports 2x LDPC (3888-bit codeword) */
+
 #define WMI_PEER_EXT_F_CRIT_PROTO_HINT_ENABLED 0x40000000
 #define WMI_PEER_EXT_SMD_ASSOC          0x80000000
 
