@@ -285,9 +285,10 @@
  * 3.155 Add rxmon hdrlen specs in rx_ring_selection_cfg_t.
  * 3.156 Add qdata_consent_pkt flag in rx_peer_metadata_v1a and v2.
  * 3.157 Add TCL_METADATA_V3 defs.
+ * 3.158 Add more fields in htt_tx_monitor_cfg_t.
  */
 #define HTT_CURRENT_VERSION_MAJOR 3
-#define HTT_CURRENT_VERSION_MINOR 157
+#define HTT_CURRENT_VERSION_MINOR 158
 
 #define HTT_NUM_TX_FRAG_DESC  1024
 
@@ -8110,7 +8111,10 @@ PREPACK struct htt_tx_monitor_cfg_t {
              pkt_swap:                               1,
              tx_mon_global_en:                       1,
              mac_addr_filter_en:                     1,
-             rsvd1:                                  4;
+             addr_filter_peer_bitmap_ppdu_drop:      1,
+             type_based_mpdu_stat_filter_en:         1,
+             special_pkt_filtering_en:               1,
+             pkt_buf_cnt_en:                         1;
     A_UINT32 ring_buffer_size:                      16,
              config_length_mgmt:                     3,
              config_length_ctrl:                     3,
@@ -8154,6 +8158,23 @@ PREPACK struct htt_tx_monitor_cfg_t {
              response_end_status_word_mask:         16;
     A_UINT32 fes_status_prot_word_mask:             11,
              rsvd6:                                 21;
+    A_UINT32 phy_tx_pkt_end:                         8,
+             mac_tx_user_desc_common:                8,
+             mac_tx_mu_uplink_user_setup:            8,
+             pdg_response:                           8;
+    A_UINT32 received_response_info:                 8,
+             rx_response_required_info:              8,
+             ranging_user_details:                   8,
+             mactx_pre_phy_desc:                     8;
+    A_UINT32 ofdma_trigger_details:                  16,
+             tqm_update_tx_mpdu_count_status:        16;
+    A_UINT32 phytx_location:                         16,
+             rsvd7:                                  16;
+    A_UINT32 received_response_info_part2;
+    A_UINT32 type_en_mgmt;
+    A_UINT32 type_en_ctrl;
+    A_UINT32 type_en_data;
+    A_UINT32 tlv_filter_mask_in4;
 } POSTPACK;
 
 #define HTT_TX_MONITOR_CFG_SZ    (sizeof(struct htt_tx_monitor_cfg_t))
@@ -8223,6 +8244,51 @@ PREPACK struct htt_tx_monitor_cfg_t {
                 HTT_CHECK_SET_VAL(HTT_TX_MONITOR_CFG_MAC_ADDR_FILTER_EN, _val); \
                 ((_var) |= ((_val) << HTT_TX_MONITOR_CFG_MAC_ADDR_FILTER_EN_S)); \
             } while (0)
+
+#define HTT_TX_MONITOR_CFG_ADDR_FILTER_PEER_BITMAP_PPDU_DROP_M 0x10000000
+#define HTT_TX_MONITOR_CFG_ADDR_FILTER_PEER_BITMAP_PPDU_DROP_S 28
+#define HTT_TX_MONITOR_CFG_ADDR_FILTER_PEER_BITMAP_PPDU_DROP_GET(_var) \
+    (((_var) & HTT_TX_MONITOR_CFG_ADDR_FILTER_PEER_BITMAP_PPDU_DROP_M) >> \
+        HTT_TX_MONITOR_CFG_ADDR_FILTER_PEER_BITMAP_PPDU_DROP_S)
+#define HTT_TX_MONITOR_CFG_ADDR_FILTER_PEER_BITMAP_PPDU_DROP_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_TX_MONITOR_CFG_ADDR_FILTER_PEER_BITMAP_PPDU_DROP, _val); \
+        ((_var) |= ((_val) << HTT_TX_MONITOR_CFG_ADDR_FILTER_PEER_BITMAP_PPDU_DROP_S)); \
+    } while (0)
+
+#define HTT_TX_MONITOR_CFG_TYPE_BASED_MPDU_STAT_FILTER_EN_M 0x20000000
+#define HTT_TX_MONITOR_CFG_TYPE_BASED_MPDU_STAT_FILTER_EN_S 29
+#define HTT_TX_MONITOR_CFG_TYPE_BASED_MPDU_STAT_FILTER_EN_GET(_var) \
+    (((_var) & HTT_TX_MONITOR_CFG_TYPE_BASED_MPDU_STAT_FILTER_EN_M) >> \
+        HTT_TX_MONITOR_CFG_TYPE_BASED_MPDU_STAT_FILTER_EN_S)
+#define HTT_TX_MONITOR_CFG_TYPE_BASED_MPDU_STAT_FILTER_EN_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_TX_MONITOR_CFG_TYPE_BASED_MPDU_STAT_FILTER_EN, _val); \
+        ((_var) |= ((_val) << HTT_TX_MONITOR_CFG_TYPE_BASED_MPDU_STAT_FILTER_EN_S)); \
+    } while (0)
+
+#define HTT_TX_MONITOR_CFG_SPECIAL_PKT_FILTERING_EN_M 0x40000000
+#define HTT_TX_MONITOR_CFG_SPECIAL_PKT_FILTERING_EN_S 30
+#define HTT_TX_MONITOR_CFG_SPECIAL_PKT_FILTERING_EN_GET(_var) \
+    (((_var) & HTT_TX_MONITOR_CFG_SPECIAL_PKT_FILTERING_EN_M) >> \
+        HTT_TX_MONITOR_CFG_SPECIAL_PKT_FILTERING_EN_S)
+#define HTT_TX_MONITOR_CFG_SPECIAL_PKT_FILTERING_EN_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_TX_MONITOR_CFG_SPECIAL_PKT_FILTERING_EN, _val); \
+        ((_var) |= ((_val) << HTT_TX_MONITOR_CFG_SPECIAL_PKT_FILTERING_EN_S)); \
+    } while (0)
+
+#define HTT_TX_MONITOR_CFG_PKT_BUF_CNT_EN_M 0x80000000
+#define HTT_TX_MONITOR_CFG_PKT_BUF_CNT_EN_S 31
+#define HTT_TX_MONITOR_CFG_PKT_BUF_CNT_EN_GET(_var) \
+    (((_var) & HTT_TX_MONITOR_CFG_PKT_BUF_CNT_EN_M) >> \
+        HTT_TX_MONITOR_CFG_PKT_BUF_CNT_EN_S)
+#define HTT_TX_MONITOR_CFG_PKT_BUF_CNT_EN_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_TX_MONITOR_CFG_PKT_BUF_CNT_EN, _val); \
+        ((_var) |= ((_val) << HTT_TX_MONITOR_CFG_PKT_BUF_CNT_EN_S)); \
+    } while (0)
+
 
 #define HTT_TX_MONITOR_CFG_RING_BUFFER_SIZE_M           0x0000ffff
 #define HTT_TX_MONITOR_CFG_RING_BUFFER_SIZE_S           0
@@ -8609,6 +8675,132 @@ PREPACK struct htt_tx_monitor_cfg_t {
                 HTT_CHECK_SET_VAL(HTT_TX_MONITOR_CFG_FES_STATUS_PROT_WORD_MASK, _val); \
                 ((_var) |= ((_val) << HTT_TX_MONITOR_CFG_FES_STATUS_PROT_WORD_MASK_S)); \
             } while (0)
+
+
+#define HTT_TX_MONITOR_CFG_PHY_TX_PKT_END_M 0x000000ff
+#define HTT_TX_MONITOR_CFG_PHY_TX_PKT_END_S 0
+#define HTT_TX_MONITOR_CFG_PHY_TX_PKT_END_GET(_var) \
+            (((_var) & HTT_TX_MONITOR_CFG_PHY_TX_PKT_END_M) >> \
+                    HTT_TX_MONITOR_CFG_PHY_TX_PKT_END_S)
+#define HTT_TX_MONITOR_CFG_PHY_TX_PKT_END_SET(_var, _val) \
+            do { \
+                HTT_CHECK_SET_VAL(HTT_TX_MONITOR_CFG_PHY_TX_PKT_END, _val); \
+                ((_var) |= ((_val) << HTT_TX_MONITOR_CFG_PHY_TX_PKT_END_S)); \
+            } while (0)
+
+#define HTT_TX_MONITOR_CFG_MAC_TX_USER_DESC_COMMON_M 0x0000ff00
+#define HTT_TX_MONITOR_CFG_MAC_TX_USER_DESC_COMMON_S 8
+#define HTT_TX_MONITOR_CFG_MAC_TX_USER_DESC_COMMON_GET(_var) \
+            (((_var) & HTT_TX_MONITOR_CFG_MAC_TX_USER_DESC_COMMON_M) >> \
+                    HTT_TX_MONITOR_CFG_MAC_TX_USER_DESC_COMMON_S)
+#define HTT_TX_MONITOR_CFG_MAC_TX_USER_DESC_COMMON_SET(_var, _val) \
+            do { \
+                HTT_CHECK_SET_VAL(HTT_TX_MONITOR_CFG_MAC_TX_USER_DESC_COMMON, _val); \
+                ((_var) |= ((_val) << HTT_TX_MONITOR_CFG_MAC_TX_USER_DESC_COMMON_S)); \
+            } while (0)
+
+#define HTT_TX_MONITOR_CFG_MAC_TX_MU_UPLINK_USER_SETUP_M 0x00ff0000
+#define HTT_TX_MONITOR_CFG_MAC_TX_MU_UPLINK_USER_SETUP_S 16
+#define HTT_TX_MONITOR_CFG_MAC_TX_MU_UPLINK_USER_SETUP_GET(_var) \
+            (((_var) & HTT_TX_MONITOR_CFG_MAC_TX_MU_UPLINK_USER_SETUP_M) >> \
+                    HTT_TX_MONITOR_CFG_MAC_TX_MU_UPLINK_USER_SETUP_S)
+#define HTT_TX_MONITOR_CFG_MAC_TX_MU_UPLINK_USER_SETUP_SET(_var, _val) \
+            do { \
+                HTT_CHECK_SET_VAL(HTT_TX_MONITOR_CFG_MAC_TX_MU_UPLINK_USER_SETUP, _val); \
+                ((_var) |= ((_val) << HTT_TX_MONITOR_CFG_MAC_TX_MU_UPLINK_USER_SETUP_S)); \
+            } while (0)
+
+#define HTT_TX_MONITOR_CFG_PDG_RESPONSE_M 0xff000000
+#define HTT_TX_MONITOR_CFG_PDG_RESPONSE_S 24
+#define HTT_TX_MONITOR_CFG_PDG_RESPONSE_GET(_var) \
+            (((_var) & HTT_TX_MONITOR_CFG_PDG_RESPONSE_M) >> \
+                    HTT_TX_MONITOR_CFG_PDG_RESPONSE_S)
+#define HTT_TX_MONITOR_CFG_PDG_RESPONSE_SET(_var, _val) \
+            do { \
+                HTT_CHECK_SET_VAL(HTT_TX_MONITOR_CFG_PDG_RESPONSE, _val); \
+                ((_var) |= ((_val) << HTT_TX_MONITOR_CFG_PDG_RESPONSE_S)); \
+            } while (0)
+
+
+#define HTT_TX_MONITOR_CFG_RECEIVED_RESPONSE_INFO_M 0x000000ff
+#define HTT_TX_MONITOR_CFG_RECEIVED_RESPONSE_INFO_S 0
+#define HTT_TX_MONITOR_CFG_RECEIVED_RESPONSE_INFO_GET(_var) \
+            (((_var) & HTT_TX_MONITOR_CFG_RECEIVED_RESPONSE_INFO_M) >> \
+                    HTT_TX_MONITOR_CFG_RECEIVED_RESPONSE_INFO_S)
+#define HTT_TX_MONITOR_CFG_RECEIVED_RESPONSE_INFO_SET(_var, _val) \
+            do { \
+                HTT_CHECK_SET_VAL(HTT_TX_MONITOR_CFG_RECEIVED_RESPONSE_INFO, _val); \
+                ((_var) |= ((_val) << HTT_TX_MONITOR_CFG_RECEIVED_RESPONSE_INFO_S)); \
+            } while (0)
+
+#define HTT_TX_MONITOR_CFG_RX_RESPONSE_REQUIRED_INFO_M 0x0000ff00
+#define HTT_TX_MONITOR_CFG_RX_RESPONSE_REQUIRED_INFO_S 8
+#define HTT_TX_MONITOR_CFG_RX_RESPONSE_REQUIRED_INFO_GET(_var) \
+            (((_var) & HTT_TX_MONITOR_CFG_RX_RESPONSE_REQUIRED_INFO_M) >> \
+                    HTT_TX_MONITOR_CFG_RX_RESPONSE_REQUIRED_INFO_S)
+#define HTT_TX_MONITOR_CFG_RX_RESPONSE_REQUIRED_INFO_SET(_var, _val) \
+            do { \
+                HTT_CHECK_SET_VAL(HTT_TX_MONITOR_CFG_RX_RESPONSE_REQUIRED_INFO, _val); \
+                ((_var) |= ((_val) << HTT_TX_MONITOR_CFG_RX_RESPONSE_REQUIRED_INFO_S)); \
+            } while (0)
+
+#define HTT_TX_MONITOR_CFG_RANGING_USER_DETAILS_M 0x00ff0000
+#define HTT_TX_MONITOR_CFG_RANGING_USER_DETAILS_S 16
+#define HTT_TX_MONITOR_CFG_RANGING_USER_DETAILS_GET(_var) \
+            (((_var) & HTT_TX_MONITOR_CFG_RANGING_USER_DETAILS_M) >> \
+                    HTT_TX_MONITOR_CFG_RANGING_USER_DETAILS_S)
+#define HTT_TX_MONITOR_CFG_RANGING_USER_DETAILS_SET(_var, _val) \
+            do { \
+                HTT_CHECK_SET_VAL(HTT_TX_MONITOR_CFG_RANGING_USER_DETAILS, _val); \
+                ((_var) |= ((_val) << HTT_TX_MONITOR_CFG_RANGING_USER_DETAILS_S)); \
+            } while (0)
+
+#define HTT_TX_MONITOR_CFG_MACTX_PRE_PHY_DESC_M 0xff000000
+#define HTT_TX_MONITOR_CFG_MACTX_PRE_PHY_DESC_S 24
+#define HTT_TX_MONITOR_CFG_MACTX_PRE_PHY_DESC_GET(_var) \
+            (((_var) & HTT_TX_MONITOR_CFG_MACTX_PRE_PHY_DESC_M) >> \
+                    HTT_TX_MONITOR_CFG_MACTX_PRE_PHY_DESC_S)
+#define HTT_TX_MONITOR_CFG_MACTX_PRE_PHY_DESC_SET(_var, _val) \
+            do { \
+                HTT_CHECK_SET_VAL(HTT_TX_MONITOR_CFG_MACTX_PRE_PHY_DESC, _val); \
+                ((_var) |= ((_val) << HTT_TX_MONITOR_CFG_MACTX_PRE_PHY_DESC_S)); \
+            } while (0)
+
+
+#define HTT_TX_MONITOR_CFG_OFDMA_TRIGGER_DETAILS_M 0x0000ffff
+#define HTT_TX_MONITOR_CFG_OFDMA_TRIGGER_DETAILS_S 0
+#define HTT_TX_MONITOR_CFG_OFDMA_TRIGGER_DETAILS_GET(_var) \
+            (((_var) & HTT_TX_MONITOR_CFG_OFDMA_TRIGGER_DETAILS_M) >> \
+                    HTT_TX_MONITOR_CFG_OFDMA_TRIGGER_DETAILS_S)
+#define HTT_TX_MONITOR_CFG_OFDMA_TRIGGER_DETAILS_SET(_var, _val) \
+            do { \
+                HTT_CHECK_SET_VAL(HTT_TX_MONITOR_CFG_OFDMA_TRIGGER_DETAILS, _val); \
+                ((_var) |= ((_val) << HTT_TX_MONITOR_CFG_OFDMA_TRIGGER_DETAILS_S)); \
+            } while (0)
+
+#define HTT_TX_MONITOR_CFG_TQM_UPDATE_TX_MPDU_COUNT_STATUS_M 0xffff0000
+#define HTT_TX_MONITOR_CFG_TQM_UPDATE_TX_MPDU_COUNT_STATUS_S 16
+#define HTT_TX_MONITOR_CFG_TQM_UPDATE_TX_MPDU_COUNT_STATUS_GET(_var) \
+            (((_var) & HTT_TX_MONITOR_CFG_TQM_UPDATE_TX_MPDU_COUNT_STATUS_M) >> \
+                    HTT_TX_MONITOR_CFG_TQM_UPDATE_TX_MPDU_COUNT_STATUS_S)
+#define HTT_TX_MONITOR_CFG_TQM_UPDATE_TX_MPDU_COUNT_STATUS_SET(_var, _val) \
+            do { \
+                HTT_CHECK_SET_VAL(HTT_TX_MONITOR_CFG_TQM_UPDATE_TX_MPDU_COUNT_STATUS, _val); \
+                ((_var) |= ((_val) << HTT_TX_MONITOR_CFG_TQM_UPDATE_TX_MPDU_COUNT_STATUS_S)); \
+            } while (0)
+
+
+#define HTT_TX_MONITOR_CFG_PHYTX_LOCATION_M 0x0000ffff
+#define HTT_TX_MONITOR_CFG_PHYTX_LOCATION_S 0
+#define HTT_TX_MONITOR_CFG_PHYTX_LOCATION_GET(_var) \
+            (((_var) & HTT_TX_MONITOR_CFG_PHYTX_LOCATION_M) >> \
+                    HTT_TX_MONITOR_CFG_PHYTX_LOCATION_S)
+#define HTT_TX_MONITOR_CFG_PHYTX_LOCATION_SET(_var, _val) \
+            do { \
+                HTT_CHECK_SET_VAL(HTT_TX_MONITOR_CFG_PHYTX_LOCATION, _val); \
+                ((_var) |= ((_val) << HTT_TX_MONITOR_CFG_PHYTX_LOCATION_S)); \
+            } while (0)
+
 
 /*
  * pkt_type_enable_flags
