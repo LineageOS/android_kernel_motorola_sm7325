@@ -834,6 +834,13 @@ typedef  enum  {
 
     WMI_SERVICE_WMI_ANOMALY_REPORTING = 517,
 
+    /*
+     * Indicates that FW supports C-TAS power indication reporting and
+     * power limit enquiring through cmds WMI_SET_MODIFY_TX_PLIM_CMDID,
+     * WMI_GET_AVG_TX_POWER_CMDID and WMI_GET_TX_POWER_CALLING_CMDID.
+     */
+    WMI_SERVICE_CTAS_PLIM_INDICATION_SUPPORT = 518,
+
 
     WMI_MAX_EXT2_SERVICE
 

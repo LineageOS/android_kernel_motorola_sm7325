@@ -1648,6 +1648,14 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_nan_disc_service_req_cmd_fixed_param,
     WMITLV_TAG_STRUC_wmi_nan_disc_cancel_service_req_cmd_fixed_param,
     WMITLV_TAG_STRUC_wmi_nan_disc_service_req_terminated_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_set_modify_tx_plim_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_get_avg_tx_power_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_get_tx_power_calling_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_modify_tx_plim_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_avg_tx_power_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_avg_tx_power_region_per_antenna_chain,
+    WMITLV_TAG_STRUC_wmi_plimit_table_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_tx_power_per_antenna_chain,
 } WMITLV_TAG_ID;
 /*
  * IMPORTANT: Please add _ALL_ WMI Commands Here.
@@ -2261,6 +2269,9 @@ typedef enum {
     OP(WMI_PEER_SET_MAPC_PARAMS_CMDID) \
     OP(WMI_NAN_DISC_SERVICE_REQ_CMDID) \
     OP(WMI_NAN_DISC_CANCEL_SERVICE_REQ_CMDID) \
+    OP(WMI_SET_MODIFY_TX_PLIM_CMDID) \
+    OP(WMI_GET_AVG_TX_POWER_CMDID) \
+    OP(WMI_GET_TX_POWER_CALLING_CMDID) \
     /* add new CMD_LIST elements above this line */
 
 
@@ -2635,6 +2646,9 @@ typedef enum {
     OP(WMI_NAN_DISC_SERVICE_RSP_EVENTID) \
     OP(WMI_NAN_DISC_MATCH_EVENTID) \
     OP(WMI_NAN_DISC_SERVICE_REQ_TERMINATED_EVENTID) \
+    OP(WMI_MODIFY_TX_PLIM_EVENTID) \
+    OP(WMI_AVG_TX_POWER_EVENTID) \
+    OP(WMI_PLIMIT_TABLE_EVENTID) \
     /* add new EVT_LIST elements above this line */
 
 
@@ -6358,6 +6372,18 @@ WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_POWER_BOOST_MEM_ADDR_CMDID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_get_scan_cache_result_cmd_fixed_param, wmi_get_scan_cache_result_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_GET_SCAN_CACHE_RESULT_CMDID);
 
+#define WMITLV_TABLE_WMI_SET_MODIFY_TX_PLIM_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_set_modify_tx_plim_cmd_fixed_param, wmi_set_modify_tx_plim_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_SET_MODIFY_TX_PLIM_CMDID);
+
+#define WMITLV_TABLE_WMI_GET_AVG_TX_POWER_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_get_avg_tx_power_cmd_fixed_param, wmi_get_avg_tx_power_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_GET_AVG_TX_POWER_CMDID);
+
+#define WMITLV_TABLE_WMI_GET_TX_POWER_CALLING_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_get_tx_power_calling_cmd_fixed_param, wmi_get_tx_power_calling_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_GET_TX_POWER_CALLING_CMDID);
+
 #define WMITLV_TABLE_WMI_SAWF_EZMESH_HOP_COUNT_CMDID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_sawf_ezmesh_hop_count_cmd_fixed_param, wmi_sawf_ezmesh_hop_count_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_SAWF_EZMESH_HOP_COUNT_CMDID);
@@ -8977,6 +9003,20 @@ WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_POWER_BOOST_EVENTID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_UINT32, A_UINT32, scan_freq_list, WMITLV_SIZE_VAR) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_scan_cache_info, scan_cache_info, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_SCAN_CACHE_RESULT_EVENTID);
+
+#define WMITLV_TABLE_WMI_MODIFY_TX_PLIM_EVENTID(id, op , buf, len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_modify_tx_plim_event_fixed_param, wmi_modify_tx_plim_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_MODIFY_TX_PLIM_EVENTID);
+
+#define WMITLV_TABLE_WMI_AVG_TX_POWER_EVENTID(id, op , buf, len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_avg_tx_power_event_fixed_param, wmi_avg_tx_power_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_avg_tx_power_region_per_antenna_chain, avg_tx_power_region_per_antenna_chain, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_AVG_TX_POWER_EVENTID);
+
+#define WMITLV_TABLE_WMI_PLIMIT_TABLE_EVENTID(id, op , buf, len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_plimit_table_event_fixed_param, wmi_plimit_table_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_tx_power_per_antenna_chain, tx_power_per_antenna_chain, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_PLIMIT_TABLE_EVENTID);
 
 /* pdev per-vdev queue depth report event */
 #define WMITLV_TABLE_WMI_PDEV_MULTI_VDEV_AC_QUEUE_DEPTH_EVENTID(id,op,buf,len) \

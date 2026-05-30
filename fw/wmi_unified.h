@@ -1441,6 +1441,12 @@ typedef enum {
     /** WMI command to get scan cached result */
     WMI_GET_SCAN_CACHE_RESULT_CMDID,
 
+    WMI_SET_MODIFY_TX_PLIM_CMDID,
+
+    WMI_GET_AVG_TX_POWER_CMDID,
+
+    WMI_GET_TX_POWER_CALLING_CMDID,
+
 
     /*  Offload 11k related requests */
     WMI_11K_OFFLOAD_REPORT_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_11K_OFFLOAD),
@@ -2645,6 +2651,12 @@ typedef enum {
 
     /** WMI event for FW diagnostic data sent to host */
     WMI_OPT_DP_DIAG_EVENTID,
+
+    WMI_MODIFY_TX_PLIM_EVENTID,
+
+    WMI_AVG_TX_POWER_EVENTID,
+
+    WMI_PLIMIT_TABLE_EVENTID,
 
 
     /* GPIO Event */
@@ -43935,6 +43947,9 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_VDEV_GET_CHAN_HOP_STATUS_REPORT_CMDID);
         WMI_RETURN_STRING(WMI_NAN_DISC_SERVICE_REQ_CMDID);
         WMI_RETURN_STRING(WMI_NAN_DISC_CANCEL_SERVICE_REQ_CMDID);
+        WMI_RETURN_STRING(WMI_SET_MODIFY_TX_PLIM_CMDID);
+        WMI_RETURN_STRING(WMI_GET_AVG_TX_POWER_CMDID);
+        WMI_RETURN_STRING(WMI_GET_TX_POWER_CALLING_CMDID);
     }
 
     return (A_UINT8 *) "Invalid WMI cmd";
@@ -56053,6 +56068,35 @@ typedef struct {
     A_UINT32 tlv_header;
 } wmi_get_scan_cache_result_cmd_fixed_param;
 
+typedef enum {
+    WMI_PLIM_DIRECTION_NONE = 0,
+    WMI_PLIM_DIRECTION_INCREASE,
+    WMI_PLIM_DIRECTION_DECREASE
+} wmi_plim_direction_type;
+
+typedef struct {
+    /* WMITLV_TAG_STRUC_wmi_set_modify_tx_plim_cmd_fixed_param */
+    A_UINT32 tlv_header;
+    /* Requested level for future enhancement, default value shall be 1 */
+    A_UINT32 multiplier;
+    /* takes values from enum wmi_plim_direction_type */
+    A_UINT32 direction;
+} wmi_set_modify_tx_plim_cmd_fixed_param;
+
+typedef struct {
+    /* WMITLV_TAG_STRUC_wmi_get_avg_tx_power_cmd_fixed_param */
+    A_UINT32 tlv_header;
+    /* Current active DSI (device state index) */
+    A_UINT32 dsi_id;
+} wmi_get_avg_tx_power_cmd_fixed_param;
+
+typedef struct {
+    /* WMITLV_TAG_STRUC_wmi_get_tx_power_calling_cmd_fixed_param */
+    A_UINT32 tlv_header;
+    /* DSI index for which power limit info is to be fetched */
+    A_UINT32 dsi_id;
+} wmi_get_tx_power_calling_cmd_fixed_param;
+
 /* Element ID 61 (HT Operation) is present (see HT 7.3.2) */
 #define WIFI_CACHED_SCAN_RESULT_FLAGS_HT_OPS_PRESENT_GET(flags)  WMI_GET_BITS(flags, 0, 1)
 #define WIFI_CACHED_SCAN_RESULT_FLAGS_HT_OPS_PRESENT_SET(flags, value) WMI_SET_BITS(flags, 0, 1, value)
@@ -56113,6 +56157,66 @@ typedef struct {
      *   - struct wmi_scan_cache_info scan_cache_info[];
      */
 } wmi_scan_cache_result_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header;  /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_modify_tx_plim_event_fixed_param */
+
+    A_UINT32 status; /* 0 = success, 1 = failure */
+} wmi_modify_tx_plim_event_fixed_param;
+
+typedef enum {
+    /* Invalid Chain combination */
+    WMI_POWER_REGION_INVALID    = 0,
+
+    /* Avg. tx power <= PowerLimit-backoff */
+    WMI_POWER_REGION_LOW        = 1,
+
+    /* PowerLimit-backoff < Avg. tx power <= PowerLimit */
+    WMI_POWER_REGION_MEDIUM     = 2,
+
+    /* PowerLimit < Avg. tx power <= PowerLimit+Boost */
+    WMI_POWER_REGION_HIGH       = 3,
+
+    /* Avg. tx power > PowerLimit+Boost */
+    WMI_POWER_REGION_EXTRA_HIGH = 4,
+
+} wmi_phyrf_tas_chain_power_region_type;
+
+typedef struct {
+    A_UINT32 tlv_header;  /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_avg_tx_power_region_per_antenna_chain */
+    /* Valid chain number for which chain_power_region is filled */
+    A_UINT32 chain_no;
+    A_UINT32 chain_operating_band; /* 0: 2GHz, 1: 5GHz, 2: 6GHz */
+    /* takes values from enum wmi_phyrf_tas_chain_power_region_type */
+    A_UINT32 chain_power_region;
+} wmi_avg_tx_power_region_per_antenna_chain;
+
+typedef struct {
+    A_UINT32 tlv_header;  /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_avg_tx_power_event_fixed_param */
+    A_UINT32  status; /* 0 = success, 1 = failure */
+    /* Exposure window over which TX power is averaged */
+    A_UINT32 time_window_in_sec;
+    /* The below TLVs follow this TLV
+     * struct wmi_avg_tx_power_region_per_antenna_chain[];
+     */
+} wmi_avg_tx_power_event_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header;  /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_tx_power_per_antenna_chain */
+    A_UINT32 chain_no; /* Valid chain number for which power is filled */
+    A_UINT32 chain_operating_band; /* 0: 2GHz, 1: 5GHz, 2: 6GHz */
+    A_INT32 power; /* Power limit in units of 0.25 dBm */
+} wmi_tx_power_per_antenna_chain;
+
+typedef struct  {
+    A_UINT32 tlv_header;  /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_plimit_table_event_fixed_param */
+    A_UINT32 status; /* 0 = success, 1 = failure */
+    A_UINT32 dsi_id; /* DSI index for which below entries are filled */
+    /* The below TLVs follow this TLV
+     * struct wmi_tx_power_per_antenna_chain[];
+     */
+} wmi_plimit_table_event_fixed_param;
+
 
 #define WMI_POWER_BOOST_CAPABILITIES_PHY_ID_GET(word32)        WMI_GET_BITS(word32, 0, 4)
 #define WMI_POWER_BOOST_CAPABILITIES_PHY_ID_SET(word32, value) WMI_SET_BITS(word32, 0, 4, value)
