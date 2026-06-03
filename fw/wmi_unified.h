@@ -5680,7 +5680,9 @@ typedef struct {
                 dw_notif_lead_time: 8,
                 /* enable supplicant based NAN offload mode */
                 enable_nan_ofld_mode: 1,
-                reserved2: 23;
+                /* disable/enable temporal IOT mode */
+                enable_temporal_iot_mode: 1,
+                reserved2: 22;
         };
     };
 } wmi_resource_config;
@@ -5699,6 +5701,12 @@ typedef struct {
     WMI_GET_BITS(word32, 8, 1)
 #define WMI_RSRC_CFG_NAN_CONFIG_ENABLE_NAN_OFLD_MODE_SET(word32, value) \
     WMI_SET_BITS(word32, 8, 1, value)
+
+#define WMI_RSRC_CFG_NAN_CONFIG_ENABLE_NAN_TEMPORAL_IOT_MODE_GET(word32) \
+    WMI_GET_BITS(word32, 9, 1)
+#define WMI_RSRC_CFG_NAN_CONFIG_ENABLE_NAN_TEMPORAL_IOT_MODE_SET(word32, value) \
+    WMI_SET_BITS(word32, 9, 1, value)
+
 
 /*
  * WMI_NAN_DISC_COOKIE_GET / WMI_NAN_DISC_COOKIE_SET

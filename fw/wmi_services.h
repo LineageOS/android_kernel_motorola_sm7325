@@ -841,6 +841,12 @@ typedef  enum  {
      */
     WMI_SERVICE_CTAS_PLIM_INDICATION_SUPPORT = 518,
 
+    /*
+     * Indicates FW supports NAN in offload mode
+     * (supplicant-based NAN offload mode architecture).
+     */
+    WMI_SERVICE_NAN_OFFLOAD_MODE_SUPPORT = 519,
+
 
     WMI_MAX_EXT2_SERVICE
 
