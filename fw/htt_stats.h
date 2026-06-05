@@ -927,6 +927,12 @@ enum htt_dbg_ext_stats_type {
      *     RESP Tags:
      *       - htt_stats_ctl_tlv
      *       - htt_stats_enhanced_ctl_tlv
+     * else if (subtype == HTT_STATS_REGULATORY_SUBTYPE_DFS):
+     *     no params
+     *     RESP Tags:
+     *       - htt_stats_dfs_radar_history_tlv
+     *       - htt_stats_dfs_ini_tlv
+     *       - htt_stats_dfs_ipc_ring_tlv
      */
     HTT_DBG_EXT_STATS_REGULATORY = 83,
 
@@ -6376,7 +6382,34 @@ typedef htt_stats_tx_de_cmn_tlv htt_tx_de_cmn_stats_tlv;
     (((word) >> 0) & 0xff)
 
 #define HTT_STATS_RX_FW_RING_SIZE_NUM_ENTRIES(dword) ((dword >> 0)  & 0xffff)
+/* provide alias macros that use preferred naming convention */
+#define HTT_STATS_RX_RING_STATS_SW2RXDMA_MAX_NUM_ENTRIES_GET(dword) \
+    HTT_STATS_RX_FW_RING_SIZE_NUM_ENTRIES(dword)
+#define HTT_STATS_RX_RING_STATS_RXDMA2REO_MAX_NUM_ENTRIES_GET(dword) \
+    HTT_STATS_RX_FW_RING_SIZE_NUM_ENTRIES(dword)
+#define HTT_STATS_RX_RING_STATS_REO2SW1_MAX_NUM_ENTRIES_GET(dword) \
+    HTT_STATS_RX_FW_RING_SIZE_NUM_ENTRIES(dword)
+#define HTT_STATS_RX_RING_STATS_REO2SW4_MAX_NUM_ENTRIES_GET(dword) \
+    HTT_STATS_RX_FW_RING_SIZE_NUM_ENTRIES(dword)
+#define HTT_STATS_RX_RING_STATS_REFILLRINGIPA_MAX_NUM_ENTRIES_GET(dword) \
+    HTT_STATS_RX_FW_RING_SIZE_NUM_ENTRIES(dword)
+#define HTT_STATS_RX_RING_STATS_REFILLRINGHOST_MAX_NUM_ENTRIES_GET(dword) \
+    HTT_STATS_RX_FW_RING_SIZE_NUM_ENTRIES(dword)
+
 #define HTT_STATS_RX_FW_RING_CURR_NUM_ENTRIES(dword) ((dword >> 16) & 0xffff)
+/* provide alias macros that use preferred naming convention */
+#define HTT_STATS_RX_RING_STATS_SW2RXDMA_CURR_NUM_ENTRIES_GET(dword) \
+    HTT_STATS_RX_FW_RING_CURR_NUM_ENTRIES(dword)
+#define HTT_STATS_RX_RING_STATS_RXDMA2REO_CURR_NUM_ENTRIES_GET(dword) \
+    HTT_STATS_RX_FW_RING_CURR_NUM_ENTRIES(dword)
+#define HTT_STATS_RX_RING_STATS_REO2SW1_CURR_NUM_ENTRIES_GET(dword) \
+    HTT_STATS_RX_FW_RING_CURR_NUM_ENTRIES(dword)
+#define HTT_STATS_RX_RING_STATS_REO2SW4_CURR_NUM_ENTRIES_GET(dword) \
+    HTT_STATS_RX_FW_RING_CURR_NUM_ENTRIES(dword)
+#define HTT_STATS_RX_RING_STATS_REFILLRINGIPA_CURR_NUM_ENTRIES_GET(dword) \
+    HTT_STATS_RX_FW_RING_CURR_NUM_ENTRIES(dword)
+#define HTT_STATS_RX_RING_STATS_REFILLRINGHOST_CURR_NUM_ENTRIES_GET(dword) \
+    HTT_STATS_RX_FW_RING_CURR_NUM_ENTRIES(dword)
 
 /* Rx debug info for status rings */
 typedef struct {
@@ -6386,12 +6419,54 @@ typedef struct {
      *                  (size of the ring in terms of entries)
      * BIT [16 : 31] :- current number of entries occupied in respective ring
      */
-    A_UINT32 entry_status_sw2rxdma;
-    A_UINT32 entry_status_rxdma2reo;
-    A_UINT32 entry_status_reo2sw1;
-    A_UINT32 entry_status_reo2sw4;
-    A_UINT32 entry_status_refillringipa;
-    A_UINT32 entry_status_refillringhost;
+    union {
+        A_UINT32 entry_status_sw2rxdma;
+        struct {
+            A_UINT32
+                max_num_entries:  16,
+                curr_num_entries: 16;
+        } sw2rxdma;
+    };
+    union {
+        A_UINT32 entry_status_rxdma2reo;
+        struct {
+            A_UINT32
+                max_num_entries:  16,
+                curr_num_entries: 16;
+        } rxdma2reo;
+    };
+    union {
+        A_UINT32 entry_status_reo2sw1;
+        struct {
+            A_UINT32
+                max_num_entries:  16,
+                curr_num_entries: 16;
+        } reo2sw1;
+    };
+    union {
+        A_UINT32 entry_status_reo2sw4;
+        struct {
+            A_UINT32
+                max_num_entries:  16,
+                curr_num_entries: 16;
+        } reo2sw4;
+    };
+    union {
+        A_UINT32 entry_status_refillringipa;
+        struct {
+            A_UINT32
+                max_num_entries:  16,
+                curr_num_entries: 16;
+        } refillringipa;
+    };
+    union {
+        A_UINT32 entry_status_refillringhost;
+        struct {
+            A_UINT32
+                max_num_entries:  16,
+                curr_num_entries: 16;
+        } refillringhost;
+    };
     /** datarate - Moving Average of Number of Entries */
     A_UINT32 datarate_refillringipa;
     A_UINT32 datarate_refillringhost;
@@ -12154,7 +12229,7 @@ typedef htt_stats_phy_counters_tlv htt_phy_counters_tlv;
      HTT_STATS_CURR_EANI_MODE_S)
 /* provide alias macro that uses preferred naming convention */
 #define HTT_STATS_PHY_STATS_CUREANIMODE_GET(_var) \
-    HTT_STATS_CURR_EANI_MODE_GET(_var) 
+    HTT_STATS_CURR_EANI_MODE_GET(_var)
 
 typedef struct {
     htt_tlv_hdr_t tlv_hdr;
@@ -12303,22 +12378,8 @@ typedef htt_stats_phy_stats_tlv htt_phy_stats_tlv;
         ((_var) |= ((_val) << HTT_STATS_PHY_RESET_XTALCAL_S)); \
     } while (0)
 
-#define HTT_STATS_PHY_RESET_TPCCAL2GOPC_M 0x00000010
-#define HTT_STATS_PHY_RESET_TPCCAL2GOPC_S 4
-#define HTT_STATS_PHY_RESET_TPCCAL2GOPC_GET(_var) \
-    (((_var) & HTT_STATS_PHY_RESET_TPCCAL2GOPC_M) >> \
-     HTT_STATS_PHY_RESET_TPCCAL2GOPC_S)
-/* provide alias macro that uses preferred naming convention */
-#define HTT_STATS_PHY_RESET_STATS_TPCCAL2GOPC_GET(_var) \
-    HTT_STATS_PHY_RESET_TPCCAL2GOPC_GET(_var)
-#define HTT_STATS_PHY_RESET_TPCCAL2GOPC_SET(_var, _val) \
-    do { \
-        HTT_CHECK_SET_VAL(HTT_STATS_PHY_RESET_TPCCAL2GOPC, _val); \
-        ((_var) |= ((_val) << HTT_STATS_PHY_RESET_TPCCAL2GOPC_S)); \
-    } while (0)
-
-#define HTT_STATS_PHY_RESET_TPCCAL2GFPC_M 0x00000020
-#define HTT_STATS_PHY_RESET_TPCCAL2GFPC_S 5
+#define HTT_STATS_PHY_RESET_TPCCAL2GFPC_M 0x00000010
+#define HTT_STATS_PHY_RESET_TPCCAL2GFPC_S 4
 #define HTT_STATS_PHY_RESET_TPCCAL2GFPC_GET(_var) \
     (((_var) & HTT_STATS_PHY_RESET_TPCCAL2GFPC_M) >> \
      HTT_STATS_PHY_RESET_TPCCAL2GFPC_S)
@@ -12331,22 +12392,22 @@ typedef htt_stats_phy_stats_tlv htt_phy_stats_tlv;
         ((_var) |= ((_val) << HTT_STATS_PHY_RESET_TPCCAL2GFPC_S)); \
     } while (0)
 
-#define HTT_STATS_PHY_RESET_TPCCAL5GOPC_M 0x00000040
-#define HTT_STATS_PHY_RESET_TPCCAL5GOPC_S 6
-#define HTT_STATS_PHY_RESET_TPCCAL5GOPC_GET(_var) \
-    (((_var) & HTT_STATS_PHY_RESET_TPCCAL5GOPC_M) >> \
-     HTT_STATS_PHY_RESET_TPCCAL5GOPC_S)
+#define HTT_STATS_PHY_RESET_TPCCAL2GOPC_M 0x00000020
+#define HTT_STATS_PHY_RESET_TPCCAL2GOPC_S 5
+#define HTT_STATS_PHY_RESET_TPCCAL2GOPC_GET(_var) \
+    (((_var) & HTT_STATS_PHY_RESET_TPCCAL2GOPC_M) >> \
+     HTT_STATS_PHY_RESET_TPCCAL2GOPC_S)
 /* provide alias macro that uses preferred naming convention */
-#define HTT_STATS_PHY_RESET_STATS_TPCCAL5GOPC_GET(_var) \
-    HTT_STATS_PHY_RESET_TPCCAL5GOPC_GET(_var)
-#define HTT_STATS_PHY_RESET_TPCCAL5GOPC_SET(_var, _val) \
+#define HTT_STATS_PHY_RESET_STATS_TPCCAL2GOPC_GET(_var) \
+    HTT_STATS_PHY_RESET_TPCCAL2GOPC_GET(_var)
+#define HTT_STATS_PHY_RESET_TPCCAL2GOPC_SET(_var, _val) \
     do { \
-        HTT_CHECK_SET_VAL(HTT_STATS_PHY_RESET_TPCCAL5GOPC, _val); \
-        ((_var) |= ((_val) << HTT_STATS_PHY_RESET_TPCCAL5GOPC_S)); \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_RESET_TPCCAL2GOPC, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_RESET_TPCCAL2GOPC_S)); \
     } while (0)
 
-#define HTT_STATS_PHY_RESET_TPCCAL5GFPC_M 0x00000080
-#define HTT_STATS_PHY_RESET_TPCCAL5GFPC_S 7
+#define HTT_STATS_PHY_RESET_TPCCAL5GFPC_M 0x00000040
+#define HTT_STATS_PHY_RESET_TPCCAL5GFPC_S 6
 #define HTT_STATS_PHY_RESET_TPCCAL5GFPC_GET(_var) \
     (((_var) & HTT_STATS_PHY_RESET_TPCCAL5GFPC_M) >> \
      HTT_STATS_PHY_RESET_TPCCAL5GFPC_S)
@@ -12359,21 +12420,22 @@ typedef htt_stats_phy_stats_tlv htt_phy_stats_tlv;
         ((_var) |= ((_val) << HTT_STATS_PHY_RESET_TPCCAL5GFPC_S)); \
     } while (0)
 
-#define HTT_STATS_PHY_RESET_TPCCAL6GOPC_M 0x00000100
-#define HTT_STATS_PHY_RESET_TPCCAL6GOPC_S 8
-#define HTT_STATS_PHY_RESET_TPCCAL6GOPC_GET(_var) \
-    (((_var) & HTT_STATS_PHY_RESET_TPCCAL6GOPC_M) >> \
-     HTT_STATS_PHY_RESET_TPCCAL6GOPC_S)
+#define HTT_STATS_PHY_RESET_TPCCAL5GOPC_M 0x00000080
+#define HTT_STATS_PHY_RESET_TPCCAL5GOPC_S 7
+#define HTT_STATS_PHY_RESET_TPCCAL5GOPC_GET(_var) \
+    (((_var) & HTT_STATS_PHY_RESET_TPCCAL5GOPC_M) >> \
+     HTT_STATS_PHY_RESET_TPCCAL5GOPC_S)
 /* provide alias macro that uses preferred naming convention */
-#define HTT_STATS_PHY_RESET_STATS_TPCCAL6GOPC_GET(_var) \
-    HTT_STATS_PHY_RESET_TPCCAL6GOPC_GET(_var)
-#define HTT_STATS_PHY_RESET_TPCCAL6GOPC_SET(_var, _val) \
+#define HTT_STATS_PHY_RESET_STATS_TPCCAL5GOPC_GET(_var) \
+    HTT_STATS_PHY_RESET_TPCCAL5GOPC_GET(_var)
+#define HTT_STATS_PHY_RESET_TPCCAL5GOPC_SET(_var, _val) \
     do { \
-        HTT_CHECK_SET_VAL(HTT_STATS_PHY_RESET_TPCCAL6GOPC, _val); \
-        ((_var) |= ((_val) << HTT_STATS_PHY_RESET_TPCCAL6GOPC_S)); \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_RESET_TPCCAL5GOPC, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_RESET_TPCCAL5GOPC_S)); \
     } while (0)
-#define HTT_STATS_PHY_RESET_TPCCAL6GFPC_M 0x00000200
-#define HTT_STATS_PHY_RESET_TPCCAL6GFPC_S 9
+
+#define HTT_STATS_PHY_RESET_TPCCAL6GFPC_M 0x00000100
+#define HTT_STATS_PHY_RESET_TPCCAL6GFPC_S 8
 #define HTT_STATS_PHY_RESET_TPCCAL6GFPC_GET(_var) \
     (((_var) & HTT_STATS_PHY_RESET_TPCCAL6GFPC_M) >> \
      HTT_STATS_PHY_RESET_TPCCAL6GFPC_S)
@@ -12384,6 +12446,20 @@ typedef htt_stats_phy_stats_tlv htt_phy_stats_tlv;
     do { \
         HTT_CHECK_SET_VAL(HTT_STATS_PHY_RESET_TPCCAL6GFPC, _val); \
         ((_var) |= ((_val) << HTT_STATS_PHY_RESET_TPCCAL6GFPC_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_RESET_TPCCAL6GOPC_M 0x00000200
+#define HTT_STATS_PHY_RESET_TPCCAL6GOPC_S 9
+#define HTT_STATS_PHY_RESET_TPCCAL6GOPC_GET(_var) \
+    (((_var) & HTT_STATS_PHY_RESET_TPCCAL6GOPC_M) >> \
+     HTT_STATS_PHY_RESET_TPCCAL6GOPC_S)
+/* provide alias macro that uses preferred naming convention */
+#define HTT_STATS_PHY_RESET_STATS_TPCCAL6GOPC_GET(_var) \
+    HTT_STATS_PHY_RESET_TPCCAL6GOPC_GET(_var)
+#define HTT_STATS_PHY_RESET_TPCCAL6GOPC_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_RESET_TPCCAL6GOPC, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_RESET_TPCCAL6GOPC_S)); \
     } while (0)
 
 #define HTT_STATS_PHY_RESET_RXGAINCAL2G_M 0x00000400
@@ -16817,6 +16893,7 @@ typedef enum {
     HTT_STATS_REGULATORY_SUBTYPE_REGDB = 0,
     HTT_STATS_REGULATORY_SUBTYPE_6GHZ  = 1,
     HTT_STATS_REGULATORY_SUBTYPE_CTL   = 2,
+    HTT_STATS_REGULATORY_SUBTYPE_DFS   = 3,
     HTT_STATS_REGULATORY_SUBTYPE_MAX
 } htt_stats_regulatory_subtype_t;
 
@@ -17400,6 +17477,247 @@ typedef struct {
     HTT_STATS_ENHANCED_CTL_GET_EXCEPTION_CTL_REGION(word)
 #define HTT_STATS_ENHANCED_CTL_SET_EXCEPTION_CTL_REGION(word,value) \
     HTT_STATS_SET_FIELD(0xFF000000, 24, (word), (value))
+
+
+#define HTT_STATS_DFS_RADAR_HISTORY_MAX_ENTRIES  5
+
+/**
+ * @brief TLV structure for wifistats 83 (radar history)
+ * This structure holds the last 5 radar history detected.
+ */
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    struct {
+        union {
+            A_UINT32 freq_det_info;
+            struct {
+                A_UINT32 chan_freq:16, /* MHz units */
+                detector_id:8,
+                is_chirp:1,    /* Chirp radar pulse detected */
+                rsvd1:7;
+            };
+        };
+        union {
+            A_UINT32 rssi_pulse_info;
+            struct {
+                A_UINT32 rf_pulseid:16,
+                radar_rssi_dbm:8,
+                rsvd2:8;
+            };
+        };
+        union {
+            A_UINT32 domain_type_info;
+            struct {
+                A_UINT32 domain:8,
+                type:8,
+                rf_radar_type:8,
+                rsvd3:8;
+            };
+        };
+        union {
+            A_UINT32 sidx_freq_info;
+            struct {
+                A_UINT32 sidx:16,
+                freq_offset:16;
+            };
+        };
+        union {
+            A_UINT32 dur_info;
+            struct {
+                A_UINT32 rf_mindur:16,   /* us */
+                rf_maxdur:16;   /* us */
+            };
+        };
+        union {
+            A_UINT32 threshold_info;
+            struct {
+                A_UINT32 rf_threshold:16, /* units = dBm */
+                rsvd4:16;
+            };
+        };
+        union {
+            A_UINT32 pri_info;
+            struct {
+                A_UINT32 rf_minpri:16,   /* us */
+                rf_maxpri:16;   /* us */
+            };
+        };
+    } radar_entry_stats[HTT_STATS_DFS_RADAR_HISTORY_MAX_ENTRIES];
+    A_UINT32 idx;      /* next write position */
+    A_UINT32 count;    /* valid entries in buffer */
+} htt_stats_dfs_radar_history_tlv;
+
+/*
+ * Accessor macros for htt_stats_dfs_radar_history_tlv.radar_entry_stats
+ * freq_det_info (word 0)
+ */
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_CHAN_FREQ_GET(word) \
+    HTT_STATS_GET_FIELD(0x0000FFFF, 0, (word))
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_CHAN_FREQ_SET(word, value) \
+    HTT_STATS_SET_FIELD(0x0000FFFF, 0, (word), (value))
+
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_DETECTOR_ID_GET(word) \
+    HTT_STATS_GET_FIELD(0x00FF0000, 16, (word))
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_DETECTOR_ID_SET(word, value) \
+    HTT_STATS_SET_FIELD(0x00FF0000, 16, (word), (value))
+
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_IS_CHIRP_GET(word) \
+    HTT_STATS_GET_FIELD(0x01000000, 24, (word))
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_IS_CHIRP_SET(word, value) \
+    HTT_STATS_SET_FIELD(0x01000000, 24, (word), (value))
+
+/*
+ * Accessor macros for htt_stats_dfs_radar_history_tlv.radar_entry_stats
+ * rssi_pulse_info (word 1)
+ */
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_RF_PULSEID_GET(word) \
+    HTT_STATS_GET_FIELD(0x0000FFFF, 0, (word))
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_RF_PULSEID_SET(word, value) \
+    HTT_STATS_SET_FIELD(0x0000FFFF, 0, (word), (value))
+
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_RADAR_RSSI_DBM_GET(word) \
+    ((A_INT8)HTT_STATS_GET_FIELD(0x00FF0000, 16, (word)))
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_RADAR_RSSI_DBM_SET(word, value) \
+    HTT_STATS_SET_FIELD(0x00FF0000, 16, (word), (A_UINT8)(value))
+
+/*
+ * Accessor macros for htt_stats_dfs_radar_history_tlv.radar_entry_stats
+ * domain_type_info (word 2)
+ */
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_DOMAIN_GET(word) \
+    HTT_STATS_GET_FIELD(0x000000FF, 0, (word))
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_DOMAIN_SET(word, value) \
+    HTT_STATS_SET_FIELD(0x000000FF, 0, (word), (value))
+
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_TYPE_GET(word) \
+    HTT_STATS_GET_FIELD(0x0000FF00, 8, (word))
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_TYPE_SET(word, value) \
+    HTT_STATS_SET_FIELD(0x0000FF00, 8, (word), (value))
+
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_RF_RADAR_TYPE_GET(word) \
+    HTT_STATS_GET_FIELD(0x00FF0000, 16, (word))
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_RF_RADAR_TYPE_SET(word, value) \
+    HTT_STATS_SET_FIELD(0x00FF0000, 16, (word), (value))
+
+/*
+ * Accessor macros for htt_stats_dfs_radar_history_tlv.radar_entry_stats
+ * sidx_freq_info (word 3)
+ */
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_SIDX_GET(word) \
+    ((A_INT16)HTT_STATS_GET_FIELD(0x0000FFFF, 0, (word)))
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_SIDX_SET(word, value) \
+    HTT_STATS_SET_FIELD(0x0000FFFF, 0, (word), (A_UINT16)(value))
+
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_FREQ_OFFSET_GET(word) \
+    ((A_INT16)HTT_STATS_GET_FIELD(0xFFFF0000, 16, (word)))
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_FREQ_OFFSET_SET(word, value) \
+    HTT_STATS_SET_FIELD(0xFFFF0000, 16, (word), (A_UINT16)(value))
+
+/*
+ * Accessor macros for htt_stats_dfs_radar_history_tlv.radar_entry_stats
+ * dur_info (word 4)
+ */
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_RF_MINDUR_GET(word) \
+    HTT_STATS_GET_FIELD(0x0000FFFF, 0, (word))
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_RF_MINDUR_SET(word, value) \
+    HTT_STATS_SET_FIELD(0x0000FFFF, 0, (word), (value))
+
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_RF_MAXDUR_GET(word) \
+    HTT_STATS_GET_FIELD(0xFFFF0000, 16, (word))
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_RF_MAXDUR_SET(word, value) \
+    HTT_STATS_SET_FIELD(0xFFFF0000, 16, (word), (value))
+
+/*
+ * Accessor macros for htt_stats_dfs_radar_history_tlv.radar_entry_stats
+ * threshold_info (word 5)
+ */
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_RF_THRESHOLD_GET(word) \
+    HTT_STATS_GET_FIELD(0x0000FFFF, 0, (word))
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_RF_THRESHOLD_SET(word, value) \
+    HTT_STATS_SET_FIELD(0x0000FFFF, 0, (word), (value))
+
+/*
+ * Accessor macros for htt_stats_dfs_radar_history_tlv.radar_entry_stats
+ * pri_info (word 6)
+ */
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_RF_MINPRI_GET(word) \
+    HTT_STATS_GET_FIELD(0x0000FFFF, 0, (word))
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_RF_MINPRI_SET(word, value) \
+    HTT_STATS_SET_FIELD(0x0000FFFF, 0, (word), (value))
+
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_RF_MAXPRI_GET(word) \
+    HTT_STATS_GET_FIELD(0xFFFF0000, 16, (word))
+#define HTT_STATS_DFS_RADAR_HISTORY_RADAR_ENTRY_STATS_RF_MAXPRI_SET(word, value) \
+    HTT_STATS_SET_FIELD(0xFFFF0000, 16, (word), (value))
+
+/*
+ * Sign-extend helper for signed bitfields in DFS radar entries.
+ * Used for radar_rssi_dbm (8-bit), sidx (16-bit), freq_offset (16-bit).
+ */
+#define HTT_STATS_SIGN_EXT(val, nbits) \
+    (((val) & (1u << ((nbits)-1))) ? \
+     ((val) | (~0u << (nbits))) : (val))
+
+/*
+ * Indices into htt_stats_dfs_ini_tlv.reg_val[]
+ * (same order as wfax_dfs_common[])
+ */
+enum htt_stats_dfs_ini_reg_idx {
+    HTT_STATS_DFS_INI_WFAX_RXTD_DET0_RADAR_POW_DET_L    = 0, /* offset 0xBC0 */
+    HTT_STATS_DFS_INI_WFAX_RXTD_DET0_RADAR_DETECTION_U  = 1, /* offset 0xBB4 */
+    HTT_STATS_DFS_INI_WFAX_RXTD_DET0_RADAR_PULSE_THR_L  = 2, /* offset 0xBF8 */
+    HTT_STATS_DFS_INI_WFAX_RXTD_DET0_RADAR_POW_DET_U    = 3, /* offset 0xBC4 */
+    HTT_STATS_DFS_INI_WFAX_RXTD_DET0_RADAR_PULSE_THR_U  = 4, /* offset 0xBFC */
+    HTT_STATS_DFS_INI_WFAX_RXTD_DET0_SRCH_FFT_CTRL2_0_L = 5, /* offset 0xBD8 */
+    HTT_STATS_DFS_INI_WFAX_RXTD_DET0_SRCH_FFT_CTRL1_U   = 6, /* offset 0xBD4 */
+    HTT_STATS_DFS_INI_WFAX_RXTD_DET0_SRCH_FFT_CTRL2_1_L = 7, /* offset 0xBE0 */
+    HTT_STATS_DFS_INI_WFAX_RXTD_DET0_RADAR_DETECTION_L  = 8, /* offset 0xBB0 */
+    HTT_STATS_DFS_INI_WFAX_RXTD_DET0_SRCH_FFT_CTRL2_1_U = 9, /* offset 0xBE4 */
+
+    HTT_STATS_DFS_INI_NUM_REGS = 10
+};
+
+
+/*
+ * htt_stats_dfs_ini_tlv - DFS common register
+ *
+ * Captures current live values of the 10 wfax_dfs_common HW registers.
+ * reg_val[i]:  current value read from hardware
+ *
+ * Use enum htt_stats_dfs_ini_reg_idx for reg_val[] index interpretation.
+ */
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    A_UINT32 reg_val[HTT_STATS_DFS_INI_NUM_REGS];
+} htt_stats_dfs_ini_tlv;
+
+
+/* ======================= End DFS Channel Register Snapshot TLV ========== } */
+
+/* ======================= DFS IPC Ring Stats TLV ========================= {
+ * Head/tail index state for the 3 DFS IPC rings read at stats query time.
+ * Use enum htt_stats_dfs_ipc_ring_idx for ipc_ring_stats[] index
+ * interpretation.
+ */
+
+/* Indices into htt_stats_dfs_ipc_ring_tlv.ipc_ring_stats[] */
+enum htt_stats_dfs_ipc_ring_idx {
+    HTT_STATS_DFS_IPC_RING_DFS0 = 0, /* IPC_DFS0_RINGID (2) */
+    HTT_STATS_DFS_IPC_RING_DFS1 = 1, /* IPC_DFS1_RINGID (3) */
+    HTT_STATS_DFS_IPC_RING_DFS2 = 2, /* IPC_DFS2_RINGID (4) */
+
+    HTT_STATS_DFS_IPC_RING_COUNT = 3 /* DFS0, DFS1, DFS2 */
+};
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    struct {
+        A_UINT32 head_idx;
+        A_UINT32 shadow_head_idx;
+        A_UINT32 tail_idx;
+        A_UINT32 shadow_tail_idx;
+    } ipc_ring_stats[HTT_STATS_DFS_IPC_RING_COUNT];
+} htt_stats_dfs_ipc_ring_tlv;
 
 
 /*======================= End Regulatory stats ==================== } */
