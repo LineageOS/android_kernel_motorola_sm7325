@@ -5523,8 +5523,15 @@ typedef struct {
      *      Refer to the below definitions of
      *      WMI_RSRC_CFG_HOST_SERVICE_FLAG_SMD_BSS_TRANSITION_GET and _SET
      *      macros.
+     *  Bit 26
+     *      This bit will be set by host to inform FW that the rx management
+     *      path directly to the host is enabled, so the FW need not forward
+     *      rx mgmt frames to the host.
+     *      Refer to the below definitions of
+     *      WMI_RSRC_CFG_HOST_SERVICE_FLAG_HOST_RX_MGMT_DIRECT_ENABLE_GET and
+     *      _SET macros.
      *
-     *  Bits 31:26 - Reserved
+     *  Bits 31:27 - Reserved
      */
     A_UINT32 host_service_flags;
 
@@ -6192,6 +6199,11 @@ typedef struct {
     WMI_GET_BITS(host_service_flags, 25, 1)
 #define WMI_RSRC_CFG_HOST_SERVICE_FLAG_SMD_BSS_TRANSITION_SET(host_service_flags, value) \
     WMI_SET_BITS(host_service_flags, 25, 1, value)
+
+#define WMI_RSRC_CFG_HOST_SERVICE_FLAG_HOST_RX_MGMT_DIRECT_ENABLE_GET(host_service_flags) \
+    WMI_GET_BITS(host_service_flags, 26, 1)
+#define WMI_RSRC_CFG_HOST_SERVICE_FLAG_HOST_RX_MGMT_DIRECT_ENABLE_SET(host_service_flags, value) \
+    WMI_SET_BITS(host_service_flags, 26, 1, value)
 
 #define WMI_RSRC_CFG_CARRIER_CFG_CHARTER_ENABLE_GET(carrier_config) \
     WMI_GET_BITS(carrier_config, 0, 1)
