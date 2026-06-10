@@ -57288,6 +57288,8 @@ typedef struct {
                      offset: 16;
         };
     };
+    A_UINT32 tx_buffer_size; /* tx block ack window size */
+    A_UINT32 rx_buffer_size; /* rx block ack window size */
 } wmi_smd_roam_peer_tid_info;
 
 #define WMI_SMD_ROAM_CONFIG_CMD_FLAGS_GET_ROLE(cmd_flags)                      WMI_GET_BITS(mlo_flags, 0, 4)
