@@ -1447,6 +1447,9 @@ typedef enum {
 
     WMI_GET_TX_POWER_CALLING_CMDID,
 
+    /** WMI command for athdiag memory/register read or write */
+    WMI_ATHDIAG_READ_WRITE_CMDID,
+
 
     /*  Offload 11k related requests */
     WMI_11K_OFFLOAD_REPORT_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_11K_OFFLOAD),
@@ -2657,6 +2660,9 @@ typedef enum {
     WMI_AVG_TX_POWER_EVENTID,
 
     WMI_PLIMIT_TABLE_EVENTID,
+
+    /** WMI event to deliver athdiag read data or write completion status */
+    WMI_ATHDIAG_READ_WRITE_EVENTID,
 
 
     /* GPIO Event */
@@ -43998,6 +44004,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_SET_MODIFY_TX_PLIM_CMDID);
         WMI_RETURN_STRING(WMI_GET_AVG_TX_POWER_CMDID);
         WMI_RETURN_STRING(WMI_GET_TX_POWER_CALLING_CMDID);
+        WMI_RETURN_STRING(WMI_ATHDIAG_READ_WRITE_CMDID);
     }
 
     return (A_UINT8 *) "Invalid WMI cmd";
@@ -58189,6 +58196,75 @@ typedef struct {
      *   - wmi_rtt_peer_meas_report_peer_meas_result_info peer_meas_info[]
      */
 } wmi_rtt_peer_meas_report_event_fixed_param;
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     * WMITLV_TAG_STRUC_wmi_athdiag_read_write_cmd_fixed_param */
+    A_UINT32 tlv_header;
+    /* register offset to read or write using ath diag */
+    A_UINT32 offset;
+    /**
+     * Number of bytes to read from or write to 'offset'.
+     *
+     * For a read:  FW returns exactly 'data_length' bytes in the event.
+     * For a write: Host sends exactly 'data_length' bytes in the data TLV.
+     */
+    A_UINT32 data_length;
+    /**
+     * mem_type:
+     * Indicates the type of memory being accessed.
+     */
+    A_UINT32 mem_type;
+    /**
+     * is_write:
+     * Distinguishes between a read and a write operation.
+     *
+     *   0 = READ   FW reads 'data_length' bytes from 'offset'.
+     *               No data TLV is appended to this command.
+     *
+     *   1 = WRITE  FW writes 'data_length' bytes to 'offset'.
+     *               A WMITLV_TAG_ARRAY_BYTE TLV with the write payload
+     *               is appended to this command.
+     */
+    A_UINT32 is_write;
+} wmi_athdiag_read_write_cmd_fixed_param;
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     * WMITLV_TAG_STRUC_wmi_athdiag_read_write_event_fixed_param */
+    A_UINT32 tlv_header;
+    /**
+     * Number of bytes to read from or write to 'offset'.
+     *
+     * For a read:  FW returns exactly 'data_length' bytes in the event.
+     * For a write: Host sends exactly 'data_length' bytes in the data TLV.
+     */
+    A_UINT32 data_length;
+    /**
+     * status:
+     * Result of the read or write operation performed by FW.
+     *
+     *   0        = Success  operation completed without error.
+     *   non-zero = Failure  FW-defined error codes.
+     */
+    A_UINT32 status;
+    /**
+     * is_write:
+     * Echoed back from the corresponding WMI_ATHDIAG_READ_WRITE_CMDID.
+     *
+     *   0 = READ  response  data TLV with 'data_length' bytes follows
+     *                        (only when status == 0)
+     *   1 = WRITE response  no data TLV appended; check 'status' only
+     */
+    A_UINT32 is_write;
+    /*
+     * This fixed_param TLV is followed by the following TLVs:
+     *   - A_UINT8 data[] (WMITLV_TAG_ARRAY_BYTE)
+     *     For READ  response (is_write == 0): read data, data_length bytes.
+     *                                         Present only when status == 0.
+     *     For WRITE response (is_write == 1): not present.
+     */
+} wmi_athdiag_read_write_event_fixed_param;
 
 
 
