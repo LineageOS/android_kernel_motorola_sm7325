@@ -5536,8 +5536,14 @@ typedef struct {
      *      Refer to the below definitions of
      *      WMI_RSRC_CFG_HOST_SERVICE_FLAG_HOST_RX_MGMT_DIRECT_ENABLE_GET and
      *      _SET macros.
+     *  Bit 27
+     *     This bit will be set by host to inform FW that the CUMAC_CMD_ID
+     *     will come post WMI_INIT_CMDID and the MLO_SRNG setup has to be
+     *     done as part of this cmd.
+     *     Refer to the below definitions of
+     *     WMI_RSRC_CFG_HOST_SERVICE_FLAG_CUMAC_CMD_SUPPORT_GET and SET_macros.
      *
-     *  Bits 31:27 - Reserved
+     *  Bits 31:28 - Reserved
      */
     A_UINT32 host_service_flags;
 
@@ -6210,6 +6216,19 @@ typedef struct {
     WMI_GET_BITS(host_service_flags, 26, 1)
 #define WMI_RSRC_CFG_HOST_SERVICE_FLAG_HOST_RX_MGMT_DIRECT_ENABLE_SET(host_service_flags, value) \
     WMI_SET_BITS(host_service_flags, 26, 1, value)
+
+/*
+ * Bit 27: Host supports WMI_PDEV_SET_CUMAC_CHIP_CMDID.
+ * When set, FW will call the MLO CUMAC init function from the
+ * WMI_PDEV_SET_CUMAC_CHIP_CMDID handler instead of the MLO SoC init function.
+ * Requires WMI_SERVICE_PDEV_SET_CUMAC_CHIP_CMD_SUPPORT to be set in
+ * wmi_service_ready before the host sets this bit.
+ */
+#define WMI_RSRC_CFG_HOST_SERVICE_FLAG_CUMAC_CMD_SUPPORT_GET(host_service_flags) \
+    WMI_GET_BITS(host_service_flags, 27, 1)
+#define WMI_RSRC_CFG_HOST_SERVICE_FLAG_CUMAC_CMD_SUPPORT_SET(host_service_flags, val) \
+    WMI_SET_BITS(host_service_flags, 27, 1, val)
+
 
 #define WMI_RSRC_CFG_CARRIER_CFG_CHARTER_ENABLE_GET(carrier_config) \
     WMI_GET_BITS(carrier_config, 0, 1)
