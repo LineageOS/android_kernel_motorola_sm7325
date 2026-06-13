@@ -956,6 +956,19 @@ enum htt_dbg_ext_stats_type {
 
     HTT_DBG_EXT_STATS_NPCA = 86,
 
+    /** HTT_DBG_EXT_STATS_PHY_DPD_TPC_DEBUG
+     * PARAMS:
+     *   - config_param0: subtype: htt_stats_phy_dpd_tpc_debug_subtype_t
+     *                    0 = DPD debug, 1 = TPC debug
+     *   - config_param1: chain bitmask (0 = default to chain 0 only)
+     * RESP MSG:
+     *   if (subtype == HTT_STATS_PHY_DPD_TPC_DEBUG_SUBTYPE_DPD):
+     *     - htt_stats_phy_dpd_debug_chain_v1_tlv (one per requested chain)
+     *   if (subtype == HTT_STATS_PHY_DPD_TPC_DEBUG_SUBTYPE_TPC):
+     *     - htt_stats_phy_tpc_debug_chain_v1_tlv (one per requested chain)
+     */
+    HTT_DBG_EXT_STATS_PHY_DPD_TPC_DEBUG = 87,
+
 
     /* keep this last */
     HTT_DBG_NUM_EXT_STATS = 256,
@@ -17383,7 +17396,7 @@ typedef struct {
 #define HTT_STATS_REG_6G_GET_OOBE_LIMIT_OFFSET(word) \
     HTT_STATS_GET_FIELD(0xFFFF, 0, (word))
 /* provide alias macro that uses preferred naming convention */
-#define HTT_STATS_REG_6G_OOBE_OOBE_LIMIT_OFFSET_GET(word) \
+#define HTT_STATS_REG_6G_OOBE_OOBE_LIMIT_OOBE_LIMIT_OFFSET_GET(word) \
     HTT_STATS_REG_6G_GET_OOBE_LIMIT_OFFSET(word)
 #define HTT_STATS_REG_6G_SET_OOBE_LIMIT_OFFSET(word,value) \
     HTT_STATS_SET_FIELD(0xFFFF, 0, (word), (value))
@@ -17391,7 +17404,7 @@ typedef struct {
 #define HTT_STATS_REG_6G_GET_OOBE_LIMIT_PSD(word) \
     HTT_STATS_GET_FIELD(0xFFFF0000, 16, (word))
 /* provide alias macro that uses preferred naming convention */
-#define HTT_STATS_REG_6G_OOBE_OOBE_LIMIT_PSD_GET(word) \
+#define HTT_STATS_REG_6G_OOBE_OOBE_LIMIT_OOBE_LIMIT_PSD_GET(word) \
     HTT_STATS_REG_6G_GET_OOBE_LIMIT_PSD(word)
 #define HTT_STATS_REG_6G_SET_OOBE_LIMIT_PSD(word,value) \
     HTT_STATS_SET_FIELD(0xFFFF0000, 16, (word), (value))
@@ -18104,6 +18117,976 @@ typedef struct {
     htt_tx_rate_stats_t npca_per_bw[HTT_TX_PDEV_STATS_NUM_BN_BW_COUNTERS];
     htt_tx_rate_stats_t npca_per_tx_su_punctured_mode[HTT_TX_PDEV_STATS_NUM_PUNCTURED_MODE_COUNTERS];
 } htt_stats_npca_tlv;
+
+
+/*===================== Start PHY DPD/TPC Debug stats ==================== { */
+
+typedef enum {
+    HTT_STATS_PHY_DPD_TPC_DEBUG_SUBTYPE_DPD = 0,
+    HTT_STATS_PHY_DPD_TPC_DEBUG_SUBTYPE_TPC = 1,
+    HTT_STATS_PHY_DPD_TPC_DEBUG_SUBTYPE_MAX
+} htt_stats_phy_dpd_tpc_debug_subtype_t;
+
+/*
+ * htt_stats_phy_dpd_debug_params_v1
+ * Per-table DPD debug parameters. All fields packed into A_UINT32 words.
+ *
+ * Word 0: dpd_out_nmse_x10        (signed 32-bit, 1/10 dB units)
+ * Word 1: pa_max_avg_tx           (unsigned 32-bit, dBm units)
+ * Word 2: dpd_training_cnt        (unsigned 32-bit)
+ * Word 3: dpd_scaling             (unsigned 32-bit)
+ * Word 4: BIT[15:0]  dpd_training_power_db8 (signed 16-bit, 1/8 dB units)
+ *         BIT[31:16] dpd_out_sq             (unsigned 16-bit)
+ * Word 5: BIT[ 7:0]  dpd_state
+ *         BIT[15:8]  dpd_in_glut
+ *         BIT[23:16] dpd_in_tx_gain
+ *         BIT[31:24] dpd_out_train_dac_gain (signed 8-bit)
+ * Word 6: BIT[ 7:0]  dpd_in_gc (signed 8-bit)
+ *         BIT[15:8]  dpd_out_sq_idx
+ *         BIT[23:16] dpd_out_train_rx_gain_idx
+ *         BIT[31:24] dpd_in_kernel_sel
+ */
+typedef struct {
+    A_INT32  dpd_out_nmse_x10;
+    A_UINT32 pa_max_avg_tx;
+    A_UINT32 dpd_training_cnt;
+    A_UINT32 dpd_scaling;
+    union {
+        A_UINT32 dpd_training_power_db8__dpd_out_sq;
+        struct {
+            A_UINT32
+                dpd_training_power_db8: 16,
+                dpd_out_sq:             16;
+        };
+    };
+    union {
+        A_UINT32 dpd_state__dpd_in_glut__dpd_in_tx_gain__dpd_out_train_dac_gain;
+        struct {
+            A_UINT32
+                dpd_state:              8,
+                dpd_in_glut:            8,
+                dpd_in_tx_gain:         8,
+                dpd_out_train_dac_gain: 8;
+        };
+    };
+    union {
+        A_UINT32 dpd_in_gc__dpd_out_sq_idx__dpd_out_train_rx_gain_idx__dpd_in_kernel_sel;
+        struct {
+            A_UINT32
+                dpd_in_gc:                 8,
+                dpd_out_sq_idx:            8,
+                dpd_out_train_rx_gain_idx: 8,
+                dpd_in_kernel_sel:         8;
+        };
+    };
+} htt_stats_phy_dpd_debug_params_v1;
+
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_TRAINING_POWER_DB8_M  0x0000ffff
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_TRAINING_POWER_DB8_S  0
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ_M              0xffff0000
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ_S              16
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_STATE_M               0x000000ff
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_STATE_S               0
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GLUT_M             0x0000ff00
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GLUT_S             8
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_TX_GAIN_M          0x00ff0000
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_TX_GAIN_S          16
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_DAC_GAIN_M  0xff000000
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_DAC_GAIN_S  24
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GC_M               0x000000ff
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GC_S               0
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ_IDX_M          0x0000ff00
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ_IDX_S          8
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_RX_GAIN_IDX_M  0x00ff0000
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_RX_GAIN_IDX_S  16
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_KERNEL_SEL_M       0xff000000
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_KERNEL_SEL_S       24
+
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_TRAINING_POWER_DB8_GET(_var) \
+    (((_var) & HTT_STATS_PHY_DPD_DEBUG_PARAMS_TRAINING_POWER_DB8_M) >> \
+     HTT_STATS_PHY_DPD_DEBUG_PARAMS_TRAINING_POWER_DB8_S)
+/* provide alias macro that uses preferred naming convention */
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_DPD_DEBUG_PARAMS_DPD_TRAINING_POWER_DB8_GET(_var) \
+    HTT_STATS_PHY_DPD_DEBUG_PARAMS_TRAINING_POWER_DB8_GET(_var)
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_TRAINING_POWER_DB8_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_DPD_DEBUG_PARAMS_TRAINING_POWER_DB8, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_DPD_DEBUG_PARAMS_TRAINING_POWER_DB8_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ_GET(_var) \
+    (((_var) & HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ_M) >> \
+     HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ_S)
+/* provide alias macro that uses preferred naming convention */
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_DPD_DEBUG_PARAMS_DPD_OUT_SQ_GET(_var) \
+    HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ_GET(_var)
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_STATE_GET(_var) \
+    (((_var) & HTT_STATS_PHY_DPD_DEBUG_PARAMS_STATE_M) >> \
+     HTT_STATS_PHY_DPD_DEBUG_PARAMS_STATE_S)
+/* provide alias macro that uses preferred naming convention */
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_DPD_DEBUG_PARAMS_DPD_STATE_GET(_var) \
+    HTT_STATS_PHY_DPD_DEBUG_PARAMS_STATE_GET(_var)
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_STATE_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_DPD_DEBUG_PARAMS_STATE, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_DPD_DEBUG_PARAMS_STATE_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GLUT_GET(_var) \
+    (((_var) & HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GLUT_M) >> \
+     HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GLUT_S)
+/* provide alias macro that uses preferred naming convention */
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_DPD_DEBUG_PARAMS_DPD_IN_GLUT_GET(_var) \
+    HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GLUT_GET(_var)
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GLUT_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GLUT, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GLUT_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_TX_GAIN_GET(_var) \
+    (((_var) & HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_TX_GAIN_M) >> \
+     HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_TX_GAIN_S)
+/* provide alias macro that uses preferred naming convention */
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_DPD_DEBUG_PARAMS_DPD_IN_TX_GAIN_GET(_var) \
+    HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_TX_GAIN_GET(_var)
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_TX_GAIN_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_TX_GAIN, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_TX_GAIN_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_DAC_GAIN_GET(_var) \
+    (((_var) & HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_DAC_GAIN_M) >> \
+     HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_DAC_GAIN_S)
+/* provide alias macro that uses preferred naming convention */
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_DPD_DEBUG_PARAMS_DPD_OUT_TRAIN_DAC_GAIN_GET(_var) \
+    HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_DAC_GAIN_GET(_var)
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_DAC_GAIN_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_DAC_GAIN, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_DAC_GAIN_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GC_GET(_var) \
+    (((_var) & HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GC_M) >> \
+     HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GC_S)
+/* provide alias macro that uses preferred naming convention */
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_DPD_DEBUG_PARAMS_DPD_IN_GC_GET(_var) \
+    HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GC_GET(_var)
+
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GC_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GC, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_GC_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ_IDX_GET(_var) \
+    (((_var) & HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ_IDX_M) >> \
+     HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ_IDX_S)
+/* provide alias macro that uses preferred naming convention */
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_DPD_DEBUG_PARAMS_DPD_OUT_SQ_IDX_GET(_var) \
+    HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ_IDX_GET(_var)
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ_IDX_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ_IDX, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_SQ_IDX_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_RX_GAIN_IDX_GET(_var) \
+    (((_var) & HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_RX_GAIN_IDX_M) >> \
+     HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_RX_GAIN_IDX_S)
+/* provide alias macro that uses preferred naming convention */
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_DPD_DEBUG_PARAMS_DPD_OUT_TRAIN_RX_GAIN_IDX_GET(_var) \
+    HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_RX_GAIN_IDX_GET(_var)
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_RX_GAIN_IDX_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_RX_GAIN_IDX, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_DPD_DEBUG_PARAMS_OUT_TRAIN_RX_GAIN_IDX_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_KERNEL_SEL_GET(_var) \
+    (((_var) & HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_KERNEL_SEL_M) >> \
+     HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_KERNEL_SEL_S)
+/* provide alias macro that uses preferred naming convention */
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_DPD_DEBUG_PARAMS_DPD_IN_KERNEL_SEL_GET(_var) \
+    HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_KERNEL_SEL_GET(_var)
+#define HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_KERNEL_SEL_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_KERNEL_SEL, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_DPD_DEBUG_PARAMS_IN_KERNEL_SEL_S)); \
+    } while (0)
+
+/*
+ * htt_stats_phy_dpd_debug_chain_v1_tlv
+ * One TLV per chain. chain_idx identifies which chain this TLV carries.
+ *
+ * Word 0 (after tlv_hdr):
+ * BIT[ 7: 0] - chain_idx
+ * BIT[15: 8] - version
+ * BIT[31:16] - chainmask
+ * Word 1:
+ * BIT[ 7: 0] - num_gain_idx
+ * BIT[31: 8] - reserved
+ */
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    union {
+        A_UINT32 chain_idx__version__chainmask;
+        struct {
+            A_UINT32
+                chain_idx:  8,
+                version:    8,
+                chainmask: 16;
+        };
+    };
+    union {
+        A_UINT32 num_gain_idx__reserved;
+        struct {
+            A_UINT32
+                num_gain_idx:  8,
+                reserved:     24;
+        };
+    };
+    htt_stats_phy_dpd_debug_params_v1 dpd_debug_params[HTT_STATS_NUM_DPD_CAL_TABLE];
+} htt_stats_phy_dpd_debug_chain_v1_tlv;
+
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_CHAIN_IDX_M 0x000000ff
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_CHAIN_IDX_S 0
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_VERSION_M   0x0000ff00
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_VERSION_S   8
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_CHAINMASK_M 0xffff0000
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_CHAINMASK_S 16
+
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_NUM_GAIN_IDX_M 0x000000ff
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_NUM_GAIN_IDX_S 0
+
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_CHAIN_IDX_GET(_var) \
+    (((_var) & HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_CHAIN_IDX_M) >> \
+     HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_CHAIN_IDX_S)
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_CHAIN_IDX_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_CHAIN_IDX, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_CHAIN_IDX_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_VERSION_GET(_var) \
+    (((_var) & HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_VERSION_M) >> \
+     HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_VERSION_S)
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_VERSION_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_VERSION, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_VERSION_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_CHAINMASK_GET(_var) \
+    (((_var) & HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_CHAINMASK_M) >> \
+     HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_CHAINMASK_S)
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_CHAINMASK_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_CHAINMASK, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_CHAINMASK_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_NUM_GAIN_IDX_GET(_var) \
+    (((_var) & HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_NUM_GAIN_IDX_M) >> \
+     HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_NUM_GAIN_IDX_S)
+#define HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_NUM_GAIN_IDX_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_NUM_GAIN_IDX, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_DPD_DEBUG_CHAIN_V1_NUM_GAIN_IDX_S)); \
+    } while (0)
+
+/*
+ * htt_stats_phy_tpc_debug_chain_v1_tlv
+ * One TLV per chain. All sub-byte/sub-word fields packed into A_UINT32 words.
+ *
+ * Word 0 (after tlv_hdr):
+ * BIT[ 7: 0] - chain_idx
+ * BIT[15: 8] - version
+ * BIT[31:16] - chainmask
+ *
+ * Words 1-11: TPC per-chain debug params (all A_UINT32)
+ */
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+    /*
+     * Word 0: BIT[ 7: 0]=chain_idx
+     *         BIT[15: 8]=version
+     *         BIT[31:16]=chainmask
+     */
+    union {
+        A_UINT32 chain_idx__version__chainmask;
+        struct {
+            A_UINT32
+                chain_idx:  8,
+                version:    8,
+                chainmask: 16;
+        };
+    };
+    /*
+     * Word 1: BIT[7:0]=lat_glut_idx,
+     *         BIT[15:8]=lat_tx_gain_idx,
+     *         BIT[23:16]=lat_dac_gain(s8),
+     *         BIT[31:24]=lat_target_power(s8)
+     */
+    union {
+        A_UINT32 lat_glut_idx__lat_tx_gain_idx__lat_dac_gain__lat_target_power;
+        struct {
+            A_UINT32
+                lat_glut_idx:     8,
+                lat_tx_gain_idx:  8,
+                lat_dac_gain:     8,
+                lat_target_power: 8;
+        };
+    };
+    /*
+     * Word 2: BIT[15:0]=lat_acc_clpc_error(s16),
+     *         BIT[31:16]=lat_clpc_err(s16)
+     */
+    union {
+        A_UINT32 lat_acc_clpc_error__lat_clpc_err;
+        struct {
+            A_UINT32
+                lat_acc_clpc_error: 16,
+                lat_clpc_err:       16;
+        };
+    };
+    /*
+     * Word 3: BIT[15:0]=lat_meas_pwr(s16),
+     *         BIT[23:16]=lat_wsi_temp_valid,
+     *         BIT[31:24]=lat_wsi_full_pkt_pwr_valid
+     */
+    union {
+        A_UINT32 lat_meas_pwr__lat_wsi_temp_valid__lat_wsi_full_pkt_pwr_valid;
+        struct {
+            A_UINT32
+                lat_meas_pwr:               16,
+                lat_wsi_temp_valid:          8,
+                lat_wsi_full_pkt_pwr_valid:  8;
+        };
+    };
+    /*
+     * Word 4: BIT[7:0]=lat_wsi_pream_pwr_valid,
+     *         BIT[23:8]=lat_wsi_temp(s16),
+     *         BIT[31:24]=lat_wsi_full_pkt_pwr
+     */
+    union {
+        A_UINT32 lat_wsi_pream_pwr_valid__lat_wsi_temp__lat_wsi_full_pkt_pwr;
+        struct {
+            A_UINT32
+                lat_wsi_pream_pwr_valid:  8,
+                lat_wsi_temp:            16,
+                lat_wsi_full_pkt_pwr:     8;
+        };
+    };
+    /*
+     * Word 5: BIT[7:0]=lat_wsi_pream_pwr,
+     *         BIT[15:8]=lat_wsi_tx_gain_idx,
+     *         BIT[23:16]=lat_wsi_tpc_pdet_gain_idx,
+     *         BIT[31:24]=lat_wsi_tpc_attn
+     */
+    union {
+        A_UINT32 lat_wsi_pream_pwr__lat_wsi_tx_gain_idx__lat_wsi_tpc_pdet_gain_idx__lat_wsi_tpc_attn;
+        struct {
+            A_UINT32
+                lat_wsi_pream_pwr:         8,
+                lat_wsi_tx_gain_idx:       8,
+                lat_wsi_tpc_pdet_gain_idx: 8,
+                lat_wsi_tpc_attn:          8;
+        };
+    };
+    /*
+     * Word 6: BIT[7:0]=glut_dac_gain_cal(s8),
+     *         BIT[15:8]=glut_max_dac_gain_cal(s8),
+     *         BIT[23:16]=dpd_dac_gain_cal(s8),
+     *         BIT[31:24]=dpd_tx_gain_idx_cal
+     */
+    union {
+        A_UINT32 glut_dac_gain_cal__glut_max_dac_gain_cal__dpd_dac_gain_cal__dpd_tx_gain_idx_cal;
+        struct {
+            A_UINT32
+                glut_dac_gain_cal:     8,
+                glut_max_dac_gain_cal: 8,
+                dpd_dac_gain_cal:      8,
+                dpd_tx_gain_idx_cal:   8;
+        };
+    };
+    /*
+     * Word 7: BIT[7:0]=target_pwr_clpc_thr_corr(s8),
+     *         BIT[15:8]=olpc_mode,
+     *         BIT[23:16]=wsi_timeout,
+     *         BIT[31:24]=target_pwr_clpc_thr_update(s8)
+     */
+    union {
+        A_UINT32 target_pwr_clpc_thr_corr__olpc_mode__wsi_timeout__target_pwr_clpc_thr_update;
+        struct {
+            A_UINT32
+                target_pwr_clpc_thr_corr:   8,
+                olpc_mode:                  8,
+                wsi_timeout:                8,
+                target_pwr_clpc_thr_update: 8;
+        };
+    };
+    /*
+     * Word 8: BIT[7:0]=ro_temp_valid,
+     *         BIT[15:8]=ro_full_pkt_pwr_valid,
+     *         BIT[23:16]=ro_pream_pwr_valid,
+     *         BIT[31:24]=reserved
+     */
+    union {
+        A_UINT32 ro_temp_valid__ro_full_pkt_pwr_valid__ro_pream_pwr_valid;
+        struct {
+            A_UINT32
+                ro_temp_valid:         8,
+                ro_full_pkt_pwr_valid: 8,
+                ro_pream_pwr_valid:    8,
+                reserved:              8;
+        };
+    };
+    /*
+     * Word 9: BIT[15:0]=ro_temp(s16),
+     *         BIT[23:16]=ro_full_pkt_pwr,
+     *         BIT[31:24]=ro_pream_pwr
+     */
+    union {
+        A_UINT32 ro_temp__ro_full_pkt_pwr__ro_pream_pwr;
+        struct {
+            A_UINT32
+                ro_temp:         16,
+                ro_full_pkt_pwr:  8,
+                ro_pream_pwr:     8;
+        };
+    };
+    /*
+     * Word 10: BIT[7:0]=ro_tpc_fe_sel,
+     *          BIT[15:8]=ro_full_pkt_avg_out,
+     *          BIT[23:16]=ro_lat_dc,
+     *          BIT[31:24]=ro_pdacc_avg_out
+     */
+    union {
+        A_UINT32 ro_tpc_fe_sel__ro_full_pkt_avg_out__ro_lat_dc__ro_pdacc_avg_out;
+        struct {
+            A_UINT32
+                ro_tpc_fe_sel:       8,
+                ro_full_pkt_avg_out: 8,
+                ro_lat_dc:           8,
+                ro_pdacc_avg_out:    8;
+        };
+    };
+    /*
+     * Word 11: BIT[15:0]=temp_per_chain,
+     *          BIT[23:16]=cal_cmd,
+     *          BIT[31:24]=cal_time
+     */
+    union {
+        A_UINT32 temp_per_chain__cal_cmd__cal_time;
+        struct {
+            A_UINT32
+                temp_per_chain: 16,
+                cal_cmd:         8,
+                cal_time:        8;
+        };
+    };
+    /*
+     * Word 12: BIT[7:0]=cal_result,
+     *          BIT[31:8]=reserved
+     */
+    union {
+        A_UINT32 cal_result__reserved;
+        struct {
+            A_UINT32
+                cal_result: 8,
+                reserved2: 24;
+        };
+    };
+} htt_stats_phy_tpc_debug_chain_v1_tlv;
+
+/* TPC chain header GET/SET macros */
+/* word 0 */
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CHAIN_IDX_M 0x000000ff
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CHAIN_IDX_S 0
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_VERSION_M   0x0000ff00
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_VERSION_S   8
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CHAINMASK_M 0xffff0000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CHAINMASK_S 16
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CHAIN_IDX_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CHAIN_IDX_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CHAIN_IDX_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CHAIN_IDX_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CHAIN_IDX, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CHAIN_IDX_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_VERSION_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_VERSION_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_VERSION_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_VERSION_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_VERSION, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_VERSION_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CHAINMASK_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CHAINMASK_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CHAINMASK_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CHAINMASK_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CHAINMASK, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CHAINMASK_S)); \
+    } while (0)
+
+/* word 1 */
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_GLUT_IDX_M     0x000000ff
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_GLUT_IDX_S     0
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_TX_GAIN_IDX_M  0x0000ff00
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_TX_GAIN_IDX_S  8
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_DAC_GAIN_M     0x00ff0000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_DAC_GAIN_S     16
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_TARGET_POWER_M 0xff000000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_TARGET_POWER_S 24
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_GLUT_IDX_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_GLUT_IDX_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_GLUT_IDX_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_GLUT_IDX_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_GLUT_IDX, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_GLUT_IDX_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_TX_GAIN_IDX_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_TX_GAIN_IDX_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_TX_GAIN_IDX_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_TX_GAIN_IDX_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_TX_GAIN_IDX, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_TX_GAIN_IDX_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_DAC_GAIN_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_DAC_GAIN_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_DAC_GAIN_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_DAC_GAIN_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_DAC_GAIN, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_DAC_GAIN_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_TARGET_POWER_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_TARGET_POWER_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_TARGET_POWER_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_TARGET_POWER_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_TARGET_POWER, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_TARGET_POWER_S)); \
+    } while (0)
+
+/* word 2 */
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_ACC_CLPC_ERROR_M 0x0000ffff
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_ACC_CLPC_ERROR_S 0
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_CLPC_ERR_M       0xffff0000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_CLPC_ERR_S       16
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_ACC_CLPC_ERROR_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_ACC_CLPC_ERROR_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_ACC_CLPC_ERROR_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_ACC_CLPC_ERROR_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_ACC_CLPC_ERROR, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_ACC_CLPC_ERROR_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_CLPC_ERR_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_CLPC_ERR_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_CLPC_ERR_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_CLPC_ERR_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_CLPC_ERR, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_CLPC_ERR_S)); \
+    } while (0)
+
+/* word 3 */
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_MEAS_PWR_M               0x0000ffff
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_MEAS_PWR_S               0
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TEMP_VALID_M         0x00ff0000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TEMP_VALID_S         16
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_FULL_PKT_PWR_VALID_M 0xff000000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_FULL_PKT_PWR_VALID_S 24
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_MEAS_PWR_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_MEAS_PWR_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_MEAS_PWR_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_MEAS_PWR_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_MEAS_PWR, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_MEAS_PWR_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TEMP_VALID_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TEMP_VALID_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TEMP_VALID_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TEMP_VALID_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TEMP_VALID, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TEMP_VALID_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_FULL_PKT_PWR_VALID_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_FULL_PKT_PWR_VALID_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_FULL_PKT_PWR_VALID_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_FULL_PKT_PWR_VALID_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_FULL_PKT_PWR_VALID, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_FULL_PKT_PWR_VALID_S)); \
+    } while (0)
+
+/* word 4 */
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_PREAM_PWR_VALID_M 0x000000ff
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_PREAM_PWR_VALID_S 0
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TEMP_M            0x00ffff00
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TEMP_S            8
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_FULL_PKT_PWR_M    0xff000000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_FULL_PKT_PWR_S    24
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_PREAM_PWR_VALID_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_PREAM_PWR_VALID_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_PREAM_PWR_VALID_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_PREAM_PWR_VALID_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_PREAM_PWR_VALID, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_PREAM_PWR_VALID_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TEMP_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TEMP_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TEMP_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TEMP_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TEMP, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TEMP_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_FULL_PKT_PWR_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_FULL_PKT_PWR_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_FULL_PKT_PWR_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_FULL_PKT_PWR_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_FULL_PKT_PWR, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_FULL_PKT_PWR_S)); \
+    } while (0)
+
+/* word 5 */
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_PREAM_PWR_M         0x000000ff
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_PREAM_PWR_S         0
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TX_GAIN_IDX_M       0x0000ff00
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TX_GAIN_IDX_S       8
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TPC_PDET_GAIN_IDX_M 0x00ff0000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TPC_PDET_GAIN_IDX_S 16
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TPC_ATTN_M          0xff000000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TPC_ATTN_S          24
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_PREAM_PWR_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_PREAM_PWR_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_PREAM_PWR_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_PREAM_PWR_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_PREAM_PWR, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_PREAM_PWR_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TX_GAIN_IDX_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TX_GAIN_IDX_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TX_GAIN_IDX_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TX_GAIN_IDX_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TX_GAIN_IDX, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TX_GAIN_IDX_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TPC_PDET_GAIN_IDX_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TPC_PDET_GAIN_IDX_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TPC_PDET_GAIN_IDX_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TPC_PDET_GAIN_IDX_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TPC_PDET_GAIN_IDX, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TPC_PDET_GAIN_IDX_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TPC_ATTN_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TPC_ATTN_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TPC_ATTN_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TPC_ATTN_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TPC_ATTN, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_LAT_WSI_TPC_ATTN_S)); \
+    } while (0)
+
+/* word 6 */
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_GLUT_DAC_GAIN_CAL_M     0x000000ff
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_GLUT_DAC_GAIN_CAL_S     0
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_GLUT_MAX_DAC_GAIN_CAL_M 0x0000ff00
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_GLUT_MAX_DAC_GAIN_CAL_S 8
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_DPD_DAC_GAIN_CAL_M      0x00ff0000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_DPD_DAC_GAIN_CAL_S      16
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_DPD_TX_GAIN_IDX_CAL_M   0xff000000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_DPD_TX_GAIN_IDX_CAL_S   24
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_GLUT_DAC_GAIN_CAL_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_GLUT_DAC_GAIN_CAL_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_GLUT_DAC_GAIN_CAL_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_GLUT_DAC_GAIN_CAL_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_GLUT_DAC_GAIN_CAL, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_GLUT_DAC_GAIN_CAL_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_GLUT_MAX_DAC_GAIN_CAL_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_GLUT_MAX_DAC_GAIN_CAL_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_GLUT_MAX_DAC_GAIN_CAL_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_GLUT_MAX_DAC_GAIN_CAL_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_GLUT_MAX_DAC_GAIN_CAL, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_GLUT_MAX_DAC_GAIN_CAL_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_DPD_DAC_GAIN_CAL_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_DPD_DAC_GAIN_CAL_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_DPD_DAC_GAIN_CAL_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_DPD_DAC_GAIN_CAL_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_DPD_DAC_GAIN_CAL, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_DPD_DAC_GAIN_CAL_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_DPD_TX_GAIN_IDX_CAL_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_DPD_TX_GAIN_IDX_CAL_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_DPD_TX_GAIN_IDX_CAL_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_DPD_TX_GAIN_IDX_CAL_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_DPD_TX_GAIN_IDX_CAL, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_DPD_TX_GAIN_IDX_CAL_S)); \
+    } while (0)
+
+/* word 7 */
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TARGET_PWR_CLPC_THR_CORR_M   0x000000ff
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TARGET_PWR_CLPC_THR_CORR_S   0
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_OLPC_MODE_M                  0x0000ff00
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_OLPC_MODE_S                  8
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_WSI_TIMEOUT_M                0x00ff0000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_WSI_TIMEOUT_S                16
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TARGET_PWR_CLPC_THR_UPDATE_M 0xff000000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TARGET_PWR_CLPC_THR_UPDATE_S 24
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TARGET_PWR_CLPC_THR_CORR_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TARGET_PWR_CLPC_THR_CORR_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TARGET_PWR_CLPC_THR_CORR_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TARGET_PWR_CLPC_THR_CORR_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TARGET_PWR_CLPC_THR_CORR, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TARGET_PWR_CLPC_THR_CORR_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_OLPC_MODE_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_OLPC_MODE_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_OLPC_MODE_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_OLPC_MODE_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_OLPC_MODE, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_OLPC_MODE_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_WSI_TIMEOUT_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_WSI_TIMEOUT_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_WSI_TIMEOUT_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_WSI_TIMEOUT_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_WSI_TIMEOUT, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_WSI_TIMEOUT_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TARGET_PWR_CLPC_THR_UPDATE_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TARGET_PWR_CLPC_THR_UPDATE_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TARGET_PWR_CLPC_THR_UPDATE_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TARGET_PWR_CLPC_THR_UPDATE_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TARGET_PWR_CLPC_THR_UPDATE, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TARGET_PWR_CLPC_THR_UPDATE_S)); \
+    } while (0)
+
+/* word 8 */
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TEMP_VALID_M         0x000000ff
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TEMP_VALID_S         0
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_PWR_VALID_M 0x0000ff00
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_PWR_VALID_S 8
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PREAM_PWR_VALID_M    0x00ff0000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PREAM_PWR_VALID_S    16
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TEMP_VALID_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TEMP_VALID_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TEMP_VALID_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TEMP_VALID_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TEMP_VALID, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TEMP_VALID_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_PWR_VALID_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_PWR_VALID_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_PWR_VALID_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_PWR_VALID_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_PWR_VALID, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_PWR_VALID_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PREAM_PWR_VALID_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PREAM_PWR_VALID_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PREAM_PWR_VALID_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PREAM_PWR_VALID_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PREAM_PWR_VALID, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PREAM_PWR_VALID_S)); \
+    } while (0)
+
+/* word 9 */
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TEMP_M         0x0000ffff
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TEMP_S         0
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_PWR_M 0x00ff0000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_PWR_S 16
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PREAM_PWR_M    0xff000000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PREAM_PWR_S    24
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TEMP_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TEMP_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TEMP_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TEMP_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TEMP, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TEMP_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_PWR_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_PWR_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_PWR_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_PWR_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_PWR, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_PWR_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PREAM_PWR_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PREAM_PWR_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PREAM_PWR_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PREAM_PWR_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PREAM_PWR, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PREAM_PWR_S)); \
+    } while (0)
+
+/* word 10 */
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TPC_FE_SEL_M       0x000000ff
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TPC_FE_SEL_S       0
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_AVG_OUT_M 0x0000ff00
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_AVG_OUT_S 8
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_LAT_DC_M           0x00ff0000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_LAT_DC_S           16
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PDACC_AVG_OUT_M    0xff000000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PDACC_AVG_OUT_S    24
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TPC_FE_SEL_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TPC_FE_SEL_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TPC_FE_SEL_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TPC_FE_SEL_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TPC_FE_SEL, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_TPC_FE_SEL_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_AVG_OUT_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_AVG_OUT_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_AVG_OUT_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_AVG_OUT_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_AVG_OUT, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_FULL_PKT_AVG_OUT_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_LAT_DC_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_LAT_DC_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_LAT_DC_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_LAT_DC_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_LAT_DC, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_LAT_DC_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PDACC_AVG_OUT_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PDACC_AVG_OUT_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PDACC_AVG_OUT_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PDACC_AVG_OUT_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PDACC_AVG_OUT, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_RO_PDACC_AVG_OUT_S)); \
+    } while (0)
+
+/* word 11 */
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TEMP_PER_CHAIN_M 0x0000ffff
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TEMP_PER_CHAIN_S 0
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_CMD_M        0x00ff0000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_CMD_S        16
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_TIME_M       0xff000000
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_TIME_S       24
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TEMP_PER_CHAIN_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TEMP_PER_CHAIN_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TEMP_PER_CHAIN_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TEMP_PER_CHAIN_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TEMP_PER_CHAIN, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_TEMP_PER_CHAIN_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_CMD_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_CMD_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_CMD_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_CMD_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_CMD, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_CMD_S)); \
+    } while (0)
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_TIME_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_TIME_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_TIME_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_TIME_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_TIME, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_TIME_S)); \
+    } while (0)
+
+/* word 12 */
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_RESULT_M 0x000000ff
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_RESULT_S 0
+
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_RESULT_GET(_var) \
+    (((_var) & HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_RESULT_M) >> \
+     HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_RESULT_S)
+#define HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_RESULT_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_RESULT, _val); \
+        ((_var) |= ((_val) << HTT_STATS_PHY_TPC_DEBUG_CHAIN_V1_CAL_RESULT_S)); \
+    } while (0)
+
+/*===================== End PHY DPD/TPC Debug stats ==================== } */
 
 
 #endif /* __HTT_STATS_H__ */
