@@ -16740,12 +16740,65 @@ static INLINE A_UINT8 *htt_ctrl_path_cal_type_id_to_name(A_UINT32 cal_type_id)
 
 /*===================== Start GTX stats ====================*/
 #define HTT_NUM_MCS_PER_NSS 16
+
+#define HTT_NUM_EXTRA_MCS_PER_NSS 4 /* Stores iMCS index 1.1, 3.1, 4.1, 7.1 */
+
+#define HTT_STATS_GTX_WIFI_VERSION_M 0x0000000f
+#define HTT_STATS_GTX_WIFI_VERSION_S 0
+
+#define HTT_STATS_GTX_WIFI_VERSION_GET(_var) \
+    (((_var) & HTT_STATS_GTX_WIFI_VERSION_M) >> \
+     HTT_STATS_GTX_WIFI_VERSION_S)
+#define HTT_STATS_GTX_WIFI_VERSION_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_GTX_WIFI_VERSION, _val); \
+        ((_var) |= ((_val) << HTT_STATS_GTX_WIFI_VERSION_S)); \
+    } while (0)
+
 typedef struct {
     htt_tlv_hdr_t tlv_hdr;
     A_UINT32 gtx_enabled; /* shows whether Green Tx feature is enabled */
-    A_INT32 mcs_tpc_min[HTT_NUM_MCS_PER_NSS]; /* shows current MCS's minimum TPC in 0.25dBm units */
-    A_INT32 mcs_tpc_max[HTT_NUM_MCS_PER_NSS]; /* shows current MCS's maximum TPC in 0.25dBm units */
-    A_UINT32 mcs_tpc_diff[HTT_NUM_MCS_PER_NSS]; /* shows current MCS's difference between maximum and minimum TPC in 0.25dB unit*/
+
+    /* shows current MCS's minimum TPC in 0.25dBm units */
+    A_INT32 mcs_tpc_min[HTT_NUM_MCS_PER_NSS];
+
+    /* shows current MCS's maximum TPC in 0.25dBm units */
+    A_INT32 mcs_tpc_max[HTT_NUM_MCS_PER_NSS];
+
+    /*
+     * shows current MCS's difference between maximum and minimum TPC
+     * in 0.25dB units
+     */
+    A_UINT32 mcs_tpc_diff[HTT_NUM_MCS_PER_NSS];
+    /**
+     * BIT [ 3 :  0]   :- wifi_version
+     * BIT [31 :  4]   :- reserved
+     */
+    union {
+        struct {
+            A_UINT32
+                     /* wifi_version:
+                      * Holds a HTT_RX_TX_PDEV_STATS_WIFI_VERSION value.
+                      * Refer to HTT_RX_EXT_PDEV_RATE_STATS_WIFI_VERSION_GET
+                      * / _SET macros for accessing this bitfield.
+                      */
+                     wifi_version:  4,
+                     reserved:     28;
+        };
+        A_UINT32 wifi_version__word;
+    };
+
+    /* shows current MCS's minimum TPC in 0.25dBm units for iMCS cases */
+    A_INT32 mcs_tpc_min_ext[HTT_NUM_EXTRA_MCS_PER_NSS];
+
+    /* shows current MCS's maximum TPC in 0.25dBm units for iMCS cases */
+    A_INT32 mcs_tpc_max_ext[HTT_NUM_EXTRA_MCS_PER_NSS];
+
+    /*
+     * shows current MCS's difference between maximum and minimum TPC
+     * in 0.25dB units for iMCS cases
+     */
+    A_UINT32 mcs_tpc_diff_ext[HTT_NUM_EXTRA_MCS_PER_NSS];
 } htt_stats_gtx_tlv;
 /*===================== End GTX stats ====================*/
 
