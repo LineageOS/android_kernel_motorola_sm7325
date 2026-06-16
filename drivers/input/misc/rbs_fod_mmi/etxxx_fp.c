@@ -162,7 +162,7 @@ static int fps_mmi_relay_cb(struct notifier_block *self,
 }
 
 
-static struct FPS_data *FPS_init()
+static struct FPS_data *FPS_init(void)
 {
 	int ret =0;
 	struct FPS_data *mdata = kzalloc(sizeof(struct FPS_data), GFP_KERNEL);
