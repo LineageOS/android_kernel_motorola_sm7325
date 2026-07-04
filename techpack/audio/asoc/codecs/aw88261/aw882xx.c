@@ -1798,12 +1798,26 @@ static int aw882xx_update_algo_profile(struct aw882xx *aw882xx)
 			aw_dev_err(aw882xx->dev, "set algo prof failed");
 			return -1;
 		}
-		if (!g_algo_rx_en) {
-		  ret = aw_dev_set_afe_module_en(AW_RX_MODULE, 0); //bypass AW moudle
-		  if (ret)
-		    aw_dev_err(aw882xx->dev, "dsp_msg error, ret=%d", ret);
+		/*
+		 * Only bypass the AW RX algo block for the Voip scene, where it
+		 * was causing robotized audio. Leave it enabled for every other
+		 * scene (Music, etc.) so the limiter/protection curve still
+		 * applies at high volume.
+		 */
+		if (!g_algo_rx_en && aw882xx->cur_algo_prof_id ==
+				aw882xx_scene_state[AW882XX_SCENE_VOIP_ID].skt_profile_id) {
+			ret = aw_dev_set_afe_module_en(AW_RX_MODULE, 0); //bypass AW module for Voip only
+			if (ret)
+				aw_dev_err(aw882xx->dev, "dsp_msg error, ret=%d", ret);
+		} else {
+			ret = aw_dev_set_afe_module_en(AW_RX_MODULE, 1); //ensure module active for all other scenes
+			if (ret)
+				aw_dev_err(aw882xx->dev, "dsp_msg error, ret=%d", ret);
 		}
-		aw_dev_info(aw882xx->dev, "AW MODULE cur state: %s", g_algo_rx_en?"Enalbe" : "Bypass");
+		aw_dev_info(aw882xx->dev, "AW MODULE cur state: %s (scene=%d)",
+			(!g_algo_rx_en && aw882xx->cur_algo_prof_id ==
+				aw882xx_scene_state[AW882XX_SCENE_VOIP_ID].skt_profile_id) ? "Bypass" : "Enable",
+			aw882xx->cur_algo_prof_id);
 	}
 	return 0;
 
