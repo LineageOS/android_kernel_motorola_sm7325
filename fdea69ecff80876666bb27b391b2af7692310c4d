@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "f964181b_e63045a0",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19252
+      },
+      "writtenOn": "2026-07-09T08:07:50Z",
+      "side": 1,
+      "message": "WIP, need testing especially on xpeng if hotword after voice recording in apps like WhatsApp is fixed or not",
+      "revId": "fdea69ecff80876666bb27b391b2af7692310c4d",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
