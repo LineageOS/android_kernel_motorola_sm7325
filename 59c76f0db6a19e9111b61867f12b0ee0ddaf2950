@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "1dfa5d7d_3c07b0f3",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19252
+      },
+      "writtenOn": "2026-07-10T03:17:10Z",
+      "side": 1,
+      "message": "confirmed, dubai audio works fine without cirrus",
+      "revId": "59c76f0db6a19e9111b61867f12b0ee0ddaf2950",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
