@@ -16,6 +16,23 @@
       "message": "WIP, need testing especially on xpeng if hotword after voice recording in apps like WhatsApp is fixed or not",
       "revId": "fdea69ecff80876666bb27b391b2af7692310c4d",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "f5e0eae9_91c12eb1",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19252
+      },
+      "writtenOn": "2026-07-10T01:56:27Z",
+      "side": 1,
+      "message": "Unfortunately, Xpeng after a few tries hotword fails after using WhatsApp or Telegram voice recording, so we might need more fixing",
+      "revId": "fdea69ecff80876666bb27b391b2af7692310c4d",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
