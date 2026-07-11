@@ -216,6 +216,9 @@ struct aw882xx {
 	int pstream;
 	int cstream;
 	int aw882xx_ramp_status;	/* ramp status */
+	unsigned long gain_ramp_jiffies;	/* time of last gain-kcontrol write */
+	struct delayed_work gain_ramp_end_work;	/* clears ramp_in_process once writes stop arriving */
+	struct workqueue_struct *gain_ramp_wq;	/* dedicated queue, kept off the shared work_queue */
 #ifdef CONFIG_AW882XX_ALGO_BIN_PARAMS
 	int aw882xx_algo_cali;
 	int aw882xx_algo_bypass;
