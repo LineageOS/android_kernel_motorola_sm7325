@@ -787,6 +787,28 @@ static int aw882xx_dev_gain_ctl_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+#define AW_GAIN_RAMP_DEBOUNCE_MS 50
+
+static void aw882xx_gain_ramp_end_work(struct work_struct *work)
+{
+	struct aw882xx *aw882xx = container_of(to_delayed_work(work),
+						struct aw882xx, gain_ramp_end_work);
+	struct aw_device *aw_dev = aw882xx->aw_pa;
+
+	mutex_lock(&aw882xx->lock);
+	/*
+	 * No further gain-kcontrol writes arrived within the debounce
+	 * window, so whatever ramp was in progress has settled at its
+	 * target. Clear the flag regardless of what that target value is,
+	 * instead of requiring the sequence to reach mute (>=127) to be
+	 * considered "ended" -- a fade that settles at a normal listening
+	 * volume was leaving this stuck at 1 indefinitely.
+	 */
+	aw_dev->ramp_in_process = 0;
+	aw_dev_dbg(aw882xx->dev, "ramp ended (debounce timeout)");
+	mutex_unlock(&aw882xx->lock);
+}
+
 static int aw882xx_dev_gain_ctl_set(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
@@ -794,6 +816,7 @@ static int aw882xx_dev_gain_ctl_set(struct snd_kcontrol *kcontrol,
 	struct aw882xx *aw882xx = snd_soc_component_get_drvdata(codec);
 	struct aw_device *aw_dev = aw882xx->aw_pa;
 	struct aw_volume_desc *desc = &aw_dev->volume_desc;
+	unsigned long debounce = msecs_to_jiffies(AW_GAIN_RAMP_DEBOUNCE_MS);
 
 	int value = 0;
 	int aw882xx_volume = 0;
@@ -815,10 +838,21 @@ static int aw882xx_dev_gain_ctl_set(struct snd_kcontrol *kcontrol,
 
 	aw_dev->cur_gain = ucontrol->value.integer.value[0];
 
-	if (ucontrol->value.integer.value[0] <= 110) {
-		aw_dev_dbg(aw882xx->dev, "ramp started");
+	/*
+	 * Detect an in-progress ramp from call cadence rather than a static
+	 * gain-value boundary. Consecutive kcontrol writes arriving within
+	 * the debounce window are treated as one ongoing ramp; the flag is
+	 * cleared by aw882xx_gain_ramp_end_work() once writes stop, whatever
+	 * value they stopped at -- not only when they reach mute.
+	 */
+	if (aw882xx->gain_ramp_jiffies &&
+	    time_before(jiffies, aw882xx->gain_ramp_jiffies + debounce)) {
 		aw_dev->ramp_in_process = 1;
+		aw_dev_dbg(aw882xx->dev, "ramp continues (gain=%d)", aw_dev->cur_gain);
 	}
+	aw882xx->gain_ramp_jiffies = jiffies;
+	if (aw882xx->gain_ramp_wq)
+		mod_delayed_work(aw882xx->gain_ramp_wq, &aw882xx->gain_ramp_end_work, debounce);
 
 	/* hal gain map to aw882xx valume value */
 	value = ucontrol->value.integer.value[0];
@@ -826,12 +860,6 @@ static int aw882xx_dev_gain_ctl_set(struct snd_kcontrol *kcontrol,
 					+ desc->init_volume;
 
 	aw_dev->ops.aw_set_volume(aw_dev, aw882xx_volume);
-
-	if (ucontrol->value.integer.value[0] >= 127) {
-                aw_dev_dbg(aw882xx->dev, "ramp ended");
-                aw_dev->ramp_in_process = 0;
-        }
-
 
 	mutex_unlock(&aw882xx->lock);
 	aw_dev_info(aw882xx->dev,"set value = %d, set aw882xx volume = %d", value, aw882xx_volume);
@@ -2305,6 +2333,12 @@ static int aw882xx_codec_probe(aw_snd_soc_codec_t *aw_codec)
 		return -EINVAL;
 	}
 
+	aw882xx->gain_ramp_wq = alloc_ordered_workqueue("aw882xx_gain_ramp", WQ_HIGHPRI);
+	if (!aw882xx->gain_ramp_wq)
+		aw_dev_err(aw882xx->dev, "create gain ramp workqueue failed");
+
+	INIT_DELAYED_WORK(&aw882xx->gain_ramp_end_work, aw882xx_gain_ramp_end_work);
+
 	INIT_DELAYED_WORK(&aw882xx->start_work, aw882xx_startup_work);
 	INIT_DELAYED_WORK(&aw882xx->interrupt_work, aw882xx_interrupt_work);
 	INIT_DELAYED_WORK(&aw882xx->dc_work, aw882xx_dc_prot_work);
@@ -2333,6 +2367,11 @@ static void aw882xx_codec_remove(aw_snd_soc_codec_t *aw_codec)
 		aw_componet_codec_ops.codec_get_drvdata(aw_codec);
 	aw_dev_info(aw882xx->dev, "enter");
 	aw_dev_deinit(aw882xx->aw_pa);
+	if (aw882xx->gain_ramp_wq) {
+		cancel_delayed_work_sync(&aw882xx->gain_ramp_end_work);
+		destroy_workqueue(aw882xx->gain_ramp_wq);
+		aw882xx->gain_ramp_wq = NULL;
+	}
 	destroy_workqueue(aw882xx->work_queue);
 	aw882xx->work_queue = NULL;
 }
@@ -2344,6 +2383,11 @@ static int aw882xx_codec_remove(aw_snd_soc_codec_t *aw_codec)
 
 	aw_dev_info(aw882xx->dev, "enter");
 	aw_dev_deinit(aw882xx->aw_pa);
+	if (aw882xx->gain_ramp_wq) {
+		cancel_delayed_work_sync(&aw882xx->gain_ramp_end_work);
+		destroy_workqueue(aw882xx->gain_ramp_wq);
+		aw882xx->gain_ramp_wq = NULL;
+	}
 	destroy_workqueue(aw882xx->work_queue);
 	aw882xx->work_queue = NULL;
 	return 0;
@@ -2497,6 +2541,7 @@ static struct aw882xx *aw882xx_malloc_init(struct i2c_client *i2c)
 	aw882xx->dbg_en_prof = true;
 	aw882xx->allow_pw = true;
 	aw882xx->work_queue = NULL;
+	aw882xx->gain_ramp_wq = NULL;
 
 	mutex_init(&aw882xx->lock);
 
