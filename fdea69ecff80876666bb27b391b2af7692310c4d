@@ -33,6 +33,23 @@
       "message": "Unfortunately, Xpeng after a few tries hotword fails after using WhatsApp or Telegram voice recording, so we might need more fixing",
       "revId": "fdea69ecff80876666bb27b391b2af7692310c4d",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "85c2039a_949326dd",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19252
+      },
+      "writtenOn": "2026-07-17T09:27:11Z",
+      "side": 1,
+      "message": "whilst this doesn\u0027t fully fix hotword on xpeng after recording voice with WhatsApp, it does prevent the lsm crash from appearing in logs",
+      "revId": "fdea69ecff80876666bb27b391b2af7692310c4d",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
