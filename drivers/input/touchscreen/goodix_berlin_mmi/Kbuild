@@ -101,47 +101,4 @@ else
 USE_TARGET_PRODUCT := $(TARGET_PRODUCT)
 endif
 
-ifneq ($(filter oneli, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_ONELI
-else ifneq ($(filter hiphi, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_HIPHI
-else ifneq ($(filter hiphic, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_HIPHIC
-else ifneq ($(filter li, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_LI
-else ifneq ($(filter eqs, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_EQS
-else ifneq ($(filter tundra%, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_TUNDRA
-else ifneq ($(filter miami%, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_MIAMI
-else ifneq ($(filter rtwo%, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_RTWO
-else ifneq ($(filter ctwo%, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_CTWO
-else ifneq ($(filter arcfox%, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_ARCFOX
-else ifneq ($(filter bronco, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_BRONCO
-else ifneq ($(filter felix, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DCONFIG_GTP_DISP_MODE
-else ifneq ($(filter zeekr%, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_ZEEKR
-else ifneq ($(filter lynkco%, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_LYNKCO
-else ifneq ($(filter bangkk%, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_BANGKK
-else ifneq ($(filter eqe%, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_EQE
-else ifneq ($(filter boston%, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_BOSTON
-else ifneq ($(filter cusco%, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_CUSCO
-else ifneq ($(filter avatrn%, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_AVATRN
-else ifneq ($(filter malmo%, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_MALMO
-else ifneq ($(filter tank%, $(USE_TARGET_PRODUCT)), )
-        ccflags-y += -DPRODUCT_TANK
-endif
-$(warning "william ccflags-y = $(ccflags-y)")
+ccflags-$(CONFIG_PRODUCT_TUNDRA) += -DPRODUCT_TUNDRA
