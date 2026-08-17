@@ -523,8 +523,7 @@ static int goodix_ts_mmi_set_report_rate(struct goodix_ts_core *core_data)
 				(mode == REPORT_RATE_CMD_480HZ ? "REPORT_RATE_480HZ" :
 				(mode == REPORT_RATE_CMD_576HZ ? "REPORT_RATE_576HZ" :
 				(mode == REPORT_RATE_CMD_720HZ ? "REPORT_RATE_720HZ" :
-				(mode == REPORT_RATE_CMD_120HZ ? "REPORT_RATE_120HZ" :
-				"Unsupported"))))));
+				"Unsupported")))));
 
 	return ret;
 }
@@ -1431,8 +1430,7 @@ static int goodix_ts_mmi_post_resume(struct device *dev) {
 				(core_data->get_mode.report_rate_mode == REPORT_RATE_CMD_480HZ ? "REPORT_RATE_480HZ" :
 				(core_data->get_mode.report_rate_mode == REPORT_RATE_CMD_576HZ ? "REPORT_RATE_576HZ" :
 				(core_data->get_mode.report_rate_mode == REPORT_RATE_CMD_720HZ ? "REPORT_RATE_720HZ" :
-				(core_data->get_mode.report_rate_mode == REPORT_RATE_CMD_120HZ ? "REPORT_RATE_120HZ" :
-				"Unsupported"))))));
+				"Unsupported")))));
 		}
 	}
 

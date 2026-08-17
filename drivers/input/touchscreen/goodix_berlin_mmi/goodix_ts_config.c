@@ -19,7 +19,7 @@ struct goodix_ic_report_rate_config report_rate_config_info = {
 	|| defined(PRODUCT_EQE) || defined(PRODUCT_CTWO) || defined(PRODUCT_BOSTON) \
 	|| defined(PRODUCT_AVATRN) || defined(PRODUCT_CUSCO) || defined(PRODUCT_ARCFOX) \
 	|| defined(PRODUCT_MALMO) || defined(PRODUCT_TANK)
-	.rate_config_count = 3,
+	.rate_config_count = 2,
 	.refresh_rate_ctrl = 0,
 	.interpolation_ctrl = 1,
 	{
@@ -32,11 +32,6 @@ struct goodix_ic_report_rate_config report_rate_config_info = {
 			.interpolation_flag = 1,
 			.report_rate = 360,
 			.command = 0x9D02,
-		},
-		{
-			.interpolation_flag = 2,
-			.report_rate = 120,
-			.command = 0x9D03,
 		},
 	}
 #elif defined(PRODUCT_HIPHIC)
