@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "b1d86aca_c8b54a9d",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19252
+      },
+      "writtenOn": "2026-08-17T22:31:18Z",
+      "side": 1,
+      "message": "unfortunately, with the goodix interpolation toggle just sticks to 360Hz polling, it never lowers to 250Hz with this added in",
+      "revId": "220be0cbe553412f92dc0aee9b2381467f045a5e",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
