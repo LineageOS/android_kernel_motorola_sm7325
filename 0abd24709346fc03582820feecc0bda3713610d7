@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "0113fd27_8d06210b",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19252
+      },
+      "writtenOn": "2026-08-24T22:23:32Z",
+      "side": 1,
+      "message": "UDFPS doesn\u0027t work still with inverted colors",
+      "revId": "0abd24709346fc03582820feecc0bda3713610d7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
