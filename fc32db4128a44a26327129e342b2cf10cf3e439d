@@ -16,6 +16,23 @@
       "message": "Xpeng builds with this. Nolen, can you please confirm berlna builds too?",
       "revId": "fc32db4128a44a26327129e342b2cf10cf3e439d",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "73aa5576_e5dc823b",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 16185
+      },
+      "writtenOn": "2026-08-26T21:27:28Z",
+      "side": 1,
+      "message": "builds on berlna",
+      "revId": "fc32db4128a44a26327129e342b2cf10cf3e439d",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
