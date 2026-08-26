@@ -1559,10 +1559,12 @@ static void sde_cp_crtc_setfeature(struct sde_cp_node *prop_node,
 	int i = 0, ret = 0;
 	bool feature_enabled = false;
 	struct sde_mdss_cfg *catalog = NULL;
+#ifdef CONFIG_GTP_FOD
 	struct drm_crtc *drm_crtc = &sde_crtc->base;
 	struct sde_crtc_state *cstate = to_sde_crtc_state(drm_crtc->state);
 	struct drm_property_blob *blob;
 	struct drm_msm_pcc *pcc_cfg;
+#endif
 
 	memset(&hw_cfg, 0, sizeof(hw_cfg));
 	sde_cp_get_hw_payload(prop_node, &hw_cfg, &feature_enabled);
