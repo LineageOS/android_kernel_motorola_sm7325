@@ -51,7 +51,8 @@ static int ts_mmi_queued_stop(struct ts_mmi_dev *touch_cdev) {
 	if (touch_cdev->pdata.gestures_enabled || touch_cdev->pdata.cli_gestures_enabled ||
 		touch_cdev->pdata.support_liquid_detection || touch_cdev->pdata.palm_enabled) {
 #if defined(CONFIG_BOARD_USES_DOUBLE_TAP_CTRL)
-		if(touch_cdev->gesture_mode_type != 0 || touch_cdev->pdata.support_liquid_detection != 0) {
+		if(touch_cdev->pdata.gestures_always_on ||
+			touch_cdev->gesture_mode_type != 0 || touch_cdev->pdata.support_liquid_detection != 0) {
 			dev_info(DEV_MMI, "%s: try to enter Gesture mode\n", __func__);
 			TRY_TO_CALL(panel_state, touch_cdev->pm_mode, TS_MMI_PM_GESTURE);
 			touch_cdev->pm_mode = TS_MMI_PM_GESTURE;

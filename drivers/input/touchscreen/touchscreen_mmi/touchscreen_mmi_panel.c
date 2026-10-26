@@ -90,6 +90,11 @@ int ts_mmi_parse_dt(struct ts_mmi_dev *touch_cdev,
 		ppdata->gestures_enabled = true;
 	}
 
+	if (of_property_read_bool(of_node, "mmi,gestures-always-on")) {
+		dev_info(DEV_TS, "%s: using gestures always on\n", __func__);
+		ppdata->gestures_always_on = true;
+	}
+
 	if (of_property_read_bool(of_node, "mmi,cli-enable-gestures")) {
 		dev_info(DEV_TS, "%s: using enable cli gestures\n", __func__);
 		ppdata->cli_gestures_enabled = true;
