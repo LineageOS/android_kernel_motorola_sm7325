@@ -67,5 +67,8 @@
 		//mmi,class-entry-name = "NVT-ts";
 		mmi,usb-charger-detection;
 		mmi,enable-gestures;
+		mmi,gestures-always-on;
+		mmi,supported_gesture_type = <0x02>;
+		novatek,legacy-gesture-fw;
 	};
 };
