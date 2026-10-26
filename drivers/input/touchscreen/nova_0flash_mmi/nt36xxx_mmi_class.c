@@ -597,6 +597,10 @@ static int nvt_mmi_panel_state(struct device *dev,
 #endif
 
 #if defined(CONFIG_BOARD_USES_DOUBLE_TAP_CTRL)
+			/* legacy fw doesn't support 0x7B, stays in 0x13 wakeup gesture mode */
+			if (ts->legacy_gesture_fw)
+				break;
+
                         if (ts_data->imports && ts_data->imports->get_gesture_type) {
                                 ts_data->imports->get_gesture_type(dev, &gesture_type);
 		        }

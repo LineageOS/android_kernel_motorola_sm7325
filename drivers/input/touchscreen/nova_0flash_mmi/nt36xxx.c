@@ -1253,7 +1253,7 @@ void nvt_ts_wakeup_gesture_report(uint8_t gesture_id, uint8_t *data)
 	if (keycode > 0) {
 #if IS_ENABLED(CONFIG_INPUT_TOUCHSCREEN_MMI)
 		if (ts->imports && ts->imports->report_gesture) {
-			struct gesture_event_data event;
+			struct gesture_event_data event = {0};
 			int ret = 0;
 
 			dev_dbg(&ts->client->dev,
@@ -1263,7 +1263,8 @@ void nvt_ts_wakeup_gesture_report(uint8_t gesture_id, uint8_t *data)
 			if(gesture_id == GESTURE_SINGLE_CLICK) {
 				event.evcode = 1;
 			} else if(gesture_id == GESTURE_DOUBLE_CLICK) {
-				event.evcode =4;
+				/* legacy fw reports each tap here, let touchscreen_mmi pair them */
+				event.evcode = ts->legacy_gesture_fw ? 1 : 4;
 			}
 #else
 			event.evcode = 1;
@@ -1421,6 +1422,9 @@ static int32_t nvt_parse_dt(struct device *dev)
         if (!of_property_read_u32(np, "novatek,supported_gesture_type", &value)){
         ts->supported_gesture_type = (uint8_t)value;
                 }
+        /* firmware without 0x7B gesture mode cmd, reports taps as GESTURE_DOUBLE_CLICK */
+        ts->legacy_gesture_fw = of_property_read_bool(np, "novatek,legacy-gesture-fw");
+        NVT_LOG("novatek,legacy-gesture-fw=%d\n", ts->legacy_gesture_fw);
 #endif
 
 #if NVT_TOUCH_SUPPORT_HW_RST
