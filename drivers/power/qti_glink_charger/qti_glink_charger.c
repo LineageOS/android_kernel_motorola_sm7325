@@ -229,6 +229,7 @@ struct qti_charger {
 	struct mutex			write_lock;
 	struct oem_read_buf_resp_msg	rx_buf;
 	atomic_t			rx_valid;
+	atomic_t			tx_valid;
 	struct work_struct		setup_work;
 	struct work_struct		notify_work;
 	struct oem_notify_ind_msg	notify_msg;
@@ -383,13 +384,16 @@ static int handle_oem_write_ack(struct qti_charger *chg, void *data, size_t len)
 	msg_ptr = data;
 	if (msg_ptr->ret_code) {
 		mmi_err(chg, "write ack, ret_code: %u\n", msg_ptr->ret_code);
-		return -EINVAL;
+		atomic_set(&chg->tx_valid, 0);
+	} else {
+		mmi_dbg(chg, "write ack\n");
+		atomic_set(&chg->tx_valid, 1);
 	}
 
-	mmi_dbg(chg, "write ack\n");
+	/* Wake the writer either way, it would otherwise wait for the timeout */
 	complete(&chg->write_ack);
 
-	return 0;
+	return msg_ptr->ret_code ? -EINVAL : 0;
 }
 
 static int handle_oem_notification(struct qti_charger *chg, void *data, size_t len)
@@ -477,6 +481,7 @@ static int qti_charger_write(struct qti_charger *chg, u32 property,
 
 	mutex_lock(&chg->write_lock);
 	reinit_completion(&chg->write_ack);
+	atomic_set(&chg->tx_valid, 0);
 
 	mmi_dbg(chg, "Start data write for property: %u, len=%zu\n",
 		property, val_len);
@@ -495,10 +500,16 @@ static int qti_charger_write(struct qti_charger *chg, u32 property,
 		mmi_err(chg, "timed out on property: %u\n", property);
 		rc = -ETIMEDOUT;
 		goto out;
-	} else {
-		rc = 0;
-		bm_ulog_print_log(OEM_BM_ULOG_SIZE);
 	}
+
+	if (!atomic_read(&chg->tx_valid)) {
+		mmi_err(chg, "write rejected on property: %u\n", property);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	rc = 0;
+	bm_ulog_print_log(OEM_BM_ULOG_SIZE);
 out:
 	mmi_dbg(chg, "Complete data write for property: %u\n", property);
 	mutex_unlock(&chg->write_lock);
@@ -3888,6 +3899,7 @@ static int qti_charger_probe(struct platform_device *pdev)
 	init_completion(&chg->read_ack);
 	init_completion(&chg->write_ack);
 	atomic_set(&chg->rx_valid, 0);
+	atomic_set(&chg->tx_valid, 0);
 	atomic_set(&chg->state, PMIC_GLINK_STATE_UP);
 	platform_set_drvdata(pdev, chg);
 	chg->dev = dev;
